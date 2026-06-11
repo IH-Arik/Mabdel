@@ -1,0 +1,1447 @@
+{
+  "dashboard_declared_count": 184,
+  "matched_count": 1,
+  "missing_in_backend_count": 183,
+  "backend_unused_dashboard_routes_count": 37,
+  "missing_in_backend": [
+    {
+      "original_path": "/admin/activities",
+      "resolved_path": "/api/v1/admin/activities",
+      "method": "GET",
+      "file": "activitiesApi.js",
+      "normalized": "api/v1/admin/activities"
+    },
+    {
+      "original_path": "/admin/activities",
+      "resolved_path": "/admin/activities",
+      "method": "GET",
+      "file": "activitiesApi.js",
+      "normalized": "admin/activities"
+    },
+    {
+      "original_path": "/admin/activities/:id",
+      "resolved_path": "/api/v1/admin/activities/:id",
+      "method": "POST",
+      "file": "activitiesApi.js",
+      "normalized": "api/v1/admin/activities/{}"
+    },
+    {
+      "original_path": "/admin/activities/:id",
+      "resolved_path": "/admin/activities/:id",
+      "method": "POST",
+      "file": "activitiesApi.js",
+      "normalized": "admin/activities/{}"
+    },
+    {
+      "original_path": "/admin/activities/:id/approve",
+      "resolved_path": "/api/v1/admin/activities/:id/approve",
+      "method": "POST",
+      "file": "activitiesApi.js",
+      "normalized": "api/v1/admin/activities/{}/approve"
+    },
+    {
+      "original_path": "/admin/activities/:id/approve",
+      "resolved_path": "/admin/activities/:id/approve",
+      "method": "POST",
+      "file": "activitiesApi.js",
+      "normalized": "admin/activities/{}/approve"
+    },
+    {
+      "original_path": "/admin/activities/:id/cancel",
+      "resolved_path": "/api/v1/admin/activities/:id/cancel",
+      "method": "POST",
+      "file": "activitiesApi.js",
+      "normalized": "api/v1/admin/activities/{}/cancel"
+    },
+    {
+      "original_path": "/admin/activities/:id/cancel",
+      "resolved_path": "/admin/activities/:id/cancel",
+      "method": "POST",
+      "file": "activitiesApi.js",
+      "normalized": "admin/activities/{}/cancel"
+    },
+    {
+      "original_path": "/admin/activities/search",
+      "resolved_path": "/api/v1/admin/activities/search",
+      "method": "DELETE",
+      "file": "activitiesApi.js",
+      "normalized": "api/v1/admin/activities/search"
+    },
+    {
+      "original_path": "/admin/activities/search",
+      "resolved_path": "/admin/activities/search",
+      "method": "DELETE",
+      "file": "activitiesApi.js",
+      "normalized": "admin/activities/search"
+    },
+    {
+      "original_path": "/admin/profile",
+      "resolved_path": "/api/v1/admin/profile",
+      "method": "PUT",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/profile"
+    },
+    {
+      "original_path": "/admin/profile",
+      "resolved_path": "/admin/profile",
+      "method": "PUT",
+      "file": "adminApi.js",
+      "normalized": "admin/profile"
+    },
+    {
+      "original_path": "/admin/settings/profile",
+      "resolved_path": "/api/v1/admin/settings/profile",
+      "method": "PUT",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/settings/profile"
+    },
+    {
+      "original_path": "/admin/settings/profile",
+      "resolved_path": "/admin/settings/profile",
+      "method": "PUT",
+      "file": "adminApi.js",
+      "normalized": "admin/settings/profile"
+    },
+    {
+      "original_path": "/admin/dashboard/overview",
+      "resolved_path": "/api/v1/admin/dashboard/overview",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/dashboard/overview"
+    },
+    {
+      "original_path": "/admin/dashboard/overview",
+      "resolved_path": "/admin/dashboard/overview",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/dashboard/overview"
+    },
+    {
+      "original_path": "/dashboard/overview",
+      "resolved_path": "/api/v1/dashboard/overview",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/dashboard/overview"
+    },
+    {
+      "original_path": "/dashboard/overview",
+      "resolved_path": "/dashboard/overview",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "dashboard/overview"
+    },
+    {
+      "original_path": "/admin/dashboard/analytics",
+      "resolved_path": "/api/v1/admin/dashboard/analytics",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/dashboard/analytics"
+    },
+    {
+      "original_path": "/admin/dashboard/analytics",
+      "resolved_path": "/admin/dashboard/analytics",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/dashboard/analytics"
+    },
+    {
+      "original_path": "/dashboard/analytics",
+      "resolved_path": "/api/v1/dashboard/analytics",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/dashboard/analytics"
+    },
+    {
+      "original_path": "/dashboard/analytics",
+      "resolved_path": "/dashboard/analytics",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "dashboard/analytics"
+    },
+    {
+      "original_path": "/admin/dashboard/recent-users",
+      "resolved_path": "/api/v1/admin/dashboard/recent-users",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/dashboard/recent-users"
+    },
+    {
+      "original_path": "/admin/dashboard/recent-users",
+      "resolved_path": "/admin/dashboard/recent-users",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/dashboard/recent-users"
+    },
+    {
+      "original_path": "/admin/dashboard/notifications/preview",
+      "resolved_path": "/api/v1/admin/dashboard/notifications/preview",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/dashboard/notifications/preview"
+    },
+    {
+      "original_path": "/admin/dashboard/notifications/preview",
+      "resolved_path": "/admin/dashboard/notifications/preview",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/dashboard/notifications/preview"
+    },
+    {
+      "original_path": "/admin/users",
+      "resolved_path": "/api/v1/admin/users",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users"
+    },
+    {
+      "original_path": "/admin/users",
+      "resolved_path": "/admin/users",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/users"
+    },
+    {
+      "original_path": "/admin/users/search",
+      "resolved_path": "/api/v1/admin/users/search",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users/search"
+    },
+    {
+      "original_path": "/admin/users/search",
+      "resolved_path": "/admin/users/search",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/users/search"
+    },
+    {
+      "original_path": "/admin/users/blocked",
+      "resolved_path": "/api/v1/admin/users/blocked",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users/blocked"
+    },
+    {
+      "original_path": "/admin/users/blocked",
+      "resolved_path": "/admin/users/blocked",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/users/blocked"
+    },
+    {
+      "original_path": "/admin/users/:id",
+      "resolved_path": "/api/v1/admin/users/:id",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users/{}"
+    },
+    {
+      "original_path": "/admin/users/:id",
+      "resolved_path": "/admin/users/:id",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/users/{}"
+    },
+    {
+      "original_path": "/admin/users/:id/block",
+      "resolved_path": "/api/v1/admin/users/:id/block",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users/{}/block"
+    },
+    {
+      "original_path": "/admin/users/:id/block",
+      "resolved_path": "/admin/users/:id/block",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/users/{}/block"
+    },
+    {
+      "original_path": "/admin/users/:id/ban",
+      "resolved_path": "/api/v1/admin/users/:id/ban",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users/{}/ban"
+    },
+    {
+      "original_path": "/admin/users/:id/ban",
+      "resolved_path": "/admin/users/:id/ban",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/users/{}/ban"
+    },
+    {
+      "original_path": "/admin/users/:id/unblock",
+      "resolved_path": "/api/v1/admin/users/:id/unblock",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users/{}/unblock"
+    },
+    {
+      "original_path": "/admin/users/:id/unblock",
+      "resolved_path": "/admin/users/:id/unblock",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/users/{}/unblock"
+    },
+    {
+      "original_path": "/admin/users/:id/unban",
+      "resolved_path": "/api/v1/admin/users/:id/unban",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users/{}/unban"
+    },
+    {
+      "original_path": "/admin/users/:id/unban",
+      "resolved_path": "/admin/users/:id/unban",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/users/{}/unban"
+    },
+    {
+      "original_path": "/admin/users/:id/notes",
+      "resolved_path": "/api/v1/admin/users/:id/notes",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users/{}/notes"
+    },
+    {
+      "original_path": "/admin/users/:id/notes",
+      "resolved_path": "/admin/users/:id/notes",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/users/{}/notes"
+    },
+    {
+      "original_path": "/admin/users/:id/status",
+      "resolved_path": "/api/v1/admin/users/:id/status",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users/{}/status"
+    },
+    {
+      "original_path": "/admin/users/:id/status",
+      "resolved_path": "/admin/users/:id/status",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "admin/users/{}/status"
+    },
+    {
+      "original_path": "/admin/events",
+      "resolved_path": "/api/v1/admin/events",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/events"
+    },
+    {
+      "original_path": "/admin/events",
+      "resolved_path": "/admin/events",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/events"
+    },
+    {
+      "original_path": "/admin/activities/:id/status",
+      "resolved_path": "/api/v1/admin/activities/:id/status",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/activities/{}/status"
+    },
+    {
+      "original_path": "/admin/activities/:id/status",
+      "resolved_path": "/admin/activities/:id/status",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "admin/activities/{}/status"
+    },
+    {
+      "original_path": "/admin/events/:id/status",
+      "resolved_path": "/api/v1/admin/events/:id/status",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/events/{}/status"
+    },
+    {
+      "original_path": "/admin/events/:id/status",
+      "resolved_path": "/admin/events/:id/status",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "admin/events/{}/status"
+    },
+    {
+      "original_path": "/admin/subscriptions",
+      "resolved_path": "/api/v1/admin/subscriptions",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/subscriptions"
+    },
+    {
+      "original_path": "/admin/subscriptions",
+      "resolved_path": "/admin/subscriptions",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/subscriptions"
+    },
+    {
+      "original_path": "/admin/subscriptions/fees",
+      "resolved_path": "/api/v1/admin/subscriptions/fees",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/subscriptions/fees"
+    },
+    {
+      "original_path": "/admin/subscriptions/fees",
+      "resolved_path": "/admin/subscriptions/fees",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "admin/subscriptions/fees"
+    },
+    {
+      "original_path": "/admin/subscriptions/:id",
+      "resolved_path": "/api/v1/admin/subscriptions/:id",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/subscriptions/{}"
+    },
+    {
+      "original_path": "/admin/subscriptions/:id",
+      "resolved_path": "/admin/subscriptions/:id",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/subscriptions/{}"
+    },
+    {
+      "original_path": "/admin/subscriptions/search",
+      "resolved_path": "/api/v1/admin/subscriptions/search",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/subscriptions/search"
+    },
+    {
+      "original_path": "/admin/subscriptions/search",
+      "resolved_path": "/admin/subscriptions/search",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/subscriptions/search"
+    },
+    {
+      "original_path": "/admin/notifications",
+      "resolved_path": "/api/v1/admin/notifications",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/notifications"
+    },
+    {
+      "original_path": "/admin/notifications",
+      "resolved_path": "/admin/notifications",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/notifications"
+    },
+    {
+      "original_path": "/admin/notifications/unread-count",
+      "resolved_path": "/api/v1/admin/notifications/unread-count",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/notifications/unread-count"
+    },
+    {
+      "original_path": "/admin/notifications/unread-count",
+      "resolved_path": "/admin/notifications/unread-count",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/notifications/unread-count"
+    },
+    {
+      "original_path": "/admin/notifications/:id/read",
+      "resolved_path": "/api/v1/admin/notifications/:id/read",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/notifications/{}/read"
+    },
+    {
+      "original_path": "/admin/notifications/:id/read",
+      "resolved_path": "/admin/notifications/:id/read",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "admin/notifications/{}/read"
+    },
+    {
+      "original_path": "/admin/notifications/read-all",
+      "resolved_path": "/api/v1/admin/notifications/read-all",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/notifications/read-all"
+    },
+    {
+      "original_path": "/admin/notifications/read-all",
+      "resolved_path": "/admin/notifications/read-all",
+      "method": "PATCH",
+      "file": "adminApi.js",
+      "normalized": "admin/notifications/read-all"
+    },
+    {
+      "original_path": "/admin/settings/security",
+      "resolved_path": "/api/v1/admin/settings/security",
+      "method": "PUT",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/settings/security"
+    },
+    {
+      "original_path": "/admin/settings/security",
+      "resolved_path": "/admin/settings/security",
+      "method": "PUT",
+      "file": "adminApi.js",
+      "normalized": "admin/settings/security"
+    },
+    {
+      "original_path": "/admin/password",
+      "resolved_path": "/api/v1/admin/password",
+      "method": "PUT",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/password"
+    },
+    {
+      "original_path": "/admin/password",
+      "resolved_path": "/admin/password",
+      "method": "PUT",
+      "file": "adminApi.js",
+      "normalized": "admin/password"
+    },
+    {
+      "original_path": "/admin/admins",
+      "resolved_path": "/api/v1/admin/admins",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/admins"
+    },
+    {
+      "original_path": "/admin/admins",
+      "resolved_path": "/admin/admins",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/admins"
+    },
+    {
+      "original_path": "/admin/create-admin",
+      "resolved_path": "/api/v1/admin/create-admin",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/create-admin"
+    },
+    {
+      "original_path": "/admin/create-admin",
+      "resolved_path": "/admin/create-admin",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/create-admin"
+    },
+    {
+      "original_path": "/admin/ai/stats",
+      "resolved_path": "/api/v1/admin/ai/stats",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/ai/stats"
+    },
+    {
+      "original_path": "/admin/ai/stats",
+      "resolved_path": "/admin/ai/stats",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/ai/stats"
+    },
+    {
+      "original_path": "/admin/ai/logs",
+      "resolved_path": "/api/v1/admin/ai/logs",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/ai/logs"
+    },
+    {
+      "original_path": "/admin/ai/logs",
+      "resolved_path": "/admin/ai/logs",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/ai/logs"
+    },
+    {
+      "original_path": "/super/platform-summary",
+      "resolved_path": "/api/v1/super/platform-summary",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/super/platform-summary"
+    },
+    {
+      "original_path": "/super/platform-summary",
+      "resolved_path": "/super/platform-summary",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "super/platform-summary"
+    },
+    {
+      "original_path": "/super/global-growth",
+      "resolved_path": "/api/v1/super/global-growth",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/super/global-growth"
+    },
+    {
+      "original_path": "/super/global-growth",
+      "resolved_path": "/super/global-growth",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "super/global-growth"
+    },
+    {
+      "original_path": "/admin/users-growth",
+      "resolved_path": "/api/v1/admin/users-growth",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/users-growth"
+    },
+    {
+      "original_path": "/admin/users-growth",
+      "resolved_path": "/admin/users-growth",
+      "method": "GET",
+      "file": "adminApi.js",
+      "normalized": "admin/users-growth"
+    },
+    {
+      "original_path": "/admin/settings/content",
+      "resolved_path": "/api/v1/admin/settings/content",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "api/v1/admin/settings/content"
+    },
+    {
+      "original_path": "/admin/settings/content",
+      "resolved_path": "/admin/settings/content",
+      "method": "POST",
+      "file": "adminApi.js",
+      "normalized": "admin/settings/content"
+    },
+    {
+      "original_path": "/admin/ads",
+      "resolved_path": "/api/v1/admin/ads",
+      "method": "POST",
+      "file": "adsApi.js",
+      "normalized": "api/v1/admin/ads"
+    },
+    {
+      "original_path": "/admin/ads",
+      "resolved_path": "/admin/ads",
+      "method": "POST",
+      "file": "adsApi.js",
+      "normalized": "admin/ads"
+    },
+    {
+      "original_path": "/ads/admin",
+      "resolved_path": "/api/v1/ads/admin",
+      "method": "POST",
+      "file": "adsApi.js",
+      "normalized": "api/v1/ads/admin"
+    },
+    {
+      "original_path": "/ads/admin",
+      "resolved_path": "/ads/admin",
+      "method": "POST",
+      "file": "adsApi.js",
+      "normalized": "ads/admin"
+    },
+    {
+      "original_path": "/admin/ads/:id",
+      "resolved_path": "/api/v1/admin/ads/:id",
+      "method": "PATCH",
+      "file": "adsApi.js",
+      "normalized": "api/v1/admin/ads/{}"
+    },
+    {
+      "original_path": "/admin/ads/:id",
+      "resolved_path": "/admin/ads/:id",
+      "method": "PATCH",
+      "file": "adsApi.js",
+      "normalized": "admin/ads/{}"
+    },
+    {
+      "original_path": "/ads/admin/:id",
+      "resolved_path": "/api/v1/ads/admin/:id",
+      "method": "PATCH",
+      "file": "adsApi.js",
+      "normalized": "api/v1/ads/admin/{}"
+    },
+    {
+      "original_path": "/ads/admin/:id",
+      "resolved_path": "/ads/admin/:id",
+      "method": "PATCH",
+      "file": "adsApi.js",
+      "normalized": "ads/admin/{}"
+    },
+    {
+      "original_path": "/admin/login",
+      "resolved_path": "/api/v1/admin/login",
+      "method": "GET",
+      "file": "authApi.js",
+      "normalized": "api/v1/admin/login"
+    },
+    {
+      "original_path": "/admin/login",
+      "resolved_path": "/admin/login",
+      "method": "GET",
+      "file": "authApi.js",
+      "normalized": "admin/login"
+    },
+    {
+      "original_path": "/auth/admin/login",
+      "resolved_path": "/api/v1/auth/admin/login",
+      "method": "GET",
+      "file": "authApi.js",
+      "normalized": "api/v1/auth/admin/login"
+    },
+    {
+      "original_path": "/auth/admin/login",
+      "resolved_path": "/auth/admin/login",
+      "method": "GET",
+      "file": "authApi.js",
+      "normalized": "auth/admin/login"
+    },
+    {
+      "original_path": "/auth/login",
+      "resolved_path": "/auth/login",
+      "method": "GET",
+      "file": "authApi.js",
+      "normalized": "auth/login"
+    },
+    {
+      "original_path": "/auth/admin/change-password",
+      "resolved_path": "/api/v1/auth/admin/change-password",
+      "method": "PUT",
+      "file": "authApi.js",
+      "normalized": "api/v1/auth/admin/change-password"
+    },
+    {
+      "original_path": "/auth/admin/change-password",
+      "resolved_path": "/auth/admin/change-password",
+      "method": "PUT",
+      "file": "authApi.js",
+      "normalized": "auth/admin/change-password"
+    },
+    {
+      "original_path": "/admin/logout",
+      "resolved_path": "/api/v1/admin/logout",
+      "method": "POST",
+      "file": "authApi.js",
+      "normalized": "api/v1/admin/logout"
+    },
+    {
+      "original_path": "/admin/logout",
+      "resolved_path": "/admin/logout",
+      "method": "POST",
+      "file": "authApi.js",
+      "normalized": "admin/logout"
+    },
+    {
+      "original_path": "/auth/admin/logout",
+      "resolved_path": "/api/v1/auth/admin/logout",
+      "method": "POST",
+      "file": "authApi.js",
+      "normalized": "api/v1/auth/admin/logout"
+    },
+    {
+      "original_path": "/auth/admin/logout",
+      "resolved_path": "/auth/admin/logout",
+      "method": "POST",
+      "file": "authApi.js",
+      "normalized": "auth/admin/logout"
+    },
+    {
+      "original_path": "/admin/logout-all",
+      "resolved_path": "/api/v1/admin/logout-all",
+      "method": "POST",
+      "file": "authApi.js",
+      "normalized": "api/v1/admin/logout-all"
+    },
+    {
+      "original_path": "/admin/logout-all",
+      "resolved_path": "/admin/logout-all",
+      "method": "POST",
+      "file": "authApi.js",
+      "normalized": "admin/logout-all"
+    },
+    {
+      "original_path": "/auth/admin/logout-all",
+      "resolved_path": "/api/v1/auth/admin/logout-all",
+      "method": "POST",
+      "file": "authApi.js",
+      "normalized": "api/v1/auth/admin/logout-all"
+    },
+    {
+      "original_path": "/auth/admin/logout-all",
+      "resolved_path": "/auth/admin/logout-all",
+      "method": "POST",
+      "file": "authApi.js",
+      "normalized": "auth/admin/logout-all"
+    },
+    {
+      "original_path": "/admin/categories",
+      "resolved_path": "/api/v1/admin/categories",
+      "method": "POST",
+      "file": "categoriesApi.js",
+      "normalized": "api/v1/admin/categories"
+    },
+    {
+      "original_path": "/admin/categories",
+      "resolved_path": "/admin/categories",
+      "method": "POST",
+      "file": "categoriesApi.js",
+      "normalized": "admin/categories"
+    },
+    {
+      "original_path": "/admin/categories/:id",
+      "resolved_path": "/api/v1/admin/categories/:id",
+      "method": "PATCH",
+      "file": "categoriesApi.js",
+      "normalized": "api/v1/admin/categories/{}"
+    },
+    {
+      "original_path": "/admin/categories/:id",
+      "resolved_path": "/admin/categories/:id",
+      "method": "PATCH",
+      "file": "categoriesApi.js",
+      "normalized": "admin/categories/{}"
+    },
+    {
+      "original_path": "/admin/chats",
+      "resolved_path": "/api/v1/admin/chats",
+      "method": "GET",
+      "file": "chatApi.js",
+      "normalized": "api/v1/admin/chats"
+    },
+    {
+      "original_path": "/admin/chats",
+      "resolved_path": "/admin/chats",
+      "method": "GET",
+      "file": "chatApi.js",
+      "normalized": "admin/chats"
+    },
+    {
+      "original_path": "/admin/settings/content",
+      "resolved_path": "/api/v1/admin/settings/content",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "api/v1/admin/settings/content"
+    },
+    {
+      "original_path": "/admin/settings/content",
+      "resolved_path": "/admin/settings/content",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "admin/settings/content"
+    },
+    {
+      "original_path": "/cms/pages/:slug",
+      "resolved_path": "/api/v1/cms/pages/:slug",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "api/v1/cms/pages/{}"
+    },
+    {
+      "original_path": "/cms/pages/:slug",
+      "resolved_path": "/cms/pages/:slug",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "cms/pages/{}"
+    },
+    {
+      "original_path": "/cms/pages/terms-of-service",
+      "resolved_path": "/api/v1/cms/pages/terms-of-service",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "api/v1/cms/pages/terms-of-service"
+    },
+    {
+      "original_path": "/cms/pages/terms-of-service",
+      "resolved_path": "/cms/pages/terms-of-service",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "cms/pages/terms-of-service"
+    },
+    {
+      "original_path": "/cms/pages/privacy-policy",
+      "resolved_path": "/api/v1/cms/pages/privacy-policy",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "api/v1/cms/pages/privacy-policy"
+    },
+    {
+      "original_path": "/cms/pages/privacy-policy",
+      "resolved_path": "/cms/pages/privacy-policy",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "cms/pages/privacy-policy"
+    },
+    {
+      "original_path": "/cms/pages/about-us",
+      "resolved_path": "/api/v1/cms/pages/about-us",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "api/v1/cms/pages/about-us"
+    },
+    {
+      "original_path": "/cms/pages/about-us",
+      "resolved_path": "/cms/pages/about-us",
+      "method": "GET",
+      "file": "cmsApi.js",
+      "normalized": "cms/pages/about-us"
+    },
+    {
+      "original_path": "/cms/admin/pages",
+      "resolved_path": "/api/v1/cms/admin/pages",
+      "method": "POST",
+      "file": "cmsApi.js",
+      "normalized": "api/v1/cms/admin/pages"
+    },
+    {
+      "original_path": "/cms/admin/pages",
+      "resolved_path": "/cms/admin/pages",
+      "method": "POST",
+      "file": "cmsApi.js",
+      "normalized": "cms/admin/pages"
+    },
+    {
+      "original_path": "/cms/admin/pages/:slug",
+      "resolved_path": "/api/v1/cms/admin/pages/:slug",
+      "method": "PATCH",
+      "file": "cmsApi.js",
+      "normalized": "api/v1/cms/admin/pages/{}"
+    },
+    {
+      "original_path": "/cms/admin/pages/:slug",
+      "resolved_path": "/cms/admin/pages/:slug",
+      "method": "PATCH",
+      "file": "cmsApi.js",
+      "normalized": "cms/admin/pages/{}"
+    },
+    {
+      "original_path": "/admin/earnings/transactions",
+      "resolved_path": "/api/v1/admin/earnings/transactions",
+      "method": "GET",
+      "file": "earningsApi.js",
+      "normalized": "api/v1/admin/earnings/transactions"
+    },
+    {
+      "original_path": "/admin/earnings/transactions",
+      "resolved_path": "/admin/earnings/transactions",
+      "method": "GET",
+      "file": "earningsApi.js",
+      "normalized": "admin/earnings/transactions"
+    },
+    {
+      "original_path": "/billing/admin/transactions",
+      "resolved_path": "/api/v1/billing/admin/transactions",
+      "method": "GET",
+      "file": "earningsApi.js",
+      "normalized": "api/v1/billing/admin/transactions"
+    },
+    {
+      "original_path": "/billing/admin/transactions",
+      "resolved_path": "/billing/admin/transactions",
+      "method": "GET",
+      "file": "earningsApi.js",
+      "normalized": "billing/admin/transactions"
+    },
+    {
+      "original_path": "/admin/earnings/transactions/:id",
+      "resolved_path": "/api/v1/admin/earnings/transactions/:id",
+      "method": "GET",
+      "file": "earningsApi.js",
+      "normalized": "api/v1/admin/earnings/transactions/{}"
+    },
+    {
+      "original_path": "/admin/earnings/transactions/:id",
+      "resolved_path": "/admin/earnings/transactions/:id",
+      "method": "GET",
+      "file": "earningsApi.js",
+      "normalized": "admin/earnings/transactions/{}"
+    },
+    {
+      "original_path": "/admin/earnings/transactions/:id/invoice",
+      "resolved_path": "/api/v1/admin/earnings/transactions/:id/invoice",
+      "method": "POST",
+      "file": "earningsApi.js",
+      "normalized": "api/v1/admin/earnings/transactions/{}/invoice"
+    },
+    {
+      "original_path": "/admin/earnings/transactions/:id/invoice",
+      "resolved_path": "/admin/earnings/transactions/:id/invoice",
+      "method": "POST",
+      "file": "earningsApi.js",
+      "normalized": "admin/earnings/transactions/{}/invoice"
+    },
+    {
+      "original_path": "/admin/event-creators",
+      "resolved_path": "/api/v1/admin/event-creators",
+      "method": "GET",
+      "file": "eventCreatorsApi.js",
+      "normalized": "api/v1/admin/event-creators"
+    },
+    {
+      "original_path": "/admin/event-creators",
+      "resolved_path": "/admin/event-creators",
+      "method": "GET",
+      "file": "eventCreatorsApi.js",
+      "normalized": "admin/event-creators"
+    },
+    {
+      "original_path": "/admin/event-creators/premium",
+      "resolved_path": "/api/v1/admin/event-creators/premium",
+      "method": "GET",
+      "file": "eventCreatorsApi.js",
+      "normalized": "api/v1/admin/event-creators/premium"
+    },
+    {
+      "original_path": "/admin/event-creators/premium",
+      "resolved_path": "/admin/event-creators/premium",
+      "method": "GET",
+      "file": "eventCreatorsApi.js",
+      "normalized": "admin/event-creators/premium"
+    },
+    {
+      "original_path": "/admin/event-creators/:id",
+      "resolved_path": "/api/v1/admin/event-creators/:id",
+      "method": "GET",
+      "file": "eventCreatorsApi.js",
+      "normalized": "api/v1/admin/event-creators/{}"
+    },
+    {
+      "original_path": "/admin/event-creators/:id",
+      "resolved_path": "/admin/event-creators/:id",
+      "method": "GET",
+      "file": "eventCreatorsApi.js",
+      "normalized": "admin/event-creators/{}"
+    },
+    {
+      "original_path": "/admin/event-creators/premium/:id",
+      "resolved_path": "/api/v1/admin/event-creators/premium/:id",
+      "method": "GET",
+      "file": "eventCreatorsApi.js",
+      "normalized": "api/v1/admin/event-creators/premium/{}"
+    },
+    {
+      "original_path": "/admin/event-creators/premium/:id",
+      "resolved_path": "/admin/event-creators/premium/:id",
+      "method": "GET",
+      "file": "eventCreatorsApi.js",
+      "normalized": "admin/event-creators/premium/{}"
+    },
+    {
+      "original_path": "/admin/event-creators/:id/payout",
+      "resolved_path": "/api/v1/admin/event-creators/:id/payout",
+      "method": "POST",
+      "file": "eventCreatorsApi.js",
+      "normalized": "api/v1/admin/event-creators/{}/payout"
+    },
+    {
+      "original_path": "/admin/event-creators/:id/payout",
+      "resolved_path": "/admin/event-creators/:id/payout",
+      "method": "POST",
+      "file": "eventCreatorsApi.js",
+      "normalized": "admin/event-creators/{}/payout"
+    },
+    {
+      "original_path": "/admin/notifications/read",
+      "resolved_path": "/api/v1/admin/notifications/read",
+      "method": "POST",
+      "file": "notificationsApi.js",
+      "normalized": "api/v1/admin/notifications/read"
+    },
+    {
+      "original_path": "/admin/notifications/read",
+      "resolved_path": "/admin/notifications/read",
+      "method": "POST",
+      "file": "notificationsApi.js",
+      "normalized": "admin/notifications/read"
+    },
+    {
+      "original_path": "/admin/reports",
+      "resolved_path": "/api/v1/admin/reports",
+      "method": "GET",
+      "file": "reportsApi.js",
+      "normalized": "api/v1/admin/reports"
+    },
+    {
+      "original_path": "/admin/reports",
+      "resolved_path": "/admin/reports",
+      "method": "GET",
+      "file": "reportsApi.js",
+      "normalized": "admin/reports"
+    },
+    {
+      "original_path": "/reports/admin",
+      "resolved_path": "/api/v1/reports/admin",
+      "method": "GET",
+      "file": "reportsApi.js",
+      "normalized": "api/v1/reports/admin"
+    },
+    {
+      "original_path": "/reports/admin",
+      "resolved_path": "/reports/admin",
+      "method": "GET",
+      "file": "reportsApi.js",
+      "normalized": "reports/admin"
+    },
+    {
+      "original_path": "/admin/reports/:reportId/resolve",
+      "resolved_path": "/api/v1/admin/reports/:reportId/resolve",
+      "method": "POST",
+      "file": "reportsApi.js",
+      "normalized": "api/v1/admin/reports/{}/resolve"
+    },
+    {
+      "original_path": "/admin/reports/:reportId/resolve",
+      "resolved_path": "/admin/reports/:reportId/resolve",
+      "method": "POST",
+      "file": "reportsApi.js",
+      "normalized": "admin/reports/{}/resolve"
+    },
+    {
+      "original_path": "/reports/admin/:reportId/status",
+      "resolved_path": "/api/v1/reports/admin/:reportId/status",
+      "method": "PATCH",
+      "file": "reportsApi.js",
+      "normalized": "api/v1/reports/admin/{}/status"
+    },
+    {
+      "original_path": "/reports/admin/:reportId/status",
+      "resolved_path": "/reports/admin/:reportId/status",
+      "method": "PATCH",
+      "file": "reportsApi.js",
+      "normalized": "reports/admin/{}/status"
+    },
+    {
+      "original_path": "/admin/reports/:reportId/dismiss",
+      "resolved_path": "/api/v1/admin/reports/:reportId/dismiss",
+      "method": "POST",
+      "file": "reportsApi.js",
+      "normalized": "api/v1/admin/reports/{}/dismiss"
+    },
+    {
+      "original_path": "/admin/reports/:reportId/dismiss",
+      "resolved_path": "/admin/reports/:reportId/dismiss",
+      "method": "POST",
+      "file": "reportsApi.js",
+      "normalized": "admin/reports/{}/dismiss"
+    },
+    {
+      "original_path": "/admin/reports/:reportId/action",
+      "resolved_path": "/api/v1/admin/reports/:reportId/action",
+      "method": "POST",
+      "file": "reportsApi.js",
+      "normalized": "api/v1/admin/reports/{}/action"
+    },
+    {
+      "original_path": "/admin/reports/:reportId/action",
+      "resolved_path": "/admin/reports/:reportId/action",
+      "method": "POST",
+      "file": "reportsApi.js",
+      "normalized": "admin/reports/{}/action"
+    },
+    {
+      "original_path": "/shop/admin/products",
+      "resolved_path": "/api/v1/shop/admin/products",
+      "method": "GET",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/admin/products"
+    },
+    {
+      "original_path": "/shop/admin/products",
+      "resolved_path": "/shop/admin/products",
+      "method": "GET",
+      "file": "shopApi.js",
+      "normalized": "shop/admin/products"
+    },
+    {
+      "original_path": "/shop/admin/products/table",
+      "resolved_path": "/api/v1/shop/admin/products/table",
+      "method": "POST",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/admin/products/table"
+    },
+    {
+      "original_path": "/shop/admin/products/table",
+      "resolved_path": "/shop/admin/products/table",
+      "method": "POST",
+      "file": "shopApi.js",
+      "normalized": "shop/admin/products/table"
+    },
+    {
+      "original_path": "/shop/admin/products/:productId",
+      "resolved_path": "/api/v1/shop/admin/products/:productId",
+      "method": "PATCH",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/admin/products/{}"
+    },
+    {
+      "original_path": "/shop/admin/products/:productId",
+      "resolved_path": "/shop/admin/products/:productId",
+      "method": "PATCH",
+      "file": "shopApi.js",
+      "normalized": "shop/admin/products/{}"
+    },
+    {
+      "original_path": "/shop/admin/products/:productId/status",
+      "resolved_path": "/api/v1/shop/admin/products/:productId/status",
+      "method": "PATCH",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/admin/products/{}/status"
+    },
+    {
+      "original_path": "/shop/admin/products/:productId/status",
+      "resolved_path": "/shop/admin/products/:productId/status",
+      "method": "PATCH",
+      "file": "shopApi.js",
+      "normalized": "shop/admin/products/{}/status"
+    },
+    {
+      "original_path": "/shop/products",
+      "resolved_path": "/api/v1/shop/products",
+      "method": "DELETE",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/products"
+    },
+    {
+      "original_path": "/shop/products",
+      "resolved_path": "/shop/products",
+      "method": "DELETE",
+      "file": "shopApi.js",
+      "normalized": "shop/products"
+    },
+    {
+      "original_path": "/shop/products/:id",
+      "resolved_path": "/api/v1/shop/products/:id",
+      "method": "POST",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/products/{}"
+    },
+    {
+      "original_path": "/shop/products/:id",
+      "resolved_path": "/shop/products/:id",
+      "method": "POST",
+      "file": "shopApi.js",
+      "normalized": "shop/products/{}"
+    },
+    {
+      "original_path": "/shop/cart",
+      "resolved_path": "/api/v1/shop/cart",
+      "method": "DELETE",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/cart"
+    },
+    {
+      "original_path": "/shop/cart",
+      "resolved_path": "/shop/cart",
+      "method": "DELETE",
+      "file": "shopApi.js",
+      "normalized": "shop/cart"
+    },
+    {
+      "original_path": "/shop/cart/items",
+      "resolved_path": "/api/v1/shop/cart/items",
+      "method": "POST",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/cart/items"
+    },
+    {
+      "original_path": "/shop/cart/items",
+      "resolved_path": "/shop/cart/items",
+      "method": "POST",
+      "file": "shopApi.js",
+      "normalized": "shop/cart/items"
+    },
+    {
+      "original_path": "/shop/cart/items/:productId",
+      "resolved_path": "/api/v1/shop/cart/items/:productId",
+      "method": "PATCH",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/cart/items/{}"
+    },
+    {
+      "original_path": "/shop/cart/items/:productId",
+      "resolved_path": "/shop/cart/items/:productId",
+      "method": "PATCH",
+      "file": "shopApi.js",
+      "normalized": "shop/cart/items/{}"
+    },
+    {
+      "original_path": "/shop/checkout",
+      "resolved_path": "/api/v1/shop/checkout",
+      "method": "DELETE",
+      "file": "shopApi.js",
+      "normalized": "api/v1/shop/checkout"
+    },
+    {
+      "original_path": "/shop/checkout",
+      "resolved_path": "/shop/checkout",
+      "method": "DELETE",
+      "file": "shopApi.js",
+      "normalized": "shop/checkout"
+    }
+  ],
+  "backend_unused_dashboard_routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/users"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/users/{user_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/dashboard/admin/users/{user_id}/status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/admin/create-admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/users-growth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/earnings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/earnings/transactions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/earnings/transactions/{trx_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/reports"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/profile"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/dashboard/admin/profile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/admins"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/settings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/subscriptions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/admin/subscriptions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/ai/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/ai/logs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/profile"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/dashboard/admin/profile"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/admin/change-password"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/admin/logout"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/settings/content"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/admin/settings/content"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/admin/auth/forgot-password"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/admin/auth/verify-otp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/admin/auth/reset-password"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/chats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/admin/chats/{user_id}/messages"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/admin/chats/{user_id}/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/super/platform-summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/super/global-growth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/notifications/"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/notifications/{notification_id}/read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard/notifications/unread-count"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/dashboard/webhooks/stripe"
+    }
+  ],
+  "matched": [
+    {
+      "dashboard_path": "/api/v1/auth/login",
+      "dashboard_file": "authApi.js",
+      "method": "GET",
+      "backend_path": "/api/v1/auth/login"
+    }
+  ]
+}

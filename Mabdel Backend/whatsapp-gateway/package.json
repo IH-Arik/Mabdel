@@ -1,0 +1,14 @@
+{
+  "name": "mabdel-whatsapp-gateway",
+  "version": "1.0.0",
+  "description": "Local WhatsApp Gateway for Mabdel AI proect using OpenWA",
+  "main": "gateway.js",
+  "scripts": {
+    "start": "node gateway.js"
+  },
+  "dependencies": {
+    "@open-wa/wa-automate": "^4.63.1",
+    "axios": "^1.7.2",
+    "express": "^4.19.2"
+  }
+}

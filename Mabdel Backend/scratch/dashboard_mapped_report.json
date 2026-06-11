@@ -1,0 +1,1442 @@
+[
+  {
+    "file": "activitiesApi.js",
+    "function": "listAdminActivities",
+    "dashboard_path": "/admin/activities",
+    "resolved_path": "/api/v1/admin/activities",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "activitiesApi.js",
+    "function": "getAdminActivityById",
+    "dashboard_path": "/admin/activities/:id",
+    "resolved_path": "/api/v1/admin/activities/:id",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "activitiesApi.js",
+    "function": "approveAdminActivity",
+    "dashboard_path": "/admin/activities/:id/approve",
+    "resolved_path": "/api/v1/admin/activities/:id/approve",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "activitiesApi.js",
+    "function": "cancelAdminActivity",
+    "dashboard_path": "/admin/activities/:id/cancel",
+    "resolved_path": "/api/v1/admin/activities/:id/cancel",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/smartflow/bulk-messages/{bulk_message_id}/cancel",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "activitiesApi.js",
+    "function": "deleteAdminActivity",
+    "dashboard_path": "/admin/activities/:id",
+    "resolved_path": "/api/v1/admin/activities/:id",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "activitiesApi.js",
+    "function": "searchAdminActivities",
+    "dashboard_path": "/admin/activities/search",
+    "resolved_path": "/api/v1/admin/activities/search",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getMyProfile",
+    "dashboard_path": "/admin/profile",
+    "resolved_path": "/api/v1/admin/profile",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/profile",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getMyProfile",
+    "dashboard_path": "/admin/settings/profile",
+    "resolved_path": "/api/v1/admin/settings/profile",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateMyProfile",
+    "dashboard_path": "/admin/profile",
+    "resolved_path": "/api/v1/admin/profile",
+    "method": "PUT",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateMyProfile",
+    "dashboard_path": "/admin/settings/profile",
+    "resolved_path": "/api/v1/admin/settings/profile",
+    "method": "PUT",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getDashboardOverview",
+    "dashboard_path": "/admin/dashboard/overview",
+    "resolved_path": "/api/v1/admin/dashboard/overview",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getDashboardOverview",
+    "dashboard_path": "/dashboard/overview",
+    "resolved_path": "/api/v1/dashboard/overview",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getDashboardAnalytics",
+    "dashboard_path": "/admin/dashboard/analytics",
+    "resolved_path": "/api/v1/admin/dashboard/analytics",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getDashboardAnalytics",
+    "dashboard_path": "/dashboard/analytics",
+    "resolved_path": "/api/v1/dashboard/analytics",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getDashboardAnalytics",
+    "dashboard_path": "/admin/dashboard/overview",
+    "resolved_path": "/api/v1/admin/dashboard/overview",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listRecentUsers",
+    "dashboard_path": "/admin/dashboard/recent-users",
+    "resolved_path": "/api/v1/admin/dashboard/recent-users",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getDashboardNotificationPreview",
+    "dashboard_path": "/admin/dashboard/notifications/preview",
+    "resolved_path": "/api/v1/admin/dashboard/notifications/preview",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listUsers",
+    "dashboard_path": "/admin/users",
+    "resolved_path": "/api/v1/admin/users",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/users",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listUsersSafe",
+    "dashboard_path": "/admin/users",
+    "resolved_path": "/api/v1/admin/users",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/users",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listUsersSafe",
+    "dashboard_path": "/admin/users/search",
+    "resolved_path": "/api/v1/admin/users/search",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "searchUsers",
+    "dashboard_path": "/admin/users/search",
+    "resolved_path": "/api/v1/admin/users/search",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listBlockedUsers",
+    "dashboard_path": "/admin/users/blocked",
+    "resolved_path": "/api/v1/admin/users/blocked",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getUserById",
+    "dashboard_path": "/admin/users/:id",
+    "resolved_path": "/api/v1/admin/users/:id",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/users/{user_id}",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "blockUser",
+    "dashboard_path": "/admin/users/:id/block",
+    "resolved_path": "/api/v1/admin/users/:id/block",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "blockUser",
+    "dashboard_path": "/admin/users/:id/ban",
+    "resolved_path": "/api/v1/admin/users/:id/ban",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "unblockUser",
+    "dashboard_path": "/admin/users/:id/unblock",
+    "resolved_path": "/api/v1/admin/users/:id/unblock",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "unblockUser",
+    "dashboard_path": "/admin/users/:id/unban",
+    "resolved_path": "/api/v1/admin/users/:id/unban",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "addUserNote",
+    "dashboard_path": "/admin/users/:id/notes",
+    "resolved_path": "/api/v1/admin/users/:id/notes",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateUserStatus",
+    "dashboard_path": "/admin/users/:id/status",
+    "resolved_path": "/api/v1/admin/users/:id/status",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateUserStatus",
+    "dashboard_path": "/admin/users/:id",
+    "resolved_path": "/api/v1/admin/users/:id",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateUserStatus",
+    "dashboard_path": "/admin/users/:id/status",
+    "resolved_path": "/api/v1/admin/users/:id/status",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateUserStatus",
+    "dashboard_path": "/admin/users/:id",
+    "resolved_path": "/api/v1/admin/users/:id",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateUserStatus",
+    "dashboard_path": "/admin/users/:id/status",
+    "resolved_path": "/api/v1/admin/users/:id/status",
+    "method": "PATCH",
+    "matched_backend_path": "/api/v1/dashboard/admin/users/{user_id}/status",
+    "matched_backend_method": "PATCH",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listActivities",
+    "dashboard_path": "/admin/activities",
+    "resolved_path": "/api/v1/admin/activities",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listEvents",
+    "dashboard_path": "/admin/events",
+    "resolved_path": "/api/v1/admin/events",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getActivityById",
+    "dashboard_path": "/admin/activities/:id",
+    "resolved_path": "/api/v1/admin/activities/:id",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "approveActivity",
+    "dashboard_path": "/admin/activities/:id/approve",
+    "resolved_path": "/api/v1/admin/activities/:id/approve",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "cancelActivity",
+    "dashboard_path": "/admin/activities/:id/cancel",
+    "resolved_path": "/api/v1/admin/activities/:id/cancel",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/smartflow/bulk-messages/{bulk_message_id}/cancel",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "deleteActivity",
+    "dashboard_path": "/admin/activities/:id",
+    "resolved_path": "/api/v1/admin/activities/:id",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "searchActivities",
+    "dashboard_path": "/admin/activities/search",
+    "resolved_path": "/api/v1/admin/activities/search",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateActivityStatus",
+    "dashboard_path": "/admin/activities/:id/status",
+    "resolved_path": "/api/v1/admin/activities/:id/status",
+    "method": "PATCH",
+    "matched_backend_path": "/api/v1/dashboard/admin/users/{user_id}/status",
+    "matched_backend_method": "PATCH",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateEventStatus",
+    "dashboard_path": "/admin/events/:id/status",
+    "resolved_path": "/api/v1/admin/events/:id/status",
+    "method": "PATCH",
+    "matched_backend_path": "/api/v1/dashboard/admin/users/{user_id}/status",
+    "matched_backend_method": "PATCH",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listSubscriptions",
+    "dashboard_path": "/admin/subscriptions",
+    "resolved_path": "/api/v1/admin/subscriptions",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/subscriptions",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getSubscriptionFees",
+    "dashboard_path": "/admin/subscriptions/fees",
+    "resolved_path": "/api/v1/admin/subscriptions/fees",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateSubscriptionFees",
+    "dashboard_path": "/admin/subscriptions/fees",
+    "resolved_path": "/api/v1/admin/subscriptions/fees",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateSubscriptionFees",
+    "dashboard_path": "/admin/subscriptions/fees",
+    "resolved_path": "/api/v1/admin/subscriptions/fees",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getSubscriptionById",
+    "dashboard_path": "/admin/subscriptions/:id",
+    "resolved_path": "/api/v1/admin/subscriptions/:id",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "searchSubscriptions",
+    "dashboard_path": "/admin/subscriptions/search",
+    "resolved_path": "/api/v1/admin/subscriptions/search",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listAdminNotifications",
+    "dashboard_path": "/admin/notifications",
+    "resolved_path": "/api/v1/admin/notifications",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getUnreadNotificationCount",
+    "dashboard_path": "/admin/notifications/unread-count",
+    "resolved_path": "/api/v1/admin/notifications/unread-count",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/notifications/unread-count",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getUnreadNotificationCount",
+    "dashboard_path": "/admin/notifications",
+    "resolved_path": "/api/v1/admin/notifications",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "markNotificationRead",
+    "dashboard_path": "/admin/notifications/:id/read",
+    "resolved_path": "/api/v1/admin/notifications/:id/read",
+    "method": "PATCH",
+    "matched_backend_path": "/api/v1/smartflow/notifications/{notification_id}/read",
+    "matched_backend_method": "PATCH",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "markAllNotificationsRead",
+    "dashboard_path": "/admin/notifications/read-all",
+    "resolved_path": "/api/v1/admin/notifications/read-all",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getSettingsProfile",
+    "dashboard_path": "/admin/settings/profile",
+    "resolved_path": "/api/v1/admin/settings/profile",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getSettingsProfile",
+    "dashboard_path": "/admin/profile",
+    "resolved_path": "/api/v1/admin/profile",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/profile",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateSettingsProfile",
+    "dashboard_path": "/admin/settings/profile",
+    "resolved_path": "/api/v1/admin/settings/profile",
+    "method": "PUT",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateSettingsProfile",
+    "dashboard_path": "/admin/profile",
+    "resolved_path": "/api/v1/admin/profile",
+    "method": "PUT",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getSettingsSecurity",
+    "dashboard_path": "/admin/settings/security",
+    "resolved_path": "/api/v1/admin/settings/security",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateSettingsSecurity",
+    "dashboard_path": "/admin/settings/security",
+    "resolved_path": "/api/v1/admin/settings/security",
+    "method": "PUT",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateSettingsSecurity",
+    "dashboard_path": "/admin/password",
+    "resolved_path": "/api/v1/admin/password",
+    "method": "PUT",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "listAdmins",
+    "dashboard_path": "/admin/admins",
+    "resolved_path": "/api/v1/admin/admins",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/admins",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "createAdmin",
+    "dashboard_path": "/admin/create-admin",
+    "resolved_path": "/api/v1/admin/create-admin",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/dashboard/admin/create-admin",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getAiStats",
+    "dashboard_path": "/admin/ai/stats",
+    "resolved_path": "/api/v1/admin/ai/stats",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/ai/stats",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getAiLogs",
+    "dashboard_path": "/admin/ai/logs",
+    "resolved_path": "/api/v1/admin/ai/logs",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/ai/logs",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getSuperPlatformSummary",
+    "dashboard_path": "/super/platform-summary",
+    "resolved_path": "/api/v1/super/platform-summary",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/super/platform-summary",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getSuperGlobalGrowth",
+    "dashboard_path": "/super/global-growth",
+    "resolved_path": "/api/v1/super/global-growth",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/super/global-growth",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getUserGrowth",
+    "dashboard_path": "/admin/users-growth",
+    "resolved_path": "/api/v1/admin/users-growth",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/users-growth",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "getSettingsContent",
+    "dashboard_path": "/admin/settings/content",
+    "resolved_path": "/api/v1/admin/settings/content",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/settings/content",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adminApi.js",
+    "function": "updateSettingsContent",
+    "dashboard_path": "/admin/settings/content",
+    "resolved_path": "/api/v1/admin/settings/content",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/dashboard/admin/settings/content",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "adsApi.js",
+    "function": "listAds",
+    "dashboard_path": "/admin/ads",
+    "resolved_path": "/api/v1/admin/ads",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adsApi.js",
+    "function": "listAds",
+    "dashboard_path": "/ads/admin",
+    "resolved_path": "/api/v1/ads/admin",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adsApi.js",
+    "function": "createAd",
+    "dashboard_path": "/admin/ads",
+    "resolved_path": "/api/v1/admin/ads",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adsApi.js",
+    "function": "createAd",
+    "dashboard_path": "/ads/admin",
+    "resolved_path": "/api/v1/ads/admin",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adsApi.js",
+    "function": "updateAd",
+    "dashboard_path": "/admin/ads/:id",
+    "resolved_path": "/api/v1/admin/ads/:id",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adsApi.js",
+    "function": "updateAd",
+    "dashboard_path": "/ads/admin/:id",
+    "resolved_path": "/api/v1/ads/admin/:id",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adsApi.js",
+    "function": "updateAd",
+    "dashboard_path": "/admin/ads/:id",
+    "resolved_path": "/api/v1/admin/ads/:id",
+    "method": "PUT",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adsApi.js",
+    "function": "deleteAd",
+    "dashboard_path": "/admin/ads/:id",
+    "resolved_path": "/api/v1/admin/ads/:id",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "adsApi.js",
+    "function": "deleteAd",
+    "dashboard_path": "/ads/admin/:id",
+    "resolved_path": "/api/v1/ads/admin/:id",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "authApi.js",
+    "function": "loginAdmin",
+    "dashboard_path": "/admin/login",
+    "resolved_path": "/api/v1/admin/login",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "authApi.js",
+    "function": "loginAdmin",
+    "dashboard_path": "/auth/admin/login",
+    "resolved_path": "/api/v1/auth/admin/login",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "authApi.js",
+    "function": "loginAdmin",
+    "dashboard_path": "/api/v1/auth/admin/login",
+    "resolved_path": "/api/v1/auth/admin/login",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "authApi.js",
+    "function": "loginAdmin",
+    "dashboard_path": "/api/v1/auth/login",
+    "resolved_path": "/api/v1/auth/login",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/auth/login",
+    "matched_backend_method": "POST",
+    "status": "Matched"
+  },
+  {
+    "file": "authApi.js",
+    "function": "loginAdmin",
+    "dashboard_path": "/auth/login",
+    "resolved_path": "/api/v1/auth/login",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/auth/login",
+    "matched_backend_method": "POST",
+    "status": "Matched"
+  },
+  {
+    "file": "authApi.js",
+    "function": "changeAdminPassword",
+    "dashboard_path": "/admin/password",
+    "resolved_path": "/api/v1/admin/password",
+    "method": "PUT",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "authApi.js",
+    "function": "changeAdminPassword",
+    "dashboard_path": "/auth/admin/change-password",
+    "resolved_path": "/api/v1/auth/admin/change-password",
+    "method": "PUT",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "authApi.js",
+    "function": "logoutAdmin",
+    "dashboard_path": "/admin/logout",
+    "resolved_path": "/api/v1/admin/logout",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/dashboard/admin/logout",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "authApi.js",
+    "function": "logoutAdmin",
+    "dashboard_path": "/auth/admin/logout",
+    "resolved_path": "/api/v1/auth/admin/logout",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/dashboard/admin/logout",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "authApi.js",
+    "function": "logoutAdminAllDevices",
+    "dashboard_path": "/admin/logout-all",
+    "resolved_path": "/api/v1/admin/logout-all",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "authApi.js",
+    "function": "logoutAdminAllDevices",
+    "dashboard_path": "/auth/admin/logout-all",
+    "resolved_path": "/api/v1/auth/admin/logout-all",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "categoriesApi.js",
+    "function": "createCategory",
+    "dashboard_path": "/admin/categories",
+    "resolved_path": "/api/v1/admin/categories",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "categoriesApi.js",
+    "function": "listCategories",
+    "dashboard_path": "/admin/categories",
+    "resolved_path": "/api/v1/admin/categories",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "categoriesApi.js",
+    "function": "updateCategory",
+    "dashboard_path": "/admin/categories/:id",
+    "resolved_path": "/api/v1/admin/categories/:id",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "categoriesApi.js",
+    "function": "updateCategory",
+    "dashboard_path": "/admin/categories/:id",
+    "resolved_path": "/api/v1/admin/categories/:id",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "categoriesApi.js",
+    "function": "deleteCategory",
+    "dashboard_path": "/admin/categories/:id",
+    "resolved_path": "/api/v1/admin/categories/:id",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "chatApi.js",
+    "function": "listThreads",
+    "dashboard_path": "/admin/chats",
+    "resolved_path": "/api/v1/admin/chats",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/chats",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "getAboutUs",
+    "dashboard_path": "/admin/settings/content",
+    "resolved_path": "/api/v1/admin/settings/content",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/settings/content",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "upsertAboutUs",
+    "dashboard_path": "/admin/settings/content",
+    "resolved_path": "/api/v1/admin/settings/content",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/dashboard/admin/settings/content",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "getPrivacyPolicy",
+    "dashboard_path": "/admin/settings/content",
+    "resolved_path": "/api/v1/admin/settings/content",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/settings/content",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "upsertPrivacyPolicy",
+    "dashboard_path": "/admin/settings/content",
+    "resolved_path": "/api/v1/admin/settings/content",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/dashboard/admin/settings/content",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "getTermsAndConditions",
+    "dashboard_path": "/admin/settings/content",
+    "resolved_path": "/api/v1/admin/settings/content",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/settings/content",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "upsertTermsAndConditions",
+    "dashboard_path": "/admin/settings/content",
+    "resolved_path": "/api/v1/admin/settings/content",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/dashboard/admin/settings/content",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "getPageBySlug",
+    "dashboard_path": "/cms/pages/:slug",
+    "resolved_path": "/api/v1/cms/pages/:slug",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/content/pages/{slug}",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "getTermsOfServicePage",
+    "dashboard_path": "/cms/pages/terms-of-service",
+    "resolved_path": "/api/v1/cms/pages/terms-of-service",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "getCmsPrivacyPolicyPage",
+    "dashboard_path": "/cms/pages/privacy-policy",
+    "resolved_path": "/api/v1/cms/pages/privacy-policy",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "getCmsAboutUsPage",
+    "dashboard_path": "/cms/pages/about-us",
+    "resolved_path": "/api/v1/cms/pages/about-us",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "adminListPages",
+    "dashboard_path": "/cms/admin/pages",
+    "resolved_path": "/api/v1/cms/admin/pages",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "adminCreatePage",
+    "dashboard_path": "/cms/admin/pages",
+    "resolved_path": "/api/v1/cms/admin/pages",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "adminUpdatePage",
+    "dashboard_path": "/cms/admin/pages/:slug",
+    "resolved_path": "/api/v1/cms/admin/pages/:slug",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "cmsApi.js",
+    "function": "adminDeletePage",
+    "dashboard_path": "/cms/admin/pages/:slug",
+    "resolved_path": "/api/v1/cms/admin/pages/:slug",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "earningsApi.js",
+    "function": "listEarningTransactions",
+    "dashboard_path": "/admin/earnings/transactions",
+    "resolved_path": "/api/v1/admin/earnings/transactions",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/earnings/transactions",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "earningsApi.js",
+    "function": "listEarningTransactions",
+    "dashboard_path": "/billing/admin/transactions",
+    "resolved_path": "/api/v1/billing/admin/transactions",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "earningsApi.js",
+    "function": "getEarningTransactionById",
+    "dashboard_path": "/admin/earnings/transactions/:id",
+    "resolved_path": "/api/v1/admin/earnings/transactions/:id",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/earnings/transactions/{trx_id}",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "earningsApi.js",
+    "function": "generateEarningInvoice",
+    "dashboard_path": "/admin/earnings/transactions/:id/invoice",
+    "resolved_path": "/api/v1/admin/earnings/transactions/:id/invoice",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "eventCreatorsApi.js",
+    "function": "listEventCreators",
+    "dashboard_path": "/admin/event-creators",
+    "resolved_path": "/api/v1/admin/event-creators",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "eventCreatorsApi.js",
+    "function": "listEventCreators",
+    "dashboard_path": "/admin/event-creators/premium",
+    "resolved_path": "/api/v1/admin/event-creators/premium",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "eventCreatorsApi.js",
+    "function": "getEventCreatorById",
+    "dashboard_path": "/admin/event-creators/:id",
+    "resolved_path": "/api/v1/admin/event-creators/:id",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "eventCreatorsApi.js",
+    "function": "getEventCreatorById",
+    "dashboard_path": "/admin/event-creators/premium/:id",
+    "resolved_path": "/api/v1/admin/event-creators/premium/:id",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "eventCreatorsApi.js",
+    "function": "payoutEventCreator",
+    "dashboard_path": "/admin/event-creators/:id/payout",
+    "resolved_path": "/api/v1/admin/event-creators/:id/payout",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "notificationsApi.js",
+    "function": "getNotificationsPreview",
+    "dashboard_path": "/admin/notifications",
+    "resolved_path": "/api/v1/admin/notifications",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "notificationsApi.js",
+    "function": "listNotifications",
+    "dashboard_path": "/admin/notifications",
+    "resolved_path": "/api/v1/admin/notifications",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "notificationsApi.js",
+    "function": "markNotificationsRead",
+    "dashboard_path": "/admin/notifications/read",
+    "resolved_path": "/api/v1/admin/notifications/read",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "reportsApi.js",
+    "function": "listAdminReports",
+    "dashboard_path": "/admin/reports",
+    "resolved_path": "/api/v1/admin/reports",
+    "method": "GET",
+    "matched_backend_path": "/api/v1/dashboard/admin/reports",
+    "matched_backend_method": "GET",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "reportsApi.js",
+    "function": "listAdminReports",
+    "dashboard_path": "/reports/admin",
+    "resolved_path": "/api/v1/reports/admin",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "reportsApi.js",
+    "function": "listAdminReports",
+    "dashboard_path": "/reports/admin",
+    "resolved_path": "/api/v1/reports/admin",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "reportsApi.js",
+    "function": "resolveAdminReport",
+    "dashboard_path": "/admin/reports/:reportId/resolve",
+    "resolved_path": "/api/v1/admin/reports/:reportId/resolve",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "reportsApi.js",
+    "function": "resolveAdminReport",
+    "dashboard_path": "/reports/admin/:reportId/status",
+    "resolved_path": "/api/v1/reports/admin/:reportId/status",
+    "method": "PATCH",
+    "matched_backend_path": "/api/v1/dashboard/admin/users/{user_id}/status",
+    "matched_backend_method": "PATCH",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "reportsApi.js",
+    "function": "dismissAdminReport",
+    "dashboard_path": "/admin/reports/:reportId/dismiss",
+    "resolved_path": "/api/v1/admin/reports/:reportId/dismiss",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "reportsApi.js",
+    "function": "applyAdminReportAction",
+    "dashboard_path": "/admin/reports/:reportId/action",
+    "resolved_path": "/api/v1/admin/reports/:reportId/action",
+    "method": "POST",
+    "matched_backend_path": "/api/v1/calls/{call_sid}/action",
+    "matched_backend_method": "POST",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "adminListProducts",
+    "dashboard_path": "/shop/admin/products",
+    "resolved_path": "/api/v1/shop/admin/products",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "adminListProductsTable",
+    "dashboard_path": "/shop/admin/products/table",
+    "resolved_path": "/api/v1/shop/admin/products/table",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "adminCreateProduct",
+    "dashboard_path": "/shop/admin/products",
+    "resolved_path": "/api/v1/shop/admin/products",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "adminUpdateProduct",
+    "dashboard_path": "/shop/admin/products/:productId",
+    "resolved_path": "/api/v1/shop/admin/products/:productId",
+    "method": "PATCH",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "adminToggleProductStatus",
+    "dashboard_path": "/shop/admin/products/:productId/status",
+    "resolved_path": "/api/v1/shop/admin/products/:productId/status",
+    "method": "PATCH",
+    "matched_backend_path": "/api/v1/dashboard/admin/users/{user_id}/status",
+    "matched_backend_method": "PATCH",
+    "status": "Needs Mapping"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "adminDeleteProduct",
+    "dashboard_path": "/shop/admin/products/:productId",
+    "resolved_path": "/api/v1/shop/admin/products/:productId",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "listShopProducts",
+    "dashboard_path": "/shop/products",
+    "resolved_path": "/api/v1/shop/products",
+    "method": "GET",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "getShopProduct",
+    "dashboard_path": "/shop/products/:id",
+    "resolved_path": "/api/v1/shop/products/:id",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "createShopProduct",
+    "dashboard_path": "/shop/products",
+    "resolved_path": "/api/v1/shop/products",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "updateShopProduct",
+    "dashboard_path": "/shop/products/:id",
+    "resolved_path": "/api/v1/shop/products/:id",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "deleteShopProduct",
+    "dashboard_path": "/shop/products/:id",
+    "resolved_path": "/api/v1/shop/products/:id",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "getCart",
+    "dashboard_path": "/shop/cart",
+    "resolved_path": "/api/v1/shop/cart",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "addCartItem",
+    "dashboard_path": "/shop/cart/items",
+    "resolved_path": "/api/v1/shop/cart/items",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "updateCartItem",
+    "dashboard_path": "/shop/cart/items/:productId",
+    "resolved_path": "/api/v1/shop/cart/items/:productId",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "removeCartItem",
+    "dashboard_path": "/shop/cart/items/:productId",
+    "resolved_path": "/api/v1/shop/cart/items/:productId",
+    "method": "DELETE",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  },
+  {
+    "file": "shopApi.js",
+    "function": "checkout",
+    "dashboard_path": "/shop/checkout",
+    "resolved_path": "/api/v1/shop/checkout",
+    "method": "POST",
+    "matched_backend_path": null,
+    "matched_backend_method": null,
+    "status": "Not Found in Backend"
+  }
+]

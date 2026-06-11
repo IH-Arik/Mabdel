@@ -1,0 +1,181 @@
+--- ACTIVE FRONTEND FUNCTIONS MISSING IN BACKEND (0) ---
+
+--- ACTIVE FRONTEND FUNCTIONS WITH PARTIAL MATCHES/ISSUES (24) ---
+Function: createAdmin (adminApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/create-admin (Resolved: /api/v1/dashboard/admin/create-admin) | Matched: [POST] /api/v1/dashboard/admin/create-admin
+  -> Path: [POST] /admin/ai/stats (Resolved: /api/v1/dashboard/admin/ai/stats) | Matched: [GET] /api/v1/dashboard/admin/ai/stats
+  -> Path: [POST] /admin/ai/logs (Resolved: /api/v1/dashboard/admin/ai/logs) | Matched: [GET] /api/v1/dashboard/admin/ai/logs
+  -> Path: [POST] /super/platform-summary (Resolved: /api/v1/dashboard/super/platform-summary) | Matched: [GET] /api/v1/dashboard/super/platform-summary
+  -> Path: [POST] /super/global-growth (Resolved: /api/v1/dashboard/super/global-growth) | Matched: [GET] /api/v1/dashboard/super/global-growth
+  -> Path: [POST] /admin/users-growth (Resolved: /api/v1/dashboard/admin/users-growth) | Matched: [GET] /api/v1/dashboard/admin/users-growth
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+Function: getAiLogs (adminApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/ai/logs (Resolved: /api/v1/dashboard/admin/ai/logs) | Matched: [GET] /api/v1/dashboard/admin/ai/logs
+  -> Path: [POST] /super/platform-summary (Resolved: /api/v1/dashboard/super/platform-summary) | Matched: [GET] /api/v1/dashboard/super/platform-summary
+  -> Path: [POST] /super/global-growth (Resolved: /api/v1/dashboard/super/global-growth) | Matched: [GET] /api/v1/dashboard/super/global-growth
+  -> Path: [POST] /admin/users-growth (Resolved: /api/v1/dashboard/admin/users-growth) | Matched: [GET] /api/v1/dashboard/admin/users-growth
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+Function: getAiStats (adminApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/ai/stats (Resolved: /api/v1/dashboard/admin/ai/stats) | Matched: [GET] /api/v1/dashboard/admin/ai/stats
+  -> Path: [POST] /admin/ai/logs (Resolved: /api/v1/dashboard/admin/ai/logs) | Matched: [GET] /api/v1/dashboard/admin/ai/logs
+  -> Path: [POST] /super/platform-summary (Resolved: /api/v1/dashboard/super/platform-summary) | Matched: [GET] /api/v1/dashboard/super/platform-summary
+  -> Path: [POST] /super/global-growth (Resolved: /api/v1/dashboard/super/global-growth) | Matched: [GET] /api/v1/dashboard/super/global-growth
+  -> Path: [POST] /admin/users-growth (Resolved: /api/v1/dashboard/admin/users-growth) | Matched: [GET] /api/v1/dashboard/admin/users-growth
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+Function: getMyProfile (adminApi.js) - Partial/Method Mismatch
+  -> Path: [PUT] /admin/profile (Resolved: /api/v1/dashboard/admin/profile) | Matched: [PUT] /api/v1/dashboard/admin/profile
+  -> Path: [PUT] /admin/settings/profile (Resolved: /api/v1/dashboard/admin/settings/profile) | Not Matched
+  -> Path: [PUT] /admin/profile (Resolved: /api/v1/dashboard/admin/profile) | Matched: [PUT] /api/v1/dashboard/admin/profile
+  -> Path: [PUT] /admin/settings/profile (Resolved: /api/v1/dashboard/admin/settings/profile) | Not Matched
+  -> Path: [PUT] /admin/dashboard/overview (Resolved: /api/v1/dashboard/admin/summary) | Matched: [GET] /api/v1/dashboard/admin/summary
+  -> Path: [PUT] /dashboard/overview (Resolved: /api/v1/dashboard/admin/summary) | Matched: [GET] /api/v1/dashboard/admin/summary
+  -> Path: [PUT] /admin/dashboard/analytics (Resolved: /api/v1/dashboard/admin/summary) | Matched: [GET] /api/v1/dashboard/admin/summary
+  -> Path: [PUT] /dashboard/analytics (Resolved: /api/v1/dashboard/admin/summary) | Matched: [GET] /api/v1/dashboard/admin/summary
+Function: getSubscriptionFees (adminApi.js) - Partial/Method Mismatch
+  -> Path: [PATCH] /admin/subscriptions/fees (Resolved: /api/v1/dashboard/admin/subscriptions/fees) | Matched: [PATCH] /api/v1/dashboard/admin/subscriptions/fees
+  -> Path: [PATCH] /admin/subscriptions/fees (Resolved: /api/v1/dashboard/admin/subscriptions/fees) | Matched: [PATCH] /api/v1/dashboard/admin/subscriptions/fees
+  -> Path: [PATCH] /admin/subscriptions/fees (Resolved: /api/v1/dashboard/admin/subscriptions/fees) | Matched: [PATCH] /api/v1/dashboard/admin/subscriptions/fees
+  -> Path: [PATCH] /admin/subscriptions/:id (Resolved: /api/v1/dashboard/admin/subscriptions/:id) | Not Matched
+  -> Path: [PATCH] /admin/subscriptions/search (Resolved: /api/v1/dashboard/admin/subscriptions/search) | Not Matched
+  -> Path: [PATCH] /admin/notifications (Resolved: /api/v1/dashboard/notifications) | Matched: [GET] /api/v1/dashboard/notifications/
+Function: getSuperGlobalGrowth (adminApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /super/global-growth (Resolved: /api/v1/dashboard/super/global-growth) | Matched: [GET] /api/v1/dashboard/super/global-growth
+  -> Path: [POST] /admin/users-growth (Resolved: /api/v1/dashboard/admin/users-growth) | Matched: [GET] /api/v1/dashboard/admin/users-growth
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+Function: getSuperPlatformSummary (adminApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /super/platform-summary (Resolved: /api/v1/dashboard/super/platform-summary) | Matched: [GET] /api/v1/dashboard/super/platform-summary
+  -> Path: [POST] /super/global-growth (Resolved: /api/v1/dashboard/super/global-growth) | Matched: [GET] /api/v1/dashboard/super/global-growth
+  -> Path: [POST] /admin/users-growth (Resolved: /api/v1/dashboard/admin/users-growth) | Matched: [GET] /api/v1/dashboard/admin/users-growth
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+Function: getUserById (adminApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/users/:id (Resolved: /api/v1/dashboard/admin/users/:id) | Matched: [GET] /api/v1/dashboard/admin/users/{user_id}
+  -> Path: [POST] /admin/users/:id/block (Resolved: /api/v1/dashboard/admin/users/:id/block) | Matched: [POST] /api/v1/dashboard/admin/users/{user_id}/block
+  -> Path: [POST] /admin/users/:id/ban (Resolved: /api/v1/dashboard/admin/users/:id/ban) | Matched: [POST] /api/v1/dashboard/admin/users/{user_id}/ban
+  -> Path: [POST] /admin/users/:id/unblock (Resolved: /api/v1/dashboard/admin/users/:id/unblock) | Matched: [POST] /api/v1/dashboard/admin/users/{user_id}/unblock
+  -> Path: [POST] /admin/users/:id/unban (Resolved: /api/v1/dashboard/admin/users/:id/unban) | Matched: [POST] /api/v1/dashboard/admin/users/{user_id}/unban
+  -> Path: [POST] /admin/users/:id/notes (Resolved: /api/v1/dashboard/admin/users/:id/notes) | Matched: [POST] /api/v1/dashboard/admin/users/{user_id}/notes
+Function: listAdmins (adminApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/admins (Resolved: /api/v1/dashboard/admin/admins) | Matched: [GET] /api/v1/dashboard/admin/admins
+  -> Path: [POST] /admin/create-admin (Resolved: /api/v1/dashboard/admin/create-admin) | Matched: [POST] /api/v1/dashboard/admin/create-admin
+  -> Path: [POST] /admin/ai/stats (Resolved: /api/v1/dashboard/admin/ai/stats) | Matched: [GET] /api/v1/dashboard/admin/ai/stats
+  -> Path: [POST] /admin/ai/logs (Resolved: /api/v1/dashboard/admin/ai/logs) | Matched: [GET] /api/v1/dashboard/admin/ai/logs
+  -> Path: [POST] /super/platform-summary (Resolved: /api/v1/dashboard/super/platform-summary) | Matched: [GET] /api/v1/dashboard/super/platform-summary
+  -> Path: [POST] /super/global-growth (Resolved: /api/v1/dashboard/super/global-growth) | Matched: [GET] /api/v1/dashboard/super/global-growth
+  -> Path: [POST] /admin/users-growth (Resolved: /api/v1/dashboard/admin/users-growth) | Matched: [GET] /api/v1/dashboard/admin/users-growth
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+Function: listSubscriptions (adminApi.js) - Partial/Method Mismatch
+  -> Path: [PATCH] /admin/subscriptions (Resolved: /api/v1/dashboard/admin/subscriptions) | Matched: [GET] /api/v1/dashboard/admin/subscriptions
+  -> Path: [PATCH] /admin/subscriptions/fees (Resolved: /api/v1/dashboard/admin/subscriptions/fees) | Matched: [PATCH] /api/v1/dashboard/admin/subscriptions/fees
+  -> Path: [PATCH] /admin/subscriptions/fees (Resolved: /api/v1/dashboard/admin/subscriptions/fees) | Matched: [PATCH] /api/v1/dashboard/admin/subscriptions/fees
+  -> Path: [PATCH] /admin/subscriptions/fees (Resolved: /api/v1/dashboard/admin/subscriptions/fees) | Matched: [PATCH] /api/v1/dashboard/admin/subscriptions/fees
+  -> Path: [PATCH] /admin/subscriptions/:id (Resolved: /api/v1/dashboard/admin/subscriptions/:id) | Not Matched
+  -> Path: [PATCH] /admin/subscriptions/search (Resolved: /api/v1/dashboard/admin/subscriptions/search) | Not Matched
+Function: updateMyProfile (adminApi.js) - Partial/Method Mismatch
+  -> Path: [PUT] /admin/profile (Resolved: /api/v1/dashboard/admin/profile) | Matched: [PUT] /api/v1/dashboard/admin/profile
+  -> Path: [PUT] /admin/settings/profile (Resolved: /api/v1/dashboard/admin/settings/profile) | Not Matched
+  -> Path: [PUT] /admin/dashboard/overview (Resolved: /api/v1/dashboard/admin/summary) | Matched: [GET] /api/v1/dashboard/admin/summary
+  -> Path: [PUT] /dashboard/overview (Resolved: /api/v1/dashboard/admin/summary) | Matched: [GET] /api/v1/dashboard/admin/summary
+  -> Path: [PUT] /admin/dashboard/analytics (Resolved: /api/v1/dashboard/admin/summary) | Matched: [GET] /api/v1/dashboard/admin/summary
+  -> Path: [PUT] /dashboard/analytics (Resolved: /api/v1/dashboard/admin/summary) | Matched: [GET] /api/v1/dashboard/admin/summary
+Function: updateSubscriptionFees (adminApi.js) - Partial/Method Mismatch
+  -> Path: [PATCH] /admin/subscriptions/fees (Resolved: /api/v1/dashboard/admin/subscriptions/fees) | Matched: [PATCH] /api/v1/dashboard/admin/subscriptions/fees
+  -> Path: [PATCH] /admin/subscriptions/fees (Resolved: /api/v1/dashboard/admin/subscriptions/fees) | Matched: [PATCH] /api/v1/dashboard/admin/subscriptions/fees
+  -> Path: [PATCH] /admin/subscriptions/:id (Resolved: /api/v1/dashboard/admin/subscriptions/:id) | Not Matched
+  -> Path: [PATCH] /admin/subscriptions/search (Resolved: /api/v1/dashboard/admin/subscriptions/search) | Not Matched
+  -> Path: [PATCH] /admin/notifications (Resolved: /api/v1/dashboard/notifications) | Matched: [GET] /api/v1/dashboard/notifications/
+Function: updateUserStatus (adminApi.js) - Partial/Method Mismatch
+  -> Path: [PATCH] /admin/users/:id/status (Resolved: /api/v1/dashboard/admin/users/:id/status) | Matched: [PATCH] /api/v1/dashboard/admin/users/{user_id}/status
+  -> Path: [PATCH] /admin/users/:id (Resolved: /api/v1/dashboard/admin/users/:id) | Matched: [GET] /api/v1/dashboard/admin/users/{user_id}
+Function: changeAdminPassword (authApi.js) - Partial/Method Mismatch
+  -> Path: [PUT] /admin/password (Resolved: /api/v1/dashboard/admin/change-password) | Matched: [PUT] /api/v1/dashboard/admin/change-password
+  -> Path: [PUT] /auth/admin/change-password (Resolved: /api/v1/dashboard/admin/change-password) | Matched: [PUT] /api/v1/dashboard/admin/change-password
+  -> Path: [PUT] /admin/logout (Resolved: /api/v1/dashboard/admin/logout) | Matched: [PUT] /api/v1/dashboard/admin/logout
+  -> Path: [PUT] /auth/admin/logout (Resolved: /api/v1/dashboard/admin/logout) | Matched: [PUT] /api/v1/dashboard/admin/logout
+  -> Path: [PUT] /admin/logout-all (Resolved: /api/v1/dashboard/admin/logout-all) | Matched: [POST] /api/v1/dashboard/admin/logout-all
+  -> Path: [PUT] /auth/admin/logout-all (Resolved: /api/v1/dashboard/admin/logout) | Matched: [PUT] /api/v1/dashboard/admin/logout
+Function: loginAdmin (authApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/login (Resolved: /api/v1/dashboard/admin/login) | Not Matched
+  -> Path: [POST] /auth/admin/login (Resolved: /api/v1/dashboard/admin/auth/login) | Not Matched
+  -> Path: [POST] /api/v1/auth/admin/login (Resolved: /api/v1/auth/admin/login) | Not Matched
+  -> Path: [POST] /api/v1/auth/login (Resolved: /api/v1/auth/login) | Matched: [POST] /api/v1/auth/login
+  -> Path: [POST] /auth/login (Resolved: /api/v1/auth/login) | Matched: [POST] /api/v1/auth/login
+Function: listThreadMessages (chatApi.js) - Defined but no paths found
+Function: markThreadSeen (chatApi.js) - Defined but no paths found
+Function: sendThreadMessage (chatApi.js) - Defined but no paths found
+Function: getTermsAndConditions (cmsApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /cms/pages/:slug (Resolved: /api/v1/cms/pages/:slug) | Not Matched
+  -> Path: [POST] /cms/pages/terms-of-service (Resolved: /api/v1/cms/pages/terms-of-service) | Not Matched
+  -> Path: [POST] /cms/pages/privacy-policy (Resolved: /api/v1/cms/pages/privacy-policy) | Not Matched
+Function: upsertPrivacyPolicy (cmsApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /cms/pages/:slug (Resolved: /api/v1/cms/pages/:slug) | Not Matched
+Function: upsertTermsAndConditions (cmsApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/settings/content (Resolved: /api/v1/dashboard/admin/settings/content) | Matched: [POST] /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /cms/pages/:slug (Resolved: /api/v1/cms/pages/:slug) | Not Matched
+  -> Path: [POST] /cms/pages/terms-of-service (Resolved: /api/v1/cms/pages/terms-of-service) | Not Matched
+  -> Path: [POST] /cms/pages/privacy-policy (Resolved: /api/v1/cms/pages/privacy-policy) | Not Matched
+  -> Path: [POST] /cms/pages/about-us (Resolved: /api/v1/cms/pages/about-us) | Not Matched
+  -> Path: [POST] /cms/admin/pages (Resolved: /api/v1/dashboard/admin/settings/contentpages) | Not Matched
+  -> Path: [POST] /cms/admin/pages (Resolved: /api/v1/dashboard/admin/settings/contentpages) | Not Matched
+Function: getEarningTransactionById (earningsApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/earnings/transactions/:id (Resolved: /api/v1/dashboard/admin/earnings/transactions/:id) | Matched: [GET] /api/v1/dashboard/admin/earnings/transactions/{trx_id}
+  -> Path: [POST] /admin/earnings/transactions/:id/invoice (Resolved: /api/v1/dashboard/admin/earnings/transactions/:id/invoice) | Matched: [POST] /api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice
+Function: listEarningTransactions (earningsApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/earnings/transactions (Resolved: /api/v1/dashboard/admin/earnings/transactions) | Matched: [GET] /api/v1/dashboard/admin/earnings/transactions
+  -> Path: [POST] /billing/admin/transactions (Resolved: /api/v1/dashboard/admin/earnings/transactions) | Matched: [GET] /api/v1/dashboard/admin/earnings/transactions
+  -> Path: [POST] /admin/earnings/transactions/:id (Resolved: /api/v1/dashboard/admin/earnings/transactions/:id) | Matched: [GET] /api/v1/dashboard/admin/earnings/transactions/{trx_id}
+  -> Path: [POST] /admin/earnings/transactions/:id/invoice (Resolved: /api/v1/dashboard/admin/earnings/transactions/:id/invoice) | Matched: [POST] /api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice
+Function: listAdminReports (reportsApi.js) - Partial/Method Mismatch
+  -> Path: [POST] /admin/reports (Resolved: /api/v1/dashboard/admin/reports) | Matched: [GET] /api/v1/dashboard/admin/reports
+  -> Path: [POST] /reports/admin (Resolved: /api/v1/dashboard/admin/reports) | Matched: [GET] /api/v1/dashboard/admin/reports
+  -> Path: [POST] /reports/admin (Resolved: /api/v1/dashboard/admin/reports) | Matched: [GET] /api/v1/dashboard/admin/reports
+  -> Path: [POST] /admin/reports/:reportId/resolve (Resolved: /api/v1/dashboard/admin/reports/:reportId/resolve) | Matched: [POST] /api/v1/dashboard/admin/reports/{report_id}/resolve
+
+--- ACTIVE FRONTEND FUNCTIONS FULLY MATCHED (9) ---
+Function: getDashboardAnalytics (adminApi.js)
+  -> Path: [GET] /api/v1/dashboard/admin/summary matches /api/v1/dashboard/admin/summary
+  -> Path: [GET] /api/v1/dashboard/admin/summary matches /api/v1/dashboard/admin/summary
+  -> Path: [GET] /api/v1/dashboard/admin/summary matches /api/v1/dashboard/admin/summary
+  -> Path: [GET] /api/v1/dashboard/admin/users matches /api/v1/dashboard/admin/users
+  -> Path: [GET] /api/v1/dashboard/notifications matches /api/v1/dashboard/notifications/
+Function: getDashboardOverview (adminApi.js)
+  -> Path: [GET] /api/v1/dashboard/admin/summary matches /api/v1/dashboard/admin/summary
+  -> Path: [GET] /api/v1/dashboard/admin/summary matches /api/v1/dashboard/admin/summary
+  -> Path: [GET] /api/v1/dashboard/admin/summary matches /api/v1/dashboard/admin/summary
+  -> Path: [GET] /api/v1/dashboard/admin/summary matches /api/v1/dashboard/admin/summary
+  -> Path: [GET] /api/v1/dashboard/admin/summary matches /api/v1/dashboard/admin/summary
+  -> Path: [GET] /api/v1/dashboard/admin/users matches /api/v1/dashboard/admin/users
+Function: listUsersSafe (adminApi.js)
+  -> Path: [GET] /api/v1/dashboard/admin/users matches /api/v1/dashboard/admin/users
+  -> Path: [GET] /api/v1/dashboard/admin/users/search matches /api/v1/dashboard/admin/users/search
+  -> Path: [GET] /api/v1/dashboard/admin/users/search matches /api/v1/dashboard/admin/users/search
+Function: listThreads (chatApi.js)
+  -> Path: [GET] /api/v1/dashboard/admin/chats matches /api/v1/dashboard/admin/chats
+Function: getAboutUs (cmsApi.js)
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+Function: getPrivacyPolicy (cmsApi.js)
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+Function: upsertAboutUs (cmsApi.js)
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+  -> Path: [POST] /api/v1/dashboard/admin/settings/content matches /api/v1/dashboard/admin/settings/content
+Function: generateEarningInvoice (earningsApi.js)
+  -> Path: [POST] /api/v1/dashboard/admin/earnings/transactions/:id/invoice matches /api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice
+Function: applyAdminReportAction (reportsApi.js)
+  -> Path: [POST] /api/v1/dashboard/admin/reports/:reportId/action matches /api/v1/dashboard/admin/reports/{report_id}/action

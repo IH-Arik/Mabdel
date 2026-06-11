@@ -1,0 +1,2108 @@
+[
+  {
+    "path": "/api/ai-call-analytics",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/calendar/connect",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/calendar/events",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/calls/{callId}/callback",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/contacts",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/documents/types",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/inbox",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/integrations",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/integrations/connect",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/ai/command",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/app/config",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/app/permissions",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/app/permissions",
+    "method": "PUT",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/app/permissions/accept-all",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/forgot-password",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/google",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/login",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/logout",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/me",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/refresh-token",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/register",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/resend-otp",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/reset-password",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/send-otp",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/auth/verify-otp",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/calendar/schedule",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/calls/incoming",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/calls/recording",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/calls/status",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/calls/{call_sid}/action",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/content/about-us",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/content/help-support",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/content/pages/{slug}",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/content/privacy-policy",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/content/terms-and-conditions",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/admins",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/ai/logs",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/ai/stats",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/auth/forgot-password",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/auth/reset-password",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/auth/verify-otp",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/change-password",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/chats",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/chats/{user_id}/messages",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/chats/{user_id}/messages",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/create-admin",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/earnings",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/earnings/transactions",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/dashboard/admin/earnings/transactions/{trx_id}",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/dashboard/admin/logout",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/profile",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/profile",
+    "method": "PATCH",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/reports",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/settings",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/settings/content",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/settings/content",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/subscriptions",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/subscriptions",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/summary",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/users",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/users-growth",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/users/{user_id}",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/admin/users/{user_id}/status",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/dashboard/notifications/",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/notifications/unread-count",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/notifications/{notification_id}/read",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/super/global-growth",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/super/platform-summary",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/dashboard/webhooks/stripe",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": false,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/email/draft",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/groups",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices/shared/{share_token}/pdf",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices/{invoice_id}",
+    "method": "DELETE",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices/{invoice_id}",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices/{invoice_id}",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices/{invoice_id}/pdf",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices/{invoice_id}/remind",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices/{invoice_id}/send",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices/{invoice_id}/share",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/invoices/{invoice_id}/status",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/invoices/{invoice_id}/timeline",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/onboarding/complete",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/onboarding/progress",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/onboarding/progress",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/onboarding/reset",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/onboarding/skip",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/onboarding/slides",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/account",
+    "method": "DELETE",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/generate",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/improve",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/metadata",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/priorities",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/review",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/signing/{signature_token}",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/signing/{signature_token}",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/types",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/{agreement_id}",
+    "method": "DELETE",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/{agreement_id}",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/{agreement_id}",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/{agreement_id}/improve",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/{agreement_id}/pdf",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/{agreement_id}/renew",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/{agreement_id}/review",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/{agreement_id}/send-signature",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/agreements/{agreement_id}/sign",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/ai/chat",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/ai/history",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/ai/history/{history_id}/replay",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/ai/voice-chat",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/ai/voice-chat-upload",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/ai/voices",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/ai/workflow-prefill",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/bulk-messages",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/bulk-messages",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/bulk-messages/recipients/validate",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/bulk-messages/{bulk_message_id}",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/bulk-messages/{bulk_message_id}",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/bulk-messages/{bulk_message_id}/cancel",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/bulk-messages/{bulk_message_id}/send",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/business-profile",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/business-profile",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/business-profile/logo",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calendar/events",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calendar/events",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calendar/events/{event_id}",
+    "method": "DELETE",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calendar/events/{event_id}",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calendar/events/{event_id}",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calendar/events/{event_id}/share",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls/outbound",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls/summary",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls/{call_id}",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls/{call_id}",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls/{call_id}/ai-summary",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls/{call_id}/ai-summary",
+    "method": "PUT",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls/{call_id}/callback",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls/{call_id}/recording",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/smartflow/calls/{call_id}/recording",
+    "method": "PUT",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/smartflow/calls/{call_id}/transcript",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/calls/{call_id}/transcript",
+    "method": "PUT",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/contacts",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/contacts",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/contacts/{contact_id}",
+    "method": "DELETE",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/contacts/{contact_id}",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/contacts/{contact_id}",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/contacts/{contact_id}/avatar",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/conversations",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/conversations",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/conversations/{conversation_id}",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/conversations/{conversation_id}/archive",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/conversations/{conversation_id}/mark-read",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/conversations/{conversation_id}/messages",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/conversations/{conversation_id}/typing",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/conversations/{conversation_id}/typing",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/devices/push-token",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/documents",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/documents",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/documents/{document_id}",
+    "method": "DELETE",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/documents/{document_id}",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups/{group_id}",
+    "method": "DELETE",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups/{group_id}",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups/{group_id}",
+    "method": "PATCH",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups/{group_id}/invites",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups/{group_id}/invites/{invite_id}",
+    "method": "DELETE",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups/{group_id}/leave",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups/{group_id}/members",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups/{group_id}/members/{member_id}",
+    "method": "DELETE",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/groups/{group_id}/members/{member_id}",
+    "method": "PATCH",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/home",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/integrations",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/integrations",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/integrations/catalog",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/integrations/status",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/smartflow/integrations/telegram/manual-connect",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/integrations/{platform}",
+    "method": "DELETE",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/integrations/{platform}/oauth/callback",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/integrations/{platform}/oauth/start",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/integrations/{platform}/sync",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/integrations/{platform}/webhook",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/smartflow/integrations/{platform}/webhook",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": true
+  },
+  {
+    "path": "/api/v1/smartflow/leases",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/enhance-terms",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/generate",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/metadata",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/review",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/signing/{signature_token}",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/signing/{signature_token}",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/{lease_id}",
+    "method": "DELETE",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/{lease_id}",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/{lease_id}",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/{lease_id}/enhance-terms",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/{lease_id}/pdf",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/{lease_id}/renew",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/{lease_id}/review",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/{lease_id}/send-signature",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/leases/{lease_id}/sign",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/messages",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/messages/unread-summary",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/messages/{message_id}",
+    "method": "PATCH",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/messages/{message_id}/forward",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/messages/{message_id}/reply",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/notifications",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/notifications/dispatch-pending",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/notifications/mark-all-read",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/notifications/{notification_id}",
+    "method": "DELETE",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/notifications/{notification_id}/read",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/reports",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/reports/categories",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/settings",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/settings",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/settings/avatar",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/settings/change-password",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/settings/notifications",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/settings/notifications",
+    "method": "PATCH",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/settings/revoke-sessions",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/subscription/current",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/subscription/plans",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/support/messages",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/support/messages",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/support/session",
+    "method": "GET",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/support/session",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/support/tickets",
+    "method": "POST",
+    "web_declared": true,
+    "web_used": true,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/api/v1/smartflow/voice/transcribe",
+    "method": "POST",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": true,
+    "is_webhook": false
+  },
+  {
+    "path": "/health",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  },
+  {
+    "path": "/ready",
+    "method": "GET",
+    "web_declared": false,
+    "web_used": false,
+    "mobile_declared": true,
+    "mobile_used": false,
+    "is_webhook": false
+  }
+]

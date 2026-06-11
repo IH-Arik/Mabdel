@@ -1,0 +1,167 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/smartflow/notifications",
+    "normalized": "api/v1/smartflow/notifications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/smartflow/notifications/mark-all-read",
+    "normalized": "api/v1/smartflow/notifications/mark-all-read"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/smartflow/notifications/{notification_id}/read",
+    "normalized": "api/v1/smartflow/notifications/{}/read"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/smartflow/notifications/{notification_id}",
+    "normalized": "api/v1/smartflow/notifications/{}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/smartflow/notifications/dispatch-pending",
+    "normalized": "api/v1/smartflow/notifications/dispatch-pending"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/smartflow/settings/notifications",
+    "normalized": "api/v1/smartflow/settings/notifications"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/smartflow/settings/notifications",
+    "normalized": "api/v1/smartflow/settings/notifications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/admin/create-admin",
+    "normalized": "api/v1/dashboard/admin/create-admin"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/users-growth",
+    "normalized": "api/v1/dashboard/admin/users-growth"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/earnings",
+    "normalized": "api/v1/dashboard/admin/earnings"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice",
+    "normalized": "api/v1/dashboard/admin/earnings/transactions/{}/invoice"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/profile",
+    "normalized": "api/v1/dashboard/admin/profile"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/dashboard/admin/profile",
+    "normalized": "api/v1/dashboard/admin/profile"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/admins",
+    "normalized": "api/v1/dashboard/admin/admins"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/settings",
+    "normalized": "api/v1/dashboard/admin/settings"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/admin/subscriptions",
+    "normalized": "api/v1/dashboard/admin/subscriptions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/ai/stats",
+    "normalized": "api/v1/dashboard/admin/ai/stats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/ai/logs",
+    "normalized": "api/v1/dashboard/admin/ai/logs"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/profile",
+    "normalized": "api/v1/dashboard/admin/profile"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/dashboard/admin/profile",
+    "normalized": "api/v1/dashboard/admin/profile"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/admin/change-password",
+    "normalized": "api/v1/dashboard/admin/change-password"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/settings/content",
+    "normalized": "api/v1/dashboard/admin/settings/content"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/admin/settings/content",
+    "normalized": "api/v1/dashboard/admin/settings/content"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/admin/auth/forgot-password",
+    "normalized": "api/v1/dashboard/admin/auth/forgot-password"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/admin/auth/verify-otp",
+    "normalized": "api/v1/dashboard/admin/auth/verify-otp"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/admin/auth/reset-password",
+    "normalized": "api/v1/dashboard/admin/auth/reset-password"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/chats",
+    "normalized": "api/v1/dashboard/admin/chats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/admin/chats/{user_id}/messages",
+    "normalized": "api/v1/dashboard/admin/chats/{}/messages"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/admin/chats/{user_id}/messages",
+    "normalized": "api/v1/dashboard/admin/chats/{}/messages"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/super/platform-summary",
+    "normalized": "api/v1/dashboard/super/platform-summary"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/super/global-growth",
+    "normalized": "api/v1/dashboard/super/global-growth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/notifications/{notification_id}/read",
+    "normalized": "api/v1/dashboard/notifications/{}/read"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/dashboard/webhooks/stripe",
+    "normalized": "api/v1/dashboard/webhooks/stripe"
+  }
+]
