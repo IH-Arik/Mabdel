@@ -77,6 +77,7 @@ const ControllerTextInput = ({
                 }`}
                 style={[
                   {
+                    color: '#F3F6F8',
                     paddingLeft: leftIcon ? responsiveWidth(14) : responsiveWidth(2),
                     paddingRight: rightIcon ? responsiveWidth(14) : responsiveWidth(2),
                     height: props.multiline ? undefined : INPUT_HEIGHT,

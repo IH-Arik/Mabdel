@@ -31,8 +31,7 @@ const ScheduleMeetingScreen = () => {
       date_to: selectedDate,
     });
 
-    console.log('LINE AT 33' , calendarResponse);
-    
+
 
   const apiEvents = calendarResponse?.data?.items || [];
   const allEventsByDate = useMemo(() => {

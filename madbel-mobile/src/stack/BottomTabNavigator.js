@@ -129,11 +129,16 @@ const BottomNavigator = () => {
         <Tab.Screen
           name="Profile"
           component={ProfileStack}
-          options={{
-            tabBarLabel: "Settings",
-            tabBarIcon: ({ focused }) => (
-              <TabIcon icon={Settings} focused={focused} />
-            ),
+          options={({ route }) => {
+            const focusedRouteName = getFocusedRouteNameFromRoute(route) ?? "ProfileHome";
+            const shouldHideTabBar = focusedRouteName !== "ProfileHome";
+            return {
+              tabBarStyle: shouldHideTabBar ? { display: "none" } : styles.tabBar,
+              tabBarLabel: "Settings",
+              tabBarIcon: ({ focused }) => (
+                <TabIcon icon={Settings} focused={focused} />
+              ),
+            };
           }}
         />
       </Tab.Navigator>

@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: responsiveWidth(5),
     paddingTop: responsiveHeight(0.8),
-    paddingBottom: responsiveHeight(2.2),
+    paddingBottom: 24,
   },
   header: {
     flexDirection: "row",
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#F8FAFC",
-    fontSize: 52 / 2,
+    fontSize: 40 / 2,
     fontWeight: "700",
   },
   spacer: {
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: "#F1F4F8",
-    // fontSize: 54 / 2,
+    fontSize: 32 / 2,
     fontWeight: "500",
     marginBottom: responsiveHeight(0.7),
   },
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: "#EAF0F6",
-    // fontSize: 46 / 2,
+    fontSize: 32 / 2,
     paddingRight: responsiveWidth(3),
     backgroundColor: "transparent",
     borderWidth: 0,
@@ -274,9 +274,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   saveBtn: {
-    minHeight: responsiveHeight(8.2),
-    marginBottom: responsiveHeight(8.2),
-    borderRadius: 18,
+    minHeight: 52,
+    marginBottom: 10,
+    borderRadius: 14,
     backgroundColor: "#15C8E3",
     alignItems: "center",
     justifyContent: "center",
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   },
   saveText: {
     color: "#E8F4FA",
-    fontSize: 56 / 2,
+    fontSize: 32 / 2,
     fontWeight: "600",
   },
   errorTextCenter: {

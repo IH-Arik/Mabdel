@@ -124,6 +124,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: responsiveWidth(5),
     paddingTop: responsiveHeight(0.8),
+    paddingBottom: 24,
   },
   header: {
     flexDirection: "row",
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#F8FAFC",
-    fontSize: 52 / 2,
+    fontSize: 40 / 2,
     fontWeight: "700",
   },
   spacer: {
@@ -159,14 +160,14 @@ const styles = StyleSheet.create({
   },
   rowText: {
     color: "#EEF2F6",
-    fontSize: 48 / 2,
+    fontSize: 32 / 2,
     fontWeight: "400",
   },
   saveBtn: {
     marginTop: "auto",
-    marginBottom: responsiveHeight(10),
-    minHeight: responsiveHeight(8.2),
-    borderRadius: 18,
+    marginBottom: 10,
+    minHeight: 52,
+    borderRadius: 14,
     backgroundColor: "#15C8E3",
     alignItems: "center",
     justifyContent: "center",
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
   },
   saveText: {
     color: "#E8F4FA",
-    fontSize: 56 / 2,
+    fontSize: 32 / 2,
     fontWeight: "600",
   },
 });

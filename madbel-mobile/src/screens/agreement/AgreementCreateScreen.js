@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Switch, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -33,19 +33,34 @@ const normalizeDate = (value) => {
 const AgreementCreateScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const [voiceTrigger, setVoiceTrigger] = useState(0);
   const accessToken = useSelector((state) => state?.auth?.accessToken || state?.auth?.token);
-  const prefill = route?.params?.agreement || {};
+  const routePrefill = route?.params?.prefill || route?.params?.agreement || {};
 
   const [signatureEnabled, setSignatureEnabled] = useState(true);
-  const [title, setTitle] = useState(prefill.title || "");
-  const [clientName, setClientName] = useState(prefill.client_name || "");
-  const [clientEmail, setClientEmail] = useState(prefill.client_email || "");
-  const [clientPhone, setClientPhone] = useState(prefill.client_phone || "");
-  const [agreementType, setAgreementType] = useState(prefill.agreement_type || "contract");
-  const [date, setDate] = useState(prefill.start_date || "");
-  const [prompt, setPrompt] = useState("");
-  const [content, setContent] = useState(prefill.content || "");
-  const [aiReview, setAiReview] = useState(normalizeReview(prefill.ai_review));
+  const [title, setTitle] = useState(routePrefill.title || "");
+  const [clientName, setClientName] = useState(routePrefill.client_name || "");
+  const [clientEmail, setClientEmail] = useState(routePrefill.client_email || "");
+  const [clientPhone, setClientPhone] = useState(routePrefill.client_phone || "");
+  const [agreementType, setAgreementType] = useState(routePrefill.agreement_type || "contract");
+  const [date, setDate] = useState(routePrefill.start_date || "");
+  const [prompt, setPrompt] = useState(routePrefill.prompt || "");
+  const [content, setContent] = useState(routePrefill.content || "");
+  const [aiReview, setAiReview] = useState(normalizeReview(routePrefill.ai_review));
+
+  useEffect(() => {
+    const p = route?.params?.prefill;
+    if (!p || typeof p !== "object" || !Object.keys(p).length) return;
+    if (p.title) setTitle(p.title);
+    if (p.client_name) setClientName(p.client_name);
+    if (p.client_email) setClientEmail(p.client_email);
+    if (p.client_phone) setClientPhone(p.client_phone);
+    if (p.agreement_type) setAgreementType(p.agreement_type);
+    if (p.start_date) setDate(p.start_date);
+    if (p.content) setContent(p.content);
+    if (p.prompt) setPrompt(p.prompt);
+    navigation.setParams?.({ prefill: undefined });
+  }, [route?.params?.prefill]);
 
   const { data: typesResponse } = useMadbelGetAgreementTypesQuery();
   const [generateDraft, { isLoading: generating }] = useMadbelGenerateAgreementDraftMutation();
@@ -216,7 +231,9 @@ const AgreementCreateScreen = () => {
                 multiline
                 style={styles.promptInput}
               />
-              <Mic size={24} color="#10CDE9" />
+              <Pressable onPress={() => setVoiceTrigger((t) => t + 1)} hitSlop={10}>
+                <Mic size={24} color="#10CDE9" />
+              </Pressable>
             </View>
             <Pressable style={styles.generateBtn} onPress={runGenerate} disabled={generating}>
               {generating ? (
@@ -288,10 +305,20 @@ const AgreementCreateScreen = () => {
             />
           </View>
 
-             <VoiceFormFillCard
+          <VoiceFormFillCard
             label="agreement"
             workflowIntent="agreement"
             sourceScreen="AgreementCreate"
+            triggerOpen={voiceTrigger}
+            currentValues={{
+              title,
+              client_name: clientName,
+              client_email: clientEmail,
+              client_phone: clientPhone,
+              agreement_type: agreementType,
+              start_date: date,
+              content,
+            }}
           />
 
           <Pressable style={styles.sendBtn} onPress={handleCreate} disabled={creating}>

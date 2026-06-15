@@ -140,8 +140,6 @@ const HomeScreen = () => {
     },
   ];
 
-  console.log("LINE AT 113", contactsResponse, contactsResponse?.data?.items);
-
   const firstNameFromEmail = String(
     authUser?.email || authUser?.client_email || "",
   )

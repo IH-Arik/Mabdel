@@ -4,8 +4,6 @@ export const eventSlice = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAllEvents: builder.query({
       query: ({ page = 1, limit = 10, filters = {} } = {}) => {
-        console.log('LINE AT 7' ,filters);
-        
         return {
         url: "/events",
         params: {
@@ -20,8 +18,6 @@ export const eventSlice = baseApi.injectEndpoints({
 
 
     transformResponse: (response, meta, arg) => {
-    //
-       console.log('LINE AT 17' , response);
 
       const events = response?.data || [];
       const pagination = response?.pagination || {
@@ -236,8 +232,6 @@ export const eventSlice = baseApi.injectEndpoints({
             name: file.fileName || `media-${Date.now()}-${index}`,
           });
         });
-        console.log("LINE AT 375", formData);
-
         return {
           url: `/events`,
           method: "POST",
@@ -286,8 +280,6 @@ export const eventSlice = baseApi.injectEndpoints({
             name: file.fileName || `media-${Date.now()}-${index}`,
           });
         });
-        console.log("LINE AT 426", formData);
-
         return {
           url: `/activities`,
           method: "POST",

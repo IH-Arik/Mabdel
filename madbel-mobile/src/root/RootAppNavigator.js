@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import BeginScreen from "../screens/auth/BeginScreen";
 import OnboardingScreen from "../screens/OnboardingScreen";
@@ -9,6 +10,8 @@ import NotificationScreen from "../screens/NotificaitonsScreen";
 import IncomingCallScreen from "../screens/call/IncomingCallScreen";
 import ActiveCallScreen from "../screens/call/ActiveCallScreen";
 import AiCallScreen from "../screens/call/AiCallScreen";
+import * as Notifications from "expo-notifications";
+import { useMadbelRegisterPushTokenMutation } from "../redux/slices/madbelApiSlice";
 
 const Stack = createNativeStackNavigator();
 
@@ -20,6 +23,54 @@ const RootAppNavigator = () => {
   const isAuthenticated =
     (typeof accessToken === "string" && accessToken.trim().length > 0) ||
     Boolean(authUser);
+
+  const [registerPushToken] = useMadbelRegisterPushTokenMutation();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const registerToken = async () => {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+
+        if (existingStatus !== "granted") {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== "granted") return;
+
+        // projectId is required in expo-notifications 0.28+.
+        // Use Constants.expoConfig.extra.eas.projectId if available, else skip.
+        let projectId;
+        try {
+          const Constants = require("expo-constants").default;
+          projectId =
+            Constants?.expoConfig?.extra?.eas?.projectId ||
+            Constants?.easConfig?.projectId ||
+            Constants?.manifest?.extra?.eas?.projectId;
+        } catch (_) {}
+
+        const tokenData = projectId
+          ? await Notifications.getExpoPushTokenAsync({ projectId })
+          : await Notifications.getDevicePushTokenAsync();
+
+        const token = tokenData?.data;
+        if (!token) return;
+
+        await registerPushToken({
+          token,
+          platform: Platform.OS,
+          device_id: `${Platform.OS}-${String(token).slice(-8)}`,
+        }).unwrap();
+      } catch (err) {
+        console.log("Push token registration failed:", err?.message || err);
+      }
+    };
+
+    registerToken();
+  }, [isAuthenticated]);
 
   return (
     <Stack.Navigator

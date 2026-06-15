@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Switch, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { ChevronLeft, Mic, Sparkles, House, Users, Wallet, CalendarDays, PenLine, UserRound, Building2 } from "lucide-react-native";
 import {
@@ -12,6 +12,7 @@ import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 
 const NewLeaseScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const [tenantSignature, setTenantSignature] = useState(true);
   const [landlordSignature, setLandlordSignature] = useState(true);
   const [prompt, setPrompt] = useState("");
@@ -27,8 +28,29 @@ const NewLeaseScreen = () => {
   const [endDate, setEndDate] = useState("");
   const [terms, setTerms] = useState("");
 
+  const [voiceTrigger, setVoiceTrigger] = useState(0);
+
   const [generateLeaseDraft, { isLoading: generating }] = useMadbelGenerateLeaseDraftMutation();
   const [createLease, { isLoading: creating }] = useMadbelCreateLeaseMutation();
+
+  useEffect(() => {
+    const p = route?.params?.prefill;
+    if (!p || typeof p !== "object" || !Object.keys(p).length) return;
+    if (p.tenant_name) setTenant(p.tenant_name);
+    if (p.tenant_email) setTenantEmail(p.tenant_email);
+    if (p.tenant_phone) setTenantPhone(p.tenant_phone);
+    if (p.landlord_name) setLandlord(p.landlord_name);
+    if (p.property_address) setAddress(p.property_address);
+    if (p.property_type) setPropertyType(p.property_type);
+    if (p.monthly_rent != null) setRent(String(p.monthly_rent));
+    if (p.security_deposit != null) setDeposit(String(p.security_deposit));
+    if (p.start_date) setStartDate(p.start_date);
+    if (p.end_date) setEndDate(p.end_date);
+    if (p.custom_terms) setTerms(p.custom_terms);
+    if (p.prompt) setPrompt(p.prompt);
+    // Clear to prevent re-applying on re-render
+    navigation.setParams?.({ prefill: undefined });
+  }, [route?.params?.prefill]);
 
   const parseMoney = (value) => {
     const numeric = Number(String(value || "").replace(/[^0-9.]/g, ""));
@@ -132,7 +154,9 @@ const NewLeaseScreen = () => {
                 multiline
                 style={styles.promptInput}
               />
-              <Mic size={22} color="#11CDE8" />
+              <Pressable onPress={() => setVoiceTrigger((t) => t + 1)} hitSlop={10}>
+                <Mic size={22} color="#11CDE8" />
+              </Pressable>
             </View>
             <Pressable style={styles.generateBtn} onPress={runGenerate} disabled={generating}>
               {generating ? (
@@ -222,6 +246,20 @@ const NewLeaseScreen = () => {
             label="lease"
             workflowIntent="lease"
             sourceScreen="NewLease"
+            triggerOpen={voiceTrigger}
+            currentValues={{
+              tenant_name: tenant,
+              tenant_email: tenantEmail,
+              tenant_phone: tenantPhone,
+              landlord_name: landlord,
+              property_address: address,
+              property_type: propertyType,
+              monthly_rent: rent,
+              security_deposit: deposit,
+              start_date: startDate,
+              end_date: endDate,
+              custom_terms: terms,
+            }}
           />
 
           <Pressable style={styles.submitBtn} onPress={handleCreate} disabled={creating}>

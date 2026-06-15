@@ -59,6 +59,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: responsiveWidth(5),
     paddingTop: responsiveHeight(0.8),
+    paddingBottom: 24,
   },
   header: {
     flexDirection: "row",
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#F8FAFC",
-    fontSize: 52 / 2,
+    fontSize: 40 / 2,
     fontWeight: "700",
   },
   spacer: {
@@ -86,7 +87,7 @@ const styles = StyleSheet.create({
     borderColor: "#212530",
   },
   row: {
-    minHeight: responsiveHeight(8.3),
+    minHeight: 58,
     paddingHorizontal: responsiveWidth(4),
     flexDirection: "row",
     alignItems: "center",
@@ -98,14 +99,14 @@ const styles = StyleSheet.create({
   },
   rowText: {
     color: "#F2F4F7",
-    fontSize: 48 / 2,
+    fontSize: 32 / 2,
     fontWeight: "400",
   },
   deleteBtn: {
     marginTop: "auto",
-    marginBottom: responsiveHeight(10),
-    minHeight: responsiveHeight(8),
-    borderRadius: 18,
+    marginBottom: 10,
+    minHeight: 52,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#212530",
     backgroundColor: "#1B1C21",
@@ -114,8 +115,8 @@ const styles = StyleSheet.create({
   },
   deleteText: {
     color: "#FC4C58",
-    fontSize: 50 / 2,
-    fontWeight: "500",
+    fontSize: 30 / 2,
+    fontWeight: "600",
   },
 });
 

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
+import useCallTimer from "../../hooks/useCallTimer";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -20,7 +21,7 @@ import {
   User,
   FileText,
 } from "lucide-react-native";
-import { useMadbelCallActionMutation, useMadbelGetCallTranscriptQuery } from "../../redux/slices/madbelApiSlice";
+import { useMadbelCallActionMutation, useMadbelGetLiveCallTranscriptQuery } from "../../redux/slices/madbelApiSlice";
 
 const AiCallScreen = () => {
   const navigation = useNavigation();
@@ -32,10 +33,11 @@ const AiCallScreen = () => {
   const { callSid, call_sid, callId, callerName, callerNumber } = route.params || {};
   const activeCallSid = callSid || call_sid || callId || "mock_sid";
 
+  const timer = useCallTimer(true);
   const [callAction] = useMadbelCallActionMutation();
 
-  // Poll transcript every 2 seconds if not mock
-  const { data: transcriptResponse } = useMadbelGetCallTranscriptQuery(
+  // Poll live transcript every 2 seconds using the Twilio CallSid.
+  const { data: transcriptResponse } = useMadbelGetLiveCallTranscriptQuery(
     activeCallSid,
     {
       pollingInterval: 2000,
@@ -46,9 +48,9 @@ const AiCallScreen = () => {
   const transcriptData = transcriptResponse?.data || transcriptResponse;
 
   const segments = transcriptData?.speaker_segments || [];
-  const renderedSegments = (segments && segments.length > 0) ? segments : [
-    { speaker: "ai", text: "Hello David, I'm calling regarding your invoice update." },
-    { speaker: "customer", text: "yes, I reviewed it yesterday. The figures look correct but I have a question about the tax breakdown." }
+  const renderedSegments = segments.length > 0 ? segments : [
+    { speaker: "ai", text: "Hello, I am Mabdel, your business operations assistant. How can I help you today?" },
+    { speaker: "customer", text: "Waiting for caller response..." },
   ];
 
   // Animation values for the abstract blue orb
@@ -117,7 +119,7 @@ const AiCallScreen = () => {
             <View style={styles.liveCallDot} />
             <Text style={styles.aiHandlingText}>AI Handling Call</Text>
           </View>
-          <Text style={styles.timerText}>08:15</Text>
+          <Text style={styles.timerText}>{timer}</Text>
           <Text style={styles.subText}>Live AI conversation active</Text>
         </View>
 

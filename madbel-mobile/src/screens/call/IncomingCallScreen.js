@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
+import useCallTimer from "../../hooks/useCallTimer";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -26,6 +27,7 @@ const IncomingCallScreen = () => {
   const { callSid, call_sid, callId, callerName, callerNumber } = route.params || {};
   const activeCallSid = callSid || call_sid || callId || "mock_sid";
 
+  const timer = useCallTimer(true);
   const [callAction] = useMadbelCallActionMutation();
 
   const handleDecline = async () => {
@@ -84,7 +86,7 @@ const IncomingCallScreen = () => {
             <View style={styles.liveCallDot} />
             <Text style={styles.liveCallText}>Live Call</Text>
           </View>
-          <Text style={styles.timerText}>12:42</Text>
+          <Text style={styles.timerText}>{timer}</Text>
           <View style={{ width: 85 }} /> {/* Spacer to center the timer */}
         </View>
  

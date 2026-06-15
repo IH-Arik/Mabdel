@@ -175,6 +175,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: responsiveWidth(5),
     paddingTop: responsiveHeight(0.8),
+    paddingBottom: 24,
     backgroundColor: "#020406",
   },
 
@@ -192,13 +193,13 @@ const styles = StyleSheet.create({
 
   title: {
     color: "#F8FAFC",
-    fontSize: 26,
+    fontSize: 40 / 2,
     fontWeight: "700",
   },
 
   editText: {
     color: "#13CBEC",
-    fontSize: 22,
+    fontSize: 32 / 2,
     fontWeight: "600",
   },
 
@@ -235,7 +236,7 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: responsiveHeight(12),
+    paddingBottom: 24,
     gap: responsiveHeight(2.1),
   },
 
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
 
   fieldLabel: {
     color: "#8D95A5",
-    fontSize: 16,
+    fontSize: 24 / 2,
     letterSpacing: 0.9,
     fontWeight: "500",
   },
@@ -285,20 +286,20 @@ const styles = StyleSheet.create({
   fieldValue: {
     marginTop: responsiveHeight(1),
     color: "#F2F4F7",
-    fontSize: 28,
+    fontSize: 32 / 2,
     fontWeight: "400",
   },
 
   fieldSub: {
     color: "#A4ABB8",
-    fontSize: 28,
+    fontSize: 32 / 2,
     fontWeight: "400",
   },
 
   fieldLink: {
     marginTop: responsiveHeight(1),
     color: "#11C8EA",
-    fontSize: 28,
+    fontSize: 32 / 2,
     fontWeight: "500",
     textDecorationLine: "underline",
   },

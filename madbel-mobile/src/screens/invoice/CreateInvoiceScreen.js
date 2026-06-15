@@ -8,13 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -23,7 +18,6 @@ import {
 import {
   ChevronLeft,
   CalendarDays,
-  Mic,
   PlusCircle,
   Trash2,
   PenLine,
@@ -33,10 +27,9 @@ import ControllerTextInput from "../../components/ControllerTextInput";
 import SystemCalendarModal from "../../components/SystemCalendarModal";
 import {
   useMadbelCreateInvoiceMutation,
-  useMadbelAiChatMutation,
-  useMadbelAiWorkflowPrefillMutation,
   useMadbelUpdateInvoiceMutation,
 } from "../../redux/slices/madbelApiSlice";
+import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 import {
   buildInvoicePayload,
   formatCurrency,
@@ -57,42 +50,6 @@ const normalizePrefillItems = (items = []) => {
   return [];
 };
 
-const buildWorkflowPrefillBody = (transcript, currentValues = {}) => ({
-  transcript,
-  workflow_intent: "invoice",
-  current_values: currentValues,
-});
-
-const extractStructuredInvoiceData = (responsePayload = {}) => {
-  const payload = responsePayload?.data || responsePayload || {};
-  const possibleStructured =
-    payload?.prefill ||
-    payload?.workflow?.output ||
-    payload?.invoice_data ||
-    payload?.fields ||
-    payload?.structured_data ||
-    payload?.workflowPrefill?.prefill ||
-    null;
-
-  if (possibleStructured && typeof possibleStructured === "object") {
-    return possibleStructured;
-  }
-
-  const rawText =
-    payload?.response ||
-    payload?.ai_response ||
-    payload?.text ||
-    payload?.message ||
-    "";
-  const maybeJsonStart = String(rawText).indexOf("{");
-  const maybeJsonEnd = String(rawText).lastIndexOf("}");
-
-  if (maybeJsonStart >= 0 && maybeJsonEnd > maybeJsonStart) {
-    return JSON.parse(String(rawText).slice(maybeJsonStart, maybeJsonEnd + 1));
-  }
-
-  return null;
-};
 
 const CreateInvoiceScreen = () => {
   const navigation = useNavigation();
@@ -132,36 +89,11 @@ const CreateInvoiceScreen = () => {
     quantity: "",
     unit_price: "",
   });
-  const [voiceModalVisible, setVoiceModalVisible] = useState(false);
-  const [voicePrompt, setVoicePrompt] = useState("");
-  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
-
   const [createInvoice, { isLoading: creatingInvoice }] = useMadbelCreateInvoiceMutation();
   const [updateInvoice, { isLoading: updatingInvoice }] = useMadbelUpdateInvoiceMutation();
-  const [workflowPrefill, { isLoading: processingWorkflowPrefill }] =
-    useMadbelAiWorkflowPrefillMutation();
-  const [aiChat, { isLoading: processingVoice }] = useMadbelAiChatMutation();
 
   const dueDate = watch("dueDate");
   const isSaving = creatingInvoice || updatingInvoice;
-
-  useSpeechRecognitionEvent("result", (event) => {
-    const text = event.results?.[0]?.transcript;
-    if (text) {
-      setVoicePrompt(text);
-    }
-  });
-
-  useSpeechRecognitionEvent("end", () => {
-    setIsRecordingVoice(false);
-  });
-
-  useEffect(
-    () => () => {
-      ExpoSpeechRecognitionModule.stop();
-    },
-    [],
-  );
 
   const totalAmount = invoiceItems.reduce((sum, item) => {
     const qty = Number(item?.quantity || 0);
@@ -263,112 +195,11 @@ const CreateInvoiceScreen = () => {
 
   useEffect(() => {
     if (editingInvoice) return;
-
-    const hasPrefill =
-      Object.keys(prefill || {}).length > 0 || Boolean(prefillPrompt?.trim());
-
-    if (!hasPrefill) return;
-
-    applyAiPrefill(prefill, prefillPrompt);
-
-    navigation.setParams?.({
-      prefill: undefined,
-      prefillPrompt: undefined,
-    });
-  }, [editingInvoice, navigation, prefill, prefillPrompt]);
-
-  const handleProcessVoiceCommand = async () => {
-    const transcript = voicePrompt.trim();
-    if (!transcript) {
-      Alert.alert("Missing command", "Please enter a command for invoice generation.");
-      return;
-    }
-
-    try {
-      const currentValues = {
-        client_name: getValues("clientName")?.trim() || "",
-        client_email: getValues("email")?.trim() || "",
-        due_date: getValues("dueDate") || "",
-        items: invoiceItems.map((item) => ({
-          description: item?.description || "",
-          details: item?.details || "",
-          quantity: Number(item?.quantity ?? 0),
-          unit_price:
-            Number(String(item?.unit_price || "0").replace(/[^0-9.-]/g, "")) || 0,
-        })),
-      };
-
-      const workflowRequestBody = buildWorkflowPrefillBody(transcript, currentValues);
-      const workflowResponse = await workflowPrefill(workflowRequestBody).unwrap();
-      const workflowPayload = workflowResponse?.data || workflowResponse || {};
-
-      const chatResponse = await aiChat({
-        content: transcript,
-        response_mode: "text",
-        voice_id: null,
-      }).unwrap();
-
-      const parsedJson =
-        extractStructuredInvoiceData(workflowPayload) ||
-        extractStructuredInvoiceData(chatResponse) ||
-        workflowPayload?.prefill ||
-        chatResponse?.data?.workflow?.output ||
-        null;
-
-      if (!parsedJson || typeof parsedJson !== "object") {
-        throw new Error("No structured invoice data found in AI response.");
-      }
-
-      applyAiPrefill(parsedJson, transcript);
-      setVoiceModalVisible(false);
-      Alert.alert("Invoice updated", "Form filled from AI response.");
-    } catch (error) {
-      console.log("Invoice voice processing error:", error);
-      Alert.alert(
-        "Voice parse failed",
-        error?.data?.message || error?.message || "Could not process your command.",
-      );
-    }
-  };
-
-  const startVoiceRecording = useCallback(async () => {
-    try {
-      const { granted } =
-        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!granted) {
-        Alert.alert(
-          "Permission required",
-          "Microphone permission is required for voice input.",
-        );
-        return;
-      }
-
-      setVoicePrompt("");
-      setIsRecordingVoice(true);
-      ExpoSpeechRecognitionModule.start({
-        lang: "en-US",
-        interimResults: true,
-        continuous: true,
-        maxAlternatives: 1,
-      });
-    } catch (error) {
-      setIsRecordingVoice(false);
-      Alert.alert(
-        "Voice unavailable",
-        error?.message || "Could not start voice recording.",
-      );
-    }
-  }, []);
-
-  const stopVoiceRecording = useCallback(() => {
-    ExpoSpeechRecognitionModule.stop();
-    setIsRecordingVoice(false);
-  }, []);
-
-  const openVoiceModal = useCallback(() => {
-    setVoiceModalVisible(true);
-    startVoiceRecording();
-  }, [startVoiceRecording]);
+    const p = route?.params?.prefill;
+    if (!p || typeof p !== "object" || !Object.keys(p).length) return;
+    applyAiPrefill(p, route?.params?.prefillPrompt || "");
+    navigation.setParams?.({ prefill: undefined, prefillPrompt: undefined });
+  }, [route?.params?.prefill]);
 
   const onCreate = async (values) => {
     try {
@@ -525,12 +356,21 @@ const CreateInvoiceScreen = () => {
             placeholderTextColor="#6D7B93"
           />
 
-          <View style={styles.micWrap}>
-            <Pressable style={styles.micCircle} onPress={openVoiceModal}>
-              <Mic size={40} color="#EAF8FF" />
-            </Pressable>
-            <Text style={styles.micText}>Tap mic to fill invoice via AI chat</Text>
-          </View>
+          <VoiceFormFillCard
+            label="invoice"
+            workflowIntent="invoice"
+            sourceScreen="CreateInvoice"
+            currentValues={{
+              client_name: getValues("clientName") || "",
+              client_email: getValues("email") || "",
+              due_date: getValues("dueDate") || "",
+              items: invoiceItems.map((item) => ({
+                description: item?.description || "",
+                quantity: Number(item?.quantity ?? 0),
+                unit_price: Number(String(item?.unit_price || "0").replace(/[^0-9.-]/g, "")) || 0,
+              })),
+            }}
+          />
         </ScrollView>
 
         <SystemCalendarModal
@@ -627,58 +467,6 @@ const CreateInvoiceScreen = () => {
           </View>
         </Modal>
 
-        <Modal
-          visible={voiceModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setVoiceModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Invoice Command</Text>
-              <TextInput
-                value={voicePrompt}
-                onChangeText={setVoicePrompt}
-                placeholder='e.g. "Create invoice for Jamil $250 website design due May 30"'
-                placeholderTextColor="#6D7B93"
-                multiline
-                style={styles.voiceInput}
-              />
-              <View style={styles.modalActions}>
-                <Pressable
-                  style={styles.modalCancelBtn}
-                  onPress={() => {
-                    stopVoiceRecording();
-                    setVoiceModalVisible(false);
-                  }}
-                  disabled={processingWorkflowPrefill || processingVoice}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.modalCancelBtn}
-                  onPress={isRecordingVoice ? stopVoiceRecording : startVoiceRecording}
-                  disabled={processingWorkflowPrefill || processingVoice}
-                >
-                  <Text style={styles.modalCancelText}>
-                    {isRecordingVoice ? "Stop" : "Record"}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={styles.modalSaveBtn}
-                  onPress={handleProcessVoiceCommand}
-                  disabled={processingWorkflowPrefill || processingVoice}
-                >
-                  {processingWorkflowPrefill || processingVoice ? (
-                    <ActivityIndicator color="#0B1320" />
-                  ) : (
-                    <Text style={styles.modalSaveText}>Process</Text>
-                  )}
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
         <Pressable
           style={[styles.createBtn, isSaving ? styles.createBtnDisabled : null]}
           onPress={handleSubmit(onCreate)}
@@ -819,25 +607,6 @@ const styles = StyleSheet.create({
   },
   totalAmount: { color: "#14C9E7", fontSize: 30, fontWeight: "700" },
   autoCalculated: { color: "#8795AD", fontSize: 16 },
-  micWrap: { alignItems: "center", marginTop: responsiveHeight(0.4) },
-  micCircle: {
-    width: responsiveWidth(24),
-    height: responsiveWidth(24),
-    borderRadius: responsiveWidth(12),
-    backgroundColor: "#14C9E7",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#14C9E7",
-    shadowOpacity: 0.5,
-    shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  micText: {
-    marginTop: responsiveHeight(1),
-    color: "#14C9E7",
-    fontSize: 18,
-  },
   createBtn: {
     minHeight: responsiveHeight(8.2),
     borderRadius: 18,
@@ -910,18 +679,6 @@ const styles = StyleSheet.create({
     color: "#0B1320",
     fontSize: 16,
     fontWeight: "700",
-  },
-  voiceInput: {
-    minHeight: responsiveHeight(11),
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#2B3142",
-    backgroundColor: "#1A2232",
-    color: "#EAF0F6",
-    fontSize: 16,
-    paddingHorizontal: responsiveWidth(3.5),
-    paddingVertical: responsiveHeight(1),
-    textAlignVertical: "top",
   },
 });
 

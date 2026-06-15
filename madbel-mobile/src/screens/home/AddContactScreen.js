@@ -137,8 +137,6 @@ const AddContactScreen = () => {
     // }
   };
 
-  console.log('LINE AT 137' , avatarUrl);
-  
 
   const saveContact = async () => {
     const values = getValues();

@@ -40,7 +40,16 @@
           "microphonePermission": "Allow Mabdel to record voice commands for AI assistance."
         }
       ],
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#17CBE8",
+          "sounds": []
+        }
+      ]
     ],
     "web": {
       "favicon": "./assets/favicon.png"

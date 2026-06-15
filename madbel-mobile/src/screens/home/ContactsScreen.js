@@ -33,8 +33,7 @@ const ContactsScreen = () => {
     search: query.trim() || undefined,
   });
 
-  console.log('LINE AT 36' , contactsResponse);
-  
+
 
   const contactsData = contactsResponse?.data;
   const contacts = contactsData?.items || [];

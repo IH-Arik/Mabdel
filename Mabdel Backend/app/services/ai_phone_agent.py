@@ -2,7 +2,7 @@ import base64
 import json
 import asyncio
 from typing import Any, Callable
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 import wave
 import io
 
@@ -26,10 +26,11 @@ class AIPhoneAgent:
         self.is_processing = False
         self.stream_sid = None
         self.last_audio_time = 0
-        self.silence_threshold = 1.5 
+        self.silence_threshold = 1.5
         self.greeted = False
-        self.user_id = None # Will be set during session start
-        self.conversation_state = {} # e.g. {"phase": "scheduling", "proposed_slot": "15:00"}
+        self.user_id = None
+        self.conversation_state = {}
+        self.transcript_log: list[dict] = []
         
     async def greet(self, send_callback: Callable):
         if self.greeted:
@@ -80,16 +81,16 @@ class AIPhoneAgent:
                 return
 
             print(f"Call {self.call_id}: Transcript: '{transcript}'")
-            
+
             # 3. Generate AI Response
-            # We check if we are in a special conversation state (like scheduling)
             if self.conversation_state.get("phase") == "awaiting_confirmation":
+                slot = self.conversation_state.get("proposed_slot", "")
                 if "yes" in transcript.lower() or "sure" in transcript.lower() or "ok" in transcript.lower():
-                    # Create the meeting request
-                    slot_hour = int(slot.split(":")[0])
-                    start_time = datetime(2026, 5, 11, slot_hour, 0, tzinfo=timezone.utc)
+                    today = datetime.now(timezone.utc).date()
+                    slot_hour = int(slot.split(":")[0]) if slot else 9
+                    start_time = datetime(today.year, today.month, today.day, slot_hour, 0, tzinfo=timezone.utc)
                     end_time = start_time + timedelta(hours=1)
-                    
+
                     await self.flow_service.create_calendar_event(self.user_id, {
                         "title": f"Meeting with caller ({self.call_id})",
                         "starts_at": start_time,
@@ -105,17 +106,25 @@ class AIPhoneAgent:
             else:
                 ai_response = self.ai_service.generate_response(transcript)
                 response_text = ai_response.get("content", "I'm sorry, could you repeat that?")
-                
-                # Check if the AI wants to schedule a meeting
+
                 if ai_response.get("command_type") == "calendar" or "schedule" in transcript.lower():
-                    from datetime import date
-                    slots = await self.flow_service.find_free_slots(self.user_id, date(2026, 5, 11))
+                    slots = await self.flow_service.find_free_slots(self.user_id, date.today())
                     if slots:
                         proposed = slots[0]
                         response_text = f"I see you're free at {proposed}. Should I schedule a meeting request for you at that time?"
                         self.conversation_state = {"phase": "awaiting_confirmation", "proposed_slot": proposed}
                     else:
                         response_text = "I'm sorry, it looks like there are no free slots available today."
+
+            self.transcript_log.append({"speaker": "customer", "text": transcript})
+            self.transcript_log.append({"speaker": "ai", "text": response_text})
+
+            # Write incrementally so live polling sees each turn during the call.
+            from app.utils.audio import utc_now
+            await self.flow_service.db.call_logs.update_one(
+                {"twilio_call_sid": self.call_id, "user_id": self.user_id},
+                {"$set": {"speaker_segments": self.transcript_log, "updated_at": utc_now()}},
+            )
 
             print(f"Call {self.call_id}: AI Response: '{response_text}'")
             
@@ -172,16 +181,22 @@ class AIPhoneAgent:
             await send_callback(message)
 
     async def finalize_session(self):
-        """
-        Saves the final transcript and generates a summary.
-        """
-        if not self.user_id:
+        """Saves the accumulated transcript to the call log."""
+        if not self.user_id or not self.transcript_log:
+            print(f"Call {self.call_id}: Finalizing session (no transcript to save).")
             return
-            
-        # 1. Update the final transcript in the database
-        # (Assuming the transcript was being built, but for now we'll just log)
-        # In a real app, we'd accumulate 'transcript' and 'ai_response' in a session log.
-        print(f"Call {self.call_id}: Finalizing session...")
+
+        from app.utils.audio import utc_now
+        print(f"Call {self.call_id}: Saving {len(self.transcript_log)} transcript turns...")
+        await self.flow_service.db.call_logs.update_one(
+            {"twilio_call_sid": self.call_id, "user_id": self.user_id},
+            {
+                "$set": {
+                    "speaker_segments": self.transcript_log,
+                    "ended_at": utc_now(),
+                }
+            },
+        )
 
     def _mulaw_to_wav(self, mulaw_data: bytes) -> bytes:
         """

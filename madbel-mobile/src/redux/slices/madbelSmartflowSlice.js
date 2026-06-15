@@ -204,6 +204,8 @@ export const {
   useMadbelChangePasswordMutation,
   useMadbelRevokeSessionsMutation,
   useMadbelCallActionMutation,
+  useMadbelGetLiveCallTranscriptQuery,
+  useLazyMadbelGetLiveCallTranscriptQuery,
   useMadbelListShopProductsQuery,
   useLazyMadbelListShopProductsQuery,
   useMadbelGetShopProductQuery,

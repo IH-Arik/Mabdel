@@ -47,8 +47,6 @@ const JoinActivityScreen = ({ route }) => {
   const [createHostThread, { isLoading: creatingThread }] = useCreateChatMessagesMutation();
   const [joinActivity, { isLoading: joiningActivity }] = useJoinActivityMutation();
 
-  console.log("LINE AT 34", item);
-
   const activityHostId =
     item?.hostUserId ||
     item?.hostId ||
@@ -70,11 +68,9 @@ const JoinActivityScreen = ({ route }) => {
     if (!activityId || joiningActivity) return;
 
     try {
-      const res = await joinActivity(String(activityId)).unwrap();
+      await joinActivity(String(activityId)).unwrap();
       setJoined(true);
       setShowSuccessModal(true);
-      console.log('LINE AT 57' , res);
-      
     } catch (error) {
       console.log("Failed to join activity:", error);
       Alert.alert("Failed", "Could not join this activity. Please try again.");

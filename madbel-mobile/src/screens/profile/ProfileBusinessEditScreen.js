@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: responsiveWidth(5),
     paddingTop: responsiveHeight(0.8),
-    paddingBottom: responsiveHeight(2.2),
+    paddingBottom: 24,
   },
   centerState: {
     flex: 1,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#F8FAFC",
-    fontSize: 52 / 2,
+    fontSize: 40 / 2,
     fontWeight: "700",
   },
   spacer: {
@@ -342,13 +342,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: "#E8EDF5",
-    fontSize: 20,
-    fontWeight: "500",
+    fontSize: 36 / 2,
+    fontWeight: "600",
     marginBottom: responsiveHeight(0.6),
   },
   label: {
     color: "#F1F4F8",
-    // fontSize: 54 / 2,
+    fontSize: 32 / 2,
     fontWeight: "500",
     marginBottom: responsiveHeight(0.7),
   },
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     borderColor: "#12C9EB",
     borderRadius: 18,
     color: "#EAF0F6",
-    // fontSize: 46 / 2,
+    fontSize: 32 / 2,
     paddingHorizontal: responsiveWidth(4.5),
     backgroundColor: "#020406",
   },
@@ -371,9 +371,9 @@ const styles = StyleSheet.create({
     lineHeight: 36,
   },
   saveBtn: {
-    minHeight: responsiveHeight(8.2),
-    marginBottom: responsiveHeight(8.2),
-    borderRadius: 18,
+    minHeight: 52,
+    marginBottom: 10,
+    borderRadius: 14,
     backgroundColor: "#15C8E3",
     alignItems: "center",
     justifyContent: "center",
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   },
   saveText: {
     color: "#E8F4FA",
-    fontSize: 56 / 2,
+    fontSize: 32 / 2,
     fontWeight: "600",
   },
   saveBtnDisabled: {

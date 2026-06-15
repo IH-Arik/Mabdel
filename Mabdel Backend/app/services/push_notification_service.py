@@ -55,6 +55,8 @@ class PushNotificationService:
                 "badge": unread_count,
                 "sound": "default" if preferences.get("sound", True) else None,
                 "vibrate": bool(preferences.get("vibrate", True)),
+                "notification_type": notification.get("type"),
+                "metadata": notification.get("metadata", {}),
                 "status": "queued",
                 "attempts": 0,
                 "created_at": utc_now(),
@@ -121,6 +123,8 @@ class PushNotificationService:
             },
             "data": {
                 "notification_id": job["notification_id"],
+                "notification_type": job.get("notification_type") or "",
+                **(job.get("metadata") or {}),
             },
             "priority": "high",
             "mutable_content": True,
@@ -164,6 +168,8 @@ class PushNotificationService:
         payload = {
             "aps": aps,
             "notification_id": job["notification_id"],
+            "notification_type": job.get("notification_type") or "",
+            **(job.get("metadata") or {}),
         }
         host = "api.sandbox.push.apple.com" if settings.APNS_USE_SANDBOX else "api.push.apple.com"
         url = f"https://{host}/3/device/{job['token']}"

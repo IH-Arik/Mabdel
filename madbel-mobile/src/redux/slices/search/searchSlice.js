@@ -20,8 +20,6 @@ export const searchSlice = baseApi.injectEndpoints({
           ...entry.golfer,
           isFollowing: entry.isFollowing,
         }));
-        console.log('LINE AT 20', response?.data);
-        
         const page = arg.page ?? 1;
         const limit = arg.limit ?? (users.length || 10);
         const pagination = response.pagination || {

@@ -16,7 +16,6 @@ const TimeSlotInput = ({ label, value, onChange }) => {
   };
 
   const handleConfirm = selectedTime => {
-    console.log('LINE AT 190', selectedTime);
 
     // onChange(formatTime(selectedTime));
     onChange((selectedTime));

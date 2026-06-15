@@ -15,6 +15,7 @@ from app.services.mabdel_ai_service import MabdelAIService
 from app.core.exceptions import AppException
 from app.utils.audio import utc_now
 from bson import ObjectId
+import secrets
 
 router = APIRouter(tags=["Calls"])
 call_service = CallService()
@@ -85,9 +86,14 @@ async def incoming_call(
 
     payload = TwilioWebhookPayload.model_validate(form_payload) if form_payload else TwilioWebhookPayload()
     call_sid = payload.call_sid or "unknown"
-    
-    # 1. Associate with a user (Fallback to first user found for now)
-    user = await service.db.users.find_one({})
+
+    # Match the called number (To) to the business owner's phone number.
+    # Falls back to the first user if no match is found.
+    user = None
+    if payload.to_number:
+        user = await service.db.users.find_one({"phone_number": payload.to_number})
+    if not user:
+        user = await service.db.users.find_one({})
     user_id = str(user["_id"]) if user else "guest"
     
     # 2. Create initial call log
@@ -101,7 +107,25 @@ async def incoming_call(
         "created_at": utc_now(),
     })
 
-    # 3. Return Hold TwiML with Recording
+    # 3. Push notification so the user's phone rings in the app.
+    if user_id != "guest":
+        try:
+            caller_number = payload.from_number or "Unknown"
+            await service.create_notification(
+                user_id=user_id,
+                notification_type="incoming_call",
+                title="Incoming Call",
+                body=f"Call from {caller_number}",
+                metadata={
+                    "call_sid": call_sid,
+                    "caller_number": caller_number,
+                    "caller_name": caller_number,
+                },
+            )
+        except Exception as _exc:
+            print(f"Push notification for incoming call failed: {_exc}")
+
+    # 5. Return Hold TwiML with Recording
     twiml = call_service.build_hold_twiml("Welcome to Mabdel. Please wait while I connect you to our team.")
     
     # Enable recording
@@ -139,6 +163,32 @@ async def recording_callback(
         print(f"Recording ready for call {call_sid}: {recording_url}")
 
     return success_response(message="Recording callback received.")
+
+
+@router.get("/calls/{call_sid}/transcript")
+async def get_live_call_transcript(
+    call_sid: str,
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """
+    Returns the live transcript of an AI-handled call by Twilio CallSid.
+    Polled by the mobile app during an active AI call session.
+    """
+    call_log = await service.db.call_logs.find_one({"twilio_call_sid": call_sid})
+    if not call_log:
+        return success_response(
+            data={"call_sid": call_sid, "speaker_segments": [], "transcript_available": False},
+            message="Call log not found yet.",
+        )
+    return success_response(
+        data={
+            "call_sid": call_sid,
+            "call_log_id": str(call_log["_id"]),
+            "speaker_segments": call_log.get("speaker_segments", []),
+            "transcript_available": bool(call_log.get("speaker_segments")),
+        },
+        message="Live transcript fetched.",
+    )
 
 
 @router.post("/calls/status", status_code=200)
@@ -184,10 +234,15 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     # Initialize AI Agent for this call
     db = await get_mongo_database()
     flow_service = SmartFlowService(db)
-    
-    # Associate with user (Fallback to first user found for now)
-    user = await db.users.find_one({})
-    user_id_val = str(user["_id"]) if user else "guest"
+
+    # Resolve the business owner from the call log created by /calls/incoming.
+    # Falls back to first user if the log isn't found yet.
+    call_log = await db.call_logs.find_one({"twilio_call_sid": call_id})
+    if call_log and call_log.get("user_id") and call_log["user_id"] != "guest":
+        user_id_val = call_log["user_id"]
+    else:
+        fallback_user = await db.users.find_one({})
+        user_id_val = str(fallback_user["_id"]) if fallback_user else "guest"
     
     agent = AIPhoneAgent(call_id, ai_service, flow_service)
     agent.user_id = user_id_val

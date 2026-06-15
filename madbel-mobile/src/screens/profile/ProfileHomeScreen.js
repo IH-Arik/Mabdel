@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, Check, Globe } from "lucide-react-native";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -21,6 +22,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { clearAuth } from "../../redux/reducers/authReducer";
 import ConfirmModal from "../../components/ConfirmModal";
+import { LANGUAGES, useLanguage } from "../../context/LanguageContext";
 
 const SETTINGS_ITEMS = [
   { label: "Edit Profile", path: "ProfileEdit" },
@@ -32,20 +34,21 @@ const SETTINGS_ITEMS = [
   { label: "Business Profile", path: "ProfileBusiness" },
 ];
 
-const avatarSize = responsiveWidth(34);
-
 const ProfileHomeScreen = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
+  const { selectedLang, setSelectedLang } = useLanguage();
+  const currentLangMeta = LANGUAGES.find((l) => l.code === selectedLang) ?? LANGUAGES[0];
+
   const [isProfileImageError, setIsProfileImageError] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showLangModal, setShowLangModal] = useState(false);
 
   const [logout, { isLoading: logoutLoading }] = useLogoutMutation();
 
-  const { data: userData, isLoading: userLoading, isError: userError } =
-    useGetProfileQuery();
+  const { data: userData, isLoading: userLoading } = useGetProfileQuery();
   const authUser = useSelector((state) => state?.auth?.user);
 
   const profileData = userData?.data || authUser || {};
@@ -57,14 +60,16 @@ const ProfileHomeScreen = () => {
       "",
   ).trim();
   const emailPrefix = normalizedEmail.split("@")[0]?.trim();
-  const displayName = String(
-    profileData?.full_name ||
-      profileData?.fullName ||
-      profileData?.name ||
-      profileData?.username ||
-      "",
-  ).trim() || (emailPrefix ? emailPrefix : "User");
-  const displayEmail = normalizedEmail || (emailPrefix ? `${emailPrefix}@...` : "");
+  const displayName =
+    String(
+      profileData?.full_name ||
+        profileData?.fullName ||
+        profileData?.name ||
+        profileData?.username ||
+        "",
+    ).trim() || (emailPrefix ? emailPrefix : "User");
+  const displayEmail =
+    normalizedEmail || (emailPrefix ? `${emailPrefix}@...` : "");
 
   const rawProfileImage =
     profileData?.profileImage ||
@@ -83,7 +88,6 @@ const ProfileHomeScreen = () => {
   const handleLogoutActivity = async () => {
     setLogoutError("");
     setShowLogoutModal(false);
-
     try {
       await logout({}).unwrap();
       dispatch(clearAuth());
@@ -116,6 +120,18 @@ const ProfileHomeScreen = () => {
           <Text style={styles.email}>
             {userLoading ? "Please wait..." : displayEmail || "No email found"}
           </Text>
+
+          {/* Language badge — tapping opens picker */}
+          <Pressable
+            onPress={() => setShowLangModal(true)}
+            style={styles.langBadge}
+          >
+            <Globe size={14} color="#19CDEB" strokeWidth={2.2} />
+            <Text style={styles.langBadgeText}>
+              AI Voice: {currentLangMeta.label} · {currentLangMeta.name}
+            </Text>
+            <ChevronRight size={14} color="#19CDEB" strokeWidth={2.5} />
+          </Pressable>
         </View>
 
         <View style={styles.listCard}>
@@ -145,6 +161,52 @@ const ProfileHomeScreen = () => {
         {!!logoutError && <Text style={styles.errorText}>{logoutError}</Text>}
       </ScrollView>
 
+      {/* Language picker modal */}
+      <Modal
+        animationType="slide"
+        transparent
+        visible={showLangModal}
+        onRequestClose={() => setShowLangModal(false)}
+      >
+        <Pressable
+          style={styles.langBackdrop}
+          onPress={() => setShowLangModal(false)}
+        >
+          <Pressable style={styles.langSheet} onPress={() => {}}>
+            <View style={styles.langHandle} />
+            <Text style={styles.langSheetTitle}>AI Voice Language</Text>
+            <Text style={styles.langSheetSub}>
+              AI will ask questions and listen in this language
+            </Text>
+            <ScrollView style={styles.langList} showsVerticalScrollIndicator={false}>
+              {LANGUAGES.map((lang) => {
+                const active = lang.code === selectedLang;
+                return (
+                  <Pressable
+                    key={lang.code}
+                    style={[styles.langRow, active && styles.langRowActive]}
+                    onPress={() => {
+                      setSelectedLang(lang.code);
+                      setShowLangModal(false);
+                    }}
+                  >
+                    <View style={styles.langRowLeft}>
+                      <Text style={styles.langRowLabel}>{lang.label}</Text>
+                      <Text style={[styles.langRowName, active && styles.langRowNameActive]}>
+                        {lang.name}
+                      </Text>
+                    </View>
+                    {active && (
+                      <Check size={18} color="#19CDEB" strokeWidth={2.5} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <ConfirmModal
         visible={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
@@ -162,45 +224,45 @@ const ProfileHomeScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#020406",
-  },
-  container: {
-    paddingHorizontal: responsiveWidth(5),
-    paddingBottom: responsiveHeight(4),
-  },
+  safeArea: { flex: 1, backgroundColor: "#020406" },
+  container: { paddingHorizontal: responsiveWidth(5), paddingBottom: 135 },
   title: {
     color: "#F8FAFC",
-    fontSize: 48 / 2,
+    fontSize: 40 / 2,
     fontWeight: "700",
     textAlign: "center",
     marginTop: responsiveHeight(1.3),
     marginBottom: responsiveHeight(2.4),
   },
-  profileWrap: {
-    alignItems: "center",
-    marginBottom: responsiveHeight(2.5),
-  },
+  profileWrap: { alignItems: "center", marginBottom: responsiveHeight(2.5) },
   avatar: {
-    width: avatarSize,
-    height: avatarSize,
-    borderRadius: avatarSize / 2,
-    borderWidth: 3,
+    width: responsiveWidth(26),
+    height: responsiveWidth(26),
+    borderRadius: responsiveWidth(13),
+    borderWidth: 2.5,
     borderColor: "#16D5F0",
-    marginBottom: responsiveHeight(1.2),
+    marginBottom: responsiveHeight(1),
   },
-  name: {
-    color: "#F8FAFC",
-    fontSize: 46 / 2,
-    fontWeight: "500",
-  },
+  name: { color: "#F8FAFC", fontSize: 36 / 2, fontWeight: "600" },
   email: {
-    marginTop: responsiveHeight(0.25),
+    marginTop: responsiveHeight(0.2),
     color: "#00BCE5",
-    fontSize: 36 / 2,
+    fontSize: 26 / 2,
     fontWeight: "400",
   },
+  langBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(1.5),
+    marginTop: responsiveHeight(1.2),
+    paddingHorizontal: responsiveWidth(3.5),
+    paddingVertical: responsiveHeight(0.8),
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#1C3A4A",
+    backgroundColor: "#0D1F2D",
+  },
+  langBadgeText: { color: "#19CDEB", fontSize: responsiveWidth(3), fontWeight: "600" },
   listCard: {
     borderRadius: 18,
     overflow: "hidden",
@@ -209,41 +271,87 @@ const styles = StyleSheet.create({
     borderColor: "#212530",
   },
   row: {
-    minHeight: responsiveHeight(8.3),
+    minHeight: 58,
     paddingHorizontal: responsiveWidth(4),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#292D37",
-  },
-  rowText: {
-    color: "#F2F4F7",
-    fontSize: 48 / 2,
-    fontWeight: "400",
-  },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: "#292D37" },
+  rowText: { color: "#F2F4F7", fontSize: 30 / 2, fontWeight: "400" },
   logoutBtn: {
-    marginTop: responsiveHeight(2.8),
+    marginTop: responsiveHeight(2.5),
     backgroundColor: "#1B1C21",
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#212530",
-    minHeight: responsiveHeight(7.8),
+    minHeight: 52,
     alignItems: "center",
     justifyContent: "center",
   },
-  logoutText: {
-    color: "#FC4C58",
-    fontSize: 50 / 2,
-    fontWeight: "500",
-  },
+  logoutText: { color: "#FC4C58", fontSize: 30 / 2, fontWeight: "600" },
   errorText: {
     textAlign: "center",
     color: "#F87171",
     marginTop: responsiveHeight(1.2),
   },
+  langBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(1,4,10,0.7)",
+    justifyContent: "flex-end",
+  },
+  langSheet: {
+    backgroundColor: "#111A2D",
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: "#2B3C67",
+    paddingBottom: responsiveHeight(4),
+  },
+  langHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#2E3D5A",
+    alignSelf: "center",
+    marginTop: responsiveHeight(1.2),
+    marginBottom: responsiveHeight(0.5),
+  },
+  langSheetTitle: {
+    color: "#E8F1FF",
+    fontSize: responsiveWidth(4.5),
+    fontWeight: "700",
+    paddingHorizontal: responsiveWidth(5),
+    marginTop: responsiveHeight(1),
+  },
+  langSheetSub: {
+    color: "#4A6080",
+    fontSize: responsiveWidth(3.2),
+    paddingHorizontal: responsiveWidth(5),
+    marginTop: responsiveHeight(0.4),
+    marginBottom: responsiveHeight(1.5),
+  },
+  langList: { maxHeight: responsiveHeight(52) },
+  langRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: responsiveWidth(5),
+    paddingVertical: responsiveHeight(1.6),
+    borderBottomWidth: 1,
+    borderBottomColor: "#1C2A45",
+  },
+  langRowActive: { backgroundColor: "#0D1F2D" },
+  langRowLeft: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(3) },
+  langRowLabel: {
+    color: "#19CDEB",
+    fontSize: responsiveWidth(4),
+    fontWeight: "700",
+    minWidth: responsiveWidth(9),
+  },
+  langRowName: { color: "#8A9BB8", fontSize: responsiveWidth(3.8) },
+  langRowNameActive: { color: "#D0E8FF", fontWeight: "600" },
 });
 
 export default ProfileHomeScreen;

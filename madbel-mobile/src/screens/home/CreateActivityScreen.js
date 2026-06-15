@@ -104,13 +104,9 @@ const CreateActivityScreen = () => {
               }
             : undefined,
       };
-console.log('LINE AT 106' , payload);
-
       await createActivity(payload).unwrap();
       setShowSuccessModal(true);
     } catch (error) {
-      console.log('LINE AT 110' , error);
-      
       setError("root", {
         type: "createActivity",
         message: error?.data?.message || "Failed to create activity.",
