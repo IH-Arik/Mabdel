@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
 
@@ -18,6 +18,7 @@ import {
   Clock3,
   Mail,
   MapPin,
+  Mic,
   NotebookPen,
   Phone,
   Bell,
@@ -84,12 +85,44 @@ const CreateMeetingScheduleScreen = () => {
   const startsAt = prefill?.starts_at ? new Date(prefill.starts_at) : null;
   const hasValidStart = startsAt && !Number.isNaN(startsAt.getTime());
 
+  const [voiceTrigger, setVoiceTrigger] = useState(0);
+
   const [createCalendarEvent, { isLoading: creatingMeeting }] =
     useMadbelCreateCalendarEventMutation();
   const { data: contactsResponse, isFetching: contactsFetching } =
     useMadbelListContactsQuery({ page: 1, page_size: 100 });
 
   const contacts = contactsResponse?.data?.items || [];
+
+  // Applies a prefill object to all form state fields
+  const applyPrefill = (p) => {
+    if (!p || typeof p !== "object" || !Object.keys(p).length) return;
+    if (p.title) setMeetingTitle(p.title);
+    if (p.description) setMeetingDescription(p.description);
+    if (p.starts_at) {
+      const d = new Date(p.starts_at);
+      if (!Number.isNaN(d.getTime())) {
+        setDateISO(d.toISOString().slice(0, 10));
+        setTime(formatTimeForInput(d));
+      }
+    }
+    if (p.ends_at) {
+      const d = new Date(p.ends_at);
+      if (!Number.isNaN(d.getTime())) setEndTimeSlot(d);
+    }
+    if (p.location) setLocation(p.location);
+    if (p.meeting_mode) setMeetingMode(p.meeting_mode);
+    if (p.meeting_link) setMeetingLink(p.meeting_link);
+  };
+
+  // React to VoiceFormFillCard setting route params
+  useEffect(() => {
+    const p = route?.params?.prefill;
+    applyPrefill(p);
+    if (p && Object.keys(p).length) {
+      navigation.setParams?.({ prefill: undefined });
+    }
+  }, [route?.params?.prefill]);
 
   console.log("Contacts in ScheduleMeetingScreen:", contacts);
 
@@ -227,11 +260,28 @@ const CreateMeetingScheduleScreen = () => {
             multiline
             textAlignVertical="top"
           />
+          <Pressable
+            onPress={() => setVoiceTrigger((t) => t + 1)}
+            style={styles.micBtn}
+            hitSlop={8}
+          >
+            <Mic size={26} color="#EAFDFF" strokeWidth={2.2} />
+          </Pressable>
         </View>
         <VoiceFormFillCard
           label="meeting schedule"
           workflowIntent="calendar"
           sourceScreen="CreateMeetingSchedule"
+          triggerOpen={voiceTrigger}
+          currentValues={{
+            title: meetingTitle,
+            description: meetingDescription,
+            starts_at: combineDateTime(dateISO, time)?.toISOString() ?? "",
+            ends_at: endTimeSlot?.toISOString() ?? "",
+            location,
+            meeting_mode: meetingMode,
+            meeting_link: meetingLink,
+          }}
         />
 
         <View style={styles.twoCol}>
