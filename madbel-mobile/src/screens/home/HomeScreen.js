@@ -127,7 +127,8 @@ const HomeScreen = () => {
   const minutesSavedCount = callSummaryData?.total_minutes_saved ?? 0;
 
   const { data: recentCallsResponse } = useMadbelListCallsQuery({ page: 1, limit: 5 });
-  const recentCalls = recentCallsResponse?.calls || recentCallsResponse?.data || recentCallsResponse?.items || [];
+  const recentCallsRaw = recentCallsResponse?.calls ?? recentCallsResponse?.data ?? recentCallsResponse?.items ?? recentCallsResponse;
+  const recentCalls = Array.isArray(recentCallsRaw) ? recentCallsRaw : [];
   const recentCallRows = recentCalls.slice(0, 3).map((call, i) => ({
     id: call?._id || call?.id || `call-${i}`,
     icon: PhoneCall,
