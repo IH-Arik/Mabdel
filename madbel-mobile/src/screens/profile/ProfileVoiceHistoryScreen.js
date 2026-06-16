@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
+import { View, Text, Pressable, StyleSheet, FlatList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft } from "lucide-react-native";
 import {
@@ -7,15 +7,44 @@ import {
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
+import { useMadbelListCallsQuery } from "../../redux/slices/madbelSmartflowSlice";
 
-const MOCK_HISTORY = [
-  { id: "1", text: "Schedule team sync tomorrow at 10 AM", time: "Today 10:45 AM" },
-  { id: "2", text: "Create follow up message for client reminders", time: "Yesterday 6:12 PM" },
-  { id: "3", text: "Read out weekly performance summary", time: "Yesterday 9:03 AM" },
-];
+const formatTime = (dateValue) => {
+  if (!dateValue) return "";
+  try {
+    return new Date(dateValue).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+};
 
 const ProfileVoiceHistoryScreen = () => {
   const navigation = useNavigation();
+  const { data, isLoading, isError } = useMadbelListCallsQuery({ page: 1, limit: 50 });
+
+  const calls = data?.calls || data?.data || data?.items || [];
+
+  const renderItem = ({ item }) => {
+    const label =
+      item?.ai_summary?.purpose ||
+      item?.summary ||
+      item?.contact_name ||
+      item?.caller_name ||
+      "Voice command";
+    const time = formatTime(item?.created_at || item?.createdAt || item?.start_time);
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.text}>{label}</Text>
+        {!!time && <Text style={styles.time}>{time}</Text>}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -28,14 +57,19 @@ const ProfileVoiceHistoryScreen = () => {
           <View style={styles.spacer} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-          {MOCK_HISTORY.map((item) => (
-            <View key={item.id} style={styles.card}>
-              <Text style={styles.text}>{item.text}</Text>
-              <Text style={styles.time}>{item.time}</Text>
-            </View>
-          ))}
-        </ScrollView>
+        {isLoading ? (
+          <ActivityIndicator color="#17b4c9" style={{ marginTop: responsiveHeight(10) }} />
+        ) : isError || calls.length === 0 ? (
+          <Text style={styles.empty}>No voice history found.</Text>
+        ) : (
+          <FlatList
+            data={calls}
+            keyExtractor={(item, i) => String(item?._id || item?.id || i)}
+            renderItem={renderItem}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.list}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -90,6 +124,12 @@ const styles = StyleSheet.create({
     marginTop: responsiveHeight(1),
     color: "#9AA6B3",
     fontSize: 34 / 2,
+  },
+  empty: {
+    color: "#9AA6B3",
+    textAlign: "center",
+    marginTop: responsiveHeight(10),
+    fontSize: 16,
   },
 });
 

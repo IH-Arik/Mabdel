@@ -15,7 +15,6 @@ import ProfileBusinessScreen from "../screens/profile/ProfileBusinessScreen";
 import ProfileBusinessEditScreen from "../screens/profile/ProfileBusinessEditScreen";
 import ProfileSupportScreen from "../screens/profile/ProfileSupportScreen";
 import ProfileVoiceHistoryScreen from "../screens/profile/ProfileVoiceHistoryScreen";
-import SingleChatScreen from "../screens/profile/ProfileSupportScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -49,7 +48,7 @@ const HomeStack = () => {
       />
       <Stack.Screen
         name="ProfileSupport"
-        component={SingleChatScreen}
+        component={ProfileSupportScreen}
         initialParams={{
           conversation: {
             name: "Live Support",
