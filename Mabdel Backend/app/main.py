@@ -15,7 +15,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import close_database_connection, mongo_manager
 from app.core.exceptions import register_exception_handlers
-from app.core.http import AuthRateLimitMiddleware, RequestContextMiddleware
+from app.core.http import AuthRateLimitMiddleware, MutationRateLimitMiddleware, RequestContextMiddleware
 from app.utils.responses import success_response
 
 logger = logging.getLogger(__name__)
@@ -87,6 +87,7 @@ def create_app() -> FastAPI:
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.TRUSTED_HOSTS)
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(AuthRateLimitMiddleware)
+    app.add_middleware(MutationRateLimitMiddleware)
 
     register_exception_handlers(app)
     app.include_router(compat_router)

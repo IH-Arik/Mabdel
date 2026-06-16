@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints.ai import router as ai_router
 from app.api.v1.endpoints.calendar import router as calendar_router
 from app.api.v1.endpoints.calls import router as calls_router
+from app.api.v1.endpoints.twilio_provisioning import router as twilio_provisioning_router
 from app.api.v1.endpoints.email import router as email_router
 from app.api.v1.endpoints.groups import router as groups_router
 from app.api.v1.endpoints.invoices import router as invoices_router
@@ -29,6 +30,7 @@ api_router.include_router(email_router)
 api_router.include_router(calendar_router)
 api_router.include_router(groups_router)
 api_router.include_router(calls_router)
+api_router.include_router(twilio_provisioning_router)
 api_router.include_router(permissions_router)
 api_router.include_router(shop_router)
 api_router.include_router(smartflow_router)
