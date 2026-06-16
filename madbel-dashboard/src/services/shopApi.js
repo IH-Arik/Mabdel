@@ -18,6 +18,15 @@ export const adminUpdateProduct = ({ productId, body }) =>
     method: "PATCH",
     body,
     contentType: body instanceof FormData ? null : "application/json",
+  }).catch((error) => {
+    if (error?.status === 405 || error?.status === 404) {
+      return apiRequest(createPath("/shop/admin/products/:productId", { productId }), {
+        method: "PUT",
+        body,
+        contentType: body instanceof FormData ? null : "application/json",
+      });
+    }
+    throw error;
   });
 
 export const adminToggleProductStatus = ({ productId, status }) =>
