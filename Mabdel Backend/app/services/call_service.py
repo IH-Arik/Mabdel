@@ -91,8 +91,13 @@ class CallService:
         from_number: str | None,
         user_id: str,
         call_log_id: str,
+        twilio_account_sid: str | None = None,
+        twilio_auth_token: str | None = None,
     ) -> dict:
         self._validate_twilio_outbound_config()
+        # Use user-specific credentials if provided, else fall back to master
+        call_sid = twilio_account_sid or settings.TWILIO_ACCOUNT_SID or ""
+        call_token = twilio_auth_token or settings.TWILIO_AUTH_TOKEN or ""
         request_from_number = from_number or settings.TWILIO_PHONE_NUMBER
         status_callback = self.build_status_callback_url_with_context(user_id=user_id, call_log_id=call_log_id)
         form_data = {
@@ -104,12 +109,12 @@ class CallService:
             "StatusCallbackMethod": "POST",
             "StatusCallbackEvent": ["initiated", "ringing", "answered", "completed"],
         }
-        endpoint = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Calls.json"
+        endpoint = f"https://api.twilio.com/2010-04-01/Accounts/{call_sid}/Calls.json"
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 endpoint,
                 data=form_data,
-                auth=(settings.TWILIO_ACCOUNT_SID or "", settings.TWILIO_AUTH_TOKEN or ""),
+                auth=(call_sid, call_token),
             )
         if response.status_code >= 400:
             try:

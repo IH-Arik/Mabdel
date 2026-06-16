@@ -25,6 +25,7 @@ export const baseApi = createApi({
     "MadbelPermissions",
     "MadbelSmartFlow",
     "MadbelHealth",
+    "MadbelTwilio",
   ],
   baseQuery: baseQueryWithReauth,
   endpoints: () => ({}),

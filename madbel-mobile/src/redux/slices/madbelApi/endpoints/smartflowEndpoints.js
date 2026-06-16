@@ -1497,4 +1497,15 @@ export const buildSmartflowEndpoints = (builder) => ({
       }),
       providesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
     }),
+
+    madbelGetSocialPost: builder.query({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/social-posts/{post_id}",
+        method: "GET",
+        pathParams: ["post_id"],
+      }),
+      providesTags: (result, error, { post_id }) => [
+        { type: "MadbelSmartFlow", id: post_id },
+      ],
+    }),
 });

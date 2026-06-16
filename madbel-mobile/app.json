@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.shovon12345.madbel",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We use your location to show nearby activities within 10 miles.",
-        "NSMicrophoneUsageDescription": "Allow Mabdel to record voice commands for AI assistance."
+        "NSMicrophoneUsageDescription": "Allow Mabdel to record voice commands for AI assistance.",
+        "NSContactsUsageDescription": "Allow Mabdel to import contacts from your phone."
       }
     },
     "android": {
@@ -28,7 +29,8 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "READ_CONTACTS"
       ],
       "package": "com.shovon12345.madbel"
     },
@@ -41,6 +43,12 @@
         }
       ],
       "expo-speech-recognition",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow Mabdel to import contacts from your phone."
+        }
+      ],
       "expo-asset",
       [
         "expo-notifications",

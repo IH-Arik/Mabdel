@@ -182,11 +182,12 @@ class CallHistoryService(SmartFlowBase):
 
     async def get_call_transcript(self, user_id: str, call_id: str) -> dict:
         call = await self._get_owned_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
+        transcript = call.get("transcript") or call.get("recording_transcript")
         return {
             "call_id": str(call["_id"]),
-            "transcript": call.get("transcript"),
+            "transcript": transcript,
             "speaker_segments": call.get("speaker_segments", []),
-            "transcript_available": bool(call.get("transcript")),
+            "transcript_available": bool(transcript),
         }
 
     async def update_call_transcript(self, user_id: str, call_id: str, payload: dict) -> dict:

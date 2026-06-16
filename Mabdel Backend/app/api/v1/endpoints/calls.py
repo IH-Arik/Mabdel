@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, Request, Response, WebSocket
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response, WebSocket
 from fastapi.responses import PlainTextResponse
 import asyncio
 
@@ -8,6 +8,7 @@ from app.dependencies import get_mongo_database
 from app.schemas.call import CallActionRequest, TwilioStatusCallbackPayload, TwilioWebhookPayload
 from app.services.call_service import CallService
 from app.services.smartflow_service import SmartFlowService
+from app.services.twilio_provisioning_service import TwilioProvisioningService
 from app.utils.responses import success_response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.services.ai_phone_agent import AIPhoneAgent
@@ -87,10 +88,12 @@ async def incoming_call(
     payload = TwilioWebhookPayload.model_validate(form_payload) if form_payload else TwilioWebhookPayload()
     call_sid = payload.call_sid or "unknown"
 
-    # Match the called number (To) to the business owner's phone number.
-    # Falls back to the first user if no match is found.
+    # Match the called number (To) to the user's Twilio sub-account number first,
+    # then their profile phone_number. Falls back to the first user if no match.
     user = None
     if payload.to_number:
+        user = await service.db.users.find_one({"twilio_phone_number": payload.to_number})
+    if not user and payload.to_number:
         user = await service.db.users.find_one({"phone_number": payload.to_number})
     if not user:
         user = await service.db.users.find_one({})
@@ -135,32 +138,77 @@ async def incoming_call(
     return PlainTextResponse(content=twiml, media_type="application/xml")
 
 
+async def _process_recording(
+    db,
+    call_sid: str,
+    user_id: str,
+    recording_url: str,
+) -> None:
+    try:
+        import base64
+        import httpx
+        from app.core.config import settings
+
+        audio_url = recording_url.rstrip("/") + ".mp3"
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.get(
+                audio_url,
+                auth=(settings.TWILIO_ACCOUNT_SID or "", settings.TWILIO_AUTH_TOKEN or ""),
+            )
+        if resp.status_code >= 400:
+            print(f"Call {call_sid}: Failed to download recording ({resp.status_code})")
+            return
+
+        audio_b64 = base64.b64encode(resp.content).decode("utf-8")
+
+        transcript, error = ai_service._transcribe_audio_with_openai(
+            audio_base64=audio_b64,
+            audio_mime_type="audio/mpeg",
+            audio_filename=f"recording_{call_sid}.mp3",
+        )
+        if not transcript:
+            print(f"Call {call_sid}: Transcription failed — {error}")
+            return
+
+        summary = ai_service.summarize_call(transcript)
+
+        await db.call_logs.update_one(
+            {"twilio_call_sid": call_sid, "user_id": user_id},
+            {
+                "$set": {
+                    "recording_transcript": transcript,
+                    "ai_summary": summary,
+                    "processed_at": utc_now(),
+                }
+            },
+        )
+        print(f"Call {call_sid}: Recording transcribed and summarized.")
+    except Exception as exc:
+        print(f"Call {call_sid}: Recording processing error — {exc}")
+
+
 @router.post("/calls/recording")
 async def recording_callback(
     request: Request,
+    background_tasks: BackgroundTasks,
     user_id: str | None = Query(default=None),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     """
-    Twilio recording callback.
+    Twilio recording callback — saves URL then transcribes and summarizes in background.
     """
     form_data = await request.form()
     form_payload = {key: str(value) for key, value in form_data.multi_items()} if form_data else {}
-    
+
     call_sid = form_payload.get("CallSid")
     recording_url = form_payload.get("RecordingUrl")
-    
+
     if call_sid and recording_url and user_id:
-        # Save recording URL to call log
         await service.db.call_logs.update_one(
             {"twilio_call_sid": call_sid, "user_id": user_id},
-            {"$set": {"recording_url": recording_url}}
+            {"$set": {"recording_url": recording_url}},
         )
-        
-        # Trigger background summarization
-        # (In a real app, use a background task)
-        # For now, we'll just log it
-        print(f"Recording ready for call {call_sid}: {recording_url}")
+        background_tasks.add_task(_process_recording, service.db, call_sid, user_id, recording_url)
 
     return success_response(message="Recording callback received.")
 

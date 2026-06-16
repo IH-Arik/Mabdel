@@ -14,6 +14,7 @@ import ScheduleMeetingScreen from "../screens/home/ScheduleMeetingScreen";
 import CreateMeetingScheduleScreen from "../screens/home/CreateMeetingScheduleScreen";
 import MeetingDetailsScreen from "../screens/home/MeetingDetailsScreen";
 import SocialIntegrationsScreen from "../screens/home/SocialIntegrationsScreen";
+import GoogleReviewsScreen from "../screens/home/GoogleReviewsScreen";
 import AgreementListScreen from "../screens/agreement/AgreementListScreen";
 import AgreementCreateScreen from "../screens/agreement/AgreementCreateScreen";
 import AgreementPreviewScreen from "../screens/agreement/AgreementPreviewScreen";
@@ -58,6 +59,7 @@ const HomeStack = () => {
         name="SocialIntegrations"
         component={SocialIntegrationsScreen}
       />
+      <Stack.Screen name="GoogleReviews" component={GoogleReviewsScreen} />
       <Stack.Screen name="CreatePost" component={CreatePostScreen} />
       <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
       <Stack.Screen name="CallAnalysis" component={CallAnalysisScreen} />
