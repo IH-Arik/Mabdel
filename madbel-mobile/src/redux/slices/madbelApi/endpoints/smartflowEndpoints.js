@@ -974,6 +974,51 @@ export const buildSmartflowEndpoints = (builder) => ({
       invalidatesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
     }),
 
+    madbelListGoogleBusinessAccounts: builder.query({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/integrations/google_business/accounts",
+        method: "GET",
+      }),
+      providesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
+    }),
+
+    madbelListGoogleReviews: builder.query({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/integrations/google_business/accounts/{account_id}/locations/{location_id}/reviews",
+        method: "GET",
+        pathParams: ["account_id", "location_id"],
+      }),
+      providesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
+    }),
+
+    madbelReplyGoogleReview: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/integrations/google_business/accounts/{account_id}/locations/{location_id}/reviews/{review_id}/reply",
+        method: "PUT",
+        pathParams: ["account_id", "location_id", "review_id"],
+        hasBody: true,
+      }),
+      invalidatesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
+    }),
+
+    madbelDeleteGoogleReviewReply: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/integrations/google_business/accounts/{account_id}/locations/{location_id}/reviews/{review_id}/reply",
+        method: "DELETE",
+        pathParams: ["account_id", "location_id", "review_id"],
+      }),
+      invalidatesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
+    }),
+
+    madbelSyncGoogleReviewsToInbox: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/integrations/google_business/accounts/{account_id}/locations/{location_id}/reviews/sync",
+        method: "POST",
+        pathParams: ["account_id", "location_id"],
+      }),
+      invalidatesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
+    }),
+
     madbelVerifyPlatformWebhook: builder.query({
       query: buildApiRequest({
         path: "/api/v1/smartflow/integrations/{platform}/webhook",
@@ -1380,5 +1425,76 @@ export const buildSmartflowEndpoints = (builder) => ({
         skipAuth: true,
       }),
       providesTags: [{ type: "MadbelHealth", id: "LIST" }],
+    }),
+
+    madbelSearchAppUsers: builder.query({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/users/search",
+        method: "GET",
+        queryParams: ["q", "page", "page_size"],
+      }),
+      providesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
+    }),
+
+    madbelGetTwilioStatus: builder.query({
+      query: buildApiRequest({
+        path: "/api/v1/twilio/status",
+        method: "GET",
+      }),
+      providesTags: [{ type: "MadbelTwilio", id: "STATUS" }],
+    }),
+
+    madbelProvisionTwilio: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/twilio/provision",
+        method: "POST",
+        hasBody: false,
+      }),
+      invalidatesTags: [{ type: "MadbelTwilio", id: "STATUS" }],
+    }),
+
+    madbelReleaseTwilio: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/twilio/release",
+        method: "DELETE",
+        hasBody: false,
+      }),
+      invalidatesTags: [{ type: "MadbelTwilio", id: "STATUS" }],
+    }),
+
+    madbelSaveCustomTwilio: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/twilio/custom",
+        method: "POST",
+        hasBody: true,
+      }),
+      invalidatesTags: [{ type: "MadbelTwilio", id: "STATUS" }],
+    }),
+
+    madbelRemoveCustomTwilio: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/twilio/custom",
+        method: "DELETE",
+        hasBody: false,
+      }),
+      invalidatesTags: [{ type: "MadbelTwilio", id: "STATUS" }],
+    }),
+
+    madbelCreateSocialPost: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/social-posts",
+        method: "POST",
+        hasBody: true,
+      }),
+      invalidatesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
+    }),
+
+    madbelListSocialPosts: builder.query({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/social-posts",
+        method: "GET",
+        queryParams: ["page", "page_size"],
+      }),
+      providesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
     }),
 });
