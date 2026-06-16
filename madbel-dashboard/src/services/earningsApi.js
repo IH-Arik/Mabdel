@@ -1,9 +1,12 @@
-import { apiRequestWithFallback, createPath } from "./httpClient";
+import { apiRequest, apiRequestWithFallback, createPath } from "./httpClient";
 
 const toListQuery = (query = {}) => ({
   ...query,
   pageSize: query.pageSize ?? query.limit,
 });
+
+export const getEarningsReport = (query = {}) =>
+  apiRequest("/admin/earnings", { query: toListQuery(query) });
 
 export const listEarningTransactions = (query = {}) =>
   apiRequestWithFallback(
@@ -15,6 +18,9 @@ export const getEarningTransactionById = ({ id }) =>
   apiRequestWithFallback([
     createPath("/admin/earnings/transactions/:id", { id }),
   ]);
+
+export const downloadInvoice = ({ id }) =>
+  apiRequest(createPath("/admin/earnings/transactions/:id/invoice", { id }));
 
 export const generateEarningInvoice = ({ id, body = {} }) =>
   apiRequestWithFallback(

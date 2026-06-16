@@ -1,9 +1,10 @@
-import { Form, Input, Checkbox, Typography, message } from "antd";
+import { Form, Input, message } from "antd";
 import { FaRegEyeSlash } from "react-icons/fa";
 import { FaRegEye } from "react-icons/fa6";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import brandlogo from "../../../assets/image/stone-logo.png";
+import { resetPassword } from "../../../services/authApi";
 
 const NewPass = () => {
   const navigate = useNavigate();
@@ -11,44 +12,48 @@ const NewPass = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
+  const onFinish = async ({ newPassword, confirmPassword }) => {
+    if (newPassword !== confirmPassword) {
+      message.error("Passwords do not match!");
+      return;
+    }
 
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword);
-  };
+    const email = sessionStorage.getItem("reset_email") || "";
+    const otp = sessionStorage.getItem("reset_otp") || "";
 
-  const onFinish = async (values) => {
+    if (!email || !otp) {
+      message.error("Session expired. Please start the reset process again.");
+      navigate("/forgot-password");
+      return;
+    }
+
     setLoading(true);
-    const { email, newPassword, confirmPassword } = values;
-
-    // Simulate API call
-    setTimeout(() => {
-      if (newPassword !== confirmPassword) {
-        message.error("Passwords do not match!");
-      } else {
-        message.success("Password changed successfully");
-        navigate("/sign-in");
-      }
+    try {
+      await resetPassword({ email, otp, newPassword });
+      sessionStorage.removeItem("reset_email");
+      sessionStorage.removeItem("reset_otp");
+      message.success("Password changed successfully!");
+      navigate("/sign-in");
+    } catch (error) {
+      message.error(error?.message || "Failed to reset password. Please try again.");
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
     <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4">
       <Form
         name="new-password"
-        initialValues={{ remember: true }}
         onFinish={onFinish}
         layout="vertical"
         requiredMark={false}
         className="py-10 px-8 md:px-10 rounded-2xl w-full max-w-[500px] bg-white border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)]"
       >
-        <div className="flex justify-center mb-6"> 
+        <div className="flex justify-center mb-6">
           <img src={brandlogo} alt="brandlogo" className="w-40 h-40 object-contain" />
         </div>
-        
+
         <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
           Create New Password
         </h2>
@@ -59,9 +64,7 @@ const NewPass = () => {
         <Form.Item
           name="newPassword"
           label={<span className="text-sm font-semibold text-slate-700">New Password</span>}
-          rules={[
-            { required: true, message: "Please input your new password!" },
-          ]}
+          rules={[{ required: true, message: "Please input your new password!" }]}
           className="mb-5"
         >
           <div className="relative flex items-center w-full">
@@ -73,7 +76,7 @@ const NewPass = () => {
             <div className="absolute right-3 flex items-center">
               <button
                 type="button"
-                onClick={togglePasswordVisibility}
+                onClick={() => setShowPassword(!showPassword)}
                 className="text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center"
               >
                 {showPassword ? <FaRegEye className="w-5 h-5" /> : <FaRegEyeSlash className="w-5 h-5" />}
@@ -85,9 +88,7 @@ const NewPass = () => {
         <Form.Item
           name="confirmPassword"
           label={<span className="text-sm font-semibold text-slate-700">Confirm Password</span>}
-          rules={[
-            { required: true, message: "Please confirm your password!" },
-          ]}
+          rules={[{ required: true, message: "Please confirm your password!" }]}
           className="mb-6"
         >
           <div className="relative flex items-center w-full">
@@ -99,7 +100,7 @@ const NewPass = () => {
             <div className="absolute right-3 flex items-center">
               <button
                 type="button"
-                onClick={toggleConfirmPasswordVisibility}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center"
               >
                 {showConfirmPassword ? <FaRegEye className="w-5 h-5" /> : <FaRegEyeSlash className="w-5 h-5" />}

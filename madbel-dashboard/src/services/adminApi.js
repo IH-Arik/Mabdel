@@ -11,12 +11,23 @@ const toListQuery = (query = {}) => ({
 export const getMyProfile = () =>
   apiRequestWithFallback(["/admin/profile", "/admin/settings/profile"]);
 
-export const updateMyProfile = (body) =>
-  apiRequestWithFallback(["/admin/profile", "/admin/settings/profile"], {
-    method: "PUT",
+export const updateMyProfile = async (body) => {
+  const options = {
     body,
     contentType: body instanceof FormData ? null : "application/json",
-  });
+  };
+  for (const method of ["PATCH", "PUT"]) {
+    try {
+      return await apiRequestWithFallback(
+        ["/admin/profile", "/admin/settings/profile"],
+        { method, ...options }
+      );
+    } catch (error) {
+      if (error?.status !== 405 && error?.status !== 404) throw error;
+    }
+  }
+  throw new Error("Profile update failed.");
+};
 
 export const getDashboardOverview = () =>
   apiRequestWithFallback([
@@ -339,4 +350,16 @@ export const updateSettingsContent = (body) =>
     method: "POST",
     body,
   });
+
+export const getDashboardSettings = () =>
+  apiRequestWithFallback(["/admin/settings", "/admin/settings/profile"]);
+
+export const updateUser = ({ id, body }) =>
+  apiRequestWithFallback(
+    [createPath("/admin/users/:id", { id })],
+    { method: "PATCH", body }
+  );
+
+export const createSubscriptionPlan = (body) =>
+  apiRequest("/admin/subscriptions", { method: "POST", body });
 

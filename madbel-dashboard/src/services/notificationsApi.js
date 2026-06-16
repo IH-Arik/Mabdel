@@ -15,11 +15,17 @@ export const listNotifications = (query = {}) =>
     query: { context: "full", ...toListQuery(query) },
   });
 
+const patchOrPost = (path, options = {}) =>
+  apiRequest(path, { method: "PATCH", ...options }).catch((error) => {
+    if (error?.status === 405 || error?.status === 404) {
+      return apiRequest(path, { method: "POST", ...options });
+    }
+    throw error;
+  });
+
 export const markNotificationsRead = (body = {}) => {
   if (body?.all || body?.markAll) {
-    return apiRequest("/admin/notifications/read-all", {
-      method: "PATCH",
-    });
+    return patchOrPost("/admin/notifications/read-all");
   }
 
   const ids = Array.isArray(body?.ids)
@@ -29,24 +35,18 @@ export const markNotificationsRead = (body = {}) => {
       : [];
 
   if (ids.length === 1) {
-    return apiRequest(createPath("/admin/notifications/:id/read", { id: ids[0] }), {
-      method: "PATCH",
-    });
+    return patchOrPost(createPath("/admin/notifications/:id/read", { id: ids[0] }));
   }
 
   if (ids.length > 1) {
     return Promise.all(
       ids.map((id) =>
-        apiRequest(createPath("/admin/notifications/:id/read", { id }), {
-          method: "PATCH",
-        })
+        patchOrPost(createPath("/admin/notifications/:id/read", { id }))
       )
     );
   }
 
-  return apiRequest("/admin/notifications/read-all", {
-    method: "PATCH",
-  });
+  return patchOrPost("/admin/notifications/read-all");
 };
 
 export const listAdminNotifications = (query = {}) => listNotifications(query);

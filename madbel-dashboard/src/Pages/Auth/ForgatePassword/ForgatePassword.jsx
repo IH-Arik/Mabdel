@@ -2,19 +2,24 @@ import React, { useState } from "react";
 import { Form, Input, message } from "antd";
 import { useNavigate } from "react-router-dom";
 import brandlogo from "../../../assets/image/stone-logo.png";
+import { forgotPassword } from "../../../services/authApi";
 
 const ForgatePassword = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  const onFinish = (values) => {
+  const onFinish = async ({ email }) => {
     setLoading(true);
-    // Simulate sending reset email
-    setTimeout(() => {
-      message.success("Reset instructions sent to your email!");
-      setLoading(false);
+    try {
+      await forgotPassword({ email });
+      sessionStorage.setItem("reset_email", email);
+      message.success("Reset code sent to your email!");
       navigate("/verify-code");
-    }, 1000);
+    } catch (error) {
+      message.error(error?.message || "Failed to send reset code. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -29,7 +34,7 @@ const ForgatePassword = () => {
         <div className="flex justify-center mb-6">
           <img className="w-40 h-40 object-contain" src={brandlogo} alt="brandlogo" />
         </div>
-        
+
         <h1 className="text-2xl font-bold text-slate-800 text-center mb-2">Forgot Password</h1>
         <p className="text-slate-500 text-sm text-center mb-6">
           Enter your email address to receive password reset instructions

@@ -43,19 +43,55 @@ export const loginAdmin = async ({ email, password }) => {
   throw new Error(lastErrorMessage);
 };
 
-export const changeAdminPassword = ({ currentPassword, newPassword }) => {
-  return apiRequestWithFallback(["/admin/password", "/auth/admin/change-password"], {
-    method: "PUT",
-    body: { currentPassword, newPassword },
-  });
+export const changeAdminPassword = async ({ currentPassword, newPassword }) => {
+  const body = { currentPassword, newPassword };
+  for (const method of ["POST", "PUT"]) {
+    try {
+      return await apiRequestWithFallback(
+        ["/admin/password", "/auth/admin/change-password"],
+        { method, body }
+      );
+    } catch (error) {
+      if (error?.status !== 405 && error?.status !== 404) throw error;
+    }
+  }
+  throw new Error("Change password failed.");
 };
 
 export const logoutAdmin = () =>
   apiRequestWithFallback(["/admin/logout", "/auth/admin/logout"], {
     method: "POST",
+  }).catch((error) => {
+    if (error?.status === 405 || error?.status === 404) {
+      return apiRequestWithFallback(["/admin/logout", "/auth/admin/logout"], {
+        method: "PUT",
+      });
+    }
+    throw error;
   });
 
 export const logoutAdminAllDevices = () =>
   apiRequestWithFallback(["/admin/logout-all", "/auth/admin/logout-all"], {
     method: "POST",
+  });
+
+export const forgotPassword = ({ email }) =>
+  apiRequest("/auth/admin/forgot-password", {
+    method: "POST",
+    auth: false,
+    body: { email },
+  });
+
+export const verifyOtp = ({ email, otp }) =>
+  apiRequest("/auth/admin/verify-otp", {
+    method: "POST",
+    auth: false,
+    body: { email, otp },
+  });
+
+export const resetPassword = ({ email, otp, newPassword }) =>
+  apiRequest("/auth/admin/reset-password", {
+    method: "POST",
+    auth: false,
+    body: { email, otp, newPassword },
   });
