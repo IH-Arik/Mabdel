@@ -227,6 +227,10 @@ const HomeScreen = () => {
     navigation.navigate("Chat");
   };
 
+  const openUnifiedConversations = () => {
+    navigation.navigate("UnifiedConversations");
+  };
+
   const openContacts = () => navigation.navigate("Contacts");
   const openScheduleMeeting = () => navigation.navigate("ScheduleMeeting");
   const openBulkMessaging = () => navigation.navigate("BulkMessaging");
@@ -307,7 +311,7 @@ const HomeScreen = () => {
               <AvatarStack avatars={inboxAvatars} countText={inboxCountText} />
               <ActionButton
                 title="View All"
-                onPress={openMessages}
+                onPress={openUnifiedConversations}
                 baseStyle={styles.actionButton}
                 baseTextStyle={styles.actionButtonText}
               />

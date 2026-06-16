@@ -24,6 +24,7 @@ import LeasePreviewScreen from "../screens/lease/LeasePreviewScreen";
 import CreatePostScreen from "../screens/home/CreatePostScreen";
 import CallHistoryScreen from "../screens/call/CallHistoryScreen";
 import CallAnalysisScreen from "../screens/call/CallAnalysisScreen";
+import UnifiedConversationsScreen from "../screens/chat/UnifiedConversationsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -63,6 +64,7 @@ const HomeStack = () => {
       <Stack.Screen name="CreatePost" component={CreatePostScreen} />
       <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
       <Stack.Screen name="CallAnalysis" component={CallAnalysisScreen} />
+      <Stack.Screen name="UnifiedConversations" component={UnifiedConversationsScreen} />
     </Stack.Navigator>
   );
 };

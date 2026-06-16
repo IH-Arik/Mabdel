@@ -7,7 +7,6 @@ import {
   Image,
   FlatList,
   StyleSheet,
-  ScrollView,
 } from "react-native";
 import React, { useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,82 +15,29 @@ import {
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
-import {
-  ChevronLeft,
-  Search,
-  MessageCircle,
-  Mail,
-  MessageSquare,
-} from "lucide-react-native";
-import { conversations } from "../../../assets/data/data";
+import { Bot, Search } from "lucide-react-native";
 import { useFetchConversationsQuery } from "../../redux/slices/chat/chatSlice";
 
 const formatRelativeTime = (dateValue) => {
   if (!dateValue) return "";
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return "";
-
   const now = Date.now();
   const diffMs = now - date.getTime();
   if (diffMs < 0) return "";
-
   const minute = 60 * 1000;
   const hour = 60 * minute;
   const day = 24 * hour;
-
-  if (diffMs < hour) {
-    const mins = Math.max(1, Math.floor(diffMs / minute));
-    return `${mins}m ago`;
-  }
-
-  if (diffMs < day) {
-    const hrs = Math.floor(diffMs / hour);
-    return `${hrs}h ago`;
-  }
-
+  if (diffMs < hour) return `${Math.max(1, Math.floor(diffMs / minute))}m ago`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ago`;
   if (diffMs < day * 2) return "Yesterday";
   return `${Math.floor(diffMs / day)}d ago`;
-};
-
-const normalizeChannel = (value) => {
-  const lower = String(value || "").toLowerCase();
-  if (lower.includes("whatsapp")) return "whatsapp";
-  if (lower.includes("email") || lower.includes("mail")) return "email";
-  if (lower.includes("sms") || lower.includes("text")) return "sms";
-  return "sms";
 };
 
 const FILTER_OPTIONS = [
   { key: "all", label: "All" },
   { key: "unread", label: "Unread" },
-  { key: "whatsapp", label: "WhatsApp" },
-  { key: "email", label: "Email" },
-  { key: "sms", label: "SMS" },
-  { key: "social-media", label: "Social Media" },
-  // { key: "insta", label: "Instagram" },
 ];
-
-const getChannelBadgeConfig = (channelValue) => {
-  const channel = normalizeChannel(channelValue);
-  if (channel === "whatsapp") {
-    return {
-      Icon: MessageCircle,
-      backgroundColor: "#25D366",
-    };
-  }
-
-  if (channel === "email") {
-    return {
-      Icon: Mail,
-      backgroundColor: "#4D9CFF",
-    };
-  }
-
-  return {
-    Icon: MessageSquare,
-    backgroundColor: "#8A94A8",
-  };
-};
 
 const AllChatScreen = () => {
   const navigation = useNavigation();
@@ -101,121 +47,71 @@ const AllChatScreen = () => {
 
   const formattedConversations = useMemo(() => {
     if (!Array.isArray(threads) || !threads.length) return [];
-
     return threads.map((thread) => ({
-      id: thread?._id,
+      id: thread?._id || thread?.id,
       name: thread?.directPeer?.fullName || thread?.directPeer?.name || "Unknown User",
       lastMessage: thread?.lastMessage?.text || "No messages yet",
-      time: formatRelativeTime(thread?.lastMessage?.createdAt),
+      time: formatRelativeTime(thread?.lastMessage?.createdAt || thread?.updatedAt),
       unreadCount: Number(thread?.unreadCount || 0),
-      avatar:
-        thread?.directPeer?.profileImage ||
-        thread?.directPeer?.avatar ||
-        "https://robohash.org/user.png",
+      avatar: thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
       isOnline: Boolean(thread?.directPeer?.isOnline),
-      channel: normalizeChannel(thread?.channel || thread?.source || thread?.type),
       isGroup: Boolean(thread?.is_group || thread?.isGroup),
     }));
   }, [threads]);
 
-  const fallbackConversations = useMemo(
-    () =>
-      conversations.map((item, index) => ({
-        ...item,
-        unreadCount: item.unread ? 1 : 0,
-        isOnline: index === 0,
-        channel: ["whatsapp", "sms", "email"][index % 3],
-        isGroup: false,
-      })),
-    [],
-  );
-
-  const handleConversationPress = (conversation) => {
-    if (conversation?.isGroup) {
+  const handleConversationPress = (item) => {
+    if (item?.isGroup) {
       navigation.navigate("GroupChat", {
-        group: {
-          id: conversation?.id,
-          name: conversation?.name,
-          avatar_url: conversation?.avatar,
-          conversation_id: conversation?.id,
-        },
+        group: { id: item.id, name: item.name, avatar_url: item.avatar, conversation_id: item.id },
       });
     } else {
-      navigation.navigate("SingleChat", {
-        threadId: conversation?.id,
-        conversation,
-      });
+      navigation.navigate("SingleChat", { threadId: item.id, conversation: item });
     }
   };
 
-  const sourceData = formattedConversations.length
-    ? formattedConversations
-    : fallbackConversations;
-
-  const filteredConversations = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return sourceData.filter((item) => {
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return formattedConversations.filter((item) => {
       if (activeFilter === "unread" && !(item.unreadCount > 0)) return false;
-      if (["whatsapp", "email", "sms"].includes(activeFilter)) {
-        if (normalizeChannel(item?.channel) !== activeFilter) return false;
-      }
-
-      if (!query) return true;
-      const name = String(item?.name || "").toLowerCase();
-      const lastMessage = String(item?.lastMessage || "").toLowerCase();
-      return name.includes(query) || lastMessage.includes(query);
+      if (!q) return true;
+      return (
+        String(item.name).toLowerCase().includes(q) ||
+        String(item.lastMessage).toLowerCase().includes(q)
+      );
     });
-  }, [activeFilter, searchQuery, sourceData]);
+  }, [activeFilter, searchQuery, formattedConversations]);
 
-  const renderConversation = ({ item, index }) => {
-    const unreadCount = Number(item?.unreadCount || 0);
-    const hasUnread = unreadCount > 0;
-    const showAiStyle = index === 0 && activeFilter === "all";
-    const channelBadge = getChannelBadgeConfig(item?.channel);
-
-    const handlePress = () => {
-      if (showAiStyle) {
-        navigation.navigate("MicConversation");
-      } else {
-        handleConversationPress(item);
-      }
-    };
-
+  const renderItem = ({ item }) => {
+    const hasUnread = item.unreadCount > 0;
     return (
-      <Pressable
-        style={[styles.card, showAiStyle && styles.cardHighlight]}
-        onPress={handlePress}
-      >
+      <Pressable style={styles.card} onPress={() => handleConversationPress(item)}>
         <View style={styles.avatarWrap}>
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
-          <View
-            style={[
-              styles.channelBadge,
-              { backgroundColor: channelBadge.backgroundColor },
-            ]}
-          >
-            <channelBadge.Icon size={12} color="#F8FBFF" strokeWidth={2.5} />
-          </View>
-          {item?.isOnline ? <View style={styles.onlineDot} /> : null}
+          {item.avatar ? (
+            <Image source={{ uri: item.avatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInitial}>
+                {String(item.name || "?")[0].toUpperCase()}
+              </Text>
+            </View>
+          )}
+          {item.isOnline && <View style={styles.onlineDot} />}
         </View>
 
         <View style={styles.cardBody}>
           <View style={styles.cardTopRow}>
-            <Text style={styles.name} numberOfLines={1}>
+            <Text style={[styles.name, hasUnread && styles.nameUnread]} numberOfLines={1}>
               {item.name}
             </Text>
-            <Text style={[styles.time, hasUnread && styles.timeUnread]} numberOfLines={1}>
-              {item.time}
-            </Text>
+            <Text style={[styles.time, hasUnread && styles.timeUnread]}>{item.time}</Text>
           </View>
-
           <View style={styles.cardBottomRow}>
             <Text style={[styles.preview, hasUnread && styles.previewUnread]} numberOfLines={1}>
               {item.lastMessage}
             </Text>
             {hasUnread ? (
               <View style={styles.unreadBadge}>
-                <Text style={styles.unreadText}>{Math.min(unreadCount, 99)}</Text>
+                <Text style={styles.unreadText}>{Math.min(item.unreadCount, 99)}</Text>
               </View>
             ) : null}
           </View>
@@ -225,23 +121,16 @@ const AllChatScreen = () => {
   };
 
   return (
-    <SafeAreaView
-      edges={["top"]}
-      style={styles.container}
-    >
+    <SafeAreaView edges={["top"]} style={styles.container}>
       <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.canGoBack() && navigation.goBack()}
-          style={styles.backBtn}
-        >
-          <ChevronLeft size={26} color="#F8FAFC" />
-        </Pressable>
         <Text style={styles.title}>Messages</Text>
-        <View style={styles.headerSpacer} />
+        {formattedConversations.length > 0 && (
+          <Text style={styles.subtitle}>{formattedConversations.length} Conversations</Text>
+        )}
       </View>
 
       <View style={styles.searchWrap}>
-        <Search size={23} color="#70829B" />
+        <Search size={18} color="#70829B" />
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -251,52 +140,60 @@ const AllChatScreen = () => {
         />
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterRow}
-      >
-        {FILTER_OPTIONS.map((option) => (
+      <View style={styles.filterRow}>
+        {FILTER_OPTIONS.map((opt) => (
           <Pressable
-            key={option.key}
-            style={[
-              styles.filterChip,
-              activeFilter === option.key && styles.filterChipActive,
-            ]}
-            onPress={() => setActiveFilter(option.key)}
+            key={opt.key}
+            style={[styles.filterChip, activeFilter === opt.key && styles.filterChipActive]}
+            onPress={() => setActiveFilter(opt.key)}
           >
-            <Text
-              style={[
-                styles.filterText,
-                activeFilter === option.key && styles.filterTextActive,
-              ]}
-            >
-              {option.label}
+            <Text style={[styles.filterText, activeFilter === opt.key && styles.filterTextActive]}>
+              {opt.label}
             </Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
+
+      {/* Pinned AI Assistant */}
+      <Pressable style={styles.aiCard} onPress={() => navigation.navigate("MicConversation")}>
+        <View style={styles.aiAvatarWrap}>
+          <View style={styles.aiAvatar}>
+            <Bot size={22} color="#17CBE8" />
+          </View>
+          <View style={styles.aiOnlineDot} />
+        </View>
+        <View style={styles.cardBody}>
+          <View style={styles.cardTopRow}>
+            <Text style={styles.aiName}>Mabdel AI Assistant</Text>
+            <Text style={styles.aiOnlineText}>Online</Text>
+          </View>
+          <Text style={styles.aiPreview} numberOfLines={1}>
+            Ask me anything about your business...
+          </Text>
+        </View>
+      </Pressable>
 
       {isLoading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="small" color="#1AD3EF" />
           <Text style={styles.loadingText}>Loading chats...</Text>
         </View>
-      ) : null}
-
-      <FlatList
-        data={filteredConversations}
-        renderItem={renderConversation}
-        keyExtractor={(item, index) => String(item?.id || index)}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>No conversations found</Text>
-          </View>
-        }
-      />
+      ) : (
+        <FlatList
+          data={filtered}
+          renderItem={renderItem}
+          keyExtractor={(item, i) => String(item?.id || i)}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyText}>
+                {searchQuery ? "No results found" : "No conversations yet"}
+              </Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -309,208 +206,225 @@ const styles = StyleSheet.create({
     paddingTop: responsiveHeight(1),
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: responsiveHeight(2.2),
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 19,
+    marginBottom: responsiveHeight(2),
   },
   title: {
     color: "#F8FAFC",
-    fontSize: 25,
+    fontSize: 28,
     fontWeight: "700",
     letterSpacing: 0.3,
   },
-  headerSpacer: {
-    width: 38,
-    height: 38,
+  subtitle: {
+    color: "#5D6A7A",
+    fontSize: 13,
+    marginTop: 2,
   },
   searchWrap: {
-    minHeight: 56,
-    borderRadius: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 48,
+    borderRadius: 16,
     backgroundColor: "#171A21",
     borderWidth: 1,
     borderColor: "#232A34",
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: responsiveHeight(1.8),
+    paddingHorizontal: responsiveWidth(4),
+    gap: responsiveWidth(2),
+    marginBottom: responsiveHeight(1.6),
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
-    color: "#D3DFEF",
-    fontSize: 17,
-    paddingVertical: 0,
+    color: "#C8D8E8",
+    fontSize: 15,
   },
   filterRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+    gap: responsiveWidth(2),
     marginBottom: responsiveHeight(1.8),
-    // paddingRight: 16,
-    // paddingVertical: 20,
-  },
-  filterScroll: {
-    flexGrow: 0,
-    // maxHeight: 52,
   },
   filterChip: {
-    height: 44,
-    paddingHorizontal: 20,
-    borderRadius: 22,
-    backgroundColor: "#191D24",
+    paddingHorizontal: responsiveWidth(4.5),
+    paddingVertical: responsiveHeight(0.8),
+    borderRadius: 20,
+    backgroundColor: "#171A21",
     borderWidth: 1,
-    borderColor: "#2A313C",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
+    borderColor: "#232A34",
   },
   filterChipActive: {
-    backgroundColor: "#16CBEA",
-    borderColor: "#16CBEA",
+    backgroundColor: "#17CBE8",
+    borderColor: "#17CBE8",
   },
   filterText: {
-    color: "#94A6BC",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  filterTextActive: {
-    color: "#F7FDFF",
+    color: "#7A8FA0",
+    fontSize: 13,
     fontWeight: "600",
   },
-  loadingWrap: {
+  filterTextActive: {
+    color: "#020406",
+  },
+  aiCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0D1F30",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#17CBE8",
+    padding: responsiveWidth(3.5),
+    marginBottom: responsiveHeight(0.8),
+    gap: responsiveWidth(3),
+  },
+  aiAvatarWrap: {
+    position: "relative",
+  },
+  aiAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#0B2A3F",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: responsiveHeight(1.5),
+    borderWidth: 2,
+    borderColor: "#17CBE8",
   },
-  loadingText: {
-    color: "#7187A0",
-    marginTop: 8,
-    fontSize: 14,
+  aiOnlineDot: {
+    position: "absolute",
+    bottom: 1,
+    right: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#17CBE8",
+    borderWidth: 2,
+    borderColor: "#020406",
   },
-  listContent: {
-    gap: 12,
-    paddingBottom: responsiveHeight(14),
+  aiName: {
+    color: "#F8FAFC",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  aiOnlineText: {
+    color: "#17CBE8",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  aiPreview: {
+    color: "#7A8FA0",
+    fontSize: 13,
+    marginTop: 2,
   },
   card: {
-    minHeight: 96,
-    borderRadius: 20,
-    backgroundColor: "#181B21",
-    borderWidth: 1,
-    borderColor: "#242B36",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
     flexDirection: "row",
-    gap: 12,
     alignItems: "center",
-  },
-  cardHighlight: {
-    backgroundColor: "rgba(3, 20, 27, 0.9)",
-    borderColor: "rgba(22, 203, 234, 0.35)",
-    shadowColor: "#1AD3EF",
-    shadowOpacity: 0.18,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 0 },
+    paddingVertical: responsiveHeight(1.4),
+    borderBottomWidth: 1,
+    borderBottomColor: "#141820",
+    gap: responsiveWidth(3),
   },
   avatarWrap: {
     position: "relative",
   },
   avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
-  onlineDot: {
-    position: "absolute",
-    left: 0,
-    bottom: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#2CE652",
-    borderWidth: 2,
-    borderColor: "#020406",
-  },
-  channelBadge: {
-    position: "absolute",
-    right: 0,
-    bottom: 2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#020406",
+  avatarFallback: {
+    backgroundColor: "#1B2A3B",
     alignItems: "center",
     justifyContent: "center",
   },
+  avatarInitial: {
+    color: "#17CBE8",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  onlineDot: {
+    position: "absolute",
+    bottom: 1,
+    right: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#22C55E",
+    borderWidth: 2,
+    borderColor: "#020406",
+  },
   cardBody: {
     flex: 1,
-    gap: 8,
   },
   cardTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 10,
-  },
-  name: {
-    flex: 1,
-    color: "#F2F7FF",
-    fontSize: 23,
-    fontWeight: "700",
-  },
-  time: {
-    color: "#7387A1",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  timeUnread: {
-    color: "#18CDEB",
-    fontWeight: "600",
+    marginBottom: 3,
   },
   cardBottomRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 10,
+  },
+  name: {
+    color: "#C8D8E8",
+    fontSize: 15,
+    fontWeight: "600",
+    flex: 1,
+    marginRight: 8,
+  },
+  nameUnread: {
+    color: "#F8FAFC",
+    fontWeight: "700",
+  },
+  time: {
+    color: "#5D6A7A",
+    fontSize: 12,
+  },
+  timeUnread: {
+    color: "#17CBE8",
+    fontWeight: "600",
   },
   preview: {
+    color: "#5D6A7A",
+    fontSize: 13,
     flex: 1,
-    color: "#6E8099",
-    fontSize: 17,
-    fontWeight: "400",
+    marginRight: 8,
   },
   previewUnread: {
-    color: "#CFDBEA",
+    color: "#8A9AB0",
     fontWeight: "500",
   },
   unreadBadge: {
-    minWidth: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#18CDEB",
+    backgroundColor: "#17CBE8",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: 5,
   },
   unreadText: {
-    color: "#F7FDFF",
-    fontSize: 13,
+    color: "#020406",
+    fontSize: 11,
     fontWeight: "700",
   },
-  emptyWrap: {
-    paddingTop: responsiveHeight(10),
+  listContent: {
+    paddingBottom: responsiveHeight(12),
+  },
+  loadingWrap: {
+    flex: 1,
     alignItems: "center",
+    justifyContent: "center",
+    gap: responsiveHeight(1),
+  },
+  loadingText: {
+    color: "#5D6A7A",
+    fontSize: 14,
+  },
+  emptyWrap: {
+    alignItems: "center",
+    paddingTop: responsiveHeight(8),
   },
   emptyText: {
-    color: "#7F8EA2",
-    fontSize: 16,
+    color: "#5D6A7A",
+    fontSize: 15,
   },
 });
 
