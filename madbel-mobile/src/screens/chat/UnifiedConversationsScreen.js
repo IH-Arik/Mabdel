@@ -7,6 +7,7 @@ import {
   Image,
   FlatList,
   StyleSheet,
+  ScrollView,
 } from "react-native";
 import React, { useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,7 +16,17 @@ import {
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
-import { Bot, Search } from "lucide-react-native";
+import {
+  ChevronLeft,
+  Search,
+  MessageCircle,
+  Mail,
+  MessageSquare,
+  Twitter,
+  Facebook,
+  Instagram,
+  Linkedin,
+} from "lucide-react-native";
 import { useFetchConversationsQuery } from "../../redux/slices/chat/chatSlice";
 
 const formatRelativeTime = (dateValue) => {
@@ -34,57 +45,95 @@ const formatRelativeTime = (dateValue) => {
   return `${Math.floor(diffMs / day)}d ago`;
 };
 
+const normalizePlatform = (value) => {
+  const lower = String(value || "").toLowerCase();
+  if (lower.includes("whatsapp")) return "whatsapp";
+  if (lower.includes("facebook") || lower.includes("fb")) return "facebook";
+  if (lower.includes("instagram") || lower.includes("ig")) return "instagram";
+  if (lower.includes("linkedin")) return "linkedin";
+  if (lower.includes("twitter") || lower === "x") return "x";
+  if (lower.includes("email") || lower.includes("mail")) return "email";
+  if (lower.includes("sms") || lower.includes("text")) return "sms";
+  return "sms";
+};
+
+const PLATFORM_CONFIG = {
+  whatsapp: { Icon: MessageCircle, bg: "#25D366", color: "#fff", label: "WhatsApp" },
+  facebook: { Icon: Facebook, bg: "#1877F2", color: "#fff", label: "Facebook" },
+  instagram: { Icon: Instagram, bg: "#E1306C", color: "#fff", label: "Instagram" },
+  linkedin: { Icon: Linkedin, bg: "#0A66C2", color: "#fff", label: "LinkedIn" },
+  x: { Icon: Twitter, bg: "#000", color: "#fff", label: "X" },
+  email: { Icon: Mail, bg: "#4D9CFF", color: "#fff", label: "Email" },
+  sms: { Icon: MessageSquare, bg: "#6B7280", color: "#fff", label: "SMS" },
+};
+
 const FILTER_OPTIONS = [
   { key: "all", label: "All" },
-  { key: "unread", label: "Unread" },
+  { key: "whatsapp", label: "WhatsApp" },
+  { key: "sms", label: "SMS" },
+  { key: "email", label: "Email" },
+  { key: "facebook", label: "Facebook" },
+  { key: "instagram", label: "Instagram" },
 ];
 
-const AllChatScreen = () => {
+const STATUS_ICONS = {
+  sent: "✓",
+  delivered: "✓✓",
+  read: "✓✓",
+};
+
+const UnifiedConversationsScreen = () => {
   const navigation = useNavigation();
-  const { data: threads = [], isLoading } = useFetchConversationsQuery();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
 
-  const formattedConversations = useMemo(() => {
-    if (!Array.isArray(threads) || !threads.length) return [];
+  const platformParam = activeFilter !== "all" ? activeFilter : undefined;
+  const { data: threads = [], isLoading } = useFetchConversationsQuery(
+    platformParam ? { platform: platformParam } : undefined,
+  );
+
+  const allData = useMemo(() => {
+    if (!Array.isArray(threads)) return [];
     return threads.map((thread) => ({
       id: thread?._id || thread?.id,
-      name: thread?.directPeer?.fullName || thread?.directPeer?.name || "Unknown User",
+      name: thread?.directPeer?.fullName || thread?.directPeer?.name || "Unknown",
       lastMessage: thread?.lastMessage?.text || "No messages yet",
       time: formatRelativeTime(thread?.lastMessage?.createdAt || thread?.updatedAt),
       unreadCount: Number(thread?.unreadCount || 0),
       avatar: thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
-      isOnline: Boolean(thread?.directPeer?.isOnline),
+      platform: normalizePlatform(thread?.channel || thread?.source || thread?.platform || thread?.type),
+      status: thread?.lastMessage?.status || null,
       isGroup: Boolean(thread?.is_group || thread?.isGroup),
     }));
   }, [threads]);
 
-  const handleConversationPress = (item) => {
-    if (item?.isGroup) {
-      navigation.navigate("GroupChat", {
-        group: { id: item.id, name: item.name, avatar_url: item.avatar, conversation_id: item.id },
-      });
-    } else {
-      navigation.navigate("SingleChat", { threadId: item.id, conversation: item });
-    }
-  };
+  const totalUnread = useMemo(() => allData.reduce((s, i) => s + i.unreadCount, 0), [allData]);
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return formattedConversations.filter((item) => {
-      if (activeFilter === "unread" && !(item.unreadCount > 0)) return false;
+    return allData.filter((item) => {
       if (!q) return true;
       return (
         String(item.name).toLowerCase().includes(q) ||
         String(item.lastMessage).toLowerCase().includes(q)
       );
     });
-  }, [activeFilter, searchQuery, formattedConversations]);
+  }, [searchQuery, allData]);
+
+  const handlePress = (item) => {
+    navigation.navigate("SingleChat", {
+      threadId: item.id,
+      conversation: item,
+    });
+  };
 
   const renderItem = ({ item }) => {
     const hasUnread = item.unreadCount > 0;
+    const platform = PLATFORM_CONFIG[item.platform] || PLATFORM_CONFIG.sms;
+    const PlatformIcon = platform.Icon;
+
     return (
-      <Pressable style={styles.card} onPress={() => handleConversationPress(item)}>
+      <Pressable style={styles.card} onPress={() => handlePress(item)}>
         <View style={styles.avatarWrap}>
           {item.avatar ? (
             <Image source={{ uri: item.avatar }} style={styles.avatar} />
@@ -95,7 +144,9 @@ const AllChatScreen = () => {
               </Text>
             </View>
           )}
-          {item.isOnline && <View style={styles.onlineDot} />}
+          <View style={[styles.platformBadge, { backgroundColor: platform.bg }]}>
+            <PlatformIcon size={9} color={platform.color} strokeWidth={2.5} />
+          </View>
         </View>
 
         <View style={styles.cardBody}>
@@ -113,6 +164,10 @@ const AllChatScreen = () => {
               <View style={styles.unreadBadge}>
                 <Text style={styles.unreadText}>{Math.min(item.unreadCount, 99)}</Text>
               </View>
+            ) : item.status === "read" ? (
+              <Text style={styles.readTick}>✓✓</Text>
+            ) : item.status === "delivered" ? (
+              <Text style={styles.deliveredTick}>✓✓</Text>
             ) : null}
           </View>
         </View>
@@ -123,10 +178,19 @@ const AllChatScreen = () => {
   return (
     <SafeAreaView edges={["top"]} style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
-        {formattedConversations.length > 0 && (
-          <Text style={styles.subtitle}>{formattedConversations.length} Conversations</Text>
-        )}
+        <Pressable
+          onPress={() => navigation.canGoBack() && navigation.goBack()}
+          style={styles.backBtn}
+        >
+          <ChevronLeft size={26} color="#F8FAFC" />
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <Text style={styles.title}>Unified Conversations</Text>
+          {totalUnread > 0 && (
+            <Text style={styles.subtitle}>{totalUnread} Unread Messages</Text>
+          )}
+        </View>
+        <View style={{ width: 38 }} />
       </View>
 
       <View style={styles.searchWrap}>
@@ -134,13 +198,18 @@ const AllChatScreen = () => {
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search messages..."
+          placeholder="Search conversations..."
           placeholderTextColor="#667A93"
           style={styles.searchInput}
         />
       </View>
 
-      <View style={styles.filterRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
+        contentContainerStyle={styles.filterRow}
+      >
         {FILTER_OPTIONS.map((opt) => (
           <Pressable
             key={opt.key}
@@ -152,31 +221,12 @@ const AllChatScreen = () => {
             </Text>
           </Pressable>
         ))}
-      </View>
-
-      {/* Pinned AI Assistant */}
-      <Pressable style={styles.aiCard} onPress={() => navigation.navigate("MicConversation")}>
-        <View style={styles.aiAvatarWrap}>
-          <View style={styles.aiAvatar}>
-            <Bot size={22} color="#17CBE8" />
-          </View>
-          <View style={styles.aiOnlineDot} />
-        </View>
-        <View style={styles.cardBody}>
-          <View style={styles.cardTopRow}>
-            <Text style={styles.aiName}>Mabdel AI Assistant</Text>
-            <Text style={styles.aiOnlineText}>Online</Text>
-          </View>
-          <Text style={styles.aiPreview} numberOfLines={1}>
-            Ask me anything about your business...
-          </Text>
-        </View>
-      </Pressable>
+      </ScrollView>
 
       {isLoading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="small" color="#1AD3EF" />
-          <Text style={styles.loadingText}>Loading chats...</Text>
+          <Text style={styles.loadingText}>Loading conversations...</Text>
         </View>
       ) : (
         <FlatList
@@ -188,7 +238,11 @@ const AllChatScreen = () => {
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyText}>
-                {searchQuery ? "No results found" : "No conversations yet"}
+                {searchQuery
+                  ? "No results found"
+                  : activeFilter !== "all"
+                  ? `No ${PLATFORM_CONFIG[activeFilter]?.label || activeFilter} conversations`
+                  : "No conversations yet"}
               </Text>
             </View>
           }
@@ -206,17 +260,32 @@ const styles = StyleSheet.create({
     paddingTop: responsiveHeight(1),
   },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: responsiveHeight(2),
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 19,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
   },
   title: {
     color: "#F8FAFC",
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: "700",
     letterSpacing: 0.3,
   },
   subtitle: {
-    color: "#5D6A7A",
-    fontSize: 13,
+    color: "#17CBE8",
+    fontSize: 12,
+    fontWeight: "600",
     marginTop: 2,
   },
   searchWrap: {
@@ -236,13 +305,16 @@ const styles = StyleSheet.create({
     color: "#C8D8E8",
     fontSize: 15,
   },
-  filterRow: {
-    flexDirection: "row",
-    gap: responsiveWidth(2),
+  filterScroll: {
+    flexGrow: 0,
     marginBottom: responsiveHeight(1.8),
   },
+  filterRow: {
+    gap: responsiveWidth(2),
+    paddingRight: responsiveWidth(2),
+  },
   filterChip: {
-    paddingHorizontal: responsiveWidth(4.5),
+    paddingHorizontal: responsiveWidth(4),
     paddingVertical: responsiveHeight(0.8),
     borderRadius: 20,
     backgroundColor: "#171A21",
@@ -261,60 +333,10 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: "#020406",
   },
-  aiCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#0D1F30",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#17CBE8",
-    padding: responsiveWidth(3.5),
-    marginBottom: responsiveHeight(0.8),
-    gap: responsiveWidth(3),
-  },
-  aiAvatarWrap: {
-    position: "relative",
-  },
-  aiAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#0B2A3F",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#17CBE8",
-  },
-  aiOnlineDot: {
-    position: "absolute",
-    bottom: 1,
-    right: 1,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#17CBE8",
-    borderWidth: 2,
-    borderColor: "#020406",
-  },
-  aiName: {
-    color: "#F8FAFC",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  aiOnlineText: {
-    color: "#17CBE8",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  aiPreview: {
-    color: "#7A8FA0",
-    fontSize: 13,
-    marginTop: 2,
-  },
   card: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: responsiveHeight(1.4),
+    paddingVertical: responsiveHeight(1.6),
     borderBottomWidth: 1,
     borderBottomColor: "#141820",
     gap: responsiveWidth(3),
@@ -323,9 +345,9 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
   },
   avatarFallback: {
     backgroundColor: "#1B2A3B",
@@ -334,17 +356,18 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     color: "#17CBE8",
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
   },
-  onlineDot: {
+  platformBadge: {
     position: "absolute",
-    bottom: 1,
-    right: 1,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#22C55E",
+    bottom: 0,
+    right: 0,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
     borderColor: "#020406",
   },
@@ -405,6 +428,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
   },
+  readTick: {
+    color: "#17CBE8",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  deliveredTick: {
+    color: "#5D6A7A",
+    fontSize: 12,
+  },
   listContent: {
     paddingBottom: responsiveHeight(12),
   },
@@ -428,4 +460,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AllChatScreen;
+export default UnifiedConversationsScreen;
