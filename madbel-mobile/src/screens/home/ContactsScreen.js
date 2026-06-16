@@ -1,32 +1,54 @@
 import React, { useMemo, useState } from "react";
 import {
-  FlatList,
+  ActivityIndicator,
+  Alert,
+  SectionList,
   Image,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
 } from "react-native-responsive-dimensions";
-import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Plus, Search, UserRoundPlus, Phone } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
-import { useMadbelListContactsQuery } from "../../redux/slices/madbelApiSlice";
+import { useMadbelListContactsQuery, useMadbelCreateOutboundCallMutation } from "../../redux/slices/madbelApiSlice";
+import PhoneContactsImportModal from "../../components/PhoneContactsImportModal";
 
 const ContactsScreen = () => {
   const navigation = useNavigation();
   const [query, setQuery] = useState("");
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [callingId, setCallingId] = useState(null);
+  const [createOutboundCall] = useMadbelCreateOutboundCallMutation();
+
+  const handleCall = async (contact) => {
+    if (!contact.phone) {
+      Alert.alert("No phone number", `${contact.name} has no phone number saved.`);
+      return;
+    }
+    setCallingId(contact.id);
+    try {
+      await createOutboundCall({ contact_id: contact.id }).unwrap();
+      Alert.alert("Call started", `Calling ${contact.name} (${contact.phone})...`);
+    } catch (e) {
+      Alert.alert("Call failed", e?.data?.message || "Could not start the call. Make sure your Twilio is set up in Account Settings.");
+    } finally {
+      setCallingId(null);
+    }
+  };
 
   const {
     data: contactsResponse,
     isLoading,
     isFetching,
     error,
+    refetch,
   } = useMadbelListContactsQuery({
     page: 1,
     page_size: 100,
@@ -39,37 +61,82 @@ const ContactsScreen = () => {
   const contacts = contactsData?.items || [];
   const summary = contactsData?.summary;
 
-  const filteredContacts = useMemo(() => contacts, [contacts]);
+  const sections = useMemo(() => {
+    const onApp = contacts.filter((c) => c.is_app_user);
+    const invite = contacts.filter((c) => !c.is_app_user);
+    const result = [];
+    if (onApp.length > 0) result.push({ title: "On Mabdel", data: onApp });
+    if (invite.length > 0) result.push({ title: "Invite to Mabdel", data: invite });
+    return result;
+  }, [contacts]);
 
   const goToContact = (contact) => {
     navigation.navigate("AddContact", { contact });
   };
 
-  const renderContact = ({ item }) => (
-    <Pressable style={styles.contactCard} onPress={() => goToContact(item)}>
-      <View style={styles.avatarWrap}>
-        {item.avatar_url ? (
-          <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={styles.initialAvatar}>
-            <Text style={styles.initialText}>{item.initials || "?"}</Text>
+  const handleInvite = (contact) => {
+    const via = contact.phone || contact.email || "";
+    Alert.alert(
+      "Invite to Mabdel",
+      `Send an invite to ${contact.name}${via ? ` (${via})` : ""}?`,
+      [{ text: "Cancel", style: "cancel" }, { text: "Invite", onPress: () => {} }],
+    );
+  };
+
+  const renderContact = ({ item }) => {
+    const isCalling = callingId === item.id;
+    return (
+      <Pressable style={styles.contactCard} onPress={() => goToContact(item)}>
+        <View style={styles.avatarWrap}>
+          {item.avatar_url ? (
+            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.initialAvatar, !item.is_app_user && styles.initialAvatarMuted]}>
+              <Text style={[styles.initialText, !item.is_app_user && styles.initialTextMuted]}>
+                {item.initials || "?"}
+              </Text>
+            </View>
+          )}
+          {item.is_online ? <View style={styles.onlineDot} /> : null}
+        </View>
+
+        <View style={styles.contactContent}>
+          <View style={styles.nameRow}>
+            <Text style={styles.contactName} numberOfLines={1}>{item.name}</Text>
+            {item.is_app_user && (
+              <View style={styles.appBadge}>
+                <Text style={styles.appBadgeText}>Mabdel</Text>
+              </View>
+            )}
           </View>
-        )}
-        {item.is_online ? <View style={styles.onlineDot} /> : null}
-      </View>
+          <Text style={styles.contactSubtitle} numberOfLines={1}>
+            {item.primary_detail || item.phone || item.email || "No details"}
+          </Text>
+        </View>
 
-      <View style={styles.contactContent}>
-        <Text style={styles.contactName} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={styles.contactSubtitle} numberOfLines={1}>
-          {item.primary_detail || item.phone || item.email || "No details"}
-        </Text>
-      </View>
+        {item.is_app_user && item.phone ? (
+          <Pressable
+            style={styles.callBtn}
+            onPress={() => handleCall(item)}
+            disabled={isCalling}
+            hitSlop={8}
+          >
+            {isCalling ? (
+              <ActivityIndicator size="small" color="#12D0ED" />
+            ) : (
+              <Phone size={20} color="#12D0ED" />
+            )}
+          </Pressable>
+        ) : !item.is_app_user ? (
+          <Pressable style={styles.inviteBtn} onPress={() => handleInvite(item)} hitSlop={8}>
+            <Text style={styles.inviteBtnText}>Invite</Text>
+          </Pressable>
+        ) : null}
 
-      <ChevronRight size={28} color="#93DBEA" />
-    </Pressable>
-  );
+        <ChevronRight size={28} color="#93DBEA" />
+      </Pressable>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -79,7 +146,12 @@ const ContactsScreen = () => {
             <ChevronLeft size={34} color="#F3F9FF" />
           </Pressable>
           <Text style={styles.headerTitle}>Contacts</Text>
-          <View style={styles.headerSpace} />
+          <Pressable
+            onPress={() => setImportModalVisible(true)}
+            style={styles.importIconBtn}
+          >
+            <UserRoundPlus size={24} color="#12D0ED" />
+          </Pressable>
         </View>
 
         <View style={styles.searchWrap}>
@@ -111,12 +183,19 @@ const ContactsScreen = () => {
             <Text style={styles.stateText}>Could not load contacts.</Text>
           </View>
         ) : (
-          <FlatList
-            data={filteredContacts}
-            renderItem={renderContact}
+          <SectionList
+            sections={sections}
             keyExtractor={(item) => item.id}
+            renderItem={({ item }) => renderContact({ item })}
+            renderSectionHeader={({ section }) => (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionCount}>{section.data.length}</Text>
+              </View>
+            )}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
+            stickySectionHeadersEnabled={false}
             ListEmptyComponent={
               <View style={styles.centerState}>
                 <Text style={styles.stateText}>
@@ -135,6 +214,12 @@ const ContactsScreen = () => {
           <Plus size={38} color="#E8FDFF" strokeWidth={2.1} />
         </Pressable>
       </View>
+
+      <PhoneContactsImportModal
+        visible={importModalVisible}
+        onClose={() => setImportModalVisible(false)}
+        onImported={refetch}
+      />
     </SafeAreaView>
   );
 };
@@ -167,9 +252,82 @@ const styles = StyleSheet.create({
     fontSize: responsiveWidth(8.5),
     fontWeight: "700",
   },
-  headerSpace: {
+  importIconBtn: {
     width: 38,
     height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: responsiveHeight(1),
+    paddingHorizontal: 4,
+    marginTop: responsiveHeight(1.2),
+    marginBottom: responsiveHeight(0.4),
+  },
+  sectionTitle: {
+    color: "#12D0ED",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  sectionCount: {
+    color: "#4A7A87",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  appBadge: {
+    backgroundColor: "#0C2E39",
+    borderWidth: 1,
+    borderColor: "#12D0ED55",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  appBadgeText: {
+    color: "#12D0ED",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  initialAvatarMuted: {
+    borderColor: "#2A3A42",
+    backgroundColor: "#161E22",
+  },
+  initialTextMuted: {
+    color: "#4A7080",
+  },
+  callBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#0E2830",
+    borderWidth: 1,
+    borderColor: "#12D0ED33",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
+  },
+  inviteBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#2A4A5A",
+    backgroundColor: "#111B22",
+    marginRight: 4,
+  },
+  inviteBtnText: {
+    color: "#7BBDCC",
+    fontSize: 13,
+    fontWeight: "600",
   },
   searchWrap: {
     height: 74,

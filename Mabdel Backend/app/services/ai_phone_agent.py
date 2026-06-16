@@ -181,22 +181,27 @@ class AIPhoneAgent:
             await send_callback(message)
 
     async def finalize_session(self):
-        """Saves the accumulated transcript to the call log."""
+        """Saves the accumulated transcript and AI summary to the call log."""
         if not self.user_id or not self.transcript_log:
             print(f"Call {self.call_id}: Finalizing session (no transcript to save).")
             return
 
         from app.utils.audio import utc_now
         print(f"Call {self.call_id}: Saving {len(self.transcript_log)} transcript turns...")
+
+        summary = self.ai_service.summarize_call(self.transcript_log)
+
         await self.flow_service.db.call_logs.update_one(
             {"twilio_call_sid": self.call_id, "user_id": self.user_id},
             {
                 "$set": {
                     "speaker_segments": self.transcript_log,
+                    "ai_summary": summary,
                     "ended_at": utc_now(),
                 }
             },
         )
+        print(f"Call {self.call_id}: Summary saved — {summary.get('status')}")
 
     def _mulaw_to_wav(self, mulaw_data: bytes) -> bytes:
         """

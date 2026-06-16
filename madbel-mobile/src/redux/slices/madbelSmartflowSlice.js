@@ -232,4 +232,6 @@ export const {
   useMadbelCreateSocialPostMutation,
   useMadbelListSocialPostsQuery,
   useLazyMadbelListSocialPostsQuery,
+  useMadbelGetSocialPostQuery,
+  useLazyMadbelGetSocialPostQuery,
 } = madbelSmartflowSlice;

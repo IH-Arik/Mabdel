@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Pressable,
   SafeAreaView,
@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  AppState,
 } from "react-native";
 import { CheckCircle2, ChevronLeft, AlertCircle } from "lucide-react-native";
 import {
@@ -100,6 +101,17 @@ const SocialIntegrationsScreen = () => {
   const [whatsappModalVisible, setWhatsappModalVisible] = useState(false);
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [whatsappGatewayUrl, setWhatsappGatewayUrl] = useState("http://localhost:3001");
+
+  const appState = useRef(AppState.currentState);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (appState.current.match(/inactive|background/) && nextState === "active") {
+        refetch();
+      }
+      appState.current = nextState;
+    });
+    return () => sub.remove();
+  }, [refetch]);
 
   const catalog = catalogResponse?.data || [];
 
@@ -240,7 +252,14 @@ const SocialIntegrationsScreen = () => {
                   {item.connected ? (
                     <Pressable
                       style={styles.connectedWrap}
-                      onPress={() => handleDisconnectPress(item)}
+                      onPress={() => {
+                        if (item.platform === "google_business") {
+                          navigation.navigate("GoogleReviews");
+                        } else {
+                          handleDisconnectPress(item);
+                        }
+                      }}
+                      onLongPress={() => handleDisconnectPress(item)}
                     >
                       <CheckCircle2 size={24} color="#4DCE63" />
                       <Text style={styles.connectedText}>Connected</Text>

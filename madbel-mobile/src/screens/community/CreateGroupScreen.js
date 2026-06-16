@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Image, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -12,10 +12,12 @@ import ControllerTextInput from "../../components/ControllerTextInput";
 import {
   useMadbelCreateGroupSmartFlowMutation,
   useMadbelGetGroupQuery,
-  useMadbelListContactsQuery,
+  useMadbelSearchAppUsersQuery,
   useMadbelUpdateGroupMutation,
 } from "../../redux/slices/madbelApiSlice";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
+
+const DEBOUNCE_MS = 350;
 
 const CreateGroupScreen = () => {
   const navigation = useNavigation();
@@ -36,16 +38,13 @@ const CreateGroupScreen = () => {
     { group_id: editingGroupId },
     { skip: !editingGroupId },
   );
-  const { data: contactsResponse, isFetching: contactsFetching } = useMadbelListContactsQuery({
-    page: 1,
-    page_size: 100,
-  });
   const [createGroup, { isLoading: creating }] = useMadbelCreateGroupSmartFlowMutation();
   const [updateGroup, { isLoading: updating }] = useMadbelUpdateGroupMutation();
 
-  const contacts = contactsResponse?.data?.items || [];
   const group = groupResponse?.data;
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+  // Cache user objects for selected members so chips persist across search changes
+  const selectedUsersCache = useRef({});
 
   useEffect(() => {
     if (!group) return;
@@ -56,15 +55,27 @@ const CreateGroupScreen = () => {
   }, [group, setValue]);
 
   const memberSearch = watch("memberSearch");
-  const filteredContacts = useMemo(() => {
-    const search = (memberSearch || "").trim().toLowerCase();
-    if (!search) return contacts;
-    return contacts.filter((member) => (member.name || "").toLowerCase().includes(search));
-  }, [contacts, memberSearch]);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(memberSearch || ""), DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [memberSearch]);
 
+  const { data: usersResponse, isFetching: usersFetching } = useMadbelSearchAppUsersQuery(
+    { q: debouncedSearch, page: 1, page_size: 50 },
+  );
+  const appUsers = usersResponse?.data?.items || [];
+
+  // Keep cache up to date as search results arrive
+  useEffect(() => {
+    appUsers.forEach((u) => { selectedUsersCache.current[u.id] = u; });
+  }, [appUsers]);
+
+  // appUsers in deps forces recompute when cache updates (fixes edit-mode race condition)
   const selectedMembers = useMemo(
-    () => contacts.filter((contact) => selectedMemberIds.includes(contact.id)),
-    [contacts, selectedMemberIds],
+    () => selectedMemberIds.map((id) => selectedUsersCache.current[id]).filter(Boolean),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedMemberIds, appUsers],
   );
 
   const toggleMember = (id) => {
@@ -74,7 +85,11 @@ const CreateGroupScreen = () => {
   const onSubmit = async (data) => {
     const name = (data.groupName || "").trim();
     if (!name) {
-      Alert.alert("Missing name", "Please enter group name.");
+      Alert.alert("Missing name", "Please enter a group name.");
+      return;
+    }
+    if (!isEditMode && selectedMemberIds.length === 0) {
+      Alert.alert("No members", "Add at least one member to create a group.");
       return;
     }
     const payload = {
@@ -156,19 +171,42 @@ const CreateGroupScreen = () => {
               <Text style={styles.selectedCount}>{selectedMemberIds.length} Selected</Text>
             </View>
 
+            {selectedMembers.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectedChipsRow} contentContainerStyle={styles.selectedChipsContent}>
+                {selectedMembers.map((member) => (
+                  <Pressable key={member.id} style={styles.selectedChip} onPress={() => toggleMember(member.id)}>
+                    {member.avatar_url ? (
+                      <Image source={{ uri: member.avatar_url }} style={styles.selectedChipAvatar} />
+                    ) : (
+                      <View style={styles.selectedChipAvatarFallback}>
+                        <Text style={styles.selectedChipInitials}>{member.initials || "?"}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.selectedChipName} numberOfLines={1}>{member.name || "User"}</Text>
+                    <X size={14} color="#9AA7BE" />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
             <ControllerTextInput
               name="memberSearch"
               control={control}
-              placeholder="Search contacts..."
+              placeholder="Search by name or email..."
               placeholderTextColor="#6F7C95"
               inputStyle={[styles.input, styles.searchInput]}
               leftIcon={<Search size={24} color="#9AA7BE" />}
             />
 
-            {contactsFetching ? <ActivityIndicator color="#14C9E7" /> : null}
+            {usersFetching ? <ActivityIndicator color="#14C9E7" style={{ marginVertical: 6 }} /> : null}
 
             <View style={styles.memberList}>
-              {filteredContacts.slice(0, 30).map((member) => {
+              {appUsers.length === 0 && !usersFetching ? (
+                <Text style={styles.emptyUsers}>
+                  {debouncedSearch.trim() ? "No app users found." : "Start typing to search users."}
+                </Text>
+              ) : null}
+              {appUsers.map((member) => {
                 const selected = selectedMemberIds.includes(member.id);
                 return (
                   <Pressable key={member.id} style={[styles.memberChip, selected && styles.memberChipSelected]} onPress={() => toggleMember(member.id)}>
@@ -179,8 +217,11 @@ const CreateGroupScreen = () => {
                         <Text style={styles.memberAvatarFallbackText}>{member.initials || "?"}</Text>
                       </View>
                     )}
-                    <Text style={styles.memberName}>{member.name || "Unnamed"}</Text>
-                    {selected ? <X size={20} color="#9AA7BE" /> : <Text style={styles.addText}>Add</Text>}
+                    <View style={styles.memberInfo}>
+                      <Text style={styles.memberName}>{member.name || "Unnamed"}</Text>
+                      {member.email ? <Text style={styles.memberEmail} numberOfLines={1}>{member.email}</Text> : null}
+                    </View>
+                    {selected ? <X size={20} color="#14C9E7" /> : <Text style={styles.addText}>Add</Text>}
                   </Pressable>
                 );
               })}
@@ -274,8 +315,36 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   memberAvatarFallbackText: { color: "#86E8FC", fontWeight: "700" },
-  memberName: { color: "#E8EDF3", fontSize: 18, flex: 1 },
+  memberName: { color: "#E8EDF3", fontSize: 18 },
   addText: { color: "#14C9E7", fontWeight: "600" },
+  memberInfo: { flex: 1 },
+  memberEmail: { color: "#6B8499", fontSize: 13, marginTop: 2 },
+  emptyUsers: { color: "#6B8499", fontSize: 15, textAlign: "center", paddingVertical: responsiveHeight(2) },
+  selectedChipsRow: { marginBottom: responsiveHeight(1) },
+  selectedChipsContent: { gap: responsiveWidth(2), paddingRight: responsiveWidth(2) },
+  selectedChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(1.5),
+    backgroundColor: "#132635",
+    borderWidth: 1,
+    borderColor: "#14C9E7",
+    borderRadius: 999,
+    paddingHorizontal: responsiveWidth(3),
+    paddingVertical: responsiveHeight(0.6),
+    maxWidth: responsiveWidth(40),
+  },
+  selectedChipAvatar: { width: 24, height: 24, borderRadius: 12 },
+  selectedChipAvatarFallback: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#173041",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectedChipInitials: { color: "#86E8FC", fontWeight: "700", fontSize: 11 },
+  selectedChipName: { color: "#D4EEF6", fontSize: 13, fontWeight: "500", flex: 1 },
   createBtn: {
     minHeight: responsiveHeight(8.1),
     borderRadius: 20,

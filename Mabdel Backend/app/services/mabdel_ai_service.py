@@ -85,6 +85,62 @@ class MabdelAIService:
             "navigation": self._navigation_for_intent(command_type, user_text),
         }
 
+    def summarize_call(self, transcript: str | list[dict]) -> dict:
+        if isinstance(transcript, list):
+            lines = []
+            for seg in transcript:
+                speaker = seg.get("speaker", "unknown").title()
+                text = seg.get("text", "").strip()
+                if text:
+                    lines.append(f"{speaker}: {text}")
+            transcript_text = "\n".join(lines)
+        else:
+            transcript_text = (transcript or "").strip()
+
+        if not transcript_text:
+            return {"summary": None, "key_points": [], "action_items": [], "status": "no_transcript"}
+
+        if not settings.OPENAI_API_KEY:
+            return {"summary": transcript_text[:500], "key_points": [], "action_items": [], "status": "no_api_key"}
+
+        try:
+            from openai import OpenAI
+            import json as _json
+        except ImportError:
+            return {"summary": None, "key_points": [], "action_items": [], "status": "openai_package_missing"}
+
+        try:
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            prompt = (
+                "Analyze this business call transcript and provide a structured summary.\n\n"
+                f"TRANSCRIPT:\n{transcript_text}\n\n"
+                "Respond with a JSON object containing:\n"
+                "- purpose: A 1-2 sentence description of the call's main purpose\n"
+                "- key_points: List of main discussion points (max 5 strings)\n"
+                "- action_items: List of follow-up actions identified (strings)\n"
+                "- highlights: List of notable moments or important quotes (max 3 strings)\n"
+                "- sentiment: Overall call sentiment (positive/neutral/negative)"
+            )
+            response = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a business call analyst. Always respond with valid JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"},
+            )
+            result = _json.loads(response.choices[0].message.content)
+            result["status"] = "generated"
+            return result
+        except Exception as exc:
+            return {
+                "summary": None,
+                "key_points": [],
+                "action_items": [],
+                "status": "failed",
+                "error": str(exc)[:240],
+            }
+
     def list_voice_presets(self) -> list[dict]:
         return list(self.voice_presets)
 
