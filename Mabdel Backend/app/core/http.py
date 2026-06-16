@@ -65,3 +65,47 @@ class AuthRateLimitMiddleware(BaseHTTPMiddleware):
             )
         hits.append(now)
         return await call_next(request)
+
+
+class MutationRateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app) -> None:
+        super().__init__(app)
+        self._hits: dict[str, deque[float]] = defaultdict(deque)
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        if request.method.upper() not in {"POST", "PATCH", "PUT", "DELETE"}:
+            return await call_next(request)
+        if request.url.path.startswith("/api/v1/auth/"):
+            return await call_next(request)
+
+        limit = settings.MUTATION_RATE_LIMIT_MAX_REQUESTS
+        window = settings.MUTATION_RATE_LIMIT_WINDOW_SECONDS
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else "unknown")
+        key = f"{client_ip}:mutation"
+        now = time.time()
+        hits = self._hits[key]
+        while hits and now - hits[0] > window:
+            hits.popleft()
+        if len(hits) >= limit:
+            request_id = getattr(request.state, "request_id", str(uuid4()))
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "success": False,
+                    "message": "Too many requests. Please slow down.",
+                    "error": {
+                        "code": "RATE_LIMITED",
+                        "details": {
+                            "request_id": request_id,
+                            "retry_after_seconds": window,
+                        },
+                    },
+                },
+                headers={
+                    "Retry-After": str(window),
+                    "X-Request-ID": request_id,
+                },
+            )
+        hits.append(now)
+        return await call_next(request)

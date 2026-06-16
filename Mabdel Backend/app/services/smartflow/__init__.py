@@ -1,5 +1,5 @@
 from __future__ import annotations
 
-from app.services.smartflow import SmartFlowService
+from .smartflow_orchestrator import SmartFlowService
 
 __all__ = ["SmartFlowService"]

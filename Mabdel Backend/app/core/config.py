@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     TRUSTED_HOSTS: list[str] = Field(default_factory=lambda: ["*"])
     AUTH_RATE_LIMIT_MAX_REQUESTS: int = 20
     AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    MUTATION_RATE_LIMIT_MAX_REQUESTS: int = 120
+    MUTATION_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    REDIS_URL: str = "redis://localhost:6379/0"
     PUBLIC_BACKEND_URL: str = "http://127.0.0.1:8000"
     MEDIA_ROOT: str = Field(default_factory=default_media_root)
     MEDIA_PUBLIC_PATH: str = "/media"
@@ -83,6 +86,7 @@ class Settings(BaseSettings):
     TWILIO_PHONE_NUMBER: str | None = None
     TWILIO_VALIDATE_SIGNATURE: bool = True
     TWILIO_STREAM_TRACK: str = "inbound_track"
+    TWILIO_NUMBER_COUNTRY: str = "US"
 
     RESEND_API_KEY: str | None = None
     MAILTRAP_API_TOKEN: str | None = None
@@ -97,7 +101,7 @@ class Settings(BaseSettings):
     OTP_EXPIRE_MINUTES: int = 5
     OTP_RESEND_COOLDOWN_SECONDS: int = 60
     OTP_MAX_ATTEMPTS: int = 5
-    OTP_LENGTH: int = 4
+    OTP_LENGTH: int = 6
 
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
 
