@@ -42,6 +42,7 @@ import {
   useMadbelListContactsQuery,
   useMadbelGetCallSummaryQuery,
 } from "../../redux/slices/madbelApiSlice";
+import { useMadbelListCallsQuery } from "../../redux/slices/madbelSmartflowSlice";
 
 const rw = (value) => responsiveWidth(value);
 const rh = (value) => responsiveHeight(value);
@@ -124,6 +125,23 @@ const HomeScreen = () => {
   const callSummaryData = callSummaryResponse?.data;
   const totalCallsCount = callSummaryData?.total_calls ?? 0;
   const minutesSavedCount = callSummaryData?.total_minutes_saved ?? 0;
+
+  const { data: recentCallsResponse } = useMadbelListCallsQuery({ page: 1, limit: 5 });
+  const recentCalls = recentCallsResponse?.calls || recentCallsResponse?.data || recentCallsResponse?.items || [];
+  const recentCallRows = recentCalls.slice(0, 3).map((call, i) => ({
+    id: call?._id || call?.id || `call-${i}`,
+    icon: PhoneCall,
+    iconColor: call?.status === "missed" ? "#ED4444" : "#11D1ED",
+    muted: false,
+    name: call?.contact_name || call?.caller_name || call?.phone_number || "Unknown",
+    subtitle: call?.ai_summary?.purpose || call?.summary || call?.status || "",
+    rightType: call?.duration ? "text" : "badge",
+    rightText: call?.duration
+      ? `${Math.round(Number(call.duration) / 60)}m`
+      : call?.status === "completed" ? "Done" : "AI Ready",
+  }));
+
+  const analyticsCallRows = recentCallRows.length > 0 ? recentCallRows : HOME_ANALYTICS_CALLS;
 
   const analyticsStats = [
     {
@@ -423,12 +441,12 @@ const HomeScreen = () => {
               ))}
             </View>
 
-            {HOME_ANALYTICS_CALLS.map((item) => (
+            {analyticsCallRows.map((item) => (
               <AnalyticsCallRow
                 key={item.id}
                 item={{
                   ...item,
-                  icon: CALL_ICON_MAP[item.iconKey] || PhoneCall,
+                  icon: item.icon || CALL_ICON_MAP[item.iconKey] || PhoneCall,
                 }}
                 styles={styles}
               />

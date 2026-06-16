@@ -1,4 +1,4 @@
-import { View, Text, Image, Pressable, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, Image, Pressable, FlatList, ActivityIndicator, Alert } from "react-native";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
@@ -8,7 +8,7 @@ import { useMadbelListShopProductsQuery } from "../../redux/slices/madbelApiSlic
 
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400&h=300&fit=crop";
 
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, onAddToCart }) => {
   const imageUri = product.imageUrl || product.image || DEFAULT_IMAGE;
   const displayPrice = typeof product.price === "number" ? `$${product.price}` : (product.price || "$0");
 
@@ -39,7 +39,7 @@ const ProductCard = ({ product }) => {
         style={{ borderRadius: widthPercentageToDP(2) }}
         className="py-3 mt-2"
       >
-        <Pressable>
+        <Pressable onPress={() => onAddToCart(product)}>
           <Text className="text-white text-center font-semibold text-base">Add to Cart</Text>
         </Pressable>
       </LinearGradient>
@@ -47,15 +47,23 @@ const ProductCard = ({ product }) => {
   );
 };
 
-const renderProductItem = ({ item, index }) => (
+const renderProductItem = ({ item, index }, onAddToCart) => (
   <View className={`w-1/2 p-1.5 ${index % 2 === 0 ? "pl-3 pr-1.5" : "pl-1.5 pr-3"}`}>
-    <ProductCard product={item} />
+    <ProductCard product={item} onAddToCart={onAddToCart} />
   </View>
 );
 
 const ShopScreen = () => {
   const { data: responseData, isLoading } = useMadbelListShopProductsQuery({ page: 1, limit: 100 });
   const products = responseData?.data || [];
+
+  const handleAddToCart = (product) => {
+    Alert.alert(
+      "Added to Cart",
+      `${product?.name || "Product"} has been added to your cart.`,
+      [{ text: "OK" }]
+    );
+  };
 
   return (
     <SafeAreaView
@@ -81,7 +89,7 @@ const ShopScreen = () => {
       ) : (
         <FlatList
           data={products}
-          renderItem={renderProductItem}
+          renderItem={(info) => renderProductItem(info, handleAddToCart)}
           numColumns={2}
           keyExtractor={(item) => `product-${item.id || item._id}`}
           showsVerticalScrollIndicator={false}
