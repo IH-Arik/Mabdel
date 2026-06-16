@@ -233,29 +233,55 @@ const SingleChatScreen = () => {
   const renderMessageItem = ({ item, index }) => {
     const isMe = item.sender === "me";
     const showAvatar = !isMe && (index === 0 || messages[index - 1]?.sender === "me");
+    const isLastInGroup =
+      isMe && (index === messages.length - 1 || messages[index + 1]?.sender !== "me");
+
+    const showDateSeparator =
+      index === 0 ||
+      new Date(item?.raw?.createdAt || 0).toDateString() !==
+        new Date(messages[index - 1]?.raw?.createdAt || 0).toDateString();
+
     return (
-      <MessageBubble
-        message={item}
-        isMe={isMe}
-        showAvatar={showAvatar}
-        avatar={currentConversation.avatar}
-      />
+      <>
+        {showDateSeparator && item?.time ? (
+          <View style={{ alignItems: "center", marginVertical: 12 }}>
+            <Text style={{ color: "#5D6A7A", fontSize: 12, fontWeight: "600" }}>
+              {new Date(item?.raw?.createdAt || Date.now()).toDateString() ===
+              new Date().toDateString()
+                ? `TODAY, ${item.time}`
+                : new Date(item?.raw?.createdAt || 0).toLocaleDateString([], {
+                    month: "short",
+                    day: "numeric",
+                  }).toUpperCase()}
+            </Text>
+          </View>
+        ) : null}
+        <MessageBubble
+          message={item}
+          isMe={isMe}
+          showAvatar={showAvatar}
+          isLastInGroup={isLastInGroup}
+          avatar={currentConversation.avatar}
+        />
+      </>
     );
   };
 
   const renderEmptyComponent = () => (
-    <View className="flex-1 justify-center items-center px-8">
-      <Image
-        source={{ uri: currentConversation.avatar }}
-        className="w-20 h-20 rounded-full mb-4"
-      />
-      <Text className="text-xl font-semibold text-white mb-1">
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
+      {currentConversation.avatar ? (
+        <Image
+          source={{ uri: currentConversation.avatar }}
+          style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 16 }}
+        />
+      ) : null}
+      <Text style={{ fontSize: 18, fontWeight: "600", color: "#F8FAFC", marginBottom: 4 }}>
         {currentConversation.name}
       </Text>
-      <Text className="text-gray-500 text-lg text-center mb-2">
+      <Text style={{ color: "#5D6A7A", fontSize: 15, textAlign: "center" }}>
         {isThreadError ? "Failed to load messages" : "No messages yet"}
       </Text>
-      <Text className="text-gray-400 text-center text-base">
+      <Text style={{ color: "#3D4A58", fontSize: 14, textAlign: "center", marginTop: 4 }}>
         Send a message to start the conversation.
       </Text>
     </View>
@@ -270,37 +296,54 @@ const SingleChatScreen = () => {
   const shouldShowSuggestions =
     String(headerName || "").toLowerCase() === "live support";
   const isGroupChat = Boolean(group);
+  const isOnline = Boolean(currentConversation?.isOnline);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#020406]">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#020406" }}>
+      {/* Header */}
       <View
-        className="flex-row items-center justify-between border-b border-border"
-        style={{ padding: responsiveWidth(2) }}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: responsiveWidth(2),
+          paddingVertical: responsiveHeight(1),
+          borderBottomWidth: 1,
+          borderBottomColor: "#141820",
+        }}
       >
-        <Pressable onPress={() => navigation.goBack()} className="p-2">
-          <ChevronLeft size={22} color="#fff" />
+        <Pressable onPress={() => navigation.goBack()} style={{ padding: 8 }}>
+          <ChevronLeft size={26} color="#F8FAFC" />
         </Pressable>
-        <View className="flex-row items-center">
-          <Image
-            source={{ uri: currentConversation.avatar }}
-            className="w-8 h-8 rounded-full mr-2"
-          />
-          <View>
-            <Text className="text-lg text-white font-semibold">{headerName}</Text>
-            <Text className="text-gray-600">Active now</Text>
+
+        <View style={{ alignItems: "center", flex: 1 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={{ fontSize: 17, color: "#F8FAFC", fontWeight: "700" }}>
+              {headerName}
+            </Text>
+            <View
+              style={{
+                width: 9,
+                height: 9,
+                borderRadius: 5,
+                backgroundColor: isOnline ? "#22C55E" : "#17CBE8",
+              }}
+            />
           </View>
+          <Text style={{ fontSize: 13, color: "#17CBE8", fontWeight: "600", marginTop: 1 }}>
+            Active Now
+          </Text>
         </View>
+
         {isGroupChat ? (
           <Pressable
-            className="p-2"
-            onPress={() => {
-              navigation.navigate("GroupSetting", { group });
-            }}
+            style={{ padding: 8 }}
+            onPress={() => navigation.navigate("GroupSetting", { group })}
           >
-            <Ellipsis color="#fff" />
+            <Ellipsis color="#F8FAFC" />
           </Pressable>
         ) : (
-          <View className="p-2" />
+          <View style={{ width: 42 }} />
         )}
       </View>
 
@@ -333,10 +376,12 @@ const SingleChatScreen = () => {
         </View>
 
         <View
-          className="bg-gray-900"
           style={{
+            backgroundColor: "#0D1520",
+            borderTopWidth: 1,
+            borderTopColor: "#141820",
             paddingHorizontal: responsiveWidth(3),
-            paddingVertical: responsiveHeight(1),
+            paddingTop: responsiveHeight(1),
             paddingBottom: responsiveHeight(10),
           }}
         >
@@ -344,7 +389,6 @@ const SingleChatScreen = () => {
             <View
               style={{
                 flexDirection: "row",
-                justifyContent: "space-between",
                 gap: responsiveWidth(2),
                 marginBottom: responsiveHeight(1.1),
               }}
@@ -365,62 +409,107 @@ const SingleChatScreen = () => {
                     paddingHorizontal: responsiveWidth(1.5),
                   }}
                 >
-                  <Text
-                    style={{
-                      color: "#D5DEE9",
-                      fontSize: 13,
-                      fontWeight: "500",
-                      textAlign: "center",
-                    }}
-                  >
+                  <Text style={{ color: "#D5DEE9", fontSize: 13, fontWeight: "500", textAlign: "center" }}>
                     {item}
                   </Text>
                 </Pressable>
               ))}
             </View>
           )}
-          <View className="flex-row items-center">
-            <TextInput
-              className={`flex-1 border ${
-                message.trim() ? "border-primary" : "border-border"
-              } rounded-xl px-4 py-3 text-base text-white`}
-              placeholder={threadId ? "Type something..." : "Chat unavailable"}
-              placeholderTextColor="#9CA3AF"
-              value={message}
-              onChangeText={setMessage}
-              multiline
-              maxLength={500}
-              editable={!inputDisabled}
-            />
-            <Pressable
-              className={`ml-2 border rounded-xl p-3 ${
-                recorderState?.isRecording ? "border-red-500 bg-red-500/10" : "border-border"
-              }`}
-              onPress={handleRecordButtonPress}
-              disabled={inputDisabled || isTranscribing}
-            >
-              {isTranscribing ? (
-                <ActivityIndicator size="small" color="#71ABE0" />
-              ) : recorderState?.isRecording ? (
-                <MicOff size={20} color="#EF4444" />
+
+          {/* My avatar + input row */}
+          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: responsiveWidth(2) }}>
+            {/* User avatar */}
+            <View style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: "#1B2A3B",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}>
+              {authUser?.avatar || authUser?.profile_image ? (
+                <Image
+                  source={{ uri: authUser?.avatar || authUser?.profile_image }}
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                />
               ) : (
-                <Mic size={20} color="#9CA3AF" />
+                <Text style={{ color: "#17CBE8", fontWeight: "700", fontSize: 14 }}>
+                  {String(authUser?.full_name || authUser?.name || "M")[0].toUpperCase()}
+                </Text>
               )}
-            </Pressable>
+            </View>
+
+            {/* Input + mic + send */}
+            <View style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "flex-end",
+              backgroundColor: "#1A2435",
+              borderRadius: 24,
+              paddingHorizontal: responsiveWidth(4),
+              paddingVertical: responsiveHeight(0.8),
+              borderWidth: 1,
+              borderColor: "#232A34",
+              gap: 8,
+            }}>
+              <TextInput
+                style={{
+                  flex: 1,
+                  color: "#E8EFF7",
+                  fontSize: 15,
+                  maxHeight: 100,
+                  paddingVertical: 6,
+                }}
+                placeholder={threadId ? "Type a message..." : "Chat unavailable"}
+                placeholderTextColor="#4A5568"
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                maxLength={500}
+                editable={!inputDisabled}
+              />
+              <Pressable
+                onPress={handleRecordButtonPress}
+                disabled={inputDisabled || isTranscribing}
+                style={{ paddingBottom: 6 }}
+              >
+                {isTranscribing ? (
+                  <ActivityIndicator size="small" color="#17CBE8" />
+                ) : recorderState?.isRecording ? (
+                  <MicOff size={20} color="#EF4444" />
+                ) : (
+                  <Mic size={20} color="#5D6A7A" />
+                )}
+              </Pressable>
+            </View>
+
+            {/* Send button */}
             <Pressable
-              className={`ml-2 border rounded-xl p-3 ${
-                message.trim() && !inputDisabled ? "border-primary" : "border-border"
-              }`}
               onPress={sendMessage}
               disabled={!message.trim() || inputDisabled}
+              style={{
+                backgroundColor: message.trim() && !inputDisabled ? "#17CBE8" : "#1A2435",
+                borderRadius: 24,
+                paddingHorizontal: responsiveWidth(5),
+                paddingVertical: responsiveHeight(1.3),
+                borderWidth: 1,
+                borderColor: message.trim() && !inputDisabled ? "#17CBE8" : "#232A34",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
               {isSending ? (
-                <ActivityIndicator size="small" color="#71ABE0" />
+                <ActivityIndicator size="small" color="#020406" />
               ) : (
-                <Send
-                  size={20}
-                  color={message.trim() && !inputDisabled ? "#71ABE0" : "#9CA3AF"}
-                />
+                <Text style={{
+                  color: message.trim() && !inputDisabled ? "#020406" : "#5D6A7A",
+                  fontWeight: "700",
+                  fontSize: 15,
+                }}>
+                  Send
+                </Text>
               )}
             </Pressable>
           </View>

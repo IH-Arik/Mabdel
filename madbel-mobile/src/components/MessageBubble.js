@@ -1,128 +1,126 @@
-// import React from 'react';
-// import { View, Text, Image } from 'react-native';
+import React from "react";
+import { View, Text, Image, StyleSheet } from "react-native";
 
-// const MessageBubble = ({ 
-//   message, 
-//   isMe, 
-//   showAvatar = true,
-//   avatar 
-// }) => {
-//   return (
-//     <View
-//       className={`flex-row mb-4 ${
-//         isMe ? 'justify-end' : 'justify-start'
-//       }`}
-//     >
-//       {!isMe && showAvatar && (
-//         <Image
-//           source={{ uri: avatar }}
-//           className="w-8 h-8 rounded-full mr-2"
-//         />
-//       )}
-      
-//       {!isMe && !showAvatar && (
-//         <View className="w-8 h-8 mr-2" />
-//       )}
-      
-//       <View
-//         className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-//           isMe
-//             ? 'bg-blue-500 rounded-br-none'
-//             : 'bg-gray-200 rounded-bl-none'
-//         }`}
-//       >
-//         <Text
-//           className={`text-base ${
-//             isMe ? 'text-white' : 'text-gray-900'
-//           }`}
-//         >
-//           {message.text}
-//         </Text>
-//         <Text
-//           className={`text-xs mt-1 ${
-//             isMe ? 'text-blue-200' : 'text-gray-500'
-//           }`}
-//         >
-//           {message.time}
-//         </Text>
-//       </View>
-
-//     </View>
-//   );
-// };
-
-// export default MessageBubble;
-
-
-
-
-// components/MessageBubble.js
-import React from 'react';
-import { View, Text, Image } from 'react-native';
-
-const MessageBubble = ({ 
-  message, 
-  isMe, 
+const MessageBubble = ({
+  message,
+  isMe,
   showAvatar = true,
   showSenderName = false,
   avatar,
-  senderName
+  senderName,
+  isLastInGroup = false,
 }) => {
+  const showReadReceipt = isMe && isLastInGroup && message?.time;
+
   return (
-    <View
-      className={`flex-row mb-4 ${
-        isMe ? 'justify-end' : 'justify-start'
-      }`}
-    >
+    <View style={[styles.row, isMe ? styles.rowMe : styles.rowThem]}>
       {/* Avatar for other users */}
-      {!isMe && showAvatar && (
-        <Image
-          source={{ uri: avatar }}
-          className="w-8 h-8 rounded-full mr-2 self-end"
-        />
+      {!isMe && (
+        <View style={styles.avatarSlot}>
+          {showAvatar ? (
+            <Image
+              source={{ uri: avatar || "https://robohash.org/user.png" }}
+              style={styles.avatar}
+            />
+          ) : null}
+        </View>
       )}
-      
-      {/* Spacer for alignment when no avatar */}
-      {!isMe && !showAvatar && (
-        <View className="w-10" />
-      )}
-      
-      <View className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
-        {/* Sender name for group chats */}
-        {!isMe && showSenderName && (
-          <Text className="text-xs text-gray-500 mb-1 ml-1">
-            {senderName}
-          </Text>
-        )}
-        
-        {/* Message bubble */}
-        <View
-          className={`rounded-2xl px-4 py-3 ${
-            isMe
-              ? 'bg-blue-500 rounded-br-none'
-              : 'bg-gray-200 rounded-bl-none'
-          }`}
-        >
-          <Text
-            className={`text-base ${
-              isMe ? 'text-white' : 'text-gray-900'
-            }`}
-          >
+
+      <View style={[styles.bubbleWrap, isMe ? styles.bubbleWrapMe : styles.bubbleWrapThem]}>
+        {!isMe && showSenderName && senderName ? (
+          <Text style={styles.senderName}>{senderName}</Text>
+        ) : null}
+
+        <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
+          <Text style={[styles.text, isMe ? styles.textMe : styles.textThem]}>
             {message.text}
           </Text>
         </View>
-        
-        {/* Time */}
-        <Text
-          className={`text-xs mt-1 ${
-            isMe ? 'text-blue-200' : 'text-gray-500'
-          }`}
-        >
-          {message.time}
-        </Text>
+
+        {showReadReceipt ? (
+          <Text style={styles.readReceipt}>Read {message.time}</Text>
+        ) : message?.time && isMe ? null : message?.time ? (
+          <Text style={styles.timeThem}>{message.time}</Text>
+        ) : null}
       </View>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    marginBottom: 8,
+    alignItems: "flex-end",
+  },
+  rowMe: {
+    justifyContent: "flex-end",
+  },
+  rowThem: {
+    justifyContent: "flex-start",
+  },
+  avatarSlot: {
+    width: 34,
+    height: 34,
+    marginRight: 8,
+    alignSelf: "flex-end",
+  },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  bubbleWrap: {
+    maxWidth: "75%",
+  },
+  bubbleWrapMe: {
+    alignItems: "flex-end",
+  },
+  bubbleWrapThem: {
+    alignItems: "flex-start",
+  },
+  senderName: {
+    fontSize: 11,
+    color: "#7A8FA0",
+    marginBottom: 3,
+    marginLeft: 4,
+  },
+  bubble: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  bubbleMe: {
+    backgroundColor: "#17CBE8",
+    borderBottomRightRadius: 4,
+  },
+  bubbleThem: {
+    backgroundColor: "#2D3340",
+    borderBottomLeftRadius: 4,
+  },
+  text: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  textMe: {
+    color: "#020406",
+    fontWeight: "500",
+  },
+  textThem: {
+    color: "#E8EFF7",
+  },
+  readReceipt: {
+    fontSize: 11,
+    color: "#7A8FA0",
+    marginTop: 4,
+    marginRight: 2,
+  },
+  timeThem: {
+    fontSize: 11,
+    color: "#5D6A7A",
+    marginTop: 3,
+    marginLeft: 4,
+  },
+});
 
 export default MessageBubble;
