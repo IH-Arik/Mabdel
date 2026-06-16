@@ -5,7 +5,7 @@ export const madbelSmartflowSlice = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     ...buildSmartflowEndpoints(builder),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 });
 
 export const {
@@ -152,6 +152,13 @@ export const {
   useMadbelCompleteIntegrationOauthQuery,
   useLazyMadbelCompleteIntegrationOauthQuery,
   useMadbelDisconnectIntegrationMutation,
+  useMadbelListGoogleBusinessAccountsQuery,
+  useLazyMadbelListGoogleBusinessAccountsQuery,
+  useMadbelListGoogleReviewsQuery,
+  useLazyMadbelListGoogleReviewsQuery,
+  useMadbelReplyGoogleReviewMutation,
+  useMadbelDeleteGoogleReviewReplyMutation,
+  useMadbelSyncGoogleReviewsToInboxMutation,
   useMadbelVerifyPlatformWebhookQuery,
   useLazyMadbelVerifyPlatformWebhookQuery,
   useMadbelReceivePlatformWebhookMutation,
@@ -214,4 +221,15 @@ export const {
   useLazyMadbelHealthCheckHealthGetQuery,
   useMadbelReadinessCheckReadyGetQuery,
   useLazyMadbelReadinessCheckReadyGetQuery,
+  useMadbelSearchAppUsersQuery,
+  useLazyMadbelSearchAppUsersQuery,
+  useMadbelGetTwilioStatusQuery,
+  useLazyMadbelGetTwilioStatusQuery,
+  useMadbelProvisionTwilioMutation,
+  useMadbelReleaseTwilioMutation,
+  useMadbelSaveCustomTwilioMutation,
+  useMadbelRemoveCustomTwilioMutation,
+  useMadbelCreateSocialPostMutation,
+  useMadbelListSocialPostsQuery,
+  useLazyMadbelListSocialPostsQuery,
 } = madbelSmartflowSlice;

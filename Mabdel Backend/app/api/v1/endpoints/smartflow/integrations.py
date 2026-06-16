@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
+
 from fastapi import Depends, Header, Query, Request, status
 
+from app.core.config import settings
 from app.core.exceptions import AppException
 from app.dependencies import get_current_user
 from app.schemas.smartflow import (
@@ -14,6 +19,20 @@ from app.utils.responses import success_response
 
 from ._deps import get_smartflow_service
 from ._router import router
+
+META_PLATFORMS = {"facebook_messenger", "instagram", "whatsapp"}
+
+
+def _verify_meta_signature(raw_body: bytes, signature_header: str | None) -> None:
+    """Validate X-Hub-Signature-256 from Meta using META_CLIENT_SECRET."""
+    secret = settings.META_CLIENT_SECRET
+    if not secret:
+        return  # not configured, skip
+    if not signature_header or not signature_header.startswith("sha256="):
+        raise AppException(status_code=401, code="WEBHOOK_SIGNATURE_MISSING", message="Meta webhook signature missing.")
+    expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature_header):
+        raise AppException(status_code=401, code="WEBHOOK_SIGNATURE_INVALID", message="Meta webhook signature invalid.")
 
 
 @router.get("/integrations")
@@ -133,13 +152,23 @@ async def receive_platform_webhook(
     platform: str,
     request: Request,
     user_id: str | None = Query(default=None, min_length=1),
+    x_hub_signature_256: str | None = Header(default=None, alias="X-Hub-Signature-256"),
     x_webhook_secret: str | None = Header(default=None, alias="X-Webhook-Secret"),
     x_telegram_bot_api_secret_token: str | None = Header(default=None, alias="X-Telegram-Bot-Api-Secret-Token"),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
-    raw_payload = await request.json()
+    raw_body = await request.body()
+
+    if platform in META_PLATFORMS:
+        _verify_meta_signature(raw_body, x_hub_signature_256)
+
+    try:
+        raw_payload = json.loads(raw_body)
+    except Exception:
+        raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Webhook payload must be valid JSON.")
     if not isinstance(raw_payload, dict):
         raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Webhook payload must be a JSON object.")
+
     resolved_user_id = user_id or await service.resolve_webhook_user_id(
         platform,
         raw_payload,
@@ -147,7 +176,8 @@ async def receive_platform_webhook(
     )
     if platform == "telegram":
         await service.validate_platform_webhook_secret(resolved_user_id, platform, x_telegram_bot_api_secret_token or x_webhook_secret)
-    else:
+    elif platform not in META_PLATFORMS:
         service.validate_webhook_secret(x_webhook_secret)
+
     data = await service.handle_inbound_webhook(resolved_user_id, platform, raw_payload)
     return success_response(data=data, message="Webhook processed successfully.")

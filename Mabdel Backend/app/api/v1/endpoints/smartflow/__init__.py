@@ -16,6 +16,7 @@ from . import (  # noqa: F401
     notifications,
     groups,
     settings,
+    social_posts,
 )
 
 from ._router import router

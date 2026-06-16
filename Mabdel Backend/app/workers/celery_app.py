@@ -13,6 +13,7 @@ celery_app = Celery(
         "app.workers.tasks.push_tasks",
         "app.workers.tasks.invoice_tasks",
         "app.workers.tasks.reminder_tasks",
+        "app.workers.tasks.social_sync_tasks",
     ],
 )
 
@@ -33,5 +34,12 @@ celery_app.conf.update(
         "app.workers.tasks.push_tasks.*": {"queue": "push"},
         "app.workers.tasks.invoice_tasks.*": {"queue": "invoice"},
         "app.workers.tasks.reminder_tasks.*": {"queue": "default"},
+        "app.workers.tasks.social_sync_tasks.*": {"queue": "default"},
+    },
+    beat_schedule={
+        "snapchat-auto-sync-every-5-minutes": {
+            "task": "social.sync_polling_platforms",
+            "schedule": 300.0,  # 5 minutes
+        },
     },
 )

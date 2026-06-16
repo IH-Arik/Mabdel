@@ -69,6 +69,34 @@ class MetaMessagingAdapter(SocialProviderAdapter):
     supports_webhooks = True
     unsupported_reason = "needs_provider_access"
 
+    async def fetch_account_metadata(self, access_token: str | None, token_data: dict[str, Any]) -> dict[str, Any]:
+        """Fetch the connected Page/Account ID from Graph API so webhook resolution works."""
+        if not access_token:
+            return {"external_account_id": None, "external_account_name": None}
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(
+                    "https://graph.facebook.com/v20.0/me/accounts",
+                    params={"access_token": access_token, "fields": "id,name"},
+                )
+            if response.status_code == 200:
+                data = response.json()
+                pages = data.get("data") or []
+                if pages:
+                    return {"external_account_id": pages[0]["id"], "external_account_name": pages[0].get("name")}
+            # Fallback: use /me
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                me = await client.get(
+                    "https://graph.facebook.com/v20.0/me",
+                    params={"access_token": access_token, "fields": "id,name"},
+                )
+            if me.status_code == 200:
+                me_data = me.json()
+                return {"external_account_id": me_data.get("id"), "external_account_name": me_data.get("name")}
+        except Exception:
+            pass
+        return {"external_account_id": None, "external_account_name": None}
+
     def normalize_webhook(self, payload: dict[str, Any]) -> NormalizedSocialMessage | None:
         normalized = super().normalize_webhook(payload)
         if normalized:

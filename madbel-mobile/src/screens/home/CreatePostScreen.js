@@ -30,8 +30,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import SystemCalendarModal from "../../components/SystemCalendarModal";
 import {
   useMadbelAiChatMutation,
-  useMadbelCreateBulkMessageMutation,
-  useMadbelSendBulkMessageMutation,
+  useMadbelCreateSocialPostMutation,
 } from "../../redux/slices/madbelApiSlice";
 
 const PLATFORMS = [
@@ -53,8 +52,7 @@ const CreatePostScreen = () => {
 
   // RTK Query Mutations
   const [aiChat, { isLoading: isGenerating }] = useMadbelAiChatMutation();
-  const [createBulkMessage, { isLoading: isCreating }] = useMadbelCreateBulkMessageMutation();
-  const [sendBulkMessage, { isLoading: isSending }] = useMadbelSendBulkMessageMutation();
+  const [createSocialPost, { isLoading: isPublishing }] = useMadbelCreateSocialPostMutation();
 
   const characterCount = useMemo(() => content.length, [content]);
 
@@ -103,24 +101,27 @@ const CreatePostScreen = () => {
     }
 
     try {
-      // Create bulk campaign
-      const createRes = await createBulkMessage({
-        channel: "email", // mapping social campaigns to bulk model
-        recipient_emails: ["test@madbel.ai"],
-        subject: `Social Post for ${selectedPlatforms.join(", ")}`,
-        content: content,
-        send_now: true,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        attachments: [],
+      const res = await createSocialPost({
+        content,
+        platforms: selectedPlatforms,
+        media_url: null,
+        scheduled_at: null,
       }).unwrap();
 
-      const campaignId = createRes?.data?.id || createRes?.id;
-      if (campaignId) {
-        await sendBulkMessage({ bulk_message_id: campaignId }).unwrap();
-        Alert.alert("Success", "Your post has been published successfully via Synthetix AI!");
+      const results = res?.data?.results || [];
+      const failed = results.filter((r) => r.status === "failed" || r.status === "not_connected");
+      const published = results.filter((r) => r.status === "published");
+
+      if (published.length > 0 && failed.length === 0) {
+        Alert.alert("Published!", `Posted to ${published.map((r) => r.platform).join(", ")}.`);
+        navigation.goBack();
+      } else if (published.length > 0) {
+        const failedNames = failed.map((r) => `${r.platform}: ${r.error}`).join("\n");
+        Alert.alert("Partial Success", `Published to ${published.map((r) => r.platform).join(", ")}.\n\nFailed:\n${failedNames}`);
         navigation.goBack();
       } else {
-        Alert.alert("Error", "Could not verify campaign creation.");
+        const failedNames = failed.map((r) => `${r.platform}: ${r.error}`).join("\n");
+        Alert.alert("Publish Failed", failedNames || "Could not publish your post.");
       }
     } catch (error) {
       console.log("Publish failed:", error);
@@ -133,26 +134,22 @@ const CreatePostScreen = () => {
       Alert.alert("Empty Content", "Please generate or write some content first.");
       return;
     }
+    if (selectedPlatforms.length === 0) {
+      Alert.alert("No Platform Selected", "Please select at least one platform.");
+      return;
+    }
 
     try {
-      const scheduledIso = `${dateStr}T10:00:00.000Z`; // Default to 10:00 AM
-      const createRes = await createBulkMessage({
-        channel: "email",
-        recipient_emails: ["test@madbel.ai"],
-        subject: `Scheduled Social Post for ${selectedPlatforms.join(", ")}`,
-        content: content,
-        send_now: false,
+      const scheduledIso = `${dateStr}T10:00:00.000Z`;
+      await createSocialPost({
+        content,
+        platforms: selectedPlatforms,
+        media_url: null,
         scheduled_at: scheduledIso,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        attachments: [],
       }).unwrap();
 
-      if (createRes?.data?.id || createRes?.id) {
-        Alert.alert("Success", `Post scheduled successfully for ${dateStr}!`);
-        navigation.goBack();
-      } else {
-        Alert.alert("Error", "Could not verify campaign creation.");
-      }
+      Alert.alert("Scheduled!", `Post scheduled for ${dateStr} at 10:00 AM.`);
+      navigation.goBack();
     } catch (error) {
       console.log("Scheduling failed:", error);
       Alert.alert("Schedule Failed", error?.data?.message || "Could not schedule your post.");
@@ -304,11 +301,11 @@ const CreatePostScreen = () => {
               <Text style={styles.scheduleText}>Schedule</Text>
             </Pressable>
             <Pressable
-              style={[styles.publishBtn, (isCreating || isSending) && { opacity: 0.6 }]}
+              style={[styles.publishBtn, (isPublishing) && { opacity: 0.6 }]}
               onPress={handlePublishNow}
-              disabled={isCreating || isSending}
+              disabled={isPublishing}
             >
-              {isCreating || isSending ? (
+              {isPublishing ? (
                 <ActivityIndicator color="#B8C8DA" />
               ) : (
                 <>

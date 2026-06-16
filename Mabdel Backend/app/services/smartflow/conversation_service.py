@@ -168,42 +168,12 @@ class ConversationService(SmartFlowBase):
             {"$set": {"updated_at": now}},
         )
 
-        # Deliver outbound WhatsApp messages to OpenWA gateway
-        if payload["direction"] == "outbound" and payload["platform"] == "whatsapp":
-            contact_external_id = None
-            contact_id = payload.get("contact_id")
-            if contact_id:
-                contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id)})
-                if contact:
-                    for identity in contact.get("identities", []):
-                        if identity.get("platform") == "whatsapp":
-                            contact_external_id = identity.get("external_id")
-                            break
-
-            if contact_external_id:
-                integration = await self.db.social_integrations.find_one(
-                    {"user_id": user_id, "platform": "whatsapp", "status": "connected"}
-                )
-                if integration:
-                    gateway_url = integration.get("whatsapp_gateway_url") or "http://localhost:3001"
-                    try:
-                        async with httpx.AsyncClient(timeout=10.0) as client:
-                            resp = await client.post(
-                                f"{gateway_url.rstrip('/')}/send-message",
-                                json={"to": contact_external_id, "message": content},
-                            )
-                        if resp.status_code >= 400:
-                            document["status"] = "failed"
-                            await self.db.messages.update_one(
-                                {"_id": document["_id"]},
-                                {"$set": {"status": "failed"}},
-                            )
-                    except Exception:
-                        document["status"] = "failed"
-                        await self.db.messages.update_one(
-                            {"_id": document["_id"]},
-                            {"$set": {"status": "failed"}},
-                        )
+        # Deliver outbound messages to the actual platform
+        if payload["direction"] == "outbound":
+            delivered = await self._deliver_outbound(user_id, payload["platform"], payload.get("contact_id"), content)
+            if not delivered:
+                document["status"] = "failed"
+                await self.db.messages.update_one({"_id": document["_id"]}, {"$set": {"status": "failed"}})
 
         serialized = await self._serialize_message(document)
         await conversation_realtime_hub.publish(payload["conversation_id"], "message.created", serialized)
@@ -628,6 +598,112 @@ class ConversationService(SmartFlowBase):
                 {"$set": {"archived": True, "updated_at": now}},
             )
         return {"id": str(updated["_id"]), "left": True, "left_at": now}
+
+    # ------------------------------------------------------------------
+    # Outbound message delivery
+    # ------------------------------------------------------------------
+
+    async def _deliver_outbound(self, user_id: str, platform: str, contact_id: str | None, content: str) -> bool:
+        """Send message to the actual platform. Returns True if delivered, False if failed/skipped."""
+        if platform in {"ai", "internal"}:
+            return True  # no external delivery needed
+
+        contact_external_id = await self._get_contact_external_id(user_id, platform, contact_id)
+        if not contact_external_id:
+            return False
+
+        integration = await self.db.social_integrations.find_one(
+            {"user_id": user_id, "platform": platform, "status": "connected"}
+        )
+        if not integration:
+            return False
+
+        from app.core.crypto import decrypt_value
+        access_token = decrypt_value(integration["access_token_encrypted"]) if integration.get("access_token_encrypted") else None
+
+        try:
+            if platform == "facebook_messenger":
+                return await self._deliver_meta_messenger(access_token, contact_external_id, content)
+            elif platform == "instagram":
+                return await self._deliver_instagram(access_token, contact_external_id, content)
+            elif platform == "whatsapp":
+                return await self._deliver_whatsapp(integration, access_token, contact_external_id, content)
+            elif platform == "telegram":
+                return await self._deliver_telegram(access_token, contact_external_id, content)
+            else:
+                # Platform doesn't support outbound (e.g. Snapchat)
+                return False
+        except Exception:
+            return False
+
+    async def _deliver_meta_messenger(self, access_token: str | None, recipient_id: str, content: str) -> bool:
+        if not access_token:
+            return False
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://graph.facebook.com/v20.0/me/messages",
+                json={"recipient": {"id": recipient_id}, "message": {"text": content}},
+                params={"access_token": access_token},
+            )
+        return resp.status_code < 400
+
+    async def _deliver_instagram(self, access_token: str | None, recipient_id: str, content: str) -> bool:
+        if not access_token:
+            return False
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://graph.facebook.com/v20.0/me/messages",
+                json={"recipient": {"id": recipient_id}, "message": {"text": content}},
+                params={"access_token": access_token},
+            )
+        return resp.status_code < 400
+
+    async def _deliver_whatsapp(self, integration: dict, access_token: str | None, recipient_id: str, content: str) -> bool:
+        # Official Meta WhatsApp Cloud API
+        phone_number_id = (integration.get("provider_metadata") or {}).get("phone_number_id") or integration.get("external_account_id")
+        if access_token and phone_number_id and access_token != "openwa_manual_bypass":
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    f"https://graph.facebook.com/v20.0/{phone_number_id}/messages",
+                    json={
+                        "messaging_product": "whatsapp",
+                        "to": recipient_id,
+                        "type": "text",
+                        "text": {"body": content},
+                    },
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+            return resp.status_code < 400
+
+        # Fallback: OpenWA local gateway
+        gateway_url = integration.get("whatsapp_gateway_url") or "http://localhost:3001"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{gateway_url.rstrip('/')}/send-message",
+                json={"to": recipient_id, "message": content},
+            )
+        return resp.status_code < 400
+
+    async def _deliver_telegram(self, bot_token: str | None, chat_id: str, content: str) -> bool:
+        if not bot_token:
+            return False
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={"chat_id": chat_id, "text": content},
+            )
+        return resp.status_code < 400
+
+    async def _get_contact_external_id(self, user_id: str, platform: str, contact_id: str | None) -> str | None:
+        if not contact_id:
+            return None
+        contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
+        if not contact:
+            return None
+        for identity in contact.get("identities", []):
+            if identity.get("platform") == platform:
+                return identity.get("external_id")
+        return None
 
     async def delete_group(self, user_id: str, group_id: str) -> None:
         group = await self._get_active_owned_group(user_id, group_id)
