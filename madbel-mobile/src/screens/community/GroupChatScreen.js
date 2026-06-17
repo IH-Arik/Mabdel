@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -74,40 +74,6 @@ const upsertMessages = (prev, nextMessage) => {
   return [...prev, nextMessage];
 };
 
-const MOCK_MESSAGES = [
-  {
-    id: "mock-1",
-    sender: "them",
-    senderName: "Alex Rivera",
-    senderAvatar: "https://i.pravatar.cc/120?img=68",
-    text: "Hey team! Has anyone finished the @Sarah brand guidelines yet?",
-    time: "10:24 AM",
-    raw: {}
-  },
-  {
-    id: "mock-2",
-    sender: "me",
-    senderName: "Me",
-    senderAvatar: "",
-    text: "I'm just finishing the typography section now. Will upload in a second!",
-    time: "10:25 AM",
-    raw: {}
-  },
-  {
-    id: "mock-3",
-    sender: "them",
-    senderName: "Sarah Jenkins",
-    senderAvatar: "https://i.pravatar.cc/120?img=49",
-    text: "Awesome. Here is the moodboard and the brief document for reference.",
-    time: "10:28 AM",
-    isMockImage: true,
-    imageUri: "https://images.unsplash.com/photo-1580136579312-94651dfd596d?q=80&w=700",
-    isMockPdf: true,
-    fileName: "Project_Brief_Q1.pdf",
-    fileSize: "2.4 MB",
-    raw: {}
-  }
-];
 
 const UserAvatar = ({ uri }) => (
   <View style={styles.avatarWrap}>
@@ -212,7 +178,6 @@ const GroupChatScreen = () => {
       }
     } catch (error) {
       setValue("message", text);
-      console.log("Failed to send message:", error);
     }
   });
 
@@ -246,7 +211,6 @@ const GroupChatScreen = () => {
           }
         }
       } catch (error) {
-        console.log("Transcription failed:", error);
       }
     } else {
       try {
@@ -262,7 +226,6 @@ const GroupChatScreen = () => {
         await recorder.prepareToRecordAsync();
         recorder.record();
       } catch (error) {
-        console.log("Failed to start recording:", error);
       }
     }
   };
@@ -277,7 +240,7 @@ const GroupChatScreen = () => {
     return <Mic size={20} color="#8E9AA0" />;
   };
 
-  const chatMessages = messages.length > 0 ? messages : MOCK_MESSAGES;
+  const chatMessages = messages;
 
   const renderMessageItem = (msg, index) => {
     const isMe = msg.sender === "me";
@@ -350,13 +313,11 @@ const GroupChatScreen = () => {
 
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>{groupName}</Text>
-            <View style={styles.membersRow}>
-              <Text style={styles.membersText}>12 members</Text>
-              <View style={styles.stackAvatars}>
-                <Image source={{ uri: "https://i.pravatar.cc/120?img=11" }} style={styles.stackAvatar} />
-                <Image source={{ uri: "https://i.pravatar.cc/120?img=12" }} style={[styles.stackAvatar, styles.stackAvatarShift]} />
+            {Array.isArray(group?.member_ids) && group.member_ids.length > 0 && (
+              <View style={styles.membersRow}>
+                <Text style={styles.membersText}>{group.member_ids.length} members</Text>
               </View>
-            </View>
+            )}
           </View>
 
           <Pressable onPress={() => navigation.navigate("GroupSetting", { group })} style={styles.headerRight}>
@@ -374,9 +335,10 @@ const GroupChatScreen = () => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.chatContent}
           >
-            {chatMessages.map(renderMessageItem)}
-            {messages.length === 0 && (
-              <Text style={styles.typingText}>Sarah is typing • • •</Text>
+            {chatMessages.length === 0 ? (
+              <Text style={styles.typingText}>No messages yet. Start the conversation!</Text>
+            ) : (
+              chatMessages.map(renderMessageItem)
             )}
           </ScrollView>
         )}

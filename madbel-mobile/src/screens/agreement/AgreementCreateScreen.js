@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Switch, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -156,7 +156,6 @@ const AgreementCreateScreen = () => {
       navigation.replace("AgreementPreview", { agreementId: response?.data?.id, agreement: response?.data });
     } catch (error) {
 
-      console.log("Create agreement error:", error);
       
       if (error?.status === 401 || error?.originalStatus === 401 || error?.data?.message === "Not authenticated") {
         Alert.alert("Session expired", "Please login again to continue.", [

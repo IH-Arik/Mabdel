@@ -43,9 +43,7 @@ const PLATFORMS = [
 const CreatePostScreen = () => {
   const navigation = useNavigation();
   const [prompt, setPrompt] = useState("");
-  const [content, setContent] = useState(
-    "Looking for a modern, high-converting website? 🚀 Our new AI-driven design engine creates stunning, SEO-optimized landing pages in seconds. Stop wasting weeks on development and start scaling your business today! #AI #WebDesign #GrowthHacking"
-  );
+  const [content, setContent] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState(["facebook", "linkedin"]);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().slice(0, 10));
@@ -85,7 +83,6 @@ const CreatePostScreen = () => {
         Alert.alert("AI Error", "Could not generate content. Please try again.");
       }
     } catch (error) {
-      console.log("AI Generation failed:", error);
       Alert.alert("AI Error", error?.data?.message || "Something went wrong during generation.");
     }
   };
@@ -124,7 +121,6 @@ const CreatePostScreen = () => {
         Alert.alert("Publish Failed", failedNames || "Could not publish your post.");
       }
     } catch (error) {
-      console.log("Publish failed:", error);
       Alert.alert("Publish Failed", error?.data?.message || "Could not publish your post.");
     }
   };
@@ -151,7 +147,6 @@ const CreatePostScreen = () => {
       Alert.alert("Scheduled!", `Post scheduled for ${dateStr} at 10:00 AM.`);
       navigation.goBack();
     } catch (error) {
-      console.log("Scheduling failed:", error);
       Alert.alert("Schedule Failed", error?.data?.message || "Could not schedule your post.");
     }
   };

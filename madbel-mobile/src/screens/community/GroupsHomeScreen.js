@@ -7,15 +7,11 @@ import {
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import { ChevronLeft, Plus, Users } from "lucide-react-native";
-import { useMadbelListGroupsQuery } from "../../redux/slices/madbelApiSlice";
+import { useFetchConversationsQuery } from "../../redux/slices/chat/chatSlice";
 
 const GroupsHomeScreen = () => {
   const navigation = useNavigation();
-  const { data, isLoading, isFetching, error } = useMadbelListGroupsQuery({
-    page: 1,
-    page_size: 100,
-  });
-  const groups = data?.data?.items || [];
+  const { data: groups = [], isLoading, isFetching, error } = useFetchConversationsQuery({ type: "group" });
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -45,14 +41,22 @@ const GroupsHomeScreen = () => {
             renderItem={({ item }) => (
               <Pressable
                 style={styles.groupCard}
-                onPress={() => navigation.navigate("GroupChat", { group: item })}
+                onPress={() => navigation.navigate("GroupChat", {
+                  group: {
+                    ...item,
+                    name: item.title || item.directPeer?.fullName || "Team Chat",
+                    conversation_id: item.id,
+                  },
+                })}
               >
                 <View style={styles.groupIconWrap}>
                   <Users size={24} color="#13CBEB" strokeWidth={2.2} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.groupTitle}>{item.name}</Text>
-                  <Text style={styles.groupMeta}>{item.member_count || 0} Members</Text>
+                  <Text style={styles.groupTitle}>{item.title || item.directPeer?.fullName || "Team Chat"}</Text>
+                  <Text style={styles.groupMeta}>
+                    {Array.isArray(item.member_ids) ? item.member_ids.length : 0} Members
+                  </Text>
                 </View>
               </Pressable>
             )}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
 
@@ -124,7 +124,6 @@ const CreateMeetingScheduleScreen = () => {
     }
   }, [route?.params?.prefill]);
 
-  console.log("Contacts in ScheduleMeetingScreen:", contacts);
 
   const [meetingTitle, setMeetingTitle] = useState(
     prefill?.title || "Project Sync with Design Team",

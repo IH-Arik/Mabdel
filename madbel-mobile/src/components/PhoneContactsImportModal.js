@@ -33,12 +33,10 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
     setDebugError(null);
     try {
       const { status: existing } = await Contacts.getPermissionsAsync();
-      console.log("[Contacts] existing status:", existing);
 
       let finalStatus = existing;
       if (existing !== "granted") {
         const { status: requested } = await Contacts.requestPermissionsAsync();
-        console.log("[Contacts] requested status:", requested);
         finalStatus = requested;
       }
 
@@ -57,11 +55,9 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
           Contacts.Fields.Emails,
         ],
       });
-      console.log("[Contacts] total loaded:", data?.length);
       const valid = data.filter((c) => c.name && c.name.trim().length > 0);
       setDeviceContacts(valid);
     } catch (e) {
-      console.log("[Contacts] error:", e);
       setDebugError("Error: " + (e?.message || JSON.stringify(e)));
     } finally {
       setLoadingContacts(false);

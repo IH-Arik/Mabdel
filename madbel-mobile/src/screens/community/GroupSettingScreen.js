@@ -163,26 +163,24 @@ const GroupSettingScreen = () => {
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.groupNameRow}>
-                <Text style={styles.groupName}>{group?.name || "Marketing Team"}</Text>
+                <Text style={styles.groupName}>{group?.name || ""}</Text>
                 <Pressable onPress={() => navigation.navigate("CreateGroup", { groupId })}>
                   <PenLine size={16} color="#B8C4D7" />
                 </Pressable>
               </View>
-              <Text style={styles.groupMeta}>{group?.member_count || members.length || 12} Members • Created Oct 2023</Text>
+              <Text style={styles.groupMeta}>{group?.member_count || members.length || 0} Members</Text>
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>MEMBERS ({members.length || 12})</Text>
+          <Text style={styles.sectionTitle}>MEMBERS ({members.length})</Text>
 
-          {(members.length > 0 ? members : [
-            { id: "1", name: "Sarah Jenkins", email: "sarah.j@smartflow.com", role: "ADMIN", is_online: true, avatar_url: "https://i.pravatar.cc/120?img=49" },
-            { id: "2", name: "David Thompson", email: "david.t@smartflow.com", role: "MEMBER", is_online: true, avatar_url: "https://i.pravatar.cc/120?img=11" },
-            { id: "3", name: "Emily Carter", email: "emily.c@smartflow.com", role: "MEMBER", is_online: false, initials: "EC" },
-            { id: "4", name: "Michael Brown", email: "m.brown@smartflow.com", role: "MEMBER", is_online: true, avatar_url: "https://i.pravatar.cc/120?img=12" },
-            { id: "5", name: "Olivia Martinez", email: "olivia.m@smartflow.com", role: "MEMBER", is_online: true, avatar_url: "https://i.pravatar.cc/120?img=45" },
-            { id: "6", name: "+1 347 890 2211", email: "Pending Invite", role: "MEMBER", is_online: false, is_pending: true },
-            { id: "7", name: "Alex Johnson", email: "alex.j@smartflow.com", role: "MEMBER", is_online: true, avatar_url: "https://i.pravatar.cc/120?img=68" }
-          ]).map((member, index) => {
+          {members.length === 0 && !isLoading && (
+            <View style={styles.emptyMembers}>
+              <Text style={styles.emptyMembersText}>No members yet. Add members below.</Text>
+            </View>
+          )}
+
+          {members.map((member, index) => {
             const isOnline = member.is_online;
             const role = member.role || "MEMBER";
             const isPending = member.is_pending || member.email === "Pending Invite";
@@ -521,6 +519,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     paddingVertical: 12,
+  },
+  emptyMembers: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  emptyMembersText: {
+    color: "#687588",
+    fontSize: 14,
   },
   input: {
     height: 48,

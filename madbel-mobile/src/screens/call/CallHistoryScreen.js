@@ -30,63 +30,6 @@ import {
   useMadbelCreateOutboundCallMutation,
 } from "../../redux/slices/madbelApiSlice";
 
-const FALLBACK_MOCKS = [
-  {
-    id: "mock-call-1",
-    contact_name: "Sarah Jenkins",
-    repeat_count: 3,
-    call_type: "incoming_automated",
-    call_type_label: "Incoming Automated",
-    duration_label: "2m 35s",
-    display_time_label: "Today 9:20 AM",
-    initials: "SJ",
-    avatarColor: "#0F2A38",
-    initialsColor: "#17CBE8",
-    hasTranscript: true,
-    hasAiSummary: true,
-  },
-  {
-    id: "mock-call-2",
-    phone_number: "+1 (347) 890-2211",
-    call_type: "outgoing_direct",
-    call_type_label: "Outgoing Call",
-    duration_label: "5m 10s",
-    display_time_label: "Today 8:10 AM",
-    initials: "📞",
-    avatarColor: "#1C2431",
-    initialsColor: "#8E9AA0",
-    hasRecording: true,
-    hasCallBack: true,
-    isGreenCallBack: true,
-  },
-  {
-    id: "mock-call-3",
-    contact_name: "David Thompson",
-    repeat_count: 2,
-    call_type: "missed",
-    call_type_label: "Missed Call",
-    duration_label: "--",
-    display_time_label: "Yesterday 6:45 PM",
-    initials: "DT",
-    avatarColor: "#2F191B",
-    initialsColor: "#FC6166",
-    hasCallBackNow: true,
-  },
-  {
-    id: "mock-call-4",
-    contact_name: "Emily Carter",
-    repeat_count: 4,
-    call_type: "incoming_automated",
-    call_type_label: "Incoming Automated",
-    duration_label: "12m 20s",
-    display_time_label: "Yesterday",
-    initials: "EC",
-    avatarColor: "#2E1C38",
-    initialsColor: "#D16BE8",
-    hasTranscript: true,
-    hasAiSummary: true,
-  },
-];
 
 const CallHistoryScreen = () => {
   const navigation = useNavigation();
@@ -116,7 +59,6 @@ const CallHistoryScreen = () => {
         });
       }
     } catch (err) {
-      console.log("Outbound call failed:", err);
       Alert.alert("Call Failed", err?.data?.message || "Could not place outbound call.");
     }
   };
@@ -127,9 +69,6 @@ const CallHistoryScreen = () => {
 
   const callsList = useMemo(() => {
     const rawItems = apiCallsResponse?.data?.items || apiCallsResponse?.items || [];
-    if (rawItems.length === 0) {
-      return FALLBACK_MOCKS;
-    }
 
     return rawItems.map((item) => {
       // Map colors and initials based on types
@@ -342,6 +281,12 @@ const CallHistoryScreen = () => {
             showsVerticalScrollIndicator={false}
             onRefresh={refetch}
             refreshing={isCallsLoading}
+            ListEmptyComponent={
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyText}>No calls yet</Text>
+                <Text style={styles.emptySubText}>Your call history will appear here.</Text>
+              </View>
+            }
           />
         )}
       </View>
@@ -378,6 +323,9 @@ const styles = StyleSheet.create({
   listContainer: { paddingBottom: responsiveHeight(15) },
   separator: { height: 1, backgroundColor: "#11141A", marginVertical: responsiveHeight(1.2) },
   loaderWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
+  emptyWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: responsiveHeight(10) },
+  emptyText: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", marginBottom: 6 },
+  emptySubText: { color: "#687588", fontSize: 14 },
   callRow: {
     paddingVertical: responsiveHeight(1),
   },

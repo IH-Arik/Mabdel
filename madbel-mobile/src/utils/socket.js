@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../redux/apiUtils";
 
 let socketInstance = null;
@@ -73,7 +73,6 @@ const notifyConnectionStateChange = () => {
     try {
       callback(state);
     } catch (error) {
-      console.log("Socket connection callback failed:", error);
     }
   });
 };
@@ -86,7 +85,6 @@ const emitLocalEvent = (event, payload) => {
     try {
       callback(payload);
     } catch (error) {
-      console.log(`Socket listener failed for ${event}:`, error);
     }
   });
 };
@@ -163,7 +161,6 @@ const scheduleReconnect = () => {
   reconnectAttempts += 1;
   reconnectTimer = setTimeout(() => {
     initSocket({ conversationId: activeConversationId }).catch((error) => {
-      console.log("Socket reconnect failed:", error?.message || error);
     });
   }, RECONNECT_INTERVAL);
 };

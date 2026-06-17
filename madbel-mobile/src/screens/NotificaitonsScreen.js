@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   View,
   Text,
@@ -116,7 +116,6 @@ const NotificationScreen = () => {
             try {
               await deleteNotification(id).unwrap();
             } catch (err) {
-              console.error("Failed to delete notification:", err);
               Alert.alert("Error", "Could not delete notification. Please try again.");
             }
           },
@@ -130,7 +129,6 @@ const NotificationScreen = () => {
     try {
       await markAllRead().unwrap();
     } catch (err) {
-      console.error("Failed to mark notifications as read:", err);
       Alert.alert("Error", "Could not mark notifications as read.");
     }
   };

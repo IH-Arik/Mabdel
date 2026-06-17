@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -176,7 +176,6 @@ const SingleChatScreen = () => {
       }
     } catch (error) {
       setMessage(text);
-      console.log("Failed to send message:", error);
     }
   };
 
@@ -209,7 +208,6 @@ const SingleChatScreen = () => {
           }
         }
       } catch (error) {
-        console.log("Transcription failed:", error);
       }
     } else {
       try {
@@ -225,7 +223,6 @@ const SingleChatScreen = () => {
         await recorder.prepareToRecordAsync();
         recorder.record();
       } catch (error) {
-        console.log("Failed to start recording:", error);
       }
     }
   };

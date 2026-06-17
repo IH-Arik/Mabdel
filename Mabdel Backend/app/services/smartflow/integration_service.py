@@ -236,7 +236,9 @@ class IntegrationService(SmartFlowBase):
 
     async def connect_whatsapp_manual(self, user_id: str, payload: dict) -> dict:
         phone_number = payload["phone_number"].strip()
-        gateway_url = (payload.get("whatsapp_gateway_url") or "http://localhost:3001").strip()
+        gateway_url = (payload.get("whatsapp_gateway_url") or settings.WHATSAPP_GATEWAY_URL or "").strip()
+        if not gateway_url:
+            raise AppException(status_code=400, code="MISSING_GATEWAY_URL", message="whatsapp_gateway_url is required")
 
         await self.upsert_integration(
             user_id,

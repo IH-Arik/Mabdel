@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Pressable, Image, Animated } from "react-native";
+import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
@@ -29,34 +29,29 @@ const ActiveCallScreen = () => {
   const myUserId = authUser?._id || authUser?.id || authUser?.userId;
 
   const { callSid, call_sid, callId, callerName, callerNumber } = route.params || {};
-  const activeCallSid = callSid || call_sid || callId || "mock_sid";
+  const activeCallSid = callSid || call_sid || callId || null;
 
   const timer = useCallTimer(true);
   const [callAction] = useMadbelCallActionMutation();
 
-  // Poll transcript every 2 seconds if not mock
   const { data: transcriptResponse } = useMadbelGetCallTranscriptQuery(
     activeCallSid,
     {
       pollingInterval: 2000,
-      skip: !activeCallSid || activeCallSid === "mock_sid",
+      skip: !activeCallSid,
     }
   );
 
   const transcriptData = transcriptResponse?.data || transcriptResponse;
 
-  // Compile transcription text from speaker segments or raw transcript string
   const displayTranscript = (() => {
     const segments = transcriptData?.speaker_segments || [];
     if (segments && segments.length > 0) {
       return segments
-        .map((seg) => `${seg.speaker === "ai" ? "AI" : (callerName || "Sarah Jenkins")}: ${seg.text}`)
+        .map((seg) => `${seg.speaker === "ai" ? "AI" : (callerName || "Caller")}: ${seg.text}`)
         .join("\n");
     }
-    return (
-      transcriptData?.transcript ||
-      "Sarah Jenkins: I'm calling about the maintenance clauses in the lease agreement, specifically section 4.2 regarding emergency repairs..."
-    );
+    return transcriptData?.transcript || "Waiting for transcript...";
   })();
 
   // Blinking effect for recording dot
@@ -87,7 +82,7 @@ const ActiveCallScreen = () => {
         user_id: myUserId || "guest",
       }).unwrap();
     } catch (e) {
-      console.log("End call action failed:", e);
+      // call may already be ended
     }
     navigation.navigate("HomeActivity");
   };
@@ -107,10 +102,11 @@ const ActiveCallScreen = () => {
         {/* Circular Avatar */}
         <View style={styles.avatarContainer}>
           <View style={styles.avatarOutline}>
-            <Image
-              source={{ uri: "https://i.pravatar.cc/300?img=49" }}
-              style={styles.avatarImage}
-            />
+            <View style={styles.avatarInitialsWrap}>
+              <Text style={styles.avatarInitialsText}>
+                {callerName ? callerName.slice(0, 2).toUpperCase() : "??"}
+              </Text>
+            </View>
           </View>
           <View style={styles.aiReadyBadge}>
             <Text style={styles.aiReadyText}>AI READY CALL</Text>
@@ -119,8 +115,8 @@ const ActiveCallScreen = () => {
 
         {/* Caller Info */}
         <View style={styles.contactInfo}>
-          <Text style={styles.contactName}>{callerName || "Sarah Jenkins"}</Text>
-          <Text style={styles.contactPhone}>{callerNumber || "+1 234 567 890"}</Text>
+          <Text style={styles.contactName}>{callerName || "Unknown Caller"}</Text>
+          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}
         </View>
 
         {/* AI Smart Transcript Card */}
@@ -261,10 +257,18 @@ const styles = StyleSheet.create({
     elevation: 8,
     backgroundColor: "#000000",
   },
-  avatarImage: {
+  avatarInitialsWrap: {
     width: 134,
     height: 134,
     borderRadius: 67,
+    backgroundColor: "#0F2A38",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitialsText: {
+    color: "#00D2FF",
+    fontSize: 40,
+    fontWeight: "700",
   },
   aiReadyBadge: {
     position: "absolute",

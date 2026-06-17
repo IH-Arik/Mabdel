@@ -31,17 +31,16 @@ const AiCallScreen = () => {
   const myUserId = authUser?._id || authUser?.id || authUser?.userId;
 
   const { callSid, call_sid, callId, callerName, callerNumber } = route.params || {};
-  const activeCallSid = callSid || call_sid || callId || "mock_sid";
+  const activeCallSid = callSid || call_sid || callId || null;
 
   const timer = useCallTimer(true);
   const [callAction] = useMadbelCallActionMutation();
 
-  // Poll live transcript every 2 seconds using the Twilio CallSid.
   const { data: transcriptResponse } = useMadbelGetLiveCallTranscriptQuery(
     activeCallSid,
     {
       pollingInterval: 2000,
-      skip: !activeCallSid || activeCallSid === "mock_sid",
+      skip: !activeCallSid,
     }
   );
 
@@ -49,8 +48,7 @@ const AiCallScreen = () => {
 
   const segments = transcriptData?.speaker_segments || [];
   const renderedSegments = segments.length > 0 ? segments : [
-    { speaker: "ai", text: "Hello, I am Mabdel, your business operations assistant. How can I help you today?" },
-    { speaker: "customer", text: "Waiting for caller response..." },
+    { speaker: "ai", text: "AI is handling the call. Transcript will appear here..." },
   ];
 
   // Animation values for the abstract blue orb
@@ -100,7 +98,7 @@ const AiCallScreen = () => {
         user_id: myUserId || "guest",
       }).unwrap();
     } catch (e) {
-      console.log("End call action failed:", e);
+      // call may already be ended
     }
     navigation.navigate("HomeActivity");
   };
@@ -168,8 +166,8 @@ const AiCallScreen = () => {
 
         {/* Contact Info (Talking With) */}
         <View style={styles.contactInfo}>
-          <Text style={styles.talkingLabel}>Talking With: {callerName || "David Thompson"}</Text>
-          <Text style={styles.contactPhone}>{callerNumber || "+1 (555) 012-9934"}</Text>
+          <Text style={styles.talkingLabel}>Talking With: {callerName || "Unknown Caller"}</Text>
+          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}
         </View>
 
         {/* Live Transcript Dialog */}

@@ -33,25 +33,6 @@ import {
   useMadbelCreateOutboundCallMutation,
 } from "../../redux/slices/madbelApiSlice";
 
-const ALEX_THOMPSON_MOCK = {
-  name: "Alex Thompson",
-  title: "Acme Corp • Senior Manager",
-  phone: "+1 (555) 012-3456",
-  email: "alex.t@acme.com",
-  location: "San Francisco, CA",
-  avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300", // professional headshot
-  callTime: "Today, 10:45 AM",
-  callDuration: "12m 34s",
-  purpose: "Discussed invoice correction & future ordering.",
-  keyPoints: [
-    "Mismatch in the July 15th invoice totaling $420.",
-    "Requested a credit note for missing produce.",
-  ],
-  actionItems: [
-    "Send corrected PDF by Friday EOD.",
-    "Schedule follow-up call for next inventory cycle.",
-  ],
-};
 
 const WAVEFORM_HEIGHTS = [
   15, 25, 40, 20, 10, 30, 45, 55, 35, 15, 20, 35, 40, 25, 10, 20, 45, 50, 35, 15,
@@ -84,9 +65,7 @@ const CallAnalysisScreen = () => {
   const [createOutboundCall] = useMadbelCreateOutboundCallMutation();
 
   const details = useMemo(() => {
-    if (!callId) {
-      return ALEX_THOMPSON_MOCK;
-    }
+    if (!callId) return null;
 
     const log = callLogResponse?.data || callLogResponse;
     const summary = summaryResponse?.data || summaryResponse || {};
@@ -96,58 +75,67 @@ const CallAnalysisScreen = () => {
     const actions = summary.action_items || summary.actionItems || [];
 
     return {
-      name: log?.contact_name || callerName || ALEX_THOMPSON_MOCK.name,
-      title: log?.contact?.job_title || ALEX_THOMPSON_MOCK.title,
-      phone: log?.phone_number || ALEX_THOMPSON_MOCK.phone,
-      email: log?.contact?.email || ALEX_THOMPSON_MOCK.email,
-      location: log?.contact?.location || ALEX_THOMPSON_MOCK.location,
-      avatar: log?.contact?.avatar_url || ALEX_THOMPSON_MOCK.avatar,
-      callTime: log?.display_time_label || ALEX_THOMPSON_MOCK.callTime,
-      callDuration: log?.duration_label || ALEX_THOMPSON_MOCK.callDuration,
-      purpose: summary.purpose || ALEX_THOMPSON_MOCK.purpose,
-      keyPoints: points.length > 0 ? points : ALEX_THOMPSON_MOCK.keyPoints,
-      actionItems: actions.length > 0 ? actions : ALEX_THOMPSON_MOCK.actionItems,
+      name: log?.contact_name || callerName || "Unknown Caller",
+      title: log?.contact?.job_title || null,
+      phone: log?.phone_number || null,
+      email: log?.contact?.email || null,
+      location: log?.contact?.location || null,
+      avatar: log?.contact?.avatar_url || null,
+      callTime: log?.display_time_label || null,
+      callDuration: log?.duration_label || null,
+      purpose: summary.purpose || null,
+      keyPoints: points,
+      actionItems: actions,
       transcript: transcriptData.transcript || log?.transcript || "No transcript available for this call.",
     };
   }, [callId, callLogResponse, summaryResponse, transcriptResponse, callerName]);
 
   const handlePlaceCall = async () => {
+    if (!details?.phone) {
+      Alert.alert("No phone number", "This contact has no phone number on record.");
+      return;
+    }
     try {
-      Alert.alert("Placing Call", `Connecting to ${details.name}...`);
-      await createOutboundCall({ phone_number: details.phone }).unwrap();
+      const res = await createOutboundCall({ phone_number: details.phone }).unwrap();
+      const callLog = res?.call_log || res?.data?.call_log;
+      if (callLog) {
+        navigation.navigate("ActiveCall", {
+          callSid: callLog.twilio_call_sid || res?.twilio_call_sid,
+          callerName: details.name,
+          callerNumber: details.phone,
+        });
+      }
     } catch (err) {
-      console.log("Call failed:", err);
       Alert.alert("Call Failed", err?.data?.message || "Could not connect call.");
     }
   };
 
   const handleSendMessage = () => {
-    Alert.alert("Message Contact", "Navigating to chat...");
+    navigation.navigate("AllChat");
   };
 
-  const renderBulletText = (text, type) => {
-    if (type === "keyPoints" && text.includes("July 15th")) {
-      const parts = text.split("July 15th");
-      return (
-        <Text style={styles.bulletText}>
-          {parts[0]}
-          <Text style={{ color: "#7B61FF", fontWeight: "700" }}>July 15th</Text>
-          {parts[1]}
-        </Text>
-      );
-    }
-    if (type === "actionItems" && text.includes("Friday EOD")) {
-      const parts = text.split("Friday EOD");
-      return (
-        <Text style={styles.bulletText}>
-          {parts[0]}
-          <Text style={{ color: "#FFD043", fontWeight: "700" }}>Friday EOD</Text>
-          {parts[1]}
-        </Text>
-      );
-    }
-    return <Text style={styles.bulletText}>{text}</Text>;
-  };
+  const renderBulletText = (text) => (
+    <Text style={styles.bulletText}>{text}</Text>
+  );
+
+  if (!callId) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+              <ArrowLeft size={28} color="#FFFFFF" strokeWidth={2.2} />
+            </Pressable>
+            <Text style={styles.headerTitle}>Call Analysis</Text>
+            <View style={styles.headerSpace} />
+          </View>
+          <View style={styles.loaderWrap}>
+            <Text style={{ color: "#687588", fontSize: 16 }}>No call selected.</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (isLogLoading) {
     return (
@@ -176,7 +164,15 @@ const CallAnalysisScreen = () => {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Profile Card */}
           <View style={styles.profileCard}>
-            <Image source={{ uri: details.avatar }} style={styles.profileAvatar} />
+            {details.avatar ? (
+              <Image source={{ uri: details.avatar }} style={styles.profileAvatar} />
+            ) : (
+              <View style={[styles.profileAvatar, { backgroundColor: "#0F2A38", alignItems: "center", justifyContent: "center" }]}>
+                <Text style={{ color: "#17CBE8", fontSize: 28, fontWeight: "700" }}>
+                  {(details.name || "?").slice(0, 2).toUpperCase()}
+                </Text>
+              </View>
+            )}
             <Text style={styles.profileName}>{details.name}</Text>
             <Text style={styles.profileTitle}>{details.title}</Text>
 
@@ -184,18 +180,24 @@ const CallAnalysisScreen = () => {
 
             {/* Info rows */}
             <View style={styles.infoRows}>
-              <View style={styles.infoRow}>
-                <Phone size={16} color="#7E8DA7" />
-                <Text style={styles.infoRowText}>{details.phone}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Mail size={16} color="#7E8DA7" />
-                <Text style={styles.infoRowText}>{details.email}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <MapPin size={16} color="#7E8DA7" />
-                <Text style={styles.infoRowText}>{details.location}</Text>
-              </View>
+              {details.phone ? (
+                <View style={styles.infoRow}>
+                  <Phone size={16} color="#7E8DA7" />
+                  <Text style={styles.infoRowText}>{details.phone}</Text>
+                </View>
+              ) : null}
+              {details.email ? (
+                <View style={styles.infoRow}>
+                  <Mail size={16} color="#7E8DA7" />
+                  <Text style={styles.infoRowText}>{details.email}</Text>
+                </View>
+              ) : null}
+              {details.location ? (
+                <View style={styles.infoRow}>
+                  <MapPin size={16} color="#7E8DA7" />
+                  <Text style={styles.infoRowText}>{details.location}</Text>
+                </View>
+              ) : null}
             </View>
 
             {/* Action buttons */}
@@ -312,22 +314,30 @@ const CallAnalysisScreen = () => {
               <Text style={styles.purposeText}>{details.purpose}</Text>
 
               {/* Key Points */}
-              <Text style={styles.labelTitle}>Key Points</Text>
-              {details.keyPoints.map((pt, idx) => (
-                <View key={`pt-${idx}`} style={styles.bulletRow}>
-                  <Text style={styles.bulletDot}>•</Text>
-                  {renderBulletText(pt, "keyPoints")}
-                </View>
-              ))}
+              {details.keyPoints.length > 0 && (
+                <>
+                  <Text style={styles.labelTitle}>Key Points</Text>
+                  {details.keyPoints.map((pt, idx) => (
+                    <View key={`pt-${idx}`} style={styles.bulletRow}>
+                      <Text style={styles.bulletDot}>•</Text>
+                      {renderBulletText(pt)}
+                    </View>
+                  ))}
+                </>
+              )}
 
               {/* Action Items */}
-              <Text style={styles.labelTitle}>Action Items</Text>
-              {details.actionItems.map((item, idx) => (
-                <View key={`act-${idx}`} style={styles.bulletRow}>
-                  <Text style={styles.bulletDotGold}>•</Text>
-                  {renderBulletText(item, "actionItems")}
-                </View>
-              ))}
+              {details.actionItems.length > 0 && (
+                <>
+                  <Text style={styles.labelTitle}>Action Items</Text>
+                  {details.actionItems.map((item, idx) => (
+                    <View key={`act-${idx}`} style={styles.bulletRow}>
+                      <Text style={styles.bulletDotGold}>•</Text>
+                      {renderBulletText(item)}
+                    </View>
+                  ))}
+                </>
+              )}
             </View>
           </View>
         </ScrollView>

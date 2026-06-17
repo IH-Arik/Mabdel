@@ -38,6 +38,9 @@ class MongoConnectionManager:
                     settings.MONGODB_URI,
                     serverSelectionTimeoutMS=settings.MONGODB_CONNECT_TIMEOUT_MS,
                     connectTimeoutMS=settings.MONGODB_CONNECT_TIMEOUT_MS,
+                    maxPoolSize=50,
+                    minPoolSize=5,
+                    waitQueueTimeoutMS=10000,
                 )
                 self.database = self.client[settings.DATABASE_NAME]
                 await self.ensure_indexes()

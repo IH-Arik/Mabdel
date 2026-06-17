@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   View,
   Text,
@@ -72,7 +72,6 @@ const JoinActivityScreen = ({ route }) => {
       setJoined(true);
       setShowSuccessModal(true);
     } catch (error) {
-      console.log("Failed to join activity:", error);
       Alert.alert("Failed", "Could not join this activity. Please try again.");
     }
   };
@@ -82,17 +81,14 @@ const JoinActivityScreen = ({ route }) => {
   };
 
   const handleSubmitRating = (ratingData) => {
-    console.log("Rating Data:", ratingData);
     // navigation.goBack();
   };
 
   const handleReport = (reportReason) => {
-    console.log("Report submitted:", reportReason);
     // Handle report submission logic here
   };
 
   const handleLeaveActivity = () => {
-    console.log("Leaving activity...");
     setJoined(false);
     setShowLeaveModal(false);
     // Add your leave activity logic here
@@ -151,7 +147,6 @@ const JoinActivityScreen = ({ route }) => {
         }
       }
     } catch (error) {
-      console.log("Failed to start chat with host:", error);
     }
   };
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
@@ -25,7 +25,7 @@ const IncomingCallScreen = () => {
   const myUserId = authUser?._id || authUser?.id || authUser?.userId;
 
   const { callSid, call_sid, callId, callerName, callerNumber } = route.params || {};
-  const activeCallSid = callSid || call_sid || callId || "mock_sid";
+  const activeCallSid = callSid || call_sid || callId || null;
 
   const timer = useCallTimer(true);
   const [callAction] = useMadbelCallActionMutation();
@@ -38,7 +38,7 @@ const IncomingCallScreen = () => {
         user_id: myUserId || "guest",
       }).unwrap();
     } catch (e) {
-      console.log("Decline action failed:", e);
+      // call may already be ended
     }
     navigation.goBack();
   };
@@ -51,12 +51,12 @@ const IncomingCallScreen = () => {
         user_id: myUserId || "guest",
       }).unwrap();
     } catch (e) {
-      console.log("Accept action failed:", e);
+      // call may already be accepted
     }
     navigation.navigate("ActiveCall", {
       callSid: activeCallSid,
-      callerName: callerName || "Sarah Jenkins",
-      callerNumber: callerNumber || "+1 234 567 890",
+      callerName: callerName || null,
+      callerNumber: callerNumber || null,
     });
   };
 
@@ -68,12 +68,12 @@ const IncomingCallScreen = () => {
         user_id: myUserId || "guest",
       }).unwrap();
     } catch (e) {
-      console.log("Transfer to AI action failed:", e);
+      // transfer may still proceed
     }
     navigation.navigate("AiCall", {
       callSid: activeCallSid,
-      callerName: callerName || "Sarah Jenkins",
-      callerNumber: callerNumber || "+1 234 567 890",
+      callerName: callerName || null,
+      callerNumber: callerNumber || null,
     });
   };
 
@@ -93,20 +93,21 @@ const IncomingCallScreen = () => {
         {/* Profile Avatar */}
         <View style={styles.avatarContainer}>
           <View style={styles.avatarOutline}>
-            <Image
-               source={{ uri: "https://i.pravatar.cc/300?img=49" }}
-              style={styles.avatarImage}
-            />
+            <View style={styles.avatarInitialsWrap}>
+              <Text style={styles.avatarInitialsText}>
+                {callerName ? callerName.slice(0, 2).toUpperCase() : "??"}
+              </Text>
+            </View>
           </View>
           <View style={styles.aiReadyBadge}>
             <Text style={styles.aiReadyText}>AI READY CALL</Text>
           </View>
         </View>
- 
+
         {/* Contact Info */}
         <View style={styles.contactInfo}>
-          <Text style={styles.contactName}>{callerName || "Sarah Jenkins"}</Text>
-          <Text style={styles.contactPhone}>{callerNumber || "+1 234 567 890"}</Text>
+          <Text style={styles.contactName}>{callerName || "Incoming Call"}</Text>
+          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}
         </View>
  
         {/* AI Assistant Available Card */}
@@ -241,10 +242,18 @@ const styles = StyleSheet.create({
     elevation: 10,
     backgroundColor: "#000000",
   },
-  avatarImage: {
+  avatarInitialsWrap: {
     width: 174,
     height: 174,
     borderRadius: 87,
+    backgroundColor: "#0F2A38",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitialsText: {
+    color: "#00D2FF",
+    fontSize: 52,
+    fontWeight: "700",
   },
   aiReadyBadge: {
     position: "absolute",

@@ -5,8 +5,9 @@ import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -88,6 +89,15 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(AuthRateLimitMiddleware)
     app.add_middleware(MutationRateLimitMiddleware)
+
+    _MAX_BODY_BYTES = 10 * 1024 * 1024  # 10 MB
+
+    @app.middleware("http")
+    async def limit_request_body(request: Request, call_next):
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > _MAX_BODY_BYTES:
+            return JSONResponse(status_code=413, content={"detail": "Request body too large."})
+        return await call_next(request)
 
     register_exception_handlers(app)
     app.include_router(compat_router)

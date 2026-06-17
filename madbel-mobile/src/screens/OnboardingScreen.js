@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+﻿import React, { useMemo, useState, useEffect } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Image,
@@ -63,7 +63,6 @@ const getOrCreateDeviceId = async () => {
     }
     return deviceId;
   } catch (error) {
-    console.error("Error with device ID storage:", error);
     return generateUUID();
   }
 };
@@ -192,7 +191,6 @@ export default function OnboardingScreen() {
         try {
           await completeOnboarding({ device_id: deviceId }).unwrap();
         } catch (error) {
-          console.error("Failed to complete onboarding:", error);
         }
       }
       return;
@@ -203,7 +201,6 @@ export default function OnboardingScreen() {
       try {
         await saveProgress({ device_id: deviceId, current_step: nextIndex }).unwrap();
       } catch (error) {
-        console.error("Failed to save progress:", error);
       }
     }
   };
@@ -218,7 +215,6 @@ export default function OnboardingScreen() {
       setSlideIndex(prevIndex);
       if (deviceId) {
         saveProgress({ device_id: deviceId, current_step: prevIndex }).catch((err) => {
-          console.error("Failed to save progress on back:", err);
         });
       }
       return;
@@ -230,7 +226,6 @@ export default function OnboardingScreen() {
       try {
         await skipOnboarding({ device_id: deviceId }).unwrap();
       } catch (error) {
-        console.error("Failed to skip onboarding:", error);
       }
     }
     navigation.navigate("Auth");
@@ -250,7 +245,6 @@ export default function OnboardingScreen() {
           contacts_enabled: newPermissions.contacts ?? false,
         }).unwrap();
       } catch (error) {
-        console.error("Failed to update permission:", error);
       }
     }
   };
@@ -260,7 +254,6 @@ export default function OnboardingScreen() {
       try {
         await acceptAllPermissions({ device_id: deviceId }).unwrap();
       } catch (error) {
-        console.error("Failed to accept all permissions:", error);
       }
     }
     navigation.navigate("Auth");

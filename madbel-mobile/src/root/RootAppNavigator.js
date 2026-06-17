@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+﻿import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import BeginScreen from "../screens/auth/BeginScreen";
@@ -65,7 +65,6 @@ const RootAppNavigator = () => {
           device_id: `${Platform.OS}-${String(token).slice(-8)}`,
         }).unwrap();
       } catch (err) {
-        console.log("Push token registration failed:", err?.message || err);
       }
     };
 

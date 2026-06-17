@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -89,7 +89,6 @@ const MicListeningScreen = () => {
   useSpeechRecognitionEvent("result", (event) => {
     const text = event.results[0]?.transcript;
     if (text) {
-      console.log("Live Native Transcription:", text);
       setTranscribedText(text);
       setTypedPrompt(text); // auto-fill the text input for visibility
     }

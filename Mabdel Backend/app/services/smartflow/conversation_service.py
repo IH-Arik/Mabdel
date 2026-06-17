@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from math import ceil
+import logging
 
 from bson import ObjectId
 import httpx
@@ -10,6 +11,8 @@ from pymongo import ReturnDocument
 import secrets
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 from app.core.exceptions import AppException
 from app.core.realtime import conversation_realtime_hub
 from app.utils.helpers import utc_now
@@ -399,7 +402,7 @@ class ConversationService(SmartFlowBase):
                 )
                 image_url = response.data[0].url
             except Exception as e:
-                print("OpenAI image generation error:", e)
+                logger.error("OpenAI image generation error: %s", e)
 
         if not image_url:
             fallback_url = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800"
@@ -676,7 +679,10 @@ class ConversationService(SmartFlowBase):
             return resp.status_code < 400
 
         # Fallback: OpenWA local gateway
-        gateway_url = integration.get("whatsapp_gateway_url") or "http://localhost:3001"
+        gateway_url = integration.get("whatsapp_gateway_url") or settings.WHATSAPP_GATEWAY_URL
+        if not gateway_url:
+            logger.warning("WhatsApp gateway URL not configured; cannot send message to %s", recipient_id)
+            return False
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 f"{gateway_url.rstrip('/')}/send-message",
