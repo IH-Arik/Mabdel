@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   joinConversation,
   onConnectionStateChange,
@@ -54,7 +54,6 @@ export const useSocket = ({ threadId, enabled = true, onMessage }) => {
         }
       } catch (error) {
         if (!isMounted) return;
-        console.log("Socket init/join failed:", error?.message || error);
       }
     };
 
@@ -74,7 +73,6 @@ export const useSocket = ({ threadId, enabled = true, onMessage }) => {
   useEffect(() => {
     if (!enabled || !threadId || !connectionState?.isConnected) return;
     joinConversation(String(threadId)).catch((error) => {
-      console.log("Socket re-join failed:", error?.message || error);
     });
   }, [connectionState?.isConnected, enabled, threadId]);
 

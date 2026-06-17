@@ -29,12 +29,6 @@ export const eventSlice = baseApi.injectEndpoints({
         hasPrev: arg.page > 1,
       };
 
-      console.log("getAllEvents.transformResponse", {
-        requestArg: arg,
-        rawResponse: response,
-        eventsCount: events.length,
-        pagination,
-      });
       return {
         events,
         pagination,

@@ -1,6 +1,7 @@
 import base64
 import json
 import asyncio
+import logging
 from typing import Any, Callable
 from datetime import date, datetime, timezone, timedelta
 import wave
@@ -9,6 +10,8 @@ import io
 from app.services.mabdel_ai_service import MabdelAIService
 from app.services.smartflow_service import SmartFlowService
 from app.schemas.call import CallStreamEvent, TwilioStreamMessage
+
+logger = logging.getLogger(__name__)
 
 # Mu-law constants
 MU_LAW_SILENCE = 0xFF
@@ -61,7 +64,7 @@ class AIPhoneAgent:
             return
             
         self.is_processing = True
-        print(f"Call {self.call_id}: Processing {len(self.audio_buffer)} bytes of audio...")
+        logger.debug("Call %s: Processing %d bytes of audio...", self.call_id, len(self.audio_buffer))
         
         try:
             # 1. Convert Mu-law buffer to WAV for Whisper
@@ -80,7 +83,7 @@ class AIPhoneAgent:
                 self.is_processing = False
                 return
 
-            print(f"Call {self.call_id}: Transcript: '{transcript}'")
+            logger.debug("Call %s: Transcript: '%s'", self.call_id, transcript)
 
             # 3. Generate AI Response
             if self.conversation_state.get("phase") == "awaiting_confirmation":
@@ -126,7 +129,7 @@ class AIPhoneAgent:
                 {"$set": {"speaker_segments": self.transcript_log, "updated_at": utc_now()}},
             )
 
-            print(f"Call {self.call_id}: AI Response: '{response_text}'")
+            logger.debug("Call %s: AI Response: '%s'", self.call_id, response_text)
             
             # 4. Synthesize Speech
             audio_result = self.ai_service.synthesize_speech(response_text)
@@ -135,7 +138,7 @@ class AIPhoneAgent:
                 await self.stream_audio_to_twilio(audio_result["audio_base64"], send_callback)
                 
         except Exception as e:
-            print(f"Error in AI Phone Agent: {e}")
+            logger.exception("Call %s: Error in AI Phone Agent", self.call_id)
         finally:
             self.is_processing = False
 
@@ -183,11 +186,11 @@ class AIPhoneAgent:
     async def finalize_session(self):
         """Saves the accumulated transcript and AI summary to the call log."""
         if not self.user_id or not self.transcript_log:
-            print(f"Call {self.call_id}: Finalizing session (no transcript to save).")
+            logger.debug("Call %s: Finalizing session (no transcript to save).", self.call_id)
             return
 
         from app.utils.audio import utc_now
-        print(f"Call {self.call_id}: Saving {len(self.transcript_log)} transcript turns...")
+        logger.info("Call %s: Saving %d transcript turns...", self.call_id, len(self.transcript_log))
 
         summary = self.ai_service.summarize_call(self.transcript_log)
 
@@ -201,7 +204,7 @@ class AIPhoneAgent:
                 }
             },
         )
-        print(f"Call {self.call_id}: Summary saved — {summary.get('status')}")
+        logger.info("Call %s: Summary saved — %s", self.call_id, summary.get("status"))
 
     def _mulaw_to_wav(self, mulaw_data: bytes) -> bytes:
         """

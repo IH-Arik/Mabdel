@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -227,7 +227,6 @@ const CreateInvoiceScreen = () => {
       const invoice = response?.data;
       navigation.replace("InvoiceDetails", { invoice });
     } catch (error) {
-      console.log("Invoice save error: LINE AT 205", error);
       Alert.alert(
         "Invoice failed",
         error?.data?.message || "Could not save the invoice.",

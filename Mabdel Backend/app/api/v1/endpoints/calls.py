@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Respons
 from fastapi.responses import PlainTextResponse
 import asyncio
 
-from app.dependencies import get_mongo_database
+from app.dependencies import get_current_user, get_mongo_database
 from app.schemas.call import CallActionRequest, TwilioStatusCallbackPayload, TwilioWebhookPayload
 from app.services.call_service import CallService
 from app.services.smartflow_service import SmartFlowService
@@ -17,6 +17,9 @@ from app.core.exceptions import AppException
 from app.utils.audio import utc_now
 from bson import ObjectId
 import secrets
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Calls"])
 call_service = CallService()
@@ -96,7 +99,7 @@ async def incoming_call(
     if not user and payload.to_number:
         user = await service.db.users.find_one({"phone_number": payload.to_number})
     if not user:
-        user = await service.db.users.find_one({})
+        logger.warning("Incoming call to %s: no matching user found, routing as guest", payload.to_number)
     user_id = str(user["_id"]) if user else "guest"
     
     # 2. Create initial call log
@@ -126,7 +129,7 @@ async def incoming_call(
                 },
             )
         except Exception as _exc:
-            print(f"Push notification for incoming call failed: {_exc}")
+            logger.warning("Push notification for incoming call failed: %s", _exc)
 
     # 5. Return Hold TwiML with Recording
     twiml = call_service.build_hold_twiml("Welcome to Mabdel. Please wait while I connect you to our team.")
@@ -156,7 +159,7 @@ async def _process_recording(
                 auth=(settings.TWILIO_ACCOUNT_SID or "", settings.TWILIO_AUTH_TOKEN or ""),
             )
         if resp.status_code >= 400:
-            print(f"Call {call_sid}: Failed to download recording ({resp.status_code})")
+            logger.error("Call %s: Failed to download recording (%s)", call_sid, resp.status_code)
             return
 
         audio_b64 = base64.b64encode(resp.content).decode("utf-8")
@@ -167,7 +170,7 @@ async def _process_recording(
             audio_filename=f"recording_{call_sid}.mp3",
         )
         if not transcript:
-            print(f"Call {call_sid}: Transcription failed — {error}")
+            logger.error("Call %s: Transcription failed — %s", call_sid, error)
             return
 
         summary = ai_service.summarize_call(transcript)
@@ -182,9 +185,9 @@ async def _process_recording(
                 }
             },
         )
-        print(f"Call {call_sid}: Recording transcribed and summarized.")
+        logger.info("Call %s: Recording transcribed and summarized.", call_sid)
     except Exception as exc:
-        print(f"Call {call_sid}: Recording processing error — {exc}")
+        logger.exception("Call %s: Recording processing error", call_sid)
 
 
 @router.post("/calls/recording")
@@ -199,6 +202,7 @@ async def recording_callback(
     """
     form_data = await request.form()
     form_payload = {key: str(value) for key, value in form_data.multi_items()} if form_data else {}
+    await call_service.validate_twilio_request(request, form_payload)
 
     call_sid = form_payload.get("CallSid")
     recording_url = form_payload.get("RecordingUrl")
@@ -216,13 +220,15 @@ async def recording_callback(
 @router.get("/calls/{call_sid}/transcript")
 async def get_live_call_transcript(
     call_sid: str,
+    current_user: dict = Depends(get_current_user),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     """
     Returns the live transcript of an AI-handled call by Twilio CallSid.
     Polled by the mobile app during an active AI call session.
     """
-    call_log = await service.db.call_logs.find_one({"twilio_call_sid": call_sid})
+    user_id = str(current_user["_id"])
+    call_log = await service.db.call_logs.find_one({"twilio_call_sid": call_sid, "user_id": user_id})
     if not call_log:
         return success_response(
             data={"call_sid": call_sid, "speaker_segments": [], "transcript_available": False},

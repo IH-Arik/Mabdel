@@ -1,4 +1,4 @@
-
+﻿
 import { launchImageLibrary } from 'react-native-image-picker';
 
 export const useImagePicker = () => {
@@ -12,7 +12,6 @@ export const useImagePicker = () => {
 
     launchImageLibrary(options, (response) => {
       if (response.didCancel || response.errorCode) {
-        console.log('Image picking cancelled or failed');
       } else {
         const uri = response.assets?.[0]?.uri;
         if (uri) {

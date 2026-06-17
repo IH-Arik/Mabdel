@@ -1,4 +1,4 @@
-import {
+﻿import {
   clearAuth,
   setCredentials,
   setResetOtp,
@@ -52,7 +52,6 @@ export const authSlice = baseApi.injectEndpoints({
             }),
           );
         } catch (error) {
-          console.log(error);
         }
       },
     }),
@@ -64,25 +63,6 @@ export const authSlice = baseApi.injectEndpoints({
         body: normalizeRegisterPayload(credentials),
         headers: skipAuthHeaders,
       }),
-      // async onQueryStarted(arg, { dispatch, queryFulfilled }) {
-      //   try {
-      //     const { data } = await queryFulfilled;
-      //     console.log("Login data:", data?.data);
-      //     // dispatch(setToken(data.refresh));
-      //     // dispatch(setUser(jwtDecode(data?.data?.accessToken)));
-      //     // dispatch(setToken(data?.data?.accessToken)); // ✅ store ACCESS token, not refresh
-      //     // dispatch(setUser(jwtDecode(data.access))); // optional
-
-      //     dispatch(
-      //       setCredentials({
-      //         accessToken: data?.data?.accessToken,
-      //         user: jwtDecode(data?.data?.accessToken),
-      //       })
-      //     );
-      //   } catch (error) {
-      //     console.log(error);
-      //   }
-      // },
     }),
 
     verifyCode: builder.mutation({
@@ -135,7 +115,6 @@ export const authSlice = baseApi.injectEndpoints({
             dispatch(setResetOtp(resetToken));
           }
         } catch (error) {
-          console.log(error);
         }
       },
     }),
@@ -232,32 +211,6 @@ export const authSlice = baseApi.injectEndpoints({
             credentials.notificationPreferences,
         },
       }),
-      // async onQueryStarted(arg, { dispatch, queryFulfilled }) {
-      //   try {
-      //     const { data } = await queryFulfilled;
-      //     console.log("Profile updated successfully:", data);
-
-      //     // Update the cached profile data
-      //     dispatch(
-      //       authSlice.util.updateQueryData("getProfile", undefined, (draft) => {
-      //         Object.assign(draft, data?.data);
-      //       }),
-      //     );
-
-      //     // Also update user in credentials if needed
-      //     if (data?.data) {
-      //       dispatch(
-      //         setCredentials({
-      //           accessToken: data?.data?.accessToken || undefined,
-      //           user: data?.data,
-      //         }),
-      //       );
-      //     }
-      //   } catch (error) {
-      //     console.error("Error updating profile:", error);
-      //     throw error;
-      //   }
-      // },
       invalidatesTags: [{ type: "UserProfile", id: "ME" }],
     }),
 
@@ -278,7 +231,6 @@ export const authSlice = baseApi.injectEndpoints({
             );
           }
         } catch (error) {
-          console.error("Error fetching profile:", error);
           throw error;
         }
       },

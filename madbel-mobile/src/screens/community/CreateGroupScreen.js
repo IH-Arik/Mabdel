@@ -1,58 +1,36 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Image, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import {
   responsiveHeight,
   responsiveWidth,
 } from "react-native-responsive-dimensions";
-import { ChevronLeft, Camera, Search, X, UserPlus } from "lucide-react-native";
+import { ChevronLeft, Search, X, UserPlus } from "lucide-react-native";
 import { useForm } from "react-hook-form";
 import ControllerTextInput from "../../components/ControllerTextInput";
 import {
-  useMadbelCreateGroupSmartFlowMutation,
-  useMadbelGetGroupQuery,
   useMadbelSearchAppUsersQuery,
-  useMadbelUpdateGroupMutation,
 } from "../../redux/slices/madbelApiSlice";
+import { useCreateGroupMessagesMutation } from "../../redux/slices/chat/chatSlice";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 
 const DEBOUNCE_MS = 350;
 
 const CreateGroupScreen = () => {
   const navigation = useNavigation();
-  const route = useRoute();
-  const editingGroupId = route?.params?.groupId || route?.params?.group?.id;
-  const isEditMode = Boolean(editingGroupId);
 
-  const { control, handleSubmit, watch, setValue } = useForm({
+  const { control, handleSubmit, watch } = useForm({
     defaultValues: {
-      groupName: route?.params?.group?.name || "",
+      groupName: "",
       memberSearch: "",
-      avatarUrl: route?.params?.group?.avatar_url || "",
-      description: route?.params?.group?.description || "",
     },
   });
 
-  const { data: groupResponse, isFetching: loadingGroup } = useMadbelGetGroupQuery(
-    { group_id: editingGroupId },
-    { skip: !editingGroupId },
-  );
-  const [createGroup, { isLoading: creating }] = useMadbelCreateGroupSmartFlowMutation();
-  const [updateGroup, { isLoading: updating }] = useMadbelUpdateGroupMutation();
+  const [createGroup, { isLoading: creating }] = useCreateGroupMessagesMutation();
 
-  const group = groupResponse?.data;
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
-  // Cache user objects for selected members so chips persist across search changes
   const selectedUsersCache = useRef({});
-
-  useEffect(() => {
-    if (!group) return;
-    setValue("groupName", group.name || "");
-    setValue("avatarUrl", group.avatar_url || "");
-    setValue("description", group.description || "");
-    setSelectedMemberIds(group.member_ids || []);
-  }, [group, setValue]);
 
   const memberSearch = watch("memberSearch");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -88,24 +66,21 @@ const CreateGroupScreen = () => {
       Alert.alert("Missing name", "Please enter a group name.");
       return;
     }
-    if (!isEditMode && selectedMemberIds.length === 0) {
+    if (selectedMemberIds.length === 0) {
       Alert.alert("No members", "Add at least one member to create a group.");
       return;
     }
-    const payload = {
-      name,
-      avatar_url: (data.avatarUrl || "").trim() || undefined,
-      description: (data.description || "").trim() || undefined,
-      member_ids: selectedMemberIds,
-    };
     try {
-      const response = isEditMode
-        ? await updateGroup({ group_id: editingGroupId, ...payload }).unwrap()
-        : await createGroup(payload).unwrap();
-      const saved = response?.data;
-      navigation.replace("GroupSetting", { group: saved });
+      const response = await createGroup({ title: name, member_ids: selectedMemberIds }).unwrap();
+      navigation.replace("GroupChat", {
+        group: {
+          ...response,
+          name: response.title || response.directPeer?.fullName || name,
+          conversation_id: response.id,
+        },
+      });
     } catch (error) {
-      Alert.alert("Save failed", error?.data?.message || "Could not save group.");
+      Alert.alert("Save failed", error?.data?.message || "Could not create group.");
     }
   };
 
@@ -116,24 +91,14 @@ const CreateGroupScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={34} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.headerTitle}>{isEditMode ? "Edit Group" : "Create Group"}</Text>
+          <Text style={styles.headerTitle}>Create Group</Text>
           <View style={styles.headerSpacer} />
         </View>
 
-        {(loadingGroup && isEditMode) ? (
-          <View style={styles.center}><ActivityIndicator color="#14C9E7" size="large" /></View>
-        ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
             <View style={styles.avatarWrap}>
               <View style={styles.groupAvatar}>
-                {watch("avatarUrl") ? (
-                  <Image source={{ uri: watch("avatarUrl") }} style={styles.groupAvatarImage} />
-                ) : (
-                  <UserPlus size={45} color="#149CC0" />
-                )}
-              </View>
-              <View style={styles.cameraFab}>
-                <Camera size={20} color="#EFF8FC" />
+                <UserPlus size={45} color="#149CC0" />
               </View>
             </View>
 
@@ -145,25 +110,6 @@ const CreateGroupScreen = () => {
               placeholderTextColor="#6F7C95"
               labelStyle={styles.label}
               inputStyle={styles.input}
-            />
-            <ControllerTextInput
-              name="avatarUrl"
-              control={control}
-              label="Group Image URL (Images API)"
-              placeholder="https://...image.jpg"
-              placeholderTextColor="#6F7C95"
-              labelStyle={styles.label}
-              inputStyle={styles.input}
-            />
-            <ControllerTextInput
-              name="description"
-              control={control}
-              label="Description"
-              placeholder="Write description..."
-              placeholderTextColor="#6F7C95"
-              labelStyle={styles.label}
-              inputStyle={styles.input}
-              multiline
             />
 
             <View style={styles.membersHeader}>
@@ -234,13 +180,12 @@ const CreateGroupScreen = () => {
 
             <View style={{ height: responsiveHeight(10) }} />
           </ScrollView>
-        )}
 
-        <Pressable style={styles.createBtn} onPress={handleSubmit(onSubmit)} disabled={creating || updating}>
-          {(creating || updating) ? (
+        <Pressable style={styles.createBtn} onPress={handleSubmit(onSubmit)} disabled={creating}>
+          {creating ? (
             <ActivityIndicator color="#EAF5FB" />
           ) : (
-            <Text style={styles.createText}>{isEditMode ? "Save" : "Create"}</Text>
+            <Text style={styles.createText}>Create</Text>
           )}
         </Pressable>
       </View>

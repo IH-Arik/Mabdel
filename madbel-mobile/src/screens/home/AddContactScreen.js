@@ -108,33 +108,7 @@ const AddContactScreen = () => {
     }
 
     const asset = response?.assets?.[0];
- setAvatarUrl(asset?.uri || null);
-    // if (!asset?.uri) return;
-
-    // if (!currentContactId) {
-    //   setAvatarUrl(asset.uri);
-    //   return;
-    // }
-
-    // try {
-    //   const uploadResponse = await uploadContactAvatar({
-    //     contact_id: currentContactId,
-    //     avatar_file: {
-    //       uri: asset.uri,
-    //       type: asset.type || "image/jpeg",
-    //       name: asset.fileName || `contact-avatar-${Date.now()}.jpg`,
-    //     },
-    //   }).unwrap();
-
-    //   console.log('LINE AT 132' , uploadResponse);
-
-    //   setAvatarUrl(uploadResponse?.data?.avatar_url || asset.uri);
-    // } catch (error) {
-    //   Alert.alert(
-    //     "Avatar failed",
-    //     error?.data?.message || "Could not upload contact image.",
-    //   );
-    // }
+    setAvatarUrl(asset?.uri || null);
   };
 
 

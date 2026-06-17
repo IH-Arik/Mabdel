@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import {
   Pressable,
   SafeAreaView,
@@ -144,7 +144,6 @@ const SocialIntegrationsScreen = () => {
         Alert.alert("Error", "Did not receive authorization URL from server.");
       }
     } catch (err) {
-      console.error(err);
       Alert.alert("Error", err?.data?.message || "Failed to initiate connection.");
     }
   };
@@ -167,7 +166,6 @@ const SocialIntegrationsScreen = () => {
       refetch();
       Alert.alert("Success", "WhatsApp linked successfully. Scan the QR code on your gateway to log in!");
     } catch (err) {
-      console.error(err);
       Alert.alert("Error", err?.data?.message || "Failed to link WhatsApp manual integration.");
     }
   };
@@ -193,7 +191,6 @@ const SocialIntegrationsScreen = () => {
       refetch();
       Alert.alert("Success", "Integration disconnected successfully.");
     } catch (err) {
-      console.error(err);
       Alert.alert("Error", err?.data?.message || "Failed to disconnect integration.");
     }
   };

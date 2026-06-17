@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   View,
   Text,
@@ -57,17 +57,14 @@ const JoinEventScreen = ({ route }) => {
   };
 
   const handleSubmitRating = (ratingData) => {
-    console.log("Rating Data:", ratingData);
     // navigation.goBack();
   };
 
   const handleReport = (reportReason) => {
-    console.log("Report submitted:", reportReason);
     // Handle report submission logic here
   };
 
   const handleLeaveEvent = () => {
-    console.log("Leaving Event...");
     setJoined(false);
     setShowLeaveModal(false);
     // Add your leave Event logic here

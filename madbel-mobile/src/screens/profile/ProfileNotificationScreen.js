@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { View, Text, Pressable, StyleSheet, Switch, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft } from "lucide-react-native";
@@ -44,7 +44,6 @@ const ProfileNotificationScreen = () => {
       Alert.alert("Success", "Notification settings saved successfully.");
       navigation.goBack();
     } catch (err) {
-      console.error("Failed to update notification settings:", err);
       Alert.alert("Error", "Could not save notification settings.");
     }
   };

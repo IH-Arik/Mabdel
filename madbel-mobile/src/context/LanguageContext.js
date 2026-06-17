@@ -555,7 +555,9 @@ export const LanguageProvider = ({ children }) => {
 
   const setSelectedLang = useCallback((code) => {
     setSelectedLangState(code);
-    AsyncStorage.setItem(STORAGE_KEY, code).catch(() => {});
+    AsyncStorage.setItem(STORAGE_KEY, code).catch((_err) => {
+      // language preference could not be persisted — non-fatal
+    });
   }, []);
 
   const currentLang = LANGUAGES.find((l) => l.code === selectedLang) ?? LANGUAGES[0];

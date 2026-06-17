@@ -88,6 +88,8 @@ class Settings(BaseSettings):
     TWILIO_STREAM_TRACK: str = "inbound_track"
     TWILIO_NUMBER_COUNTRY: str = "US"
 
+    WHATSAPP_GATEWAY_URL: str | None = None
+
     RESEND_API_KEY: str | None = None
     MAILTRAP_API_TOKEN: str | None = None
     MAIL_FROM: str = "hello@demomailtrap.co"
@@ -210,6 +212,14 @@ class Settings(BaseSettings):
         environment = str(info.data.get("ENVIRONMENT", "development")).lower()
         if environment != "development" and "*" in value:
             raise ValueError("Wildcard CORS origins are not allowed outside development environment.")
+        return value
+
+    @field_validator("TRUSTED_HOSTS")
+    @classmethod
+    def validate_trusted_hosts(cls, value: list[str], info: ValidationInfo) -> list[str]:
+        environment = str(info.data.get("ENVIRONMENT", "development")).lower()
+        if environment != "development" and "*" in value:
+            raise ValueError("Wildcard TRUSTED_HOSTS are not allowed outside development environment.")
         return value
 
 
