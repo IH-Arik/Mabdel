@@ -54,7 +54,11 @@ htmlcov/
 unmatched_endpoints.txt
 dashboard_matched_endpoints.txt
 scratch/
+
+# Streamlit
 streamlit_app.py
+*streamlit*.py
+.streamlit/
 
 # Word temp files
 ~$*.docx
