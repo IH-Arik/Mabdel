@@ -47,3 +47,21 @@ Pipfile.lock
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Temp / scratch files
+*_matched_endpoints.txt
+*_unmatched_endpoints.txt
+unmatched_endpoints.txt
+dashboard_matched_endpoints.txt
+scratch/
+streamlit_app.py
+
+# Word temp files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# Contract / pricing docs
+*.docx
+*.xlsx
+*.pptx
