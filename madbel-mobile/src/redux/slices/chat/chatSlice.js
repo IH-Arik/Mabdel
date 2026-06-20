@@ -176,6 +176,16 @@ export const chatSlice = baseApi.injectEndpoints({
         "Conversations",
       ],
     }),
+
+    archiveConversation: builder.mutation({
+      query: ({ threadId, archived = true }) => ({
+        url: `/api/v1/smartflow/conversations/${threadId}/archive`,
+        method: "PATCH",
+        params: { archived },
+      }),
+      transformResponse: (response) => unwrapData(response),
+      invalidatesTags: ["Conversations"],
+    }),
   }),
   overrideExisting: true,
 });
@@ -188,4 +198,5 @@ export const {
   useCreateGroupMessagesMutation,
   useGetChatThreadsQuery,
   useMarkThreadSeenMutation,
+  useArchiveConversationMutation,
 } = chatSlice;

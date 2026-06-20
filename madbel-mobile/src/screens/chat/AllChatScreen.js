@@ -2,6 +2,7 @@ import {
   View,
   Text,
   ActivityIndicator,
+  Alert,
   Pressable,
   TextInput,
   Image,
@@ -16,7 +17,10 @@ import {
 } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
 import { Bot, Search } from "lucide-react-native";
-import { useFetchConversationsQuery } from "../../redux/slices/chat/chatSlice";
+import {
+  useFetchConversationsQuery,
+  useArchiveConversationMutation,
+} from "../../redux/slices/chat/chatSlice";
 
 const formatRelativeTime = (dateValue) => {
   if (!dateValue) return "";
@@ -42,6 +46,7 @@ const FILTER_OPTIONS = [
 const AllChatScreen = () => {
   const navigation = useNavigation();
   const { data: threads = [], isLoading } = useFetchConversationsQuery();
+  const [archiveConversation] = useArchiveConversationMutation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
 
@@ -58,6 +63,21 @@ const AllChatScreen = () => {
       isGroup: Boolean(thread?.is_group || thread?.isGroup),
     }));
   }, [threads]);
+
+  const handleConversationLongPress = (item) => {
+    Alert.alert(
+      item.name,
+      "What would you like to do?",
+      [
+        {
+          text: "Archive",
+          onPress: () => archiveConversation({ threadId: item.id, archived: true }),
+        },
+        { text: "Cancel", style: "cancel" },
+      ],
+      { cancelable: true },
+    );
+  };
 
   const handleConversationPress = (item) => {
     if (item?.isGroup) {
@@ -84,7 +104,12 @@ const AllChatScreen = () => {
   const renderItem = ({ item }) => {
     const hasUnread = item.unreadCount > 0;
     return (
-      <Pressable style={styles.card} onPress={() => handleConversationPress(item)}>
+      <Pressable
+        style={styles.card}
+        onPress={() => handleConversationPress(item)}
+        onLongPress={() => handleConversationLongPress(item)}
+        delayLongPress={400}
+      >
         <View style={styles.avatarWrap}>
           {item.avatar ? (
             <Image source={{ uri: item.avatar }} style={styles.avatar} />

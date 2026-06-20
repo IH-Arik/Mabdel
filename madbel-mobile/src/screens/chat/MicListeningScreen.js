@@ -29,7 +29,12 @@ import {
 } from "../../redux/slices/madbelApiSlice";
 import { redirectFromVoiceResult } from "../../utils/voiceNavigation";
 
-const actionChips = ["Cancel Invoice", "Change Amount", "Set Due Date"];
+const actionChips = [
+  "Create Invoice",
+  "Send Bulk Message",
+  "Schedule Meeting",
+  "New Agreement",
+];
 
 const buildWorkflowPrefillBody = (transcript) => ({
   transcript,
@@ -39,7 +44,7 @@ const buildWorkflowPrefillBody = (transcript) => ({
   audio_filename: "voice.wav",
   response_mode: "both",
   voice_id: "",
-  workflow_intent: "invoice",
+  workflow_intent: "",
   current_values: {},
 });
 
@@ -194,7 +199,7 @@ const MicListeningScreen = () => {
           audio_filename: "voice.wav",
           response_mode: "both",
           voice_id: "",
-          workflow_intent: "invoice",
+          workflow_intent: "",
         }).unwrap();
         finalResult = uploadResponse?.data || uploadResponse || workflowPayload;
       }
@@ -656,16 +661,17 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     gap: responsiveWidth(2.1),
+    marginBottom: responsiveHeight(0.8),
   },
   chip: {
-    flex: 1,
     borderRadius: responsiveWidth(4.3),
     backgroundColor: "#20344C",
     borderWidth: 1,
     borderColor: "#314960",
     paddingVertical: responsiveHeight(1),
+    paddingHorizontal: responsiveWidth(4),
     alignItems: "center",
   },
   chipText: {

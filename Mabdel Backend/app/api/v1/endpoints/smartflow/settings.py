@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from fastapi import Depends, File, Query, UploadFile, status
 
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_mongo_database
+from app.repositories.auth_repository import AuthRepository
 from app.schemas.common import ApiResponse
 from app.schemas.smartflow import (
     BusinessProfileResponse,
@@ -25,6 +26,24 @@ from app.utils.responses import success_response
 
 from ._deps import get_smartflow_service
 from ._router import router
+
+
+@router.get("/users/search")
+async def search_app_users(
+    q: str = Query(default=""),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_mongo_database),
+) -> dict:
+    data = await AuthRepository(db).search_users(
+        query=q,
+        organization_id=current_user.get("organization_id"),
+        exclude_user_id=str(current_user["_id"]),
+        page=page,
+        page_size=page_size,
+    )
+    return success_response(data=data, message="Users fetched successfully.")
 
 
 @router.get("/business-profile", response_model=ApiResponse[BusinessProfileResponse])

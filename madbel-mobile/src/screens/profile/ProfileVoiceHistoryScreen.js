@@ -7,7 +7,7 @@ import {
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
-import { useMadbelListCallsQuery } from "../../redux/slices/madbelSmartflowSlice";
+import { useMadbelListAiHistoryQuery } from "../../redux/slices/madbelSmartflowSlice";
 
 const formatTime = (dateValue) => {
   if (!dateValue) return "";
@@ -25,21 +25,22 @@ const formatTime = (dateValue) => {
 
 const ProfileVoiceHistoryScreen = () => {
   const navigation = useNavigation();
-  const { data, isLoading, isError } = useMadbelListCallsQuery({ page: 1, limit: 50 });
+  const { data, isLoading, isError } = useMadbelListAiHistoryQuery({ page: 1, page_size: 50 });
 
-  const calls = data?.calls || data?.data || data?.items || [];
+  const calls = data?.items || data?.data || [];
 
   const renderItem = ({ item }) => {
-    const label =
-      item?.ai_summary?.purpose ||
-      item?.summary ||
-      item?.contact_name ||
-      item?.caller_name ||
-      "Voice command";
-    const time = formatTime(item?.created_at || item?.createdAt || item?.start_time);
+    const label = item?.command_text || "Voice command";
+    const typeLabel = item?.command_type_label || item?.command_type || "";
+    const statusLabel = item?.status_label || item?.status || "";
+    const time = formatTime(item?.timestamp || item?.created_at);
 
     return (
       <View style={styles.card}>
+        <View style={styles.cardTopRow}>
+          {!!typeLabel && <Text style={styles.badge}>{typeLabel}</Text>}
+          {!!statusLabel && <Text style={styles.status}>{statusLabel}</Text>}
+        </View>
         <Text style={styles.text}>{label}</Text>
         {!!time && <Text style={styles.time}>{time}</Text>}
       </View>
@@ -114,6 +115,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#1B1C21",
     paddingHorizontal: responsiveWidth(4.4),
     paddingVertical: responsiveHeight(1.6),
+  },
+  cardTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(2),
+    marginBottom: responsiveHeight(0.6),
+  },
+  badge: {
+    color: "#17CBE8",
+    fontSize: 11,
+    fontWeight: "600",
+    backgroundColor: "rgba(23,203,232,0.12)",
+    borderRadius: 6,
+    paddingHorizontal: responsiveWidth(2),
+    paddingVertical: 2,
+    textTransform: "capitalize",
+  },
+  status: {
+    color: "#8A9AB0",
+    fontSize: 11,
+    fontWeight: "500",
+    textTransform: "capitalize",
   },
   text: {
     color: "#F2F4F7",
