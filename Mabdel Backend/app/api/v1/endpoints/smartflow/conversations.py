@@ -38,6 +38,10 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str, token:
         await service.get_conversation(str(user["_id"]), conversation_id)
         await conversation_realtime_hub.connect(conversation_id, websocket)
         await websocket.send_json({"event": "connected", "conversation_id": conversation_id, "data": {"connected": True}})
+        await conversation_realtime_hub.publish(conversation_id, "presence.updated", {
+            "user_id": str(user["_id"]),
+            "presence": "online",
+        })
         while True:
             message = await websocket.receive()
             if message.get("type") == "websocket.disconnect":
@@ -47,6 +51,14 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str, token:
     except AppException:
         await websocket.close(code=1008)
     finally:
+        if "user" in locals() and user:
+            try:
+                await conversation_realtime_hub.publish(conversation_id, "presence.updated", {
+                    "user_id": str(user["_id"]),
+                    "presence": "offline",
+                })
+            except Exception:
+                pass
         await conversation_realtime_hub.disconnect(conversation_id, websocket)
 
 

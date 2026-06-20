@@ -7,8 +7,9 @@ let connectionPromise = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_INTERVAL = 3000;
+const MAX_RECONNECT_ATTEMPTS = 10;
+const BASE_RECONNECT_DELAY = 2000;
+const MAX_RECONNECT_DELAY = 30000;
 
 const eventListeners = new Map();
 const connectionCallbacks = new Set();
@@ -130,6 +131,14 @@ const dispatchSocketMessage = (rawMessage) => {
     emitLocalEvent("chat:message:updated", payload);
   }
 
+  if (event === "typing.updated") {
+    emitLocalEvent("chat:typing:updated", payload);
+  }
+
+  if (event === "presence.updated") {
+    emitLocalEvent("chat:presence:updated", payload);
+  }
+
   if (event === "connected") {
     emitLocalEvent("connect", payload);
   }
@@ -159,10 +168,13 @@ const scheduleReconnect = () => {
   if (reconnectTimer) clearTimeout(reconnectTimer);
 
   reconnectAttempts += 1;
+  const delay = Math.min(
+    BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1),
+    MAX_RECONNECT_DELAY,
+  );
   reconnectTimer = setTimeout(() => {
-    initSocket({ conversationId: activeConversationId }).catch((error) => {
-    });
-  }, RECONNECT_INTERVAL);
+    initSocket({ conversationId: activeConversationId }).catch(() => {});
+  }, delay);
 };
 
 export const initSocket = async (options = {}) => {

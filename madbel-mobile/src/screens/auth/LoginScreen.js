@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -159,6 +158,7 @@ const LoginScreen = () => {
                 </Text>
               )}
 
+              {/* Google OAuth — not yet implemented
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>OR</Text>
@@ -172,6 +172,7 @@ const LoginScreen = () => {
                 />
                 <Text style={styles.googleText}>Continue with Google</Text>
               </Pressable>
+              */}
 
               <View style={styles.footerRow}>
                 <Text style={styles.footerText}>Don’t have an account?</Text>

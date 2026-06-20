@@ -25,11 +25,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
 import { useFetchConversationsQuery } from "../../redux/slices/chat/chatSlice";
 import {
-  HOME_ANALYTICS_CALLS,
-  HOME_ANALYTICS_STATS,
   HOME_AVATARS,
   HOME_DOC_ITEMS,
-  HOME_SOCIAL_BADGES,
 } from "../../../assets/data/homeMockData";
 import {
   ActionButton,
@@ -42,7 +39,10 @@ import {
   useMadbelListContactsQuery,
   useMadbelGetCallSummaryQuery,
 } from "../../redux/slices/madbelApiSlice";
-import { useMadbelListCallsQuery } from "../../redux/slices/madbelSmartflowSlice";
+import {
+  useMadbelListCallsQuery,
+  useMadbelGetIntegrationStatusQuery,
+} from "../../redux/slices/madbelSmartflowSlice";
 
 const rw = (value) => responsiveWidth(value);
 const rh = (value) => responsiveHeight(value);
@@ -57,6 +57,17 @@ const DOC_ICON_MAP = {
 const CALL_ICON_MAP = {
   phoneCall: PhoneCall,
   phoneMissed: PhoneMissed,
+};
+
+const PLATFORM_BADGE_CONFIG = {
+  instagram:        { label: "IG", backgroundColor: "#EA4C89", color: "#FFFFFF" },
+  facebook:         { label: "f",  backgroundColor: "#1877F2", color: "#FFFFFF" },
+  x_twitter:        { label: "X",  backgroundColor: "#FFFFFF", color: "#000000" },
+  x:                { label: "X",  backgroundColor: "#FFFFFF", color: "#000000" },
+  whatsapp:         { label: "W",  backgroundColor: "#25D366", color: "#FFFFFF" },
+  telegram:         { label: "TG", backgroundColor: "#2AABEE", color: "#FFFFFF" },
+  google_business:  { label: "G",  backgroundColor: "#F4F4F4", color: "#EA4335" },
+  linkedin:         { label: "in", backgroundColor: "#0A66C2", color: "#FFFFFF" },
 };
 
 const Shimmer = ({ width, height, radius, style }) => (
@@ -127,6 +138,7 @@ const HomeScreen = () => {
   const minutesSavedCount = callSummaryData?.total_minutes_saved ?? 0;
 
   const { data: recentCallsResponse } = useMadbelListCallsQuery({ page: 1, limit: 5 });
+  const { data: integrationStatusResponse } = useMadbelGetIntegrationStatusQuery();
   const recentCallsRaw = recentCallsResponse?.calls ?? recentCallsResponse?.data ?? recentCallsResponse?.items ?? recentCallsResponse;
   const recentCalls = Array.isArray(recentCallsRaw) ? recentCallsRaw : [];
   const recentCallRows = recentCalls.slice(0, 3).map((call, i) => ({
@@ -142,7 +154,20 @@ const HomeScreen = () => {
       : call?.status === "completed" ? "Done" : "AI Ready",
   }));
 
-  const analyticsCallRows = recentCallRows.length > 0 ? recentCallRows : HOME_ANALYTICS_CALLS;
+  const analyticsCallRows = recentCallRows;
+
+  const integrationItems = integrationStatusResponse?.data?.items ?? [];
+  const connectedBadges = integrationItems
+    .filter((item) => item?.connected)
+    .map((item) => {
+      const platform = item?.platform ?? "";
+      const cfg = PLATFORM_BADGE_CONFIG[platform] ?? {
+        label: platform.slice(0, 2).toUpperCase(),
+        backgroundColor: "#1D2A38",
+        color: "#FFFFFF",
+      };
+      return { id: platform, ...cfg };
+    });
 
   const analyticsStats = [
     {
@@ -378,7 +403,7 @@ const HomeScreen = () => {
               >
                 <Text style={styles.labelText}>INTEGRATIONS</Text>
                 <View style={styles.integrationRow}>
-                  {HOME_SOCIAL_BADGES.map((item) => (
+                  {connectedBadges.map((item) => (
                     <View
                       key={item.id}
                       style={[

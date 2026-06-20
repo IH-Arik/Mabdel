@@ -134,6 +134,41 @@ class AuthRepository:
         updates["updated_at"] = utc_now()
         await self.collection.update_one({"_id": ObjectId(user_id)}, {"$set": updates})
 
+    async def search_users(
+        self,
+        *,
+        query: str = "",
+        organization_id: str | None = None,
+        exclude_user_id: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        filter_: dict = {}
+        if organization_id:
+            filter_["organization_id"] = organization_id
+        if exclude_user_id and ObjectId.is_valid(exclude_user_id):
+            filter_["_id"] = {"$ne": ObjectId(exclude_user_id)}
+        if query.strip():
+            pattern = {"$regex": query.strip(), "$options": "i"}
+            filter_["$or"] = [{"full_name": pattern}, {"email": pattern}]
+        projection = {"full_name": 1, "email": 1, "avatar_url": 1}
+        skip = (page - 1) * page_size
+        total = await self.collection.count_documents(filter_)
+        cursor = self.collection.find(filter_, projection).skip(skip).limit(page_size)
+        items = []
+        async for doc in cursor:
+            full_name = doc.get("full_name") or ""
+            parts = full_name.split()
+            initials = "".join(p[0].upper() for p in parts[:2]) if parts else "?"
+            items.append({
+                "id": str(doc["_id"]),
+                "name": full_name,
+                "email": doc.get("email") or "",
+                "avatar_url": doc.get("avatar_url"),
+                "initials": initials,
+            })
+        return {"items": items, "total": total, "page": page, "page_size": page_size}
+
     async def upsert_device_token(self, user_id: str, device_id: str, token: str, platform: str) -> None:
         if not ObjectId.is_valid(user_id):
             return

@@ -53,13 +53,13 @@ const RegisterScreen = () => {
   };
 
   const handleRegister = async (data) => {
-    // if (!termsAccepted) {
-    //   setError("root", {
-    //     type: "register",
-    //     message: "Please accept Terms & Conditions to continue.",
-    //   });
-    //   return;
-    // }
+    if (!termsAccepted) {
+      setError("root", {
+        type: "register",
+        message: "Please accept Terms & Conditions to continue.",
+      });
+      return;
+    }
 
     try {
       await register({
