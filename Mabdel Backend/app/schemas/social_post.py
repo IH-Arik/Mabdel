@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-SocialPlatform = Literal["facebook", "instagram", "linkedin", "x"]
+SocialPlatform = Literal["facebook", "instagram", "linkedin", "x", "threads"]
 
 
 class SocialPostCreateRequest(BaseModel):

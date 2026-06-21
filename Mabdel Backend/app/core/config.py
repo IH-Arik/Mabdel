@@ -72,6 +72,9 @@ class Settings(BaseSettings):
     SNAPCHAT_CLIENT_ID: str | None = None
     SNAPCHAT_CLIENT_SECRET: str | None = None
     SNAPCHAT_REDIRECT_URI: str | None = None
+    THREADS_APP_ID: str | None = None
+    THREADS_APP_SECRET: str | None = None
+    THREADS_REDIRECT_URI: str | None = None
     WEBHOOK_SHARED_SECRET: str | None = None
     META_WEBHOOK_VERIFY_TOKEN: str | None = None
     FCM_SERVER_KEY: str | None = None

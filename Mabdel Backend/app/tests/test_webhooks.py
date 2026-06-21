@@ -155,6 +155,7 @@ def test_telegram_webhook_resolves_user_from_secret_without_query_user_id(client
 
 def test_meta_webhook_resolves_user_from_external_account_id(client, mock_db, monkeypatch):
     monkeypatch.setattr(settings, "WEBHOOK_SHARED_SECRET", "super-secret")
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
     user_id = asyncio.run(_create_user(mock_db, email="webhook5@example.com"))
     asyncio.run(
         mock_db.social_integrations.insert_one(
@@ -189,6 +190,7 @@ def test_meta_webhook_resolves_user_from_external_account_id(client, mock_db, mo
 
 def test_whatsapp_webhook_integration(client, mock_db, monkeypatch):
     monkeypatch.setattr(settings, "WEBHOOK_SHARED_SECRET", "super-secret")
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
     user_id = asyncio.run(_create_user(mock_db, email="whatsapp-user@example.com"))
 
     # 1. Connect WhatsApp manual integration
