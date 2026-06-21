@@ -13,6 +13,7 @@ from app.utils.helpers import serialize_mongo_document, utc_now
 
 META_GRAPH_VERSION = "v19.0"
 META_GRAPH_BASE = f"https://graph.facebook.com/{META_GRAPH_VERSION}"
+THREADS_API_BASE = "https://graph.threads.net/v1.0"
 LINKEDIN_API_BASE = "https://api.linkedin.com/v2"
 
 
@@ -58,6 +59,8 @@ class SocialPostsService:
                     post_id = await self._post_to_linkedin(integration, access_token, content, media_url)
                 elif platform == "x":
                     post_id = await self._post_to_x(integration, access_token, content, media_url)
+                elif platform == "threads":
+                    post_id = await self._post_to_threads(integration, access_token, content, media_url)
                 else:
                     results.append({"platform": platform, "status": "failed", "post_id": None, "error": "Unsupported platform."})
                     continue
@@ -216,6 +219,46 @@ class SocialPostsService:
             raise AppException(status_code=502, code="X_POST_FAILED", message=detail)
 
         return data.get("data", {}).get("id", "")
+
+    async def _post_to_threads(self, integration: dict, access_token: str, content: str, media_url: str | None) -> str:
+        meta = integration.get("provider_metadata") or {}
+        threads_user_id = meta.get("threads_user_id") or integration.get("external_account_id")
+        if not threads_user_id:
+            raise AppException(status_code=409, code="THREADS_USER_ID_MISSING", message="Threads User ID not found. Reconnect your Threads account.")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Step 1 — create media container
+            container_params: dict[str, Any] = {
+                "text": content,
+                "access_token": access_token,
+            }
+            if media_url:
+                container_params["media_type"] = "IMAGE"
+                container_params["image_url"] = media_url
+            else:
+                container_params["media_type"] = "TEXT"
+
+            container_resp = await client.post(f"{THREADS_API_BASE}/{threads_user_id}/threads", params=container_params)
+            container_data = container_resp.json()
+            if container_resp.status_code >= 400 or "error" in container_data:
+                error_msg = (container_data.get("error") or {}).get("message", "Threads container creation failed.")
+                raise AppException(status_code=502, code="THREADS_CONTAINER_FAILED", message=error_msg)
+
+            creation_id = container_data.get("id")
+            if not creation_id:
+                raise AppException(status_code=502, code="THREADS_CONTAINER_FAILED", message="Threads did not return a creation ID.")
+
+            # Step 2 — publish
+            publish_resp = await client.post(
+                f"{THREADS_API_BASE}/{threads_user_id}/threads_publish",
+                params={"creation_id": creation_id, "access_token": access_token},
+            )
+            publish_data = publish_resp.json()
+            if publish_resp.status_code >= 400 or "error" in publish_data:
+                error_msg = (publish_data.get("error") or {}).get("message", "Threads publish failed.")
+                raise AppException(status_code=502, code="THREADS_PUBLISH_FAILED", message=error_msg)
+
+        return publish_data.get("id", "")
 
     # ------------------------------------------------------------------
     # Helpers

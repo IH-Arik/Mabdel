@@ -127,6 +127,7 @@ class CallService:
                 message="Twilio could not create the outbound call.",
                 details=details,
             )
+        payload = response.json()
         return {
             "sid": payload.get("sid"),
             "status": payload.get("status") or "queued",
