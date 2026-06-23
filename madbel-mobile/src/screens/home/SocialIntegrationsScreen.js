@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Pressable,
   SafeAreaView,
@@ -14,10 +14,7 @@ import {
   AppState,
 } from "react-native";
 import { CheckCircle2, ChevronLeft, AlertCircle } from "lucide-react-native";
-import {
-  responsiveHeight,
-  responsiveWidth,
-} from "react-native-responsive-dimensions";
+import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
 import {
   useMadbelListIntegrationCatalogQuery,
@@ -26,62 +23,140 @@ import {
   useMadbelConnectWhatsAppManualMutation,
 } from "../../redux/slices/madbelApiSlice";
 
-const getPlatformBadge = (platform) => {
-  switch (platform) {
-    case "facebook_messenger":
-      return { badge: "f", bg: "#1877F2" };
-    case "instagram":
-      return { badge: "IG", bg: "#E4405F" };
-    case "whatsapp":
-      return { badge: "WA", bg: "#25D366" };
-    case "linkedin":
-      return { badge: "in", bg: "#0A66C2" };
-    case "twitter_x":
-      return { badge: "X", bg: "#111111" };
-    case "youtube":
-      return { badge: "YT", bg: "#FF0000" };
-    case "tiktok":
-      return { badge: "TT", bg: "#111111" };
-    case "pinterest":
-      return { badge: "P", bg: "#E60023" };
-    case "telegram":
-      return { badge: "TG", bg: "#229ED9" };
-    case "snapchat":
-      return { badge: "SC", bg: "#FFFC00" };
-    case "google_business":
-      return { badge: "G", bg: "#4285F4" };
-    default:
-      return { badge: "?", bg: "#455A64" };
-  }
+const PLATFORM_META = {
+  facebook_messenger: {
+    label: "Facebook",
+    symbol: "f",
+    symbolSize: 22,
+    bg: "#1877F2",
+    symbolColor: "#fff",
+    border: "#0d5fc4",
+  },
+  instagram: {
+    label: "Instagram",
+    symbol: "▣",
+    symbolSize: 20,
+    bg: "linear",
+    gradientColors: ["#833AB4", "#E1306C", "#F77737"],
+    bg: "#C13584",
+    symbolColor: "#fff",
+    border: "#9b2a6e",
+  },
+  whatsapp: {
+    label: "WhatsApp",
+    symbol: "✆",
+    symbolSize: 22,
+    bg: "#25D366",
+    symbolColor: "#fff",
+    border: "#1aac54",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    symbol: "in",
+    symbolSize: 16,
+    bg: "#0A66C2",
+    symbolColor: "#fff",
+    border: "#074f9b",
+  },
+  twitter_x: {
+    label: "X (Twitter)",
+    symbol: "𝕏",
+    symbolSize: 18,
+    bg: "#000000",
+    symbolColor: "#fff",
+    border: "#333",
+  },
+  telegram: {
+    label: "Telegram",
+    symbol: "✈",
+    symbolSize: 20,
+    bg: "#229ED9",
+    symbolColor: "#fff",
+    border: "#1a7fad",
+  },
+  snapchat: {
+    label: "Snapchat",
+    symbol: "👻",
+    symbolSize: 20,
+    bg: "#FFFC00",
+    symbolColor: "#000",
+    border: "#d9d900",
+  },
+  google_business: {
+    label: "Google Business",
+    symbol: "G",
+    symbolSize: 22,
+    bg: "#4285F4",
+    symbolColor: "#fff",
+    border: "#2a6fd6",
+  },
+  threads: {
+    label: "Threads",
+    symbol: "@",
+    symbolSize: 22,
+    bg: "#101010",
+    symbolColor: "#fff",
+    border: "#333",
+  },
+  youtube: {
+    label: "YouTube",
+    symbol: "▶",
+    symbolSize: 20,
+    bg: "#FF0000",
+    symbolColor: "#fff",
+    border: "#cc0000",
+  },
+  tiktok: {
+    label: "TikTok",
+    symbol: "♪",
+    symbolSize: 20,
+    bg: "#010101",
+    symbolColor: "#fff",
+    border: "#333",
+  },
+  pinterest: {
+    label: "Pinterest",
+    symbol: "P",
+    symbolSize: 22,
+    bg: "#E60023",
+    symbolColor: "#fff",
+    border: "#b8001c",
+  },
 };
 
 const getPlatformDesc = (platform) => {
-  switch (platform) {
-    case "facebook_messenger":
-      return "Manage page posts and messenger leads.";
-    case "instagram":
-      return "Sync visual content and DMs.";
-    case "whatsapp":
-      return "Customer service & automated replies.";
-    case "linkedin":
-      return "B2B outreach and company updates.";
-    case "twitter_x":
-      return "Real-time engagement and support.";
-    case "youtube":
-      return "Manage comments and video metrics.";
-    case "tiktok":
-      return "Short-form video engagement.";
-    case "pinterest":
-      return "Visual discovery and traffic driving.";
-    case "telegram":
-      return "Broadcast news and direct support.";
-    case "snapchat":
-      return "Short-form content and analytics.";
-    case "google_business":
-      return "Manage reviews and business profile.";
-    default:
-      return "Connect external channels.";
-  }
+  const descs = {
+    facebook_messenger: "Manage page posts and messenger leads.",
+    instagram: "Sync visual content and DMs.",
+    whatsapp: "Customer service & automated replies.",
+    linkedin: "B2B outreach and company updates.",
+    twitter_x: "Real-time engagement and support.",
+    youtube: "Manage comments and video metrics.",
+    tiktok: "Short-form video engagement.",
+    pinterest: "Visual discovery and traffic driving.",
+    telegram: "Broadcast news and direct support.",
+    snapchat: "Short-form content and analytics.",
+    google_business: "Manage reviews and business profile.",
+    threads: "Publish posts and manage replies.",
+  };
+  return descs[platform] || "Connect external channels.";
+};
+
+const PlatformIcon = ({ platform }) => {
+  const meta = PLATFORM_META[platform] || {
+    symbol: "?",
+    symbolSize: 20,
+    bg: "#455A64",
+    symbolColor: "#fff",
+    border: "#333",
+  };
+  return (
+    <View style={[styles.iconWrap, { backgroundColor: meta.bg, borderColor: meta.border }]}>
+      <Text style={[styles.iconSymbol, { fontSize: meta.symbolSize, color: meta.symbolColor }]}>
+        {meta.symbol}
+      </Text>
+    </View>
+  );
 };
 
 const SocialIntegrationsScreen = () => {
@@ -120,16 +195,14 @@ const SocialIntegrationsScreen = () => {
       setWhatsappModalVisible(true);
       return;
     }
-
     if (item.auth_mode === "manual") {
       Alert.alert(
         "Manual Setup Required",
-        `To connect ${item.platform_label}, please log into the Web Dashboard at your browser and enter the bot token/secret credentials.`,
+        `To connect ${item.platform_label}, please log into the Web Dashboard and enter the credentials.`,
         [{ text: "OK" }]
       );
       return;
     }
-
     try {
       const res = await triggerOauthStart({ platform: item.platform }).unwrap();
       const authUrl = res?.data?.auth_url || res?.auth_url;
@@ -154,33 +227,27 @@ const SocialIntegrationsScreen = () => {
       Alert.alert("Error", "Please enter a valid phone number.");
       return;
     }
-
     try {
       await connectWhatsAppManual({
         phone_number: trimmedPhone,
         whatsapp_gateway_url: whatsappGatewayUrl.trim() || "http://localhost:3001",
       }).unwrap();
-
       setWhatsappModalVisible(false);
       setWhatsappPhone("");
       refetch();
-      Alert.alert("Success", "WhatsApp linked successfully. Scan the QR code on your gateway to log in!");
+      Alert.alert("Success", "WhatsApp linked successfully!");
     } catch (err) {
-      Alert.alert("Error", err?.data?.message || "Failed to link WhatsApp manual integration.");
+      Alert.alert("Error", err?.data?.message || "Failed to link WhatsApp.");
     }
   };
 
   const handleDisconnectPress = (item) => {
     Alert.alert(
-      "Disconnect Integration",
-      `Are you sure you want to disconnect ${item.platform_label}?`,
+      "Disconnect",
+      `Disconnect ${item.platform_label}?`,
       [
         { text: "Cancel", style: "cancel" },
-        {
-          text: "Disconnect",
-          style: "destructive",
-          onPress: () => performDisconnect(item.platform),
-        },
+        { text: "Disconnect", style: "destructive", onPress: () => performDisconnect(item.platform) },
       ]
     );
   };
@@ -189,66 +256,65 @@ const SocialIntegrationsScreen = () => {
     try {
       await disconnectIntegration({ platform }).unwrap();
       refetch();
-      Alert.alert("Success", "Integration disconnected successfully.");
+      Alert.alert("Success", "Integration disconnected.");
     } catch (err) {
-      Alert.alert("Error", err?.data?.message || "Failed to disconnect integration.");
+      Alert.alert("Error", err?.data?.message || "Failed to disconnect.");
     }
   };
 
+  const isLoading = isStartingOauth || isDisconnecting || isConnectingWhatsApp;
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ChevronLeft size={36} color="#F1F7FF" />
-          </Pressable>
-          <Text style={styles.title}>Connect Your Social{"\n"}Media Platform</Text>
-          <View style={styles.backBtn} />
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <ChevronLeft size={28} color="#F1F7FF" />
+        </Pressable>
+        <Text style={styles.title}>Connect Social Media</Text>
+        <View style={styles.backBtn} />
+      </View>
+
+      {isCatalogLoading ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color="#16CDE9" />
+          <Text style={styles.stateText}>Loading platforms...</Text>
         </View>
-
-        {(isStartingOauth || isDisconnecting || isConnectingWhatsApp) && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#16CDE9" />
-          </View>
-        )}
-
-        {isCatalogLoading ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator size="large" color="#16CDE9" />
-            <Text style={styles.stateText}>Loading integration catalog...</Text>
-          </View>
-        ) : isCatalogError ? (
-          <View style={styles.centerState}>
-            <AlertCircle size={48} color="#FF6B6B" />
-            <Text style={styles.stateText}>Failed to load catalog.</Text>
-            <Pressable style={styles.retryBtn} onPress={refetch}>
-              <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-          >
+      ) : isCatalogError ? (
+        <View style={styles.centerState}>
+          <AlertCircle size={40} color="#FF6B6B" />
+          <Text style={styles.stateText}>Failed to load platforms.</Text>
+          <Pressable style={styles.retryBtn} onPress={refetch}>
+            <Text style={styles.retryText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          style={styles.scrollView}
+        >
             {catalog.map((item) => {
-              const badgeInfo = getPlatformBadge(item.platform);
               const desc = getPlatformDesc(item.platform);
               const isUnavailable = !item.is_available && item.cta_label === "Unavailable";
+              const meta = PLATFORM_META[item.platform];
+              const platformLabel = meta?.label || item.platform_label;
 
               return (
-                <View key={item.platform} style={[styles.card, isUnavailable && { opacity: 0.6 }]}>
-                  <View style={[styles.badge, { backgroundColor: badgeInfo.bg }]}>
-                    <Text style={styles.badgeText}>{badgeInfo.badge}</Text>
-                  </View>
+                <View
+                  key={item.platform}
+                  style={[styles.card, isUnavailable && styles.cardUnavailable]}
+                >
+                  <PlatformIcon platform={item.platform} />
 
-                  <View style={styles.meta}>
-                    <Text style={styles.name}>{item.platform_label}</Text>
-                    <Text style={styles.desc}>{desc}</Text>
+                  <View style={styles.cardMeta}>
+                    <Text style={styles.cardName} numberOfLines={1}>{platformLabel}</Text>
+                    <Text style={styles.cardDesc} numberOfLines={2}>{desc}</Text>
                   </View>
 
                   {item.connected ? (
                     <Pressable
-                      style={styles.connectedWrap}
+                      style={styles.connectedBtn}
                       onPress={() => {
                         if (item.platform === "google_business") {
                           navigation.navigate("GoogleReviews");
@@ -258,20 +324,17 @@ const SocialIntegrationsScreen = () => {
                       }}
                       onLongPress={() => handleDisconnectPress(item)}
                     >
-                      <CheckCircle2 size={24} color="#4DCE63" />
+                      <CheckCircle2 size={16} color="#4DCE63" />
                       <Text style={styles.connectedText}>Connected</Text>
                     </Pressable>
                   ) : (
                     <Pressable
-                      style={[
-                        styles.connectBtn,
-                        isUnavailable && styles.connectBtnDisabled
-                      ]}
+                      style={[styles.connectBtn, isUnavailable && styles.connectBtnDisabled]}
                       onPress={() => !isUnavailable && handleConnect(item)}
                       disabled={isUnavailable}
                     >
                       <Text style={styles.connectText}>
-                        {item.cta_label || "Connect"}
+                        {isUnavailable ? "Soon" : "Connect"}
                       </Text>
                     </Pressable>
                   )}
@@ -281,9 +344,10 @@ const SocialIntegrationsScreen = () => {
           </ScrollView>
         )}
 
+        {/* WhatsApp Modal */}
         <Modal
           animationType="fade"
-          transparent={true}
+          transparent
           visible={whatsappModalVisible}
           onRequestClose={() => setWhatsappModalVisible(false)}
         >
@@ -313,234 +377,178 @@ const SocialIntegrationsScreen = () => {
               <View style={styles.modalBtnRow}>
                 <Pressable
                   style={[styles.modalBtn, styles.modalBtnCancel]}
-                  onPress={() => {
-                    setWhatsappModalVisible(false);
-                    setWhatsappPhone("");
-                  }}
+                  onPress={() => { setWhatsappModalVisible(false); setWhatsappPhone(""); }}
                 >
                   <Text style={styles.modalCancelText}>Cancel</Text>
                 </Pressable>
-
-                <Pressable
-                  style={[styles.modalBtn, styles.modalBtnSubmit]}
-                  onPress={handleWhatsAppConnectSubmit}
-                >
+                <Pressable style={[styles.modalBtn, styles.modalBtnSubmit]} onPress={handleWhatsAppConnectSubmit}>
                   <Text style={styles.modalSubmitText}>Connect</Text>
                 </Pressable>
               </View>
             </View>
           </View>
         </Modal>
-      </View>
     </SafeAreaView>
   );
 };
 
-
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#020406" },
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#020406",
-    paddingHorizontal: responsiveWidth(4.6),
-    paddingTop: responsiveHeight(0.9),
+    paddingHorizontal: responsiveWidth(4),
+    paddingTop: responsiveHeight(0.5),
   },
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: responsiveHeight(1.8),
+    marginBottom: responsiveHeight(1.5),
+    paddingVertical: responsiveHeight(0.5),
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    flex: 1,
-    textAlign: "center",
     color: "#F3F9FF",
-    fontSize: 25,
+    fontSize: responsiveWidth(5),
     fontWeight: "700",
-    lineHeight: 36,
+    textAlign: "center",
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
   },
   listContent: {
-    gap: 12,
+    gap: responsiveHeight(1.2),
     paddingBottom: responsiveHeight(4),
   },
   card: {
-    minHeight: 118,
-    borderRadius: 22,
-    backgroundColor: "#1D1D21",
+    borderRadius: 16,
+    backgroundColor: "#111318",
     borderWidth: 1,
-    borderColor: "#2B3442",
-    padding: 14,
+    borderColor: "#1E2530",
+    paddingHorizontal: responsiveWidth(3.5),
+    paddingVertical: responsiveHeight(1.4),
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: responsiveWidth(3),
   },
-  badge: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+  cardUnavailable: { opacity: 0.5 },
+  iconWrap: {
+    width: responsiveWidth(13),
+    height: responsiveWidth(13),
+    borderRadius: responsiveWidth(3.5),
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1.5,
   },
-  badgeText: {
-    color: "#F4FBFF",
-    fontSize: 25,
-    fontWeight: "700",
+  iconSymbol: {
+    fontWeight: "800",
+    textAlign: "center",
   },
-  meta: {
+  cardMeta: {
     flex: 1,
     justifyContent: "center",
+    gap: 3,
   },
-  name: {
-    color: "#F3F8FF",
-    fontSize: 24,
-    fontWeight: "600",
+  cardName: {
+    color: "#F0F6FF",
+    fontSize: responsiveWidth(4),
+    fontWeight: "700",
   },
-  desc: {
-    color: "#9BA7BB",
-    fontSize: 18,
-    marginTop: 2,
-    lineHeight: 28,
+  cardDesc: {
+    color: "#6B7A90",
+    fontSize: responsiveWidth(3.2),
+    lineHeight: responsiveWidth(4.5),
   },
-  connectedWrap: {
+  connectedBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    minWidth: responsiveWidth(24),
-    justifyContent: "flex-end",
+    gap: 5,
+    backgroundColor: "#0D2318",
+    paddingHorizontal: responsiveWidth(3),
+    paddingVertical: responsiveHeight(0.8),
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#1a4a2e",
   },
   connectedText: {
-    color: "#50D068",
-    fontSize: 16,
+    color: "#4DCE63",
+    fontSize: responsiveWidth(3.2),
     fontWeight: "600",
   },
   connectBtn: {
-    minWidth: responsiveWidth(28),
-    height: 56,
-    borderRadius: 18,
     backgroundColor: "#16CDE9",
+    paddingHorizontal: responsiveWidth(4),
+    paddingVertical: responsiveHeight(1),
+    borderRadius: 20,
+    minWidth: responsiveWidth(20),
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 18,
+  },
+  connectBtnDisabled: {
+    backgroundColor: "#1E2530",
   },
   connectText: {
     color: "#03141E",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  connectBtnDisabled: {
-    backgroundColor: "#2B3442",
-    opacity: 0.5,
-  },
-  loadingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(2, 4, 6, 0.7)",
-    zIndex: 999,
-    justifyContent: "center",
-    alignItems: "center",
+    fontSize: responsiveWidth(3.4),
+    fontWeight: "700",
   },
   centerState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 16,
+    gap: 14,
     paddingHorizontal: 20,
   },
   stateText: {
     color: "#9BA7BB",
-    fontSize: 18,
+    fontSize: 15,
     textAlign: "center",
   },
   retryBtn: {
     paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
     backgroundColor: "#16CDE9",
-    marginTop: 8,
   },
-  retryText: {
-    color: "#03141E",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  retryText: { color: "#03141E", fontSize: 15, fontWeight: "600" },
   modalOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.85)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
-    width: "90%",
-    backgroundColor: "#1D1D21",
-    borderRadius: 24,
+    width: "88%",
+    backgroundColor: "#111318",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#2B3442",
-    padding: 24,
-    gap: 16,
+    borderColor: "#1E2530",
+    padding: 22,
+    gap: 14,
   },
-  modalTitle: {
-    color: "#F3F9FF",
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  inputLabel: {
-    color: "#9BA7BB",
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: -8,
-  },
+  modalTitle: { color: "#F3F9FF", fontSize: 20, fontWeight: "700" },
+  inputLabel: { color: "#9BA7BB", fontSize: 13, fontWeight: "600", marginBottom: -6 },
   textInput: {
     backgroundColor: "#0C0E12",
     color: "#F8FAFC",
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#2B3442",
-    height: 56,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    borderColor: "#1E2530",
+    height: 50,
+    paddingHorizontal: 14,
+    fontSize: 15,
   },
-  modalBtnRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 12,
-  },
-  modalBtn: {
-    flex: 1,
-    height: 56,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalBtnCancel: {
-    backgroundColor: "#2B3442",
-  },
-  modalBtnSubmit: {
-    backgroundColor: "#16CDE9",
-  },
-  modalCancelText: {
-    color: "#F8FAFC",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  modalSubmitText: {
-    color: "#03141E",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  modalBtnRow: { flexDirection: "row", gap: 10, marginTop: 6 },
+  modalBtn: { flex: 1, height: 50, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  modalBtnCancel: { backgroundColor: "#1E2530" },
+  modalBtnSubmit: { backgroundColor: "#16CDE9" },
+  modalCancelText: { color: "#F8FAFC", fontSize: 15, fontWeight: "600" },
+  modalSubmitText: { color: "#03141E", fontSize: 15, fontWeight: "600" },
 });
 
 export default SocialIntegrationsScreen;

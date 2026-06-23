@@ -25,6 +25,7 @@ import CreatePostScreen from "../screens/home/CreatePostScreen";
 import CallHistoryScreen from "../screens/call/CallHistoryScreen";
 import CallAnalysisScreen from "../screens/call/CallAnalysisScreen";
 import UnifiedConversationsScreen from "../screens/chat/UnifiedConversationsScreen";
+import SingleChatScreen from "../screens/chat/SingleChatScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -65,6 +66,7 @@ const HomeStack = () => {
       <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
       <Stack.Screen name="CallAnalysis" component={CallAnalysisScreen} />
       <Stack.Screen name="UnifiedConversations" component={UnifiedConversationsScreen} />
+      <Stack.Screen name="SingleChat" component={SingleChatScreen} />
     </Stack.Navigator>
   );
 };

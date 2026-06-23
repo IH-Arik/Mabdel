@@ -26,32 +26,29 @@ export const buildApiUrl = (path, { skipPrefix = false } = {}) => {
   let mappedPath = path.startsWith("/") ? path : `/${path}`;
 
   // Path translation mapper for FastAPI backend dashboard compatibility
+  // Backend runs at /api/v1/admin/... and /api/v1/rbac/... (no /dashboard/ infix)
   if (mappedPath.startsWith("/admin/notifications")) {
-    mappedPath = mappedPath.replace("/admin/notifications", "/dashboard/notifications");
+    mappedPath = mappedPath.replace("/admin/notifications", "/notifications");
   } else if (mappedPath === "/admin/password" || mappedPath === "/auth/admin/change-password") {
-    mappedPath = "/dashboard/admin/change-password";
+    mappedPath = "/admin/change-password";
   } else if (mappedPath.startsWith("/auth/admin/logout")) {
-    mappedPath = "/dashboard/admin/logout";
+    mappedPath = "/admin/logout";
   } else if (mappedPath.startsWith("/auth/admin/")) {
-    mappedPath = mappedPath.replace("/auth/admin/", "/dashboard/admin/auth/");
+    mappedPath = mappedPath.replace("/auth/admin/", "/admin/auth/");
   } else if (mappedPath.startsWith("/cms/admin/")) {
-    mappedPath = mappedPath.replace("/cms/admin/", "/dashboard/admin/settings/content");
+    mappedPath = "/admin/settings/content";
   } else if (mappedPath.startsWith("/reports/admin")) {
-    mappedPath = mappedPath.replace("/reports/admin", "/dashboard/admin/reports");
+    mappedPath = mappedPath.replace("/reports/admin", "/admin/reports");
   } else if (mappedPath.startsWith("/billing/admin/transactions")) {
-    mappedPath = "/dashboard/admin/earnings/transactions";
+    mappedPath = "/admin/earnings/transactions";
   } else if (mappedPath.startsWith("/admin/dashboard/overview") || mappedPath.startsWith("/dashboard/overview")) {
-    mappedPath = "/dashboard/admin/summary";
+    mappedPath = "/admin/summary";
   } else if (mappedPath.startsWith("/admin/dashboard/analytics") || mappedPath.startsWith("/dashboard/analytics")) {
-    mappedPath = "/dashboard/admin/summary";
+    mappedPath = "/admin/summary";
   } else if (mappedPath.startsWith("/admin/dashboard/recent-users")) {
-    mappedPath = "/dashboard/admin/users";
+    mappedPath = "/admin/users";
   } else if (mappedPath.startsWith("/admin/dashboard/notifications/preview")) {
-    mappedPath = "/dashboard/notifications";
-  } else if (mappedPath.startsWith("/super/")) {
-    mappedPath = mappedPath.replace("/super/", "/dashboard/super/");
-  } else if (mappedPath.startsWith("/admin/")) {
-    mappedPath = mappedPath.replace("/admin/", "/dashboard/admin/");
+    mappedPath = "/notifications";
   }
 
   const prefixedPath = skipPrefix || mappedPath.startsWith("/api/")

@@ -329,6 +329,7 @@ class AuthService:
     @staticmethod
     def _user_to_response(user: dict) -> UserResponse:
         safe_user = serialize_mongo_document(user) or {}
+        role = safe_user.get("primary_role") or safe_user.get("role") or "user"
         return UserResponse(
             id=safe_user["_id"],
             full_name=safe_user.get("full_name") or safe_user.get("name") or "Unknown User",
@@ -339,5 +340,7 @@ class AuthService:
             date_of_birth=safe_user.get("date_of_birth"),
             country=safe_user.get("country"),
             language_preference=safe_user.get("language_preference", "EN"),
+            role=role,
+            primary_role=role,
             created_at=safe_user.get("created_at") or safe_user.get("updated_at") or utc_now(),
         )
