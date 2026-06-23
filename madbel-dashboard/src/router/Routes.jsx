@@ -5,6 +5,7 @@ import AboutUs from "../Pages/Settings/AboutUS/AboutUs";
 import PrivacyPolicy from "../Pages/Settings/PrivacyPolicy/PrivacyPolicy";
 import TermsCondition from "../Pages/Settings/TermsCondition/TermsCondition";
 import PrivateRoute from "./PrivateRoute";
+import RoleRedirect from "./RoleRedirect";
 import Dashboard from "../Pages/Dashboard/Dashboard";
 import ProfilePage from "../Pages/AdminProfile/ProfilePage";
 import Notifications from "../Pages/Notifications/Notifications";
@@ -25,6 +26,9 @@ import ActivityEvents from "../Pages/Activity & Events/ActivityEvents";
 import EventCreators from "../Pages/EventCreator/EventCreators";
 import EventCreatorDetails from "../Pages/EventCreator/EventCreatorDetails";
 import MakeAdmin from "../Pages/MakeAdmin/MakeAdmin";
+import OwnerDashboard from "../Pages/Owner/OwnerDashboard";
+import TeamManagement from "../Pages/Owner/TeamManagement";
+
 export const router = createBrowserRouter([
   {
     path: "/sign-in",
@@ -37,8 +41,12 @@ export const router = createBrowserRouter([
         path: "/",
         element: <MainLayout />,
         children: [
-          { path: "/", element: <Dashboard /> },
+          { path: "/", element: <RoleRedirect /> },
           { path: "/dashboard", element: <Dashboard /> },
+          // Owner routes
+          { path: "/owner", element: <OwnerDashboard /> },
+          { path: "/owner/team", element: <TeamManagement /> },
+          // Admin / Super Admin routes
           { path: "/user-list", element: <UserList /> },
           { path: "/block-list", element: <BlockedList /> },
           { path: "/earnings", element: <Earnings /> },
@@ -67,6 +75,6 @@ export const router = createBrowserRouter([
   },
   {
     path: "*",
-    element: <Navigate to="/dashboard" replace />,
+    element: <Navigate to="/" replace />,
   },
 ]);

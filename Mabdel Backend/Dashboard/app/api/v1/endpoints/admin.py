@@ -3,10 +3,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from Dashboard.app.dependencies import get_mongo_database, require_role
+from Dashboard.app.dependencies import get_mongo_database, require_role, require_permission
 from Dashboard.app.utils.helpers import utc_now
 from Dashboard.app.dependencies import get_dashboard_service
-from Dashboard.app.core.security import hash_password
+from Dashboard.app.core.security import hash_password, verify_password, create_access_token
+from Dashboard.app.core.exceptions import AppException
 from Dashboard.app.schemas.dashboard_schemas import (
     BaseResponse, DashboardSummary, GrowthMetrics, PaginatedResponse, 
     UserListItem, AdminCreateRequest, EarningsSummary, TransactionListItem, 
@@ -51,7 +52,7 @@ def _current_user_id(current_user: dict) -> str:
 
 @router.get("/summary", response_model=BaseResponse[DashboardSummary])
 async def get_admin_summary(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("settings", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -69,7 +70,7 @@ async def list_users(
     page: int | None = None,
     search: str | None = None,
     status: str | None = None,  # active, blocked
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -94,7 +95,7 @@ async def list_blocked_users(
     offset: int = 0,
     page: int | None = None,
     search: str | None = None,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     if page and page > 0:
@@ -117,7 +118,7 @@ async def search_users_before_user_id(
     limit: int = 10,
     offset: int = 0,
     page: int | None = None,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     if page and page > 0:
@@ -135,7 +136,7 @@ async def search_users_before_user_id(
 @router.get("/users/{user_id}", response_model=BaseResponse[UserListItem])
 async def get_user_details(
     user_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -150,7 +151,7 @@ async def update_user_status(
     user_id: str,
     status: str | None = None,
     body: dict | None = Body(default=None),
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "edit")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -169,7 +170,7 @@ async def update_user_status(
 async def update_user(
     user_id: str,
     body: dict | None = Body(default=None),
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "edit")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     body = body or {}
@@ -186,40 +187,75 @@ async def update_user(
 @router.post("/create-admin", response_model=BaseResponse[str])
 async def create_organization_admin(
     request: AdminCreateRequest,
-    current_user: dict = Depends(require_role(["super_admin"])),
+    current_user: dict = Depends(require_permission("admins", "create")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     """
-    Create a new administrator for an organization. 
-    Strictly restricted to Super Admins. Corresponds to the 'Create Admin' screen.
+    Create a new administrator or privileged user. Requires 'admins:create' permission.
+    Super Admin can create any role; Admin can only create roles below their hierarchy.
     """
-    # 1. Check if email already exists
+    from Dashboard.app.core.exceptions import AppException
+    from app.services.rbac_service import RBACService
+    from app.models.rbac_models import ROLE_HIERARCHY
+
+    actor_role = current_user.get("primary_role") or current_user.get("role", "user")
+    target_role = request.role  # e.g. "admin", "owner", "supervisor", "staff"
+
+    # Enforce hierarchy: cannot create a role >= your own (unless super_admin)
+    if actor_role != "super_admin":
+        actor_level = ROLE_HIERARCHY.get(actor_role, 0)
+        target_level = ROLE_HIERARCHY.get(target_role, 0)
+        if target_level >= actor_level:
+            raise AppException(
+                status_code=403,
+                code="INSUFFICIENT_HIERARCHY",
+                message=f"You cannot create a '{target_role}' — it is equal to or above your own role.",
+            )
+
     existing_user = await db.users.find_one({"email": request.email})
     if existing_user:
-        from Dashboard.app.core.exceptions import AppException
-        raise AppException(status_code=400, code="EMAIL_EXISTS", message="User with this email already exists")
+        raise AppException(status_code=400, code="EMAIL_EXISTS", message="User with this email already exists.")
 
-    # 2. Hash password and prepare user document
     password_hash = hash_password(request.password)
-    new_admin = {
+    now = utc_now()
+    new_user = {
         "full_name": request.full_name,
         "email": request.email,
         "hashed_password": password_hash,
         "password_hash": password_hash,
-        "role": request.role, # admin or super_admin
+        "role": target_role,
+        "primary_role": target_role,
         "organization_id": request.organization_id,
         "status": "active",
-        "created_at": utc_now(),
-        "is_subscribed": False
+        "is_verified": True,
+        "auth_provider": "email",
+        "created_at": now,
+        "updated_at": now,
+        "is_subscribed": False,
     }
-    
-    result = await db.users.insert_one(new_admin)
-    return BaseResponse(data=str(result.inserted_id), message=f"New {request.role} created successfully")
+    result = await db.users.insert_one(new_user)
+    new_user_id = str(result.inserted_id)
+
+    # Assign role in RBAC system
+    actor_id = str(current_user.get("_id") or current_user.get("id") or "")
+    try:
+        rbac = RBACService(db)
+        await rbac.assign_role_to_user(
+            user_id=new_user_id,
+            role_slug=target_role,
+            assigned_by=actor_id,
+            assigned_by_role=actor_role,
+            organization_id=request.organization_id,
+        )
+    except Exception:
+        pass  # RBAC assignment is best-effort; user is still created
+
+    return BaseResponse(data=new_user_id, message=f"New '{target_role}' created successfully.")
 
 
 @router.get("/users-growth", response_model=BaseResponse[GrowthMetrics])
 async def get_users_growth(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -231,7 +267,7 @@ async def get_users_growth(
 
 @router.get("/earnings", response_model=BaseResponse[EarningsSummary])
 async def get_earnings_report(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("earnings", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -245,7 +281,7 @@ async def get_earnings_report(
 async def list_transactions(
     limit: int = 10,
     offset: int = 0,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("earnings", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -262,7 +298,7 @@ async def list_transactions(
 @router.get("/earnings/transactions/{trx_id}", response_model=BaseResponse[TransactionDetails])
 async def get_trx_details(
     trx_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("earnings", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -275,7 +311,7 @@ async def get_trx_details(
 @router.get("/earnings/transactions/{trx_id}/invoice")
 async def download_invoice(
     trx_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("earnings", "export")),
 ):
     """
     Download the PDF invoice for a transaction.
@@ -287,7 +323,7 @@ async def download_invoice(
 async def get_user_reports(
     limit: int = 10,
     offset: int = 0,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("reports", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -299,7 +335,7 @@ async def get_user_reports(
 
 @router.get("/admins", response_model=BaseResponse[list[UserListItem]])
 async def list_admins(
-    current_user: dict = Depends(require_role(["super_admin"])),
+    current_user: dict = Depends(require_permission("admins", "view")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     """
@@ -322,7 +358,7 @@ async def list_admins(
 
 @router.get("/settings", response_model=BaseResponse[dict])
 async def get_dashboard_settings(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("settings", "view")),
 ):
     """
     Get dashboard specific settings and configurations.
@@ -332,7 +368,7 @@ async def get_dashboard_settings(
 
 @router.get("/subscriptions", response_model=BaseResponse[list[SubscriptionPlan]])
 async def list_subscriptions(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("subscriptions", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -345,7 +381,7 @@ async def list_subscriptions(
 @router.post("/subscriptions", response_model=BaseResponse[str])
 async def create_subscription_plan(
     plan: SubscriptionPlanCreate,
-    current_user: dict = Depends(require_role(["super_admin"])),
+    current_user: dict = Depends(require_permission("subscriptions", "manage")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -357,7 +393,7 @@ async def create_subscription_plan(
 
 @router.get("/ai/stats", response_model=BaseResponse[AIStats])
 async def get_ai_stats(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("ai_logs", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -370,7 +406,7 @@ async def get_ai_stats(
 @router.get("/ai/logs", response_model=BaseResponse[list[AILog]])
 async def get_ai_logs(
     limit: int = 50,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("ai_logs", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -382,7 +418,7 @@ async def get_ai_logs(
 
 @router.get("/profile", response_model=BaseResponse[UserListItem])
 async def get_admin_profile(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -395,7 +431,7 @@ async def get_admin_profile(
 @router.patch("/profile", response_model=BaseResponse[bool])
 async def update_profile(
     data: ProfileUpdateRequest,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -408,7 +444,7 @@ async def update_profile(
 @router.post("/change-password", response_model=BaseResponse[bool])
 async def change_password(
     data: ChangePasswordRequest,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -420,7 +456,7 @@ async def change_password(
 
 @router.post("/logout", response_model=BaseResponse[bool])
 async def logout(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
 ):
     """
     Invalidate the current session. Corresponds to the 'Confirm logging out!' modal.
@@ -433,7 +469,7 @@ async def logout(
 @router.get("/settings/content", response_model=BaseResponse[str])
 async def get_settings_page_content(
     type: str, # privacy_policy, terms_conditions, about_us
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("settings", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -446,7 +482,7 @@ async def get_settings_page_content(
 @router.post("/settings/content", response_model=BaseResponse[bool])
 async def update_settings_page_content(
     data: SettingsContent,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("settings", "edit")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -496,7 +532,7 @@ async def reset_password(
 # INBOX (Messaging) Endpoints
 @router.get("/chats", response_model=BaseResponse[list[ChatConversation]])
 async def get_all_conversations(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -509,7 +545,7 @@ async def get_all_conversations(
 @router.get("/chats/{user_id}/messages", response_model=BaseResponse[list[ChatMessage]])
 async def get_chat_messages(
     user_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -524,7 +560,7 @@ async def send_message(
     user_id: str,
     text: str | None = None,
     image_url: str | None = None,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -541,7 +577,7 @@ async def list_admin_activities(
     page: int | None = None,
     q: str | None = None,
     search: str | None = None,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("activities", "view")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     query = _search_filter(search or q, ["title", "name", "description", "hostName"])
@@ -557,7 +593,7 @@ async def search_admin_activities(
     page: int | None = None,
     q: str | None = None,
     search: str | None = None,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("activities", "view")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     return await list_admin_activities(limit, offset, page, q, search, current_user, db)
@@ -566,7 +602,7 @@ async def search_admin_activities(
 @router.get("/activities/{activity_id}", response_model=BaseResponse[dict])
 async def get_admin_activity(
     activity_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("activities", "view")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
@@ -582,7 +618,7 @@ async def get_admin_activity(
 async def update_admin_activity_status(
     activity_id: str,
     body: dict | None = Body(default=None),
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("activities", "approve")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
@@ -600,7 +636,7 @@ async def update_admin_activity_status(
 async def approve_admin_activity(
     activity_id: str,
     body: dict | None = Body(default=None),
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("activities", "approve")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     return await update_admin_activity_status(activity_id, {"status": "approved", **(body or {})}, current_user, db)
@@ -610,7 +646,7 @@ async def approve_admin_activity(
 async def cancel_admin_activity(
     activity_id: str,
     body: dict | None = Body(default=None),
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("activities", "approve")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     return await update_admin_activity_status(activity_id, {"status": "cancelled", **(body or {})}, current_user, db)
@@ -619,7 +655,7 @@ async def cancel_admin_activity(
 @router.delete("/activities/{activity_id}", response_model=BaseResponse[bool])
 async def delete_admin_activity(
     activity_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("activities", "delete")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
@@ -635,7 +671,7 @@ async def list_admin_events(
     page: int | None = None,
     q: str | None = None,
     search: str | None = None,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("events", "view")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     query = _search_filter(search or q, ["title", "name", "description", "hostName"])
@@ -648,7 +684,7 @@ async def list_admin_events(
 async def update_admin_event_status(
     event_id: str,
     body: dict | None = Body(default=None),
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("events", "approve")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
@@ -669,7 +705,7 @@ async def list_admin_categories(
     page: int | None = None,
     q: str | None = None,
     search: str | None = None,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("categories", "view")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     query = _search_filter(search or q, ["categoryName", "name"])
@@ -692,7 +728,7 @@ async def list_admin_categories(
 @router.post("/categories")
 async def create_admin_category(
     body: dict = Body(...),
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("categories", "create")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     payload = {
@@ -713,7 +749,7 @@ async def create_admin_category(
 async def update_admin_category(
     category_id: str,
     body: dict = Body(...),
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("categories", "edit")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
@@ -732,7 +768,7 @@ async def update_admin_category(
 @router.delete("/categories/{category_id}")
 async def delete_admin_category(
     category_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("categories", "delete")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
@@ -747,7 +783,7 @@ async def list_event_creators(
     limit: int = 10,
     offset: int = 0,
     page: int | None = None,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "view")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     offset = _page_offset(page, limit, offset)
@@ -776,7 +812,7 @@ async def list_event_creators(
 @router.get("/event-creators/premium/{creator_id}")
 async def get_event_creator(
     creator_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "view")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
@@ -808,7 +844,7 @@ async def get_event_creator(
 async def payout_event_creator(
     creator_id: str,
     body: dict | None = Body(default=None),
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("earnings", "manage")),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
@@ -829,7 +865,7 @@ async def payout_event_creator(
 async def report_action(
     report_id: str,
     request: UserReportActionRequest,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("reports", "approve")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -842,7 +878,7 @@ async def report_action(
 @router.post("/reports/{report_id}/resolve", response_model=BaseResponse[bool])
 async def resolve_report_endpoint(
     report_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("reports", "approve")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -855,7 +891,7 @@ async def resolve_report_endpoint(
 @router.post("/reports/{report_id}/dismiss", response_model=BaseResponse[bool])
 async def dismiss_report_endpoint(
     report_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("reports", "approve")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -870,7 +906,7 @@ async def dismiss_report_endpoint(
 @router.post("/users/{user_id}/ban", response_model=BaseResponse[bool])
 async def block_user(
     user_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "edit")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -884,7 +920,7 @@ async def block_user(
 @router.post("/users/{user_id}/unban", response_model=BaseResponse[bool])
 async def unblock_user(
     user_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "edit")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -898,7 +934,7 @@ async def unblock_user(
 async def add_user_note(
     user_id: str,
     request: UserNoteRequest,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("users", "edit")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -911,7 +947,7 @@ async def add_user_note(
 # Subscription Fees endpoints
 @router.get("/subscriptions/fees", response_model=BaseResponse[SubscriptionFeesResponse])
 async def get_subscription_fees(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("subscriptions", "view")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -925,7 +961,7 @@ async def get_subscription_fees(
 @router.put("/subscriptions/fees", response_model=BaseResponse[SubscriptionFeesResponse])
 async def update_subscription_fees(
     request: SubscriptionFeesUpdateRequest,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_permission("subscriptions", "manage")),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -939,7 +975,7 @@ async def update_subscription_fees(
 @router.put("/profile", response_model=BaseResponse[bool])
 async def update_admin_profile_put(
     data: ProfileUpdateRequest,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -952,7 +988,7 @@ async def update_admin_profile_put(
 @router.put("/change-password", response_model=BaseResponse[bool])
 async def change_admin_password_put(
     data: ChangePasswordRequest,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -964,7 +1000,7 @@ async def change_admin_password_put(
 # Logout PUT alignment
 @router.put("/logout", response_model=BaseResponse[bool])
 async def logout_admin_put(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
 ):
     """
     PUT method fallback for logout.
@@ -975,7 +1011,7 @@ async def logout_admin_put(
 # Logout all sessions fallback
 @router.post("/logout-all", response_model=BaseResponse[bool])
 async def logout_all(
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
 ):
     """
     Fallback endpoint to logout all devices.
@@ -987,9 +1023,63 @@ async def logout_all(
 @router.post("/earnings/transactions/{trx_id}/invoice")
 async def generate_transaction_invoice_post(
     trx_id: str,
-    current_user: dict = Depends(require_role(["admin", "super_admin"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "supervisor", "staff"])),
 ):
     """
     POST method fallback for generating transaction invoice (delegates to download_invoice).
     """
     return await download_invoice(trx_id, current_user)
+
+
+# Admin and super_admin Login endpoints
+@router.post("/auth/login", response_model=BaseResponse[dict])
+@router.post("/login", response_model=BaseResponse[dict])
+async def admin_login(
+    body: dict = Body(...),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+):
+    """
+    Authentication endpoint for dashboard users (admins, super_admins, owners, etc.).
+    """
+    email = body.get("email", "").strip().lower()
+    password = body.get("password", "")
+
+    if not email or not password:
+        raise AppException(status_code=400, code="INVALID_INPUT", message="Email and password are required.")
+
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise AppException(status_code=401, code="INVALID_CREDENTIALS", message="Invalid email or password.")
+
+    stored_password = user.get("hashed_password") or user.get("password_hash")
+    if not stored_password or not verify_password(password, stored_password):
+        raise AppException(status_code=401, code="INVALID_CREDENTIALS", message="Invalid email or password.")
+
+    # Fetch effective user roles from the RBAC system
+    from app.services.rbac_service import RBACService
+    rbac = RBACService(db)
+    role_slugs = await rbac.get_user_role_slugs(str(user["_id"]), user.get("role", "user"))
+    allowed_roles = {"super_admin", "admin", "owner", "supervisor", "staff"}
+    matching_roles = role_slugs & allowed_roles
+
+    if not matching_roles:
+        raise AppException(status_code=403, code="FORBIDDEN", message="You do not have permission to access the dashboard.")
+
+    # Generate JWT token
+    access_token = create_access_token(user_id=str(user["_id"]), email=user["email"])
+    role = list(matching_roles)[0]
+
+    return BaseResponse(
+        data={
+            "accessToken": access_token,
+            "refreshToken": None,
+            "email": email,
+            "admin": {
+                "id": str(user["_id"]),
+                "full_name": user.get("full_name") or user.get("name") or "Admin",
+                "email": email,
+                "role": role
+            }
+        },
+        message="Login successful"
+    )

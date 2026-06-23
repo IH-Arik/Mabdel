@@ -38,13 +38,11 @@ const actionChips = [
 
 const buildWorkflowPrefillBody = (transcript) => ({
   transcript,
-  audio_url: "",
-  audio_base64: "",
   audio_mime_type: "audio/wav",
   audio_filename: "voice.wav",
   response_mode: "both",
-  voice_id: "",
-  workflow_intent: "",
+  voice_id: null,
+  workflow_intent: null,
   current_values: {},
 });
 
@@ -173,43 +171,52 @@ const MicListeningScreen = () => {
   const submitWorkflowPrefill = useCallback(
     async (rawTranscript) => {
       const transcript = rawTranscript.trim();
-      const requestBody = buildWorkflowPrefillBody(transcript);
+      let finalResult;
 
-      const workflowResponse = await workflowPrefill(requestBody).unwrap();
-      const workflowPayload = workflowResponse?.data || workflowResponse || {};
+      try {
+        const requestBody = buildWorkflowPrefillBody(transcript);
+        const workflowResponse = await workflowPrefill(requestBody).unwrap();
+        const workflowPayload = workflowResponse?.data || workflowResponse || {};
 
-      const generatedText = getGeneratedTextFromWorkflow(workflowPayload);
-      let finalResult = workflowPayload;
+        const generatedText = getGeneratedTextFromWorkflow(workflowPayload);
+        finalResult = workflowPayload;
 
-      if (generatedText) {
-        setStatusText("Processing AI chat...");
-        const chatResponse = await aiChat({
-          content: generatedText,
-          response_mode: "text",
-          voice_id: null,
-        }).unwrap();
-        finalResult = chatResponse?.data || chatResponse || workflowPayload;
-      } else {
-        setStatusText("No text found. Uploading voice...");
-        const uploadResponse = await aiVoiceChatUpload({
-          transcript,
-          audio_url: "",
-          audio_base64: "",
-          audio_mime_type: "audio/wav",
-          audio_filename: "voice.wav",
-          response_mode: "both",
-          voice_id: "",
-          workflow_intent: "",
-        }).unwrap();
-        finalResult = uploadResponse?.data || uploadResponse || workflowPayload;
+        if (generatedText) {
+          setStatusText("Processing AI chat...");
+          const chatResponse = await aiChat({
+            content: generatedText,
+            response_mode: "text",
+            voice_id: null,
+          }).unwrap();
+          finalResult = chatResponse?.data || chatResponse || workflowPayload;
+        } else {
+          setStatusText("No text found. Uploading voice...");
+          const uploadResponse = await aiVoiceChatUpload({
+            transcript,
+            audio_mime_type: "audio/wav",
+            audio_filename: "voice.wav",
+            response_mode: "both",
+            voice_id: null,
+          }).unwrap();
+          finalResult = uploadResponse?.data || uploadResponse || workflowPayload;
+        }
+      } catch (err) {
+        const errCode = err?.data?.error?.code || err?.data?.code;
+        if (errCode === "AI_WORKFLOW_UNSUPPORTED") {
+          // General chat (not a workflow command) → send to AI chatbot
+          setStatusText("Processing AI chat...");
+          const chatResponse = await aiChat({
+            content: transcript,
+            response_mode: "text",
+            voice_id: null,
+          }).unwrap();
+          finalResult = chatResponse?.data || chatResponse || {};
+        } else {
+          throw err;
+        }
       }
 
-      setWorkflowJsonResponse(
-        formatJson({
-          workflow_prefill: workflowPayload,
-          ai_result: finalResult,
-        }),
-      );
+      setWorkflowJsonResponse(formatJson({ ai_result: finalResult }));
       setStatusText("Workflow response received");
 
       if (finalResult?.navigation?.path || finalResult?.navigation?.screen) {

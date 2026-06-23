@@ -135,6 +135,16 @@ class MongoConnectionManager:
         await self.database.invoices.create_index([("owner_user_id", 1), ("client_name", 1)])
         await self.database.invoices.create_index([("owner_user_id", 1), ("due_date", 1)])
         await self.database.counters.create_index("_id")
+        # ── RBAC ──────────────────────────────────────────────────────────────
+        await self.database.rbac_permissions.create_index([("module", 1), ("action", 1)], unique=True)
+        await self.database.rbac_roles.create_index("slug", unique=True)
+        await self.database.rbac_roles.create_index([("is_active", 1), ("hierarchy_level", -1)])
+        await self.database.rbac_user_roles.create_index([("user_id", 1), ("role_slug", 1)])
+        await self.database.rbac_user_roles.create_index([("user_id", 1), ("organization_id", 1)])
+        await self.database.rbac_user_roles.create_index("expires_at", sparse=True)
+        await self.database.rbac_audit_logs.create_index([("actor_id", 1), ("created_at", -1)])
+        await self.database.rbac_audit_logs.create_index([("resource_type", 1), ("resource_id", 1), ("created_at", -1)])
+        await self.database.rbac_audit_logs.create_index("created_at")
 
     async def ping(self) -> bool:
         if self.client is None:

@@ -20,7 +20,11 @@ class UserModel(BaseModel):
     phone_number: str | None = None
     forwarding_number: str | None = None
     language_preference: str = "EN"
-    role: str = "user"
+    # ── RBAC ──────────────────────────────────────────────────────────────────
+    # primary_role is the canonical slug used for quick checks and fallback.
+    # Effective permissions are resolved via rbac_user_roles + rbac_roles collections.
+    role: str = "user"  # legacy compat — mirrors primary role slug
+    primary_role: str = "user"  # "super_admin" | "admin" | "owner" | "supervisor" | "staff" | "user"
     organization_id: str | None = None
     # Twilio sub-account provisioning (platform-managed)
     twilio_sub_account_sid: str | None = None

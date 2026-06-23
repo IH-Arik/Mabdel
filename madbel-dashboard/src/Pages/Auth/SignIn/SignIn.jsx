@@ -86,7 +86,10 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen w-full flex items-center justify-center p-4"
+      style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0f8b9c 0%, #17b4c9 50%, #e0f7fa 100%)" }}
+    >
       <Form
         name="login"
         initialValues={{ remember: true }}

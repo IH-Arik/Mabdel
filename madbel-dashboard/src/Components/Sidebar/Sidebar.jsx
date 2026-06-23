@@ -13,63 +13,57 @@ import {
   UserCog,
   Users,
   Brain,
-  MessageSquare
+  MessageSquare,
+  LayoutDashboard,
 } from "lucide-react";
 import { BsBadgeAd } from "react-icons/bs";
 import { SiActivitypub } from "react-icons/si";
-import { clearAdminSession } from "../../utils/auth";
+import { clearAdminSession, getAdminRole } from "../../utils/auth";
+
+const ADMIN_MENU = [
+  { icon: <MdDashboard className="w-5 h-5" />, label: "Dashboard", Link: "/dashboard" },
+  { icon: <Users className="w-5 h-5" />, label: "User List", Link: "/user-list" },
+  { icon: <ChartColumnIncreasing className="w-5 h-5" />, label: "Earnings", Link: "/earnings" },
+  { icon: <Crown className="w-5 h-5" />, label: "Subscriptions", Link: "/subscriptions" },
+  { icon: <UserCog className="w-5 h-5" />, label: "Create Admin", Link: "/create-admin" },
+  { icon: <LayoutDashboard className="w-5 h-5" />, label: "Team Management", Link: "/owner/team" },
+  { icon: <Brain className="w-5 h-5" />, label: "AI Analysis", Link: "/analysis-page" },
+  { icon: <MessageSquare className="w-5 h-5" />, label: "Support Chat", Link: "/messages" },
+  { icon: <TriangleAlert className="w-5 h-5" />, label: "Reports", Link: "/reports" },
+  { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
+];
+
+const OWNER_MENU = [
+  { icon: <LayoutDashboard className="w-5 h-5" />, label: "Overview", Link: "/owner" },
+  { icon: <Users className="w-5 h-5" />, label: "Team Management", Link: "/owner/team" },
+  { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
+];
+
+const SUPERVISOR_MENU = [
+  { icon: <LayoutDashboard className="w-5 h-5" />, label: "Overview", Link: "/owner" },
+  { icon: <Users className="w-5 h-5" />, label: "My Team", Link: "/owner/team" },
+  { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
+];
+
+const STAFF_MENU = [
+  { icon: <LayoutDashboard className="w-5 h-5" />, label: "Overview", Link: "/owner" },
+  { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
+];
+
+const ROLE_MENU = {
+  super_admin: ADMIN_MENU,
+  admin: ADMIN_MENU,
+  owner: OWNER_MENU,
+  supervisor: SUPERVISOR_MENU,
+  staff: STAFF_MENU,
+};
 
 const Sidebar = ({ closeDrawer }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const role = getAdminRole();
 
-  const menuItems = [
-    {
-      icon: <MdDashboard className="w-5 h-5" />,
-      label: "Dashboard",
-      Link: "/",
-    },
-    {
-      icon: <Users className="w-5 h-5" />,
-      label: "User List",
-      Link: "/user-list",
-    },
-    {
-      icon: <ChartColumnIncreasing className="w-5 h-5" />,
-      label: "Earnings",
-      Link: "/earnings",
-    },
-    {
-      icon: <Crown className="w-5 h-5" />,
-      label: "Subscriptions",
-      Link: "/subscriptions",
-    },
-    {
-      icon: <UserCog className="w-5 h-5" />,
-      label: "Create Admin",
-      Link: "/create-admin",
-    },
-    {
-      icon: <Brain className="w-5 h-5" />,
-      label: "AI Analysis",
-      Link: "/analysis-page",
-    },
-    {
-      icon: <MessageSquare className="w-5 h-5" />,
-      label: "Support Chat",
-      Link: "/messages",
-    },
-    {
-      icon: <TriangleAlert className="w-5 h-5" />,
-      label: "Reports",
-      Link: "/reports",
-    },
-    {
-      icon: <Settings className="w-5 h-5" />,
-      label: "Settings",
-      Link: "/settings",
-    },
-  ];
+  const menuItems = ROLE_MENU[role] || ADMIN_MENU;
 
   const handleLogout = () => {
     clearAdminSession();
@@ -83,17 +77,24 @@ const Sidebar = ({ closeDrawer }) => {
         <img src={brandlogo} alt="logo" className="w-40 h-40" />
       </div>
 
+      {role && !["super_admin", "admin"].includes(role) && (
+        <div className="mx-3 mb-2 rounded-lg bg-cyan-50 px-3 py-1.5 text-center">
+          <span className="text-xs font-semibold text-[#17b4c9] capitalize">{role} Dashboard</span>
+        </div>
+      )}
+
       <div className="flex-1 pr-1 overflow-y-auto">
         {menuItems.map((item) => {
-          const isActive = location.pathname === item.Link;
+          const isActive =
+            item.Link === "/owner"
+              ? location.pathname === "/owner"
+              : location.pathname.startsWith(item.Link);
 
           return (
             <div key={item.label}>
               <div
                 className={`flex justify-between items-center px-5 py-2 my-2 rounded-lg cursor-pointer transition-all hover:bg-[#17b4c9] hover:text-white hover:font-semibold ${
-                  isActive
-                    ? "bg-[#17b4c9] text-white font-semibold"
-                    : "text-black"
+                  isActive ? "bg-[#17b4c9] text-white font-semibold" : "text-black"
                 }`}
               >
                 <Link
@@ -104,9 +105,7 @@ const Sidebar = ({ closeDrawer }) => {
                   {item.icon}
                   <p>{item.label}</p>
                   {item.isDropdown && (
-                    <BiChevronDown
-                      className={`${isActive ? "rotate-180" : ""}`}
-                    />
+                    <BiChevronDown className={`${isActive ? "rotate-180" : ""}`} />
                   )}
                 </Link>
               </div>

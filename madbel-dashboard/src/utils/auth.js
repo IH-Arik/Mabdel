@@ -65,6 +65,11 @@ export const getAdminSession = () => {
 
 export const isAdminAuthenticated = () => Boolean(getAdminSession());
 
+export const getAdminRole = () => {
+  const session = getAdminSession();
+  return session?.profile?.role || "user";
+};
+
 export const clearAdminSession = () => {
   localStorage.removeItem(AUTH_KEY);
 };

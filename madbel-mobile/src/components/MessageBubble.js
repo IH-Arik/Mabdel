@@ -20,8 +20,15 @@ const MessageBubble = ({
   const status = message?.raw?.status || message?.status || null;
   const tick = isMe && isLastInGroup ? (STATUS_TICKS[status] || STATUS_TICKS.sent) : null;
 
-  const replyPreview = message?.raw?.reply_to_message_preview || message?.replyPreview || null;
-  const forwardFrom  = message?.raw?.forward_from_message_preview || message?.forwardPreview || null;
+  const replyPreviewRaw = message?.raw?.reply_to_message_preview || message?.replyPreview || null;
+  const replyPreview = replyPreviewRaw
+    ? (typeof replyPreviewRaw === "string" ? replyPreviewRaw : replyPreviewRaw?.content || "")
+    : null;
+
+  const forwardFromRaw = message?.raw?.forward_from_message_preview || message?.forwardPreview || null;
+  const forwardFrom = forwardFromRaw
+    ? (typeof forwardFromRaw === "string" ? forwardFromRaw : forwardFromRaw?.content || "")
+    : null;
 
   return (
     <Pressable

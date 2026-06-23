@@ -38,6 +38,7 @@ const PLATFORMS = [
   { id: "instagram", label: "Instagram", emoji: "◎", color: "#E1306C" },
   { id: "linkedin", label: "LinkedIn", emoji: "in", color: "#0A66C2" },
   { id: "x", label: "X Post", emoji: "𝕏", color: "#FFFFFF" },
+  { id: "threads", label: "Threads", emoji: "@", color: "#FFFFFF" },
 ];
 
 const CreatePostScreen = () => {

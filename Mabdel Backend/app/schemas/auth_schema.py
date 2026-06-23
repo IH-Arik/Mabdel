@@ -72,6 +72,8 @@ class UserResponse(BaseModel):
     date_of_birth: date | None = None
     country: str | None = None
     language_preference: str = "EN"
+    role: str = "user"
+    primary_role: str = "user"
     created_at: datetime
 
 
