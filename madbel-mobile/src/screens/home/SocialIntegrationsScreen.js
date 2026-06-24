@@ -203,6 +203,21 @@ const SocialIntegrationsScreen = () => {
       );
       return;
     }
+    if (item.platform === "instagram") {
+      Alert.alert(
+        "Instagram uses Facebook Login",
+        "Instagram Business accounts are managed through Meta. You'll be redirected to Facebook to authorize access to your connected Instagram account.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Continue", onPress: () => _startOauth(item) },
+        ]
+      );
+      return;
+    }
+    _startOauth(item);
+  };
+
+  const _startOauth = async (item) => {
     try {
       const res = await triggerOauthStart({ platform: item.platform }).unwrap();
       const authUrl = res?.data?.auth_url || res?.auth_url;

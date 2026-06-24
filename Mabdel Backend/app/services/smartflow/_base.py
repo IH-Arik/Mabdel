@@ -663,6 +663,7 @@ class SmartFlowBase:
             "sms": "SMS",
             "email": "Email",
             "google_business": "Google Business",
+            "threads": "Threads",
             "ai": "AI",
         }
         return labels.get(platform or "", "Unknown")
@@ -690,6 +691,7 @@ class SmartFlowBase:
             "sms": "#3B82F6",
             "email": "#64748B",
             "google_business": "#4285F4",
+            "threads": "#101010",
             "ai": "#06B6D4",
         }
         return colors.get(platform or "", "#64748B")
@@ -1298,6 +1300,16 @@ class SmartFlowBase:
                 "is_available": True,
                 "is_configured": True,
             },
+            {
+                "platform": "threads",
+                "platform_label": "Threads",
+                "description": "Publish posts and manage replies.",
+                "icon_key": "threads",
+                "brand_color": "#101010",
+                "auth_mode": "oauth",
+                "is_available": True,
+                "is_configured": bool(settings.THREADS_APP_ID and settings.THREADS_APP_SECRET),
+            },
         ]
 
     @staticmethod
@@ -1380,6 +1392,17 @@ class SmartFlowBase:
                 "client_secret": settings.SNAPCHAT_CLIENT_SECRET,
                 "redirect_uri": settings.SNAPCHAT_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/snapchat/oauth/callback",
                 "scopes": ["snapchat-marketing-api"],
+                "token_payload": {"grant_type": "authorization_code"},
+                "extra_authorize_params": {},
+            },
+            "threads": {
+                "provider": "threads",
+                "authorize_url": "https://www.threads.net/oauth/authorize",
+                "token_url": "https://graph.threads.net/oauth/access_token",
+                "client_id": settings.THREADS_APP_ID,
+                "client_secret": settings.THREADS_APP_SECRET,
+                "redirect_uri": settings.THREADS_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/threads/oauth/callback",
+                "scopes": ["threads_basic"],
                 "token_payload": {"grant_type": "authorization_code"},
                 "extra_authorize_params": {},
             },
@@ -2887,6 +2910,19 @@ class SmartFlowBase:
             prefill.setdefault("priority", "standard")
             return prefill
 
+        if intent == "contact":
+            if final_name:
+                parts = final_name.strip().split(" ", 1)
+                prefill.setdefault("first_name", parts[0])
+                if len(parts) > 1:
+                    prefill.setdefault("last_name", parts[1])
+            if final_email:
+                prefill.setdefault("email", final_email)
+            phone_match = re.search(r"\+?[\d][\d\s\-\(\)]{6,}\d", text)
+            if phone_match and not prefill.get("phone"):
+                prefill["phone"] = re.sub(r"[\s\-\(\)]", "", phone_match.group(0))
+            return prefill
+
         return prefill
 
     async def _extract_workflow_prefill_with_ai(self, intent: str, transcript: str, current_values: dict) -> dict:
@@ -3009,6 +3045,16 @@ class SmartFlowBase:
                     "end_date": "YYYY-MM-DD",
                 }
             },
+            "contact": {
+                "fields": {
+                    "first_name": "contact first name",
+                    "last_name": "contact last name if stated",
+                    "phone": "phone number if explicitly stated",
+                    "email": "email address if explicitly stated",
+                    "date_of_birth": "YYYY-MM-DD if explicitly stated",
+                    "notes": "any notes about the contact if stated",
+                }
+            },
         }
         payload = {
             "intent": intent,
@@ -3045,6 +3091,7 @@ class SmartFlowBase:
                 "prompt", "title", "client_name", "client_email", "client_phone", "agreement_type", "priority",
                 "start_date", "end_date",
             },
+            "contact": {"first_name", "last_name", "phone", "email", "date_of_birth", "notes"},
         }.get(intent, set())
         clean: dict = {}
         for key, value in raw.items():
@@ -3117,6 +3164,7 @@ class SmartFlowBase:
             "calendar": ["title", "starts_at", "ends_at"],
             "lease": ["prompt"],
             "agreement": ["prompt", "client_name"],
+            "contact": ["first_name"],
         }.get(intent, [])
         missing = [field for field in required if prefill.get(field) in (None, "", [])]
         if intent == "bulk_message" and not prefill.get("recipient_emails") and not prefill.get("contact_ids") and not prefill.get("group_ids"):
@@ -3131,12 +3179,13 @@ class SmartFlowBase:
             "calendar": {"endpoint": "/api/v1/smartflow/calendar/events", "submit_label": "Schedule Meeting"},
             "lease": {"endpoint": "/api/v1/smartflow/leases/generate", "submit_label": "Generate Lease"},
             "agreement": {"endpoint": "/api/v1/smartflow/agreements/generate", "submit_label": "Generate Agreement"},
+            "contact": {"endpoint": "/api/v1/smartflow/contacts", "submit_label": "Save Contact"},
         }
         return configs[intent]
 
     @staticmethod
     def _workflow_label(intent: str) -> str:
-        return {"invoice": "Invoice", "bulk_message": "Bulk message", "calendar": "Calendar", "lease": "Lease", "agreement": "Agreement"}.get(intent, "AI")
+        return {"invoice": "Invoice", "bulk_message": "Bulk message", "calendar": "Calendar", "lease": "Lease", "agreement": "Agreement", "contact": "Contact"}.get(intent, "AI")
 
     @staticmethod
     def _extract_qty_and_price(text: str, default_amount: float | None = None) -> tuple[int, float]:

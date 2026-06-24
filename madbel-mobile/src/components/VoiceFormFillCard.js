@@ -46,6 +46,7 @@ const DESIRED_FIELDS = {
   invoice: ["client_name", "client_email", "items", "due_date"],
   bulk_message: ["content", "subject", "recipients"],
   calendar: ["title", "starts_at", "ends_at"],
+  contact: ["first_name", "last_name", "phone", "email", "date_of_birth", "notes"],
 };
 
 const FIELD_LABELS = {
@@ -58,14 +59,18 @@ const FIELD_LABELS = {
   items: "Items", notes: "Notes", subject: "Subject", channel: "Channel",
   recipients: "Recipients", starts_at: "Start time", ends_at: "End time",
   description: "Description",
+  first_name: "First name", last_name: "Last name", phone: "Phone",
+  email: "Email", date_of_birth: "Date of birth",
 };
 
 // Retry hints shown when extracted value fails validation
 const RETRY_HINTS = {
   client_email: "I didn't catch a valid email. Please say: name, then AT, then gmail, then DOT, then com.",
   tenant_email: "I didn't catch a valid email. Please say: name AT domain DOT com.",
+  email: "I didn't catch a valid email. Please say: name AT domain DOT com.",
   client_phone: "I need a phone number with at least 7 digits. Please repeat.",
   tenant_phone: "I need a phone number with at least 7 digits. Please repeat.",
+  phone: "I need a phone number with at least 7 digits. Please repeat.",
   monthly_rent: "I need a number. Please say the amount, like: 2500 dollars.",
   security_deposit: "I need a number. Please say the amount, like: 5000 dollars.",
 };
@@ -224,6 +229,12 @@ const buildConfirmationText = (prefill, intent) => {
     const tenant = p.tenant_name || "the tenant";
     const rent = p.monthly_rent ? ` at $${p.monthly_rent}/month` : "";
     return `I'll create a lease for ${tenant}${rent}. Does that look right?`;
+  }
+  if (intent === "contact") {
+    const name = [p.first_name, p.last_name].filter(Boolean).join(" ") || "the contact";
+    const phone = p.phone ? `, phone ${p.phone}` : "";
+    const email = p.email ? `, email ${p.email}` : "";
+    return `I'll save ${name}${phone}${email}. Does that look right?`;
   }
   const count = Object.values(p).filter((v) => v && v !== "").length;
   return `I've collected ${count} fields. Does everything look right?`;

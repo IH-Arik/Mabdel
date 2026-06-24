@@ -515,6 +515,17 @@ class MabdelAIService:
             "action_keywords": ["create", "new", "add", "save", "make"]
         },
         {
+            "intent": "contact",
+            "action": "create",
+            "entity": "contact",
+            "screen": "AddContact",
+            "path": "/contacts/create",
+            "route_name": "contacts_create",
+            "label": "Add Contact",
+            "aliases": ["contact", "contacts", "client", "tenant"],
+            "action_keywords": ["create", "new", "add", "save", "make"]
+        },
+        {
             "intent": "profile",
             "action": "view",
             "entity": "profile",

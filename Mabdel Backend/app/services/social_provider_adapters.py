@@ -233,6 +233,13 @@ class InstagramAdapter(MetaMessagingAdapter):
     platform = "instagram"
 
 
+class ThreadsAdapter(SocialProviderAdapter):
+    platform = "threads"
+    supports_webhooks = False
+    supports_recent_sync = False
+    unsupported_reason = "unsupported_by_provider"
+
+
 ADAPTERS: dict[str, SocialProviderAdapter] = {
     "facebook_messenger": FacebookMessengerAdapter(),
     "instagram": InstagramAdapter(),
@@ -242,6 +249,7 @@ ADAPTERS: dict[str, SocialProviderAdapter] = {
     "linkedin": UnsupportedInboxAdapter("linkedin", "unsupported_by_provider"),
     "twitter_x": UnsupportedInboxAdapter("twitter_x", "needs_provider_access"),
     "snapchat": SnapchatAdapter(),
+    "threads": ThreadsAdapter(),
 }
 
 
