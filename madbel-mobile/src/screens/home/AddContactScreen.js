@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -63,7 +63,7 @@ const AddContactScreen = () => {
     [contact],
   );
 
-  const { control, getValues } = useForm({
+  const { control, getValues, setValue } = useForm({
     defaultValues: {
       firstName: defaults.firstName,
       lastName: defaults.lastName,
@@ -75,6 +75,19 @@ const AddContactScreen = () => {
   const [dob, setDob] = useState(defaults.dob);
   const [avatarUrl, setAvatarUrl] = useState(defaults.avatarUrl);
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [voiceTrigger, setVoiceTrigger] = useState(0);
+
+  useEffect(() => {
+    const p = route?.params?.prefill;
+    if (!p || typeof p !== "object" || !Object.keys(p).length) return;
+    if (p.first_name) setValue("firstName", p.first_name);
+    if (p.last_name) setValue("lastName", p.last_name);
+    if (p.phone) setValue("phone", p.phone);
+    if (p.email) setValue("email", p.email);
+    if (p.notes) setValue("notes", p.notes);
+    if (p.date_of_birth) setDob(p.date_of_birth);
+    navigation.setParams?.({ prefill: undefined });
+  }, [route?.params?.prefill]);
 
   const [createContact, { isLoading: creatingContact }] =
     useMadbelCreateContactMutation();
@@ -303,6 +316,15 @@ const AddContactScreen = () => {
             label="contact"
             workflowIntent="contact"
             sourceScreen="AddContact"
+            triggerOpen={voiceTrigger}
+            currentValues={{
+              first_name: getValues("firstName"),
+              last_name: getValues("lastName"),
+              phone: getValues("phone"),
+              email: getValues("email"),
+              notes: getValues("notes"),
+              date_of_birth: dob,
+            }}
           />
 
           <View style={styles.saveWrap}>

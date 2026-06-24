@@ -24,6 +24,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "Tell me about the lease — tenant name, property address, and monthly rent.",
     bulk_message: "What message do you want to send and to whom?",
     calendar: "Tell me about the meeting — title, date, and time.",
+    contact: "Tell me about the contact — first name, last name, phone, and email.",
   },
   "bn-BD": {
     invoice: "ইনভয়েস সম্পর্কে বলুন — ক্লায়েন্টের নাম, সার্ভিসের বিবরণ, পরিমাণ এবং নির্ধারিত তারিখ।",
@@ -31,6 +32,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "লিজ সম্পর্কে বলুন — ভাড়াটেনার নাম, সম্পত্তির ঠিকানা এবং মাসিক ভাড়া।",
     bulk_message: "আপনি কী বার্তা পাঠাতে চান এবং কাকে পাঠাবেন?",
     calendar: "মিটিং সম্পর্কে বলুন — শিরোনাম, তারিখ এবং সময়।",
+    contact: "কন্ট্যাক্ট সম্পর্কে বলুন — নাম, ফোন এবং ইমেইল।",
   },
   "hi-IN": {
     invoice: "इनवॉइस के बारे में बताएं — क्लाइंट का नाम, सेवा विवरण, राशि और देय तिथि।",
@@ -38,6 +40,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "लीज के बारे में बताएं — किरायेदार का नाम, संपत्ति का पता और मासिक किराया।",
     bulk_message: "आप कौन सा संदेश भेजना चाहते हैं और किसे?",
     calendar: "मीटिंग के बारे में बताएं — शीर्षक, तारीख और समय।",
+    contact: "संपर्क के बारे में बताएं — नाम, फ़ोन और ईमेल।",
   },
   "ar-SA": {
     invoice: "أخبرني عن الفاتورة — اسم العميل، وصف الخدمة، المبلغ، وتاريخ الاستحقاق.",
@@ -45,6 +48,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "أخبرني عن عقد الإيجار — اسم المستأجر، عنوان العقار، والإيجار الشهري.",
     bulk_message: "ما هي الرسالة التي تريد إرسالها وإلى من؟",
     calendar: "أخبرني عن الاجتماع — العنوان والتاريخ والوقت.",
+    contact: "أخبرني عن جهة الاتصال — الاسم والهاتف والبريد الإلكتروني.",
   },
   "es-ES": {
     invoice: "Cuéntame sobre la factura — nombre del cliente, descripción del servicio, monto y fecha de vencimiento.",
@@ -52,6 +56,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "Cuéntame sobre el contrato de alquiler — nombre del inquilino, dirección y renta mensual.",
     bulk_message: "¿Qué mensaje quieres enviar y a quién?",
     calendar: "Cuéntame sobre la reunión — título, fecha y hora.",
+    contact: "Cuéntame sobre el contacto — nombre, teléfono y correo electrónico.",
   },
   "fr-FR": {
     invoice: "Parlez-moi de la facture — nom du client, description du service, montant et date d'échéance.",
@@ -59,6 +64,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "Parlez-moi du bail — nom du locataire, adresse du bien et loyer mensuel.",
     bulk_message: "Quel message voulez-vous envoyer et à qui?",
     calendar: "Parlez-moi de la réunion — titre, date et heure.",
+    contact: "Parlez-moi du contact — prénom, nom, téléphone et e-mail.",
   },
   "pt-BR": {
     invoice: "Fale sobre a fatura — nome do cliente, descrição do serviço, valor e data de vencimento.",
@@ -66,6 +72,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "Fale sobre o contrato de aluguel — nome do inquilino, endereço e aluguel mensal.",
     bulk_message: "Que mensagem você quer enviar e para quem?",
     calendar: "Fale sobre a reunião — título, data e horário.",
+    contact: "Fale sobre o contato — nome, telefone e e-mail.",
   },
   "ru-RU": {
     invoice: "Расскажите о счёте — имя клиента, описание услуги, сумма и срок оплаты.",
@@ -73,6 +80,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "Расскажите об аренде — имя арендатора, адрес и ежемесячная арендная плата.",
     bulk_message: "Какое сообщение вы хотите отправить и кому?",
     calendar: "Расскажите о встрече — название, дата и время.",
+    contact: "Расскажите о контакте — имя, телефон и электронная почта.",
   },
   "ur-PK": {
     invoice: "انوائس کے بارے میں بتائیں — کلائنٹ کا نام، سروس کی تفصیل، رقم اور ادائیگی کی تاریخ۔",
@@ -80,6 +88,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "کرایہ معاہدے کے بارے میں بتائیں — کرایہ دار کا نام، پراپرٹی کا پتہ اور ماہانہ کرایہ۔",
     bulk_message: "آپ کون سا پیغام بھیجنا چاہتے ہیں اور کسے؟",
     calendar: "میٹنگ کے بارے میں بتائیں — عنوان، تاریخ اور وقت۔",
+    contact: "رابطے کے بارے میں بتائیں — نام، فون اور ای میل۔",
   },
   "tr-TR": {
     invoice: "Fatura hakkında bilgi verin — müşteri adı, hizmet açıklaması, tutar ve vade tarihi.",
@@ -87,6 +96,7 @@ export const INITIAL_PROMPTS_I18N = {
     lease: "Kira sözleşmesi hakkında bilgi verin — kiracı adı, mülk adresi ve aylık kira.",
     bulk_message: "Ne mesaj göndermek istiyorsunuz ve kime?",
     calendar: "Toplantı hakkında bilgi verin — başlık, tarih ve saat.",
+    contact: "Kişi hakkında bilgi verin — ad, telefon ve e-posta.",
   },
 };
 
@@ -132,6 +142,14 @@ const FIELD_QUESTIONS_BASE = {
     starts_at: "When does the meeting start?",
     ends_at: "When does it end?",
     description: "Any agenda or description?",
+  },
+  contact: {
+    first_name: "What is the contact's first name?",
+    last_name: "What is the contact's last name?",
+    phone: "What is the contact's phone number?",
+    email: "What is the contact's email address? (e.g. john@gmail.com)",
+    date_of_birth: "What is the contact's date of birth? (say skip to skip)",
+    notes: "Any notes for this contact? (say skip to skip)",
   },
 };
 
@@ -180,6 +198,14 @@ export const FIELD_QUESTIONS_I18N = {
       ends_at: "কখন শেষ হবে?",
       description: "কোনো এজেন্ডা বা বিবরণ আছে?",
     },
+    contact: {
+      first_name: "কন্ট্যাক্টের নাম (প্রথম) কী?",
+      last_name: "কন্ট্যাক্টের পদবি কী?",
+      phone: "কন্ট্যাক্টের ফোন নম্বর কী?",
+      email: "কন্ট্যাক্টের ইমেইল ঠিকানা কী? (যেমন john@gmail.com)",
+      date_of_birth: "কন্ট্যাক্টের জন্মতারিখ কী? (বাদ দিতে 'skip' বলুন)",
+      notes: "কোনো নোট আছে? (বাদ দিতে 'skip' বলুন)",
+    },
   },
 
   "hi-IN": {
@@ -223,6 +249,14 @@ export const FIELD_QUESTIONS_I18N = {
       starts_at: "मीटिंग कब शुरू होती है?",
       ends_at: "कब समाप्त होती है?",
       description: "कोई एजेंडा या विवरण?",
+    },
+    contact: {
+      first_name: "संपर्क का पहला नाम क्या है?",
+      last_name: "संपर्क का अंतिम नाम क्या है?",
+      phone: "संपर्क का फ़ोन नंबर क्या है?",
+      email: "संपर्क का ईमेल पता क्या है? (जैसे john@gmail.com)",
+      date_of_birth: "संपर्क की जन्म तिथि क्या है? (छोड़ने के लिए 'skip' कहें)",
+      notes: "कोई नोट? (छोड़ने के लिए 'skip' कहें)",
     },
   },
 
@@ -268,6 +302,14 @@ export const FIELD_QUESTIONS_I18N = {
       ends_at: "متى ينتهي؟",
       description: "هل هناك جدول أعمال أو وصف؟",
     },
+    contact: {
+      first_name: "ما هو الاسم الأول لجهة الاتصال؟",
+      last_name: "ما هو اسم العائلة لجهة الاتصال؟",
+      phone: "ما هو رقم هاتف جهة الاتصال؟",
+      email: "ما هو البريد الإلكتروني لجهة الاتصال؟ (مثال: john@gmail.com)",
+      date_of_birth: "ما هو تاريخ ميلاد جهة الاتصال؟ (قل تخطي للتخطي)",
+      notes: "أي ملاحظات؟ (قل تخطي للتخطي)",
+    },
   },
 
   "es-ES": {
@@ -311,6 +353,14 @@ export const FIELD_QUESTIONS_I18N = {
       starts_at: "¿Cuándo comienza la reunión?",
       ends_at: "¿Cuándo termina?",
       description: "¿Algún orden del día o descripción?",
+    },
+    contact: {
+      first_name: "¿Cuál es el nombre del contacto?",
+      last_name: "¿Cuál es el apellido del contacto?",
+      phone: "¿Cuál es el número de teléfono del contacto?",
+      email: "¿Cuál es el correo electrónico del contacto? (ej. john@gmail.com)",
+      date_of_birth: "¿Cuál es la fecha de nacimiento? (di 'skip' para omitir)",
+      notes: "¿Alguna nota? (di 'skip' para omitir)",
     },
   },
 
@@ -356,6 +406,14 @@ export const FIELD_QUESTIONS_I18N = {
       ends_at: "Quand se termine-t-elle?",
       description: "Un ordre du jour ou une description?",
     },
+    contact: {
+      first_name: "Quel est le prénom du contact?",
+      last_name: "Quel est le nom de famille du contact?",
+      phone: "Quel est le numéro de téléphone du contact?",
+      email: "Quelle est l'adresse e-mail du contact? (ex. john@gmail.com)",
+      date_of_birth: "Quelle est la date de naissance? (dites 'skip' pour ignorer)",
+      notes: "Des notes? (dites 'skip' pour ignorer)",
+    },
   },
 
   "pt-BR": {
@@ -399,6 +457,14 @@ export const FIELD_QUESTIONS_I18N = {
       starts_at: "Quando a reunião começa?",
       ends_at: "Quando termina?",
       description: "Alguma pauta ou descrição?",
+    },
+    contact: {
+      first_name: "Qual é o primeiro nome do contato?",
+      last_name: "Qual é o sobrenome do contato?",
+      phone: "Qual é o telefone do contato?",
+      email: "Qual é o e-mail do contato? (ex. john@gmail.com)",
+      date_of_birth: "Qual é a data de nascimento? (diga 'skip' para ignorar)",
+      notes: "Alguma observação? (diga 'skip' para ignorar)",
     },
   },
 
@@ -444,6 +510,14 @@ export const FIELD_QUESTIONS_I18N = {
       ends_at: "Когда заканчивается?",
       description: "Есть ли повестка или описание?",
     },
+    contact: {
+      first_name: "Как имя контакта?",
+      last_name: "Как фамилия контакта?",
+      phone: "Какой номер телефона контакта?",
+      email: "Какой адрес электронной почты контакта? (напр. john@gmail.com)",
+      date_of_birth: "Какова дата рождения? (скажите 'skip' для пропуска)",
+      notes: "Есть ли примечания? (скажите 'skip' для пропуска)",
+    },
   },
 
   "ur-PK": {
@@ -488,6 +562,14 @@ export const FIELD_QUESTIONS_I18N = {
       ends_at: "کب ختم ہوتی ہے؟",
       description: "کوئی ایجنڈا یا تفصیل؟",
     },
+    contact: {
+      first_name: "رابطے کا پہلا نام کیا ہے؟",
+      last_name: "رابطے کا آخری نام کیا ہے؟",
+      phone: "رابطے کا فون نمبر کیا ہے؟",
+      email: "رابطے کا ای میل پتہ کیا ہے؟ (مثلاً john@gmail.com)",
+      date_of_birth: "تاریخ پیدائش کیا ہے؟ (چھوڑنے کے لیے 'skip' کہیں)",
+      notes: "کوئی نوٹ؟ (چھوڑنے کے لیے 'skip' کہیں)",
+    },
   },
 
   "tr-TR": {
@@ -531,6 +613,14 @@ export const FIELD_QUESTIONS_I18N = {
       starts_at: "Toplantı ne zaman başlar?",
       ends_at: "Ne zaman biter?",
       description: "Herhangi bir gündem veya açıklama var mı?",
+    },
+    contact: {
+      first_name: "Kişinin adı nedir?",
+      last_name: "Kişinin soyadı nedir?",
+      phone: "Kişinin telefon numarası nedir?",
+      email: "Kişinin e-posta adresi nedir? (ör. john@gmail.com)",
+      date_of_birth: "Doğum tarihi nedir? (atlamak için 'skip' deyin)",
+      notes: "Herhangi bir not? (atlamak için 'skip' deyin)",
     },
   },
 };

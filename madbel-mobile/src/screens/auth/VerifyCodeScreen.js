@@ -82,7 +82,7 @@ const VerifyCodeScreen = () => {
               </View>
               <Text style={styles.title}>Verify Identity</Text>
               <Text style={styles.subtitle}>
-                Enter the 4-digit code sent to your email
+                Enter the 6-digit code sent to your email
               </Text>
             </View>
 
@@ -92,17 +92,17 @@ const VerifyCodeScreen = () => {
               rules={{
                 required: "Code is required",
                 minLength: {
-                  value: 4,
-                  message: "Enter the full 4-digit code",
+                  value: 6,
+                  message: "Enter the full 6-digit code",
                 },
               }}
               render={({ field: { onChange, value = "" } }) => {
-                const digits = `${value}`.replace(/\D/g, "").slice(0, 4);
+                const digits = `${value}`.replace(/\D/g, "").slice(0, 6);
                 return (
                   <Pressable onPress={() => inputRef.current?.focus()}>
                     <View style={styles.otpRow}>
-                      {[0, 1, 2, 3].map((idx) => {
-                        const active = idx === digits.length && digits.length < 4;
+                      {[0, 1, 2, 3, 4, 5].map((idx) => {
+                        const active = idx === digits.length && digits.length < 6;
                         const hasValue = Boolean(digits[idx]);
                         return (
                           <View
@@ -124,10 +124,10 @@ const VerifyCodeScreen = () => {
                       ref={inputRef}
                       value={digits}
                       onChangeText={(text) =>
-                        onChange(text.replace(/\D/g, "").slice(0, 4))
+                        onChange(text.replace(/\D/g, "").slice(0, 6))
                       }
                       keyboardType="number-pad"
-                      maxLength={4}
+                      maxLength={6}
                       style={styles.hiddenInput}
                     />
                   </Pressable>
@@ -219,9 +219,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   otpBox: {
-    width: 86,
-    height: 86,
-    borderRadius: 20,
+    width: 52,
+    height: 60,
+    borderRadius: 14,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "transparent",
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   otpText: {
     color: colors.textPrimary,
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "600",
   },
   hiddenInput: {

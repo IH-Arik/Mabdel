@@ -32,9 +32,10 @@ const ContactsScreen = () => {
       Alert.alert("No phone number", `${contact.name} has no phone number saved.`);
       return;
     }
-    setCallingId(contact.id);
+    const contactId = contact.id || contact._id || contact.contact_id;
+    setCallingId(contactId);
     try {
-      await createOutboundCall({ contact_id: contact.id }).unwrap();
+      await createOutboundCall({ contact_id: contactId }).unwrap();
       Alert.alert("Call started", `Calling ${contact.name} (${contact.phone})...`);
     } catch (e) {
       Alert.alert("Call failed", e?.data?.message || "Could not start the call. Make sure your Twilio is set up in Account Settings.");
@@ -84,7 +85,7 @@ const ContactsScreen = () => {
   };
 
   const renderContact = ({ item }) => {
-    const isCalling = callingId === item.id;
+    const isCalling = callingId === (item.id || item._id || item.contact_id);
     return (
       <Pressable style={styles.contactCard} onPress={() => goToContact(item)}>
         <View style={styles.avatarWrap}>
@@ -110,30 +111,39 @@ const ContactsScreen = () => {
             )}
           </View>
           <Text style={styles.contactSubtitle} numberOfLines={1}>
-            {item.primary_detail || item.phone || item.email || "No details"}
+            {item.phone || "No phone"}
+          </Text>
+          <Text style={[styles.contactSubtitle, { opacity: item.email ? 1 : 0.45 }]} numberOfLines={1}>
+            {item.email || "No email"}
           </Text>
         </View>
 
-        {item.is_app_user && item.phone ? (
-          <Pressable
-            style={styles.callBtn}
-            onPress={() => handleCall(item)}
-            disabled={isCalling}
-            hitSlop={8}
-          >
-            {isCalling ? (
-              <ActivityIndicator size="small" color="#12D0ED" />
-            ) : (
-              <Phone size={20} color="#12D0ED" />
-            )}
-          </Pressable>
-        ) : !item.is_app_user ? (
-          <Pressable style={styles.inviteBtn} onPress={() => handleInvite(item)} hitSlop={8}>
-            <Text style={styles.inviteBtnText}>Invite</Text>
-          </Pressable>
-        ) : null}
+        <View style={styles.actionCol}>
+          {!item.is_app_user && (
+            <Pressable style={styles.inviteBtn} onPress={() => handleInvite(item)} hitSlop={8}>
+              <Text style={styles.inviteBtnText}>Invite</Text>
+            </Pressable>
+          )}
+          {item.phone && (
+            <Pressable
+              style={styles.callBtn}
+              onPress={() => handleCall(item)}
+              disabled={isCalling}
+              hitSlop={8}
+            >
+              {isCalling ? (
+                <ActivityIndicator size="small" color="#12D0ED" />
+              ) : (
+                <Phone size={18} color="#12D0ED" />
+              )}
+            </Pressable>
+          )}
+          {item.phone && (
+            <Text style={styles.callNumText} numberOfLines={1}>{item.phone}</Text>
+          )}
+        </View>
 
-        <ChevronRight size={28} color="#93DBEA" />
+        <ChevronRight size={22} color="#93DBEA" />
       </Pressable>
     );
   };
@@ -167,7 +177,7 @@ const ContactsScreen = () => {
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryText}>
-            Total: {summary?.total_contacts ?? filteredContacts.length}
+            Total: {summary?.total_contacts ?? contacts.length}
           </Text>
           <Text style={styles.summaryText}>
             Online: {summary?.online_contacts ?? 0}
@@ -305,15 +315,14 @@ const styles = StyleSheet.create({
     color: "#4A7080",
   },
   callBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#0E2830",
     borderWidth: 1,
     borderColor: "#12D0ED33",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 4,
   },
   inviteBtn: {
     paddingHorizontal: 14,
@@ -360,29 +369,28 @@ const styles = StyleSheet.create({
     paddingBottom: responsiveHeight(14),
   },
   contactCard: {
-    minHeight: 118,
-    borderRadius: 22,
+    borderRadius: 18,
     backgroundColor: "#1D1D21",
     borderWidth: 1,
     borderColor: "#2C3744",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
   avatarWrap: {
     position: "relative",
   },
   avatar: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
   initialAvatar: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     borderWidth: 2,
     borderColor: "#1D7488",
     backgroundColor: "#1B2F3A",
@@ -391,16 +399,26 @@ const styles = StyleSheet.create({
   },
   initialText: {
     color: "#10CFEB",
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: "700",
+  },
+  actionCol: {
+    alignItems: "center",
+    gap: 4,
+  },
+  callNumText: {
+    color: "#5B9BAA",
+    fontSize: 10,
+    maxWidth: 72,
+    textAlign: "center",
   },
   onlineDot: {
     position: "absolute",
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    right: 2,
-    bottom: 6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    right: 1,
+    bottom: 2,
     backgroundColor: "#2DDD60",
     borderWidth: 2,
     borderColor: "#1D1D21",
@@ -411,13 +429,13 @@ const styles = StyleSheet.create({
   },
   contactName: {
     color: "#F5F9FF",
-    fontSize: 29 / 1.6,
+    fontSize: 15,
     fontWeight: "600",
   },
   contactSubtitle: {
     color: "#88C6D4",
-    fontSize: 24 / 1.6,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 2,
   },
   centerState: {
     alignItems: "center",

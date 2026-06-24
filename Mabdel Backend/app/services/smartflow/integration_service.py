@@ -322,9 +322,10 @@ class IntegrationService(SmartFlowBase):
         }
 
     async def complete_integration_oauth(self, platform: str, code: str, state: str) -> dict:
-        state_doc = await self.db.oauth_states.find_one({"platform": platform, "state": state})
+        state_doc = await self.db.oauth_states.find_one({"state": state})
         if not state_doc or state_doc.get("expires_at") < utc_now():
             raise AppException(status_code=400, code="OAUTH_STATE_INVALID", message="OAuth state is invalid or expired.")
+        platform = state_doc["platform"]
 
         provider = self._oauth_provider(platform)
         token_payload = {
