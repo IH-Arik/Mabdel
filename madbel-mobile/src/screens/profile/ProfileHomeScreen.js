@@ -25,20 +25,20 @@ import ConfirmModal from "../../components/ConfirmModal";
 import { LANGUAGES, useLanguage } from "../../context/LanguageContext";
 
 const SETTINGS_ITEMS = [
-  { label: "Edit Profile", path: "ProfileEdit" },
-  { label: "Subscription Plans", path: "ProfileSubscription" },
-  { label: "Notifications", path: "ProfileNotification" },
-  { label: "AI Voice command History", path: "ProfileVoiceHistory" },
-  { label: "Account Settings", path: "ProfileAccountSettings" },
-  { label: "Help & Support", path: "ProfileSupport" },
-  { label: "Business Profile", path: "ProfileBusiness" },
+  { labelKey: "edit_profile", path: "ProfileEdit" },
+  { labelKey: "subscription_plans", path: "ProfileSubscription" },
+  { labelKey: "notifications", path: "ProfileNotification" },
+  { labelKey: "ai_voice_history", path: "ProfileVoiceHistory" },
+  { labelKey: "account_settings", path: "ProfileAccountSettings" },
+  { labelKey: "help_support", path: "ProfileSupport" },
+  { labelKey: "business_profile", path: "ProfileBusiness" },
 ];
 
 const ProfileHomeScreen = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
-  const { selectedLang, setSelectedLang } = useLanguage();
+  const { selectedLang, setSelectedLang, t } = useLanguage();
   const currentLangMeta = LANGUAGES.find((l) => l.code === selectedLang) ?? LANGUAGES[0];
 
   const [isProfileImageError, setIsProfileImageError] = useState(false);
@@ -92,7 +92,7 @@ const ProfileHomeScreen = () => {
       await logout({}).unwrap();
       dispatch(clearAuth());
     } catch (error) {
-      setLogoutError(error?.data?.message || "Logout request failed.");
+      setLogoutError(error?.data?.message || t("logout_request_failed"));
     }
   };
 
@@ -102,7 +102,7 @@ const ProfileHomeScreen = () => {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Settings</Text>
+        <Text style={styles.title}>{t("settings")}</Text>
 
         <View style={styles.profileWrap}>
           <Image
@@ -115,10 +115,10 @@ const ProfileHomeScreen = () => {
             style={styles.avatar}
           />
           <Text style={styles.name}>
-            {userLoading ? "Loading profile..." : displayName}
+            {userLoading ? t("loading_profile") : displayName}
           </Text>
           <Text style={styles.email}>
-            {userLoading ? "Please wait..." : displayEmail || "No email found"}
+            {userLoading ? t("please_wait") : displayEmail || t("no_email_found")}
           </Text>
 
           {/* Language badge — tapping opens picker */}
@@ -128,7 +128,7 @@ const ProfileHomeScreen = () => {
           >
             <Globe size={14} color="#19CDEB" strokeWidth={2.2} />
             <Text style={styles.langBadgeText}>
-              AI Voice: {currentLangMeta.label} · {currentLangMeta.name}
+              {t("ai_voice_badge")}: {currentLangMeta.label} · {currentLangMeta.name}
             </Text>
             <ChevronRight size={14} color="#19CDEB" strokeWidth={2.5} />
           </Pressable>
@@ -144,7 +144,7 @@ const ProfileHomeScreen = () => {
                 index < SETTINGS_ITEMS.length - 1 ? styles.rowBorder : null,
               ]}
             >
-              <Text style={styles.rowText}>{item.label}</Text>
+              <Text style={styles.rowText}>{t(item.labelKey)}</Text>
               <ChevronRight size={30} color="#90A2B7" strokeWidth={2.1} />
             </Pressable>
           ))}
@@ -155,7 +155,7 @@ const ProfileHomeScreen = () => {
           disabled={logoutLoading}
           style={styles.logoutBtn}
         >
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>{t("logout")}</Text>
         </Pressable>
 
         {!!logoutError && <Text style={styles.errorText}>{logoutError}</Text>}
@@ -174,9 +174,9 @@ const ProfileHomeScreen = () => {
         >
           <Pressable style={styles.langSheet} onPress={() => {}}>
             <View style={styles.langHandle} />
-            <Text style={styles.langSheetTitle}>AI Voice Language</Text>
+            <Text style={styles.langSheetTitle}>{t("ai_voice_language")}</Text>
             <Text style={styles.langSheetSub}>
-              AI will ask questions and listen in this language
+              {t("ai_voice_language_subtitle")}
             </Text>
             <ScrollView style={styles.langList} showsVerticalScrollIndicator={false}>
               {LANGUAGES.map((lang) => {
@@ -211,10 +211,10 @@ const ProfileHomeScreen = () => {
         visible={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
         onConfirm={handleLogoutActivity}
-        title="Logout?"
-        description="Do you want logout?"
-        cancelButtonText="Cancel"
-        confirmButtonText="Logout"
+        title={t("logout_title")}
+        description={t("logout_description")}
+        cancelButtonText={t("cancel")}
+        confirmButtonText={t("logout")}
         cancelButtonColor="bg-[#17CBE8]"
         confirmButtonColor="bg-red-500"
         type="warning"

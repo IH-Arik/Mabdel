@@ -436,6 +436,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    marginBottom: responsiveHeight(10)
   },
   listContent: {
     gap: responsiveHeight(1.2),

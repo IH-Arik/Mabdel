@@ -90,13 +90,13 @@ const AgreementListScreen = () => {
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Pressable onPress={() => navigation.goBack()}>
-              <ChevronLeft size={35} color="#F8FAFC" />
+              <ChevronLeft size={responsiveWidth(5)} color="#F8FAFC" />
             </Pressable>
             <Text style={styles.headerTitle}>Agreement</Text>
           </View>
           <Pressable style={styles.newBtn} onPress={() => navigation.navigate("AgreementCreate")}>
             <Plus size={24} color="#EAF9FF" />
-            <Text style={styles.newBtnText}>New Agreement</Text>
+            <Text style={styles.newBtnText}>New</Text>
           </Pressable>
         </View>
 
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
-  headerTitle: { color: "#F4F8FF", fontSize: 50 / 2, fontWeight: "700" },
+  headerTitle: { color: "#F4F8FF", fontSize: responsiveWidth(5), fontWeight: "700" },
   newBtn: {
     minHeight: responsiveHeight(5.2),
     borderRadius: 20,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveWidth(4),
     gap: responsiveWidth(1.4),
   },
-  newBtnText: { color: "#EAF9FF", fontSize: 18, fontWeight: "700" },
+  newBtnText: { color: "#EAF9FF", fontSize: responsiveWidth(4), fontWeight: "700" },
   searchBox: {
     marginTop: responsiveHeight(1.8),
     minHeight: responsiveHeight(6.7),

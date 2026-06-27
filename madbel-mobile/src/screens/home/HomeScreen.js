@@ -6,10 +6,8 @@ import {
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import {
-  Bell,
   Bot,
   CalendarCheck2,
-  ChevronDown,
   FileText,
   Megaphone,
   Mic,
@@ -34,7 +32,9 @@ import {
   AvatarStack,
   DashboardCard,
   DocumentTile,
+  HomeHeader,
 } from "../../components/home/HomeScreen";
+import { useLanguage } from "../../context/LanguageContext";
 import {
   useMadbelListContactsQuery,
   useMadbelGetCallSummaryQuery,
@@ -119,6 +119,7 @@ const HomeScreenSkeleton = () => (
 const HomeScreen = () => {
   const navigation = useNavigation();
   const authUser = useSelector((state) => state?.auth?.user || {});
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const { data: threads = [] } = useFetchConversationsQuery();
   const { data: contactsResponse } = useMadbelListContactsQuery({
@@ -146,12 +147,12 @@ const HomeScreen = () => {
     icon: PhoneCall,
     iconColor: call?.status === "missed" ? "#ED4444" : "#11D1ED",
     muted: false,
-    name: call?.contact_name || call?.caller_name || call?.phone_number || "Unknown",
+    name: call?.contact_name || call?.caller_name || call?.phone_number || t("unknown"),
     subtitle: call?.ai_summary?.purpose || call?.summary || call?.status || "",
     rightType: call?.duration ? "text" : "badge",
     rightText: call?.duration
       ? `${Math.round(Number(call.duration) / 60)}m`
-      : call?.status === "completed" ? "Done" : "AI Ready",
+      : call?.status === "completed" ? t("done") : t("ai_ready"),
   }));
 
   const analyticsCallRows = recentCallRows;
@@ -172,13 +173,13 @@ const HomeScreen = () => {
   const analyticsStats = [
     {
       id: "total",
-      label: "Total Calls",
+      label: t("total_calls"),
       value: String(totalCallsCount),
       accent: false,
     },
     {
       id: "saved",
-      label: "Minutes Saved",
+      label: t("minutes_saved"),
       value: String(minutesSavedCount),
       accent: true,
     },
@@ -201,9 +202,9 @@ const HomeScreen = () => {
   const latestPeerName =
     latestThread?.directPeer?.fullName ||
     latestThread?.directPeer?.name ||
-    "No contact";
+    t("no_contact");
   const latestMessage =
-    latestThread?.lastMessage?.text?.trim?.() || "No messages yet";
+    latestThread?.lastMessage?.text?.trim?.() || t("no_messages_yet");
   const inboxAvatars = (threads || []).slice(0, 2).map((thread) => ({
     uri: thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
     name: thread?.directPeer?.fullName || thread?.directPeer?.name || "User",
@@ -284,26 +285,15 @@ const HomeScreen = () => {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <Text style={styles.greeting}>Good Morning, {displayName}</Text>
-            <View style={styles.headerRight}>
-              <Pressable style={styles.langPill}>
-                <Text style={styles.langText}>EN</Text>
-                <ChevronDown size={14} color="#D8E4F3" />
-              </Pressable>
-              <Pressable
-                onPress={() => navigation.navigate("Notification")}
-                style={styles.iconBtn}
-              >
-                <Bell size={23} color="#F4F9FF" strokeWidth={2.1} />
-              </Pressable>
-            </View>
-          </View>
+          <HomeHeader
+            greeting={`${t("good_morning")}, ${displayName}`}
+            onNotificationPress={() => navigation.navigate("Notification")}
+          />
 
           <Pressable style={styles.searchCard} onPress={openVoiceAssistant}>
             <Mic size={rw(6)} color="#11D1ED" />
             <Text style={styles.searchPlaceholder}>
-              Tap to ask SmartFlow...
+              {t("tap_to_ask_smartflow")}
             </Text>
             <Text style={styles.dots}>...</Text>
           </Pressable>
@@ -311,22 +301,22 @@ const HomeScreen = () => {
           <Pressable style={styles.bulkQuickAction} onPress={openBulkMessaging}>
             <View style={styles.bulkQuickLeft}>
               <Megaphone size={20} color="#13D0EC" />
-              <Text style={styles.bulkQuickText}>Bulk Messaging</Text>
+              <Text style={styles.bulkQuickText}>{t("bulk_messaging")}</Text>
             </View>
-            <Text style={styles.bulkQuickHint}>Open</Text>
+            <Text style={styles.bulkQuickHint}>{t("open")}</Text>
           </Pressable>
 
           <DashboardCard baseStyle={styles.cardBase}>
             <View style={styles.rowBetween}>
               <View style={styles.inboxBadge}>
-                <Text style={styles.inboxText}>INBOX</Text>
+                <Text style={styles.inboxText}>{t("inbox")}</Text>
               </View>
-              <Text style={styles.mutedText}>{totalChats} Chats</Text>
+              <Text style={styles.mutedText}>{totalChats} {t("chats")}</Text>
             </View>
 
-            <Text style={styles.cardTitle}>Unified Conversations</Text>
+            <Text style={styles.cardTitle}>{t("unified_conversations")}</Text>
             <Text style={styles.cardSubTitle}>
-              Latest: {latestPeerName} - "
+              {t("latest")}: {latestPeerName} - "
               {latestMessage.length > 50
                 ? latestMessage.slice(0, 47) + "..."
                 : latestMessage}
@@ -336,7 +326,7 @@ const HomeScreen = () => {
             <View style={[styles.rowBetween, styles.mt18]}>
               <AvatarStack avatars={inboxAvatars} countText={inboxCountText} />
               <ActionButton
-                title="View All"
+                title={t("view_all")}
                 onPress={openUnifiedConversations}
                 baseStyle={styles.actionButton}
                 baseTextStyle={styles.actionButtonText}
@@ -353,7 +343,7 @@ const HomeScreen = () => {
               <View style={styles.iconSquare}>
                 <Users size={24} color="#12D2ED" />
               </View>
-              <Text style={styles.cardTitle}>Contacts</Text>
+              <Text style={styles.cardTitle}>{t("contacts")}</Text>
               <View style={styles.contactsStackWrap}>
                 <AvatarStack
                   avatars={contactAvatars}
@@ -363,7 +353,7 @@ const HomeScreen = () => {
                 />
               </View>
               <ActionButton
-                title="View All"
+                title={t("view_all")}
                 onPress={openContacts}
                 style={styles.secondaryBtn}
                 baseStyle={styles.actionButton}
@@ -378,19 +368,13 @@ const HomeScreen = () => {
                 onPress={openScheduleMeeting}
               >
                 <View style={styles.rowBetween}>
-                  <Text style={styles.labelText}>UPCOMING</Text>
+                  <Text style={styles.labelText}>{t("upcoming")}</Text>
                   <CalendarCheck2 size={23} color="#12D2ED" />
                 </View>
-                <Text style={styles.cardTitle}>Calendar</Text>
-                <View style={styles.upcomingAvatarWrap}>
-                  {/* <AvatarStack
-                    avatars={HOME_AVATARS.slice(0, 2)}
-                    size={rw(8)}
-                    overlap={-rw(2.2)}
-                  /> */}
-                </View>
+                <Text style={styles.cardTitle}>{t("calendar")}</Text>
+                <View style={styles.upcomingAvatarWrap} />
                 <ActionButton
-                  title="Add your Calendar"
+                  title={t("add_your_calendar")}
                   onPress={openScheduleMeeting}
                   baseStyle={[styles.actionButton, styles.upcomingActionButton]}
                   baseTextStyle={styles.actionButtonText}
@@ -401,7 +385,7 @@ const HomeScreen = () => {
                 baseStyle={styles.cardBase}
                 style={styles.smallCard}
               >
-                <Text style={styles.labelText}>INTEGRATIONS</Text>
+                <Text style={styles.labelText}>{t("integrations")}</Text>
                 <View style={styles.integrationRow}>
                   {connectedBadges.map((item) => (
                     <View
@@ -430,7 +414,7 @@ const HomeScreen = () => {
           </View>
 
           <DashboardCard baseStyle={styles.cardBase}>
-            <Text style={styles.cardTitle}>Documents</Text>
+            <Text style={styles.cardTitle}>{t("documents")}</Text>
             <View style={styles.docsRow}>
               {HOME_DOC_ITEMS.map((item) => (
                 <DocumentTile
@@ -455,7 +439,7 @@ const HomeScreen = () => {
           >
             <View style={styles.analyticsHeader}>
               <PhoneCall size={21} color="#12D2ED" />
-              <Text style={styles.analyticsTitle}>AI Call Analytics</Text>
+              <Text style={styles.analyticsTitle}>{t("ai_call_analytics")}</Text>
             </View>
 
             <View style={styles.statsRow}>
@@ -507,8 +491,9 @@ const styles = StyleSheet.create({
   },
   greeting: {
     color: "#F3F8FF",
-    fontSize: rw(6),
+    fontSize: rw(5),
     fontWeight: "700",
+    width: '60%'
   },
   headerRight: {
     flexDirection: "row",

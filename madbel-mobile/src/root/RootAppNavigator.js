@@ -19,6 +19,9 @@ const RootAppNavigator = () => {
   const accessToken = useSelector(
     (state) => state?.auth?.accessToken || state?.auth?.token,
   );
+  
+  console.log('LINE AT 22' , accessToken);
+  
   const authUser = useSelector((state) => state?.auth?.user);
   const isAuthenticated =
     (typeof accessToken === "string" && accessToken.trim().length > 0) ||
