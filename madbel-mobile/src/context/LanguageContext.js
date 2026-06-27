@@ -1,20 +1,23 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { APP_TRANSLATIONS, LANGUAGE_OPTIONS } from "../i18n/appTranslations";
 
 const STORAGE_KEY = "@mabdel_voice_lang";
 
-export const LANGUAGES = [
-  { code: "en-US", label: "EN", name: "English" },
-  { code: "bn-BD", label: "বাং", name: "বাংলা" },
-  { code: "hi-IN", label: "हिं", name: "हिन्दी" },
-  { code: "ar-SA", label: "عر", name: "العربية" },
-  { code: "es-ES", label: "ES", name: "Español" },
-  { code: "fr-FR", label: "FR", name: "Français" },
-  { code: "pt-BR", label: "PT", name: "Português" },
-  { code: "ru-RU", label: "RU", name: "Русский" },
-  { code: "ur-PK", label: "اُر", name: "Urdu" },
-  { code: "tr-TR", label: "TR", name: "Türkçe" },
-];
+export const LANGUAGES = LANGUAGE_OPTIONS;
+
+const interpolate = (template, params = {}) =>
+  String(template || "").replace(/\{(\w+)\}/g, (_, key) =>
+    params[key] == null ? "" : String(params[key]),
+  );
+
+const getTranslation = (langCode, key, params) => {
+  const template =
+    APP_TRANSLATIONS?.[langCode]?.[key] ??
+    APP_TRANSLATIONS?.["en-US"]?.[key] ??
+    key;
+  return interpolate(template, params);
+};
 
 // ─── Translated initial prompts ───────────────────────────────────────────────
 export const INITIAL_PROMPTS_I18N = {
@@ -630,6 +633,7 @@ const LanguageContext = createContext({
   selectedLang: "en-US",
   setSelectedLang: () => {},
   currentLang: LANGUAGES[0],
+  t: () => "",
   getPrompt: () => "",
   getQuestion: () => "",
 });
@@ -668,9 +672,14 @@ export const LanguageProvider = ({ children }) => {
     [selectedLang],
   );
 
+  const t = useCallback(
+    (key, params) => getTranslation(selectedLang, key, params),
+    [selectedLang],
+  );
+
   return (
     <LanguageContext.Provider
-      value={{ selectedLang, setSelectedLang, currentLang, getPrompt, getQuestion }}
+      value={{ selectedLang, setSelectedLang, currentLang, t, getPrompt, getQuestion }}
     >
       {children}
     </LanguageContext.Provider>

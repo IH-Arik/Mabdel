@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
   headerTitle: { color: "#F4F8FF", fontSize: 46 / 2, fontWeight: "700" },
   previewText: { color: "#10CDE9", fontSize: 20, fontWeight: "600" },
-  content: { paddingTop: responsiveHeight(1.8), paddingBottom: responsiveHeight(9), gap: responsiveHeight(1.6) },
+  content: { paddingTop: responsiveHeight(1.8), paddingBottom: responsiveHeight(9), gap: responsiveHeight(1.6) , paddingBottom : responsiveHeight(14)},
   panel: { borderRadius: 18, borderWidth: 1, borderColor: "#2B3342", backgroundColor: "#1B1E24", padding: responsiveWidth(4) },
   panelHeader: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
   panelHeaderText: { color: "#DCE5F2", fontSize: 18 },
