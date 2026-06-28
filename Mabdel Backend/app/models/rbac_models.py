@@ -9,11 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field
 # ─── Permission ───────────────────────────────────────────────────────────────
 
 RBAC_MODULES = Literal[
+    # Platform-level
     "users",
     "admins",
     "owners",
-    "supervisors",
-    "staff",
     "roles",
     "permissions",
     "reports",
@@ -28,17 +27,33 @@ RBAC_MODULES = Literal[
     "billing",
     "organizations",
     "audit_logs",
+    # CRM / App-level
+    "contacts",
+    "messages",
+    "calls",
+    "appointments",
+    "invoices",
+    "bulk_messaging",
+    "social_media",
+    "ai_tools",
+    "chat_groups",
+    "integrations",
 ]
 
-RBAC_ACTIONS = Literal["view", "create", "edit", "delete", "approve", "export", "manage"]
+RBAC_ACTIONS = Literal[
+    "view", "create", "edit", "delete", "approve", "export", "manage",
+    # CRM-specific
+    "send", "listen", "cancel", "post", "use",
+]
 
 ROLE_HIERARCHY: dict[str, int] = {
     "super_admin": 100,
     "admin": 80,
     "owner": 60,
-    "supervisor": 40,
+    "manager": 40,
     "staff": 20,
-    "user": 10,
+    "assistant": 10,
+    "user": 5,
 }
 
 

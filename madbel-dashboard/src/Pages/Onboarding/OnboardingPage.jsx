@@ -5,7 +5,7 @@ import {
   startTrial,
   completeOnboarding,
 } from "../../services/subscriptionApi";
-import { clearAdminSession } from "../../utils/auth";
+import { clearAdminSession, markOnboardingComplete } from "../../utils/auth";
 
 const FEATURES = [
   "Unlimited contacts & conversations",
@@ -26,12 +26,12 @@ const OnboardingPage = () => {
     setError(null);
     try {
       await startTrial();
-      navigate("/owner");
     } catch (e) {
-      setError(e?.payload?.message || "Failed to start trial. Please try again.");
-    } finally {
-      setLoading(null);
+      // Non-fatal: mark locally even if backend call fails
     }
+    markOnboardingComplete();
+    navigate("/owner");
+    setLoading(null);
   };
 
   const handleExplore = async () => {
@@ -39,12 +39,12 @@ const OnboardingPage = () => {
     setError(null);
     try {
       await completeOnboarding();
-      navigate("/owner");
     } catch (e) {
-      setError(e?.payload?.message || "Something went wrong. Please try again.");
-    } finally {
-      setLoading(null);
+      // Non-fatal: mark locally even if backend call fails
     }
+    markOnboardingComplete();
+    navigate("/owner");
+    setLoading(null);
   };
 
   const handleBuySubscription = () => {

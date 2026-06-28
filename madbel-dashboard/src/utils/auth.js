@@ -73,3 +73,25 @@ export const getAdminRole = () => {
 export const clearAdminSession = () => {
   localStorage.removeItem(AUTH_KEY);
 };
+
+export const isOnboardingComplete = () => {
+  const session = getAdminSession();
+  if (!session) return true;
+  const role = session?.profile?.role || "user";
+  if (["super_admin", "admin", "supervisor", "staff"].includes(role)) return true;
+  // If onboarding_complete field is absent (old session), assume complete so existing users aren't blocked
+  if (!("onboarding_complete" in (session?.profile || {}))) return true;
+  return session.profile.onboarding_complete === true;
+};
+
+export const markOnboardingComplete = () => {
+  const stored = localStorage.getItem(AUTH_KEY);
+  if (!stored) return;
+  try {
+    const session = JSON.parse(stored);
+    if (session?.profile) {
+      session.profile.onboarding_complete = true;
+      localStorage.setItem(AUTH_KEY, JSON.stringify(session));
+    }
+  } catch {}
+};

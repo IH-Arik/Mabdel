@@ -39,7 +39,8 @@ const ProfileHomeScreen = () => {
   const dispatch = useDispatch();
 
   const { selectedLang, setSelectedLang, t } = useLanguage();
-  const currentLangMeta = LANGUAGES.find((l) => l.code === selectedLang) ?? LANGUAGES[0];
+  const currentLangMeta =
+    LANGUAGES.find((l) => l.code === selectedLang) ?? LANGUAGES[0];
 
   const [isProfileImageError, setIsProfileImageError] = useState(false);
   const [logoutError, setLogoutError] = useState("");
@@ -53,11 +54,10 @@ const ProfileHomeScreen = () => {
 
   const profileData = userData?.data || authUser || {};
 
+  console.log("LINE AT 57", profileData, showLogoutModal);
+
   const normalizedEmail = String(
-    profileData?.email ||
-      profileData?.client_email ||
-      authUser?.email ||
-      "",
+    profileData?.email || profileData?.client_email || authUser?.email || "",
   ).trim();
   const emailPrefix = normalizedEmail.split("@")[0]?.trim();
   const displayName =
@@ -118,7 +118,9 @@ const ProfileHomeScreen = () => {
             {userLoading ? t("loading_profile") : displayName}
           </Text>
           <Text style={styles.email}>
-            {userLoading ? t("please_wait") : displayEmail || t("no_email_found")}
+            {userLoading
+              ? t("please_wait")
+              : displayEmail || t("no_email_found")}
           </Text>
 
           {/* Language badge — tapping opens picker */}
@@ -128,7 +130,8 @@ const ProfileHomeScreen = () => {
           >
             <Globe size={14} color="#19CDEB" strokeWidth={2.2} />
             <Text style={styles.langBadgeText}>
-              {t("ai_voice_badge")}: {currentLangMeta.label} · {currentLangMeta.name}
+              {t("ai_voice_badge")}: {currentLangMeta.label} ·{" "}
+              {currentLangMeta.name}
             </Text>
             <ChevronRight size={14} color="#19CDEB" strokeWidth={2.5} />
           </Pressable>
@@ -149,14 +152,23 @@ const ProfileHomeScreen = () => {
             </Pressable>
           ))}
         </View>
-
-        <Pressable
-          onPress={() => !logoutLoading && setShowLogoutModal(true)}
-          disabled={logoutLoading}
-          style={styles.logoutBtn}
-        >
-          <Text style={styles.logoutText}>{t("logout")}</Text>
-        </Pressable>
+        {profileData?.auth_provider === "google" ? (
+          <Pressable
+            onPress={() => setShowLogoutModal(true)}
+            // disabled={logoutLoading}
+            style={styles.logoutBtn}
+          >
+            <Text style={styles.logoutText}>{t("logout")}</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={() => !logoutLoading && setShowLogoutModal(true)}
+            disabled={logoutLoading}
+            style={styles.logoutBtn}
+          >
+            <Text style={styles.logoutText}>{t("logout")}</Text>
+          </Pressable>
+        )}
 
         {!!logoutError && <Text style={styles.errorText}>{logoutError}</Text>}
       </ScrollView>
@@ -178,7 +190,10 @@ const ProfileHomeScreen = () => {
             <Text style={styles.langSheetSub}>
               {t("ai_voice_language_subtitle")}
             </Text>
-            <ScrollView style={styles.langList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.langList}
+              showsVerticalScrollIndicator={false}
+            >
               {LANGUAGES.map((lang) => {
                 const active = lang.code === selectedLang;
                 return (
@@ -192,7 +207,12 @@ const ProfileHomeScreen = () => {
                   >
                     <View style={styles.langRowLeft}>
                       <Text style={styles.langRowLabel}>{lang.label}</Text>
-                      <Text style={[styles.langRowName, active && styles.langRowNameActive]}>
+                      <Text
+                        style={[
+                          styles.langRowName,
+                          active && styles.langRowNameActive,
+                        ]}
+                      >
                         {lang.name}
                       </Text>
                     </View>
@@ -262,7 +282,11 @@ const styles = StyleSheet.create({
     borderColor: "#1C3A4A",
     backgroundColor: "#0D1F2D",
   },
-  langBadgeText: { color: "#19CDEB", fontSize: responsiveWidth(3), fontWeight: "600" },
+  langBadgeText: {
+    color: "#19CDEB",
+    fontSize: responsiveWidth(3),
+    fontWeight: "600",
+  },
   listCard: {
     borderRadius: 18,
     overflow: "hidden",
@@ -343,7 +367,11 @@ const styles = StyleSheet.create({
     borderBottomColor: "#1C2A45",
   },
   langRowActive: { backgroundColor: "#0D1F2D" },
-  langRowLeft: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(3) },
+  langRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(3),
+  },
   langRowLabel: {
     color: "#19CDEB",
     fontSize: responsiveWidth(4),

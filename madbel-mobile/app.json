@@ -32,6 +32,7 @@
         "ACCESS_FINE_LOCATION",
         "READ_CONTACTS"
       ],
+      "googleServicesFile": "./google-services.json",
       "package": "com.madbelai.madbel"
     },
     "plugins": [
