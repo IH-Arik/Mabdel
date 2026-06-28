@@ -189,6 +189,10 @@ export const apiRequest = async (
       redirectToSignIn();
     }
 
+    if (response.status === 403 && payload?.code === "SUBSCRIPTION_REQUIRED") {
+      window.dispatchEvent(new CustomEvent("subscription-required", { detail: payload }));
+    }
+
     throw new ApiError(
       extractApiErrorMessage(payload) || "Request failed",
       response.status,

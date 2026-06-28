@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import Depends, Query, status
 
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
     CallAISummaryUpdateRequest,
     CallLogCreateRequest,
@@ -25,7 +25,7 @@ async def list_calls(
     status_filter: str | None = Query(default=None, alias="status"),
     search: str | None = None,
     contact_id: str | None = None,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.list_call_logs(str(current_user["_id"]), page, page_size, status_filter, search, contact_id)
@@ -35,7 +35,8 @@ async def list_calls(
 @router.post("/calls", status_code=status.HTTP_201_CREATED)
 async def create_call_log(
     payload: CallLogCreateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.create_call_log(str(current_user["_id"]), payload.model_dump())
@@ -45,7 +46,8 @@ async def create_call_log(
 @router.post("/calls/outbound", status_code=status.HTTP_201_CREATED)
 async def create_outbound_call(
     payload: OutboundCallRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.create_outbound_call(str(current_user["_id"]), payload.model_dump(exclude_unset=True))
@@ -54,7 +56,7 @@ async def create_outbound_call(
 
 @router.get("/calls/summary")
 async def get_call_summary(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_call_summary(str(current_user["_id"]))
@@ -64,7 +66,7 @@ async def get_call_summary(
 @router.get("/calls/{call_id}")
 async def get_call_log(
     call_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_call_log(str(current_user["_id"]), call_id)
@@ -75,7 +77,7 @@ async def get_call_log(
 async def update_call_log(
     call_id: str,
     payload: CallLogUpdateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "manage")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.update_call_log(str(current_user["_id"]), call_id, payload.model_dump(exclude_unset=True))
@@ -85,7 +87,7 @@ async def update_call_log(
 @router.get("/calls/{call_id}/transcript")
 async def get_call_transcript(
     call_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "listen")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_call_transcript(str(current_user["_id"]), call_id)
@@ -96,7 +98,7 @@ async def get_call_transcript(
 async def update_call_transcript(
     call_id: str,
     payload: CallTranscriptUpdateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "manage")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.update_call_transcript(str(current_user["_id"]), call_id, payload.model_dump())
@@ -106,7 +108,7 @@ async def update_call_transcript(
 @router.get("/calls/{call_id}/ai-summary")
 async def get_call_ai_summary(
     call_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "listen")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_call_ai_summary(str(current_user["_id"]), call_id)
@@ -117,7 +119,7 @@ async def get_call_ai_summary(
 async def update_call_ai_summary(
     call_id: str,
     payload: CallAISummaryUpdateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "manage")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.update_call_ai_summary(str(current_user["_id"]), call_id, payload.model_dump())
@@ -127,7 +129,7 @@ async def update_call_ai_summary(
 @router.post("/calls/{call_id}/callback")
 async def request_call_callback(
     call_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "manage")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.request_call_callback(str(current_user["_id"]), call_id)
@@ -137,7 +139,7 @@ async def request_call_callback(
 @router.get("/calls/{call_id}/recording")
 async def get_call_recording(
     call_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "listen")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_call_recording(str(current_user["_id"]), call_id)
@@ -148,7 +150,7 @@ async def get_call_recording(
 async def update_call_recording(
     call_id: str,
     payload: CallRecordingUpdateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "manage")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.update_call_recording(str(current_user["_id"]), call_id, payload.model_dump())

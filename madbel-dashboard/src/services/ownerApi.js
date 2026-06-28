@@ -34,3 +34,21 @@ export const setUserPermissions = (userId, allowed_permissions) =>
 
 export const listPermissionModules = () =>
   apiRequest("/owner/modules");
+
+export const getMyDashboard = (days = 30) =>
+  apiRequest("/owner/my-dashboard", { query: { days } });
+
+export const getTeamDashboard = () =>
+  apiRequest("/owner/team/dashboard");
+
+export const getTeamAnalysis = (days = 30) =>
+  apiRequest("/owner/team/analysis", { query: { days } });
+
+export const getMemberAnalysis = (userId, days = 30) =>
+  apiRequest(`/owner/team/${userId}/analysis`, { query: { days } });
+
+export const banTeamMember = (userId) =>
+  apiRequest(`/owner/team/${userId}/ban`, { method: "POST" });
+
+export const unbanTeamMember = (userId) =>
+  apiRequest(`/owner/team/${userId}/unban`, { method: "POST" });

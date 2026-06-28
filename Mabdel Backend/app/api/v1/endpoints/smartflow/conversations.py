@@ -5,7 +5,7 @@ from fastapi import Depends, Query, WebSocket, WebSocketDisconnect, status
 from app.core.realtime import conversation_realtime_hub, inbox_realtime_hub
 from app.core.security import decode_token
 from app.core.exceptions import AppException
-from app.dependencies import get_current_user, get_mongo_database
+from app.dependencies import get_current_user, get_mongo_database, require_permission, require_subscription
 from app.repositories.auth_repository import AuthRepository
 from app.schemas.smartflow import (
     ConversationCreateRequest,
@@ -102,7 +102,7 @@ async def list_conversations(
     archived: bool | None = None,
     unread_only: bool = False,
     type_filter: str | None = Query(default=None, alias="type"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     platform_list = [value.strip() for value in (platforms or "").split(",") if value.strip()] or None
@@ -113,7 +113,8 @@ async def list_conversations(
 @router.post("/conversations", status_code=status.HTTP_201_CREATED)
 async def create_conversation(
     payload: ConversationCreateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "send")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.create_conversation(str(current_user["_id"]), payload.model_dump())
@@ -123,7 +124,7 @@ async def create_conversation(
 @router.get("/conversations/{conversation_id}")
 async def get_conversation(
     conversation_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_conversation(str(current_user["_id"]), conversation_id)
@@ -134,7 +135,7 @@ async def get_conversation(
 async def archive_conversation(
     conversation_id: str,
     archived: bool = True,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.archive_conversation(str(current_user["_id"]), conversation_id, archived)
@@ -144,7 +145,7 @@ async def archive_conversation(
 @router.post("/conversations/{conversation_id}/mark-read")
 async def mark_conversation_read(
     conversation_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.mark_conversation_read(str(current_user["_id"]), conversation_id)
@@ -158,7 +159,7 @@ async def list_messages(
     page_size: int = Query(default=20, ge=1, le=100),
     search: str | None = None,
     platform: str | None = None,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.list_messages(str(current_user["_id"]), conversation_id, page, page_size, search, platform)
@@ -168,7 +169,8 @@ async def list_messages(
 @router.post("/messages", status_code=status.HTTP_201_CREATED)
 async def create_message(
     payload: MessageCreateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "send")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.create_message(str(current_user["_id"]), payload.model_dump())
@@ -179,7 +181,8 @@ async def create_message(
 async def update_message(
     message_id: str,
     payload: MessageUpdateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "send")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.update_message(str(current_user["_id"]), message_id, payload.model_dump(exclude_unset=True))
@@ -190,7 +193,8 @@ async def update_message(
 async def reply_to_message(
     message_id: str,
     payload: ReplyMessageRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "send")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.reply_to_message(str(current_user["_id"]), message_id, payload.model_dump())
@@ -201,7 +205,8 @@ async def reply_to_message(
 async def forward_message(
     message_id: str,
     payload: ForwardMessageRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "send")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.forward_message(str(current_user["_id"]), message_id, payload.model_dump(exclude_unset=True))
@@ -211,7 +216,7 @@ async def forward_message(
 @router.get("/messages/unread-summary")
 async def unread_summary(
     platform: str | None = None,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_unread_message_summary(str(current_user["_id"]), platform)
@@ -221,7 +226,7 @@ async def unread_summary(
 @router.get("/conversations/{conversation_id}/typing")
 async def get_typing_state(
     conversation_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_typing_state(str(current_user["_id"]), conversation_id)
@@ -232,7 +237,7 @@ async def get_typing_state(
 async def set_typing_state(
     conversation_id: str,
     payload: TypingStateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.set_typing_state(str(current_user["_id"]), conversation_id, payload.model_dump(exclude_unset=True))

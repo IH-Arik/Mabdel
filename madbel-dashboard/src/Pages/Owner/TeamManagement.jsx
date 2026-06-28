@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { message, Modal, Switch } from "antd";
-import { Search, UserPlus, Trash2, Settings, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, UserPlus, Trash2, Settings, X, ChevronDown, ChevronUp, ShieldOff, ShieldCheck } from "lucide-react";
 import {
   listTeamMembers,
   searchUsers,
@@ -8,11 +8,14 @@ import {
   revokeTeamRole,
   getUserPermissions,
   setUserPermissions,
+  banTeamMember,
+  unbanTeamMember,
 } from "../../services/ownerApi";
 
 const ROLE_LABELS = {
-  supervisor: { label: "Supervisor", color: "bg-indigo-100 text-indigo-700" },
-  staff: { label: "Staff", color: "bg-emerald-100 text-emerald-700" },
+  manager:   { label: "Manager",   color: "bg-indigo-100 text-indigo-700" },
+  staff:     { label: "Staff",     color: "bg-emerald-100 text-emerald-700" },
+  assistant: { label: "Assistant", color: "bg-amber-100 text-amber-700" },
 };
 
 const TeamManagement = () => {
@@ -29,7 +32,7 @@ const TeamManagement = () => {
 
   // Assign role modal
   const [assignTarget, setAssignTarget] = useState(null);
-  const [selectedRole, setSelectedRole] = useState("supervisor");
+  const [selectedRole, setSelectedRole] = useState("manager");
   const [assigning, setAssigning] = useState(false);
 
   // Permission modal
@@ -72,7 +75,7 @@ const TeamManagement = () => {
 
   const handleAssignOpen = (user) => {
     setAssignTarget(user);
-    setSelectedRole("supervisor");
+    setSelectedRole("manager");
   };
 
   const handleAssignConfirm = async () => {
@@ -91,6 +94,32 @@ const TeamManagement = () => {
     } finally {
       setAssigning(false);
     }
+  };
+
+  const handleBanToggle = (member) => {
+    const isBanned = member.status === "blocked";
+    Modal.confirm({
+      title: isBanned ? `Unban ${member.name || member.email}?` : `Ban ${member.name || member.email}?`,
+      content: isBanned
+        ? "This will restore their access to the platform."
+        : "This will block their access immediately.",
+      okText: isBanned ? "Unban" : "Ban",
+      okButtonProps: { danger: !isBanned, style: isBanned ? { background: "#17b4c9", borderColor: "#17b4c9" } : {} },
+      onOk: async () => {
+        try {
+          if (isBanned) {
+            await unbanTeamMember(member.user_id);
+            message.success(`${member.name || member.email} unbanned.`);
+          } else {
+            await banTeamMember(member.user_id);
+            message.success(`${member.name || member.email} banned.`);
+          }
+          await loadTeam();
+        } catch (err) {
+          message.error(err?.message || "Failed to update status.");
+        }
+      },
+    });
   };
 
   const handleRevoke = async (member) => {
@@ -114,13 +143,14 @@ const TeamManagement = () => {
   const handlePermOpen = async (member) => {
     setPermTarget(member);
     setPermLoading(true);
-    setSelectedPerms(null);
+    setSelectedPerms([]);
     setExpandedModules({});
     try {
       const res = await getUserPermissions(member.user_id);
       const d = res?.data || res;
       setPermData(d);
-      setSelectedPerms(d?.allowed_permissions || null);
+      // Use stored permissions if available, else fall back to empty list
+      setSelectedPerms(Array.isArray(d?.allowed_permissions) ? d.allowed_permissions : []);
     } catch {
       message.error("Failed to load permissions.");
     } finally {
@@ -204,24 +234,38 @@ const TeamManagement = () => {
 
           {searchResults.length > 0 && (
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {searchResults.map((u) => (
-                <div
-                  key={u.user_id}
-                  className="flex items-center justify-between rounded-xl border border-slate-100 p-3 hover:border-[#17b4c9] hover:bg-cyan-50 transition-colors"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">{u.email}</p>
-                    {u.name && <p className="text-xs text-slate-500">{u.name}</p>}
-                    <p className="text-xs text-slate-400">Current role: {u.current_role}</p>
-                  </div>
-                  <button
-                    onClick={() => handleAssignOpen(u)}
-                    className="rounded-lg bg-[#17b4c9] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#149cb0]"
+              {searchResults.map((u) => {
+                const teamMember = members.find((m) => m.user_id === u.user_id);
+                const alreadyInTeam = !!teamMember;
+                return (
+                  <div
+                    key={u.user_id}
+                    className={`flex items-center justify-between rounded-xl border p-3 transition-colors ${
+                      alreadyInTeam
+                        ? "border-slate-200 bg-slate-50 opacity-70"
+                        : "border-slate-100 hover:border-[#17b4c9] hover:bg-cyan-50"
+                    }`}
                   >
-                    Assign Role
-                  </button>
-                </div>
-              ))}
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{u.email}</p>
+                      {u.name && <p className="text-xs text-slate-500">{u.name}</p>}
+                      <p className="text-xs text-slate-400">Current role: {u.current_role}</p>
+                    </div>
+                    {alreadyInTeam ? (
+                      <span className="rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 capitalize">
+                        Already {teamMember.role_slug}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleAssignOpen(u)}
+                        className="rounded-lg bg-[#17b4c9] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#149cb0]"
+                      >
+                        Assign Role
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -229,17 +273,22 @@ const TeamManagement = () => {
 
       {/* Filter */}
       <div className="flex gap-2">
-        {["", "supervisor", "staff"].map((r) => (
+        {[
+          { value: "",          label: "All" },
+          { value: "manager",   label: "Managers" },
+          { value: "staff",     label: "Staff" },
+          { value: "assistant", label: "Assistants" },
+        ].map((r) => (
           <button
-            key={r}
-            onClick={() => setRoleFilter(r)}
+            key={r.value}
+            onClick={() => setRoleFilter(r.value)}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-              roleFilter === r
+              roleFilter === r.value
                 ? "bg-[#17b4c9] text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            {r === "" ? "All" : r === "supervisor" ? "Supervisors" : "Staff"}
+            {r.label}
           </button>
         ))}
       </div>
@@ -259,6 +308,7 @@ const TeamManagement = () => {
                 <tr>
                   <th className="text-left px-5 py-3 font-semibold text-slate-600">Member</th>
                   <th className="text-left px-5 py-3 font-semibold text-slate-600">Role</th>
+                  <th className="text-left px-5 py-3 font-semibold text-slate-600">Status</th>
                   <th className="text-left px-5 py-3 font-semibold text-slate-600">Permissions</th>
                   <th className="text-left px-5 py-3 font-semibold text-slate-600">Assigned</th>
                   <th className="text-right px-5 py-3 font-semibold text-slate-600">Actions</th>
@@ -268,8 +318,9 @@ const TeamManagement = () => {
                 {members.map((m) => {
                   const badge = ROLE_LABELS[m.role_slug] || { label: m.role_slug, color: "bg-slate-100 text-slate-600" };
                   const hasRestrictions = Array.isArray(m.allowed_permissions) && m.allowed_permissions.length > 0;
+                  const isBanned = m.status === "blocked";
                   return (
-                    <tr key={m.assignment_id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={m.assignment_id} className={`transition-colors ${isBanned ? "bg-red-50/40" : "hover:bg-slate-50"}`}>
                       <td className="px-5 py-3.5">
                         <div className="font-medium text-slate-800">{m.name || "—"}</div>
                         <div className="text-xs text-slate-500">{m.email}</div>
@@ -278,6 +329,17 @@ const TeamManagement = () => {
                         <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.color}`}>
                           {badge.label}
                         </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {isBanned ? (
+                          <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-600">
+                            Banned
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-600">
+                            Active
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5">
                         {hasRestrictions ? (
@@ -299,6 +361,17 @@ const TeamManagement = () => {
                             className="rounded-lg p-1.5 text-slate-400 hover:text-[#17b4c9] hover:bg-cyan-50 transition-colors"
                           >
                             <Settings className="w-4 h-4" />
+                          </button>
+                          <button
+                            title={isBanned ? "Unban member" : "Ban member"}
+                            onClick={() => handleBanToggle(m)}
+                            className={`rounded-lg p-1.5 transition-colors ${
+                              isBanned
+                                ? "text-emerald-500 hover:bg-emerald-50"
+                                : "text-slate-400 hover:text-amber-500 hover:bg-amber-50"
+                            }`}
+                          >
+                            {isBanned ? <ShieldCheck className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
                           </button>
                           <button
                             title="Remove"
@@ -333,7 +406,7 @@ const TeamManagement = () => {
             Select the role to assign to <strong>{assignTarget?.name || assignTarget?.email}</strong>:
           </p>
           <div className="flex gap-3">
-            {["supervisor", "staff"].map((r) => (
+            {["manager", "staff", "assistant"].map((r) => (
               <button
                 key={r}
                 onClick={() => setSelectedRole(r)}
@@ -357,92 +430,136 @@ const TeamManagement = () => {
       <Modal
         open={Boolean(permTarget)}
         onCancel={() => setPermTarget(null)}
-        title={`Permissions — ${permTarget?.name || permTarget?.email || ""}`}
-        width={600}
+        title={
+          <div>
+            <p className="font-bold text-slate-900">{permTarget?.name || permTarget?.email || "Member"}</p>
+            <p className="text-xs font-normal text-slate-400 mt-0.5 capitalize">
+              {permTarget?.role_slug} · CRM Permission Control
+            </p>
+          </div>
+        }
+        width={640}
         onOk={handlePermSave}
         okText={permSaving ? "Saving..." : "Save Permissions"}
         confirmLoading={permSaving}
         okButtonProps={{ style: { background: "#17b4c9", borderColor: "#17b4c9" } }}
+        cancelText="Cancel"
       >
         {permLoading ? (
-          <div className="py-8 text-center text-sm text-slate-400">Loading...</div>
+          <div className="py-10 text-center text-sm text-slate-400">Loading permissions...</div>
         ) : permData ? (
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-            <div className="flex items-center justify-between mb-2">
+          <div className="space-y-2 max-h-[65vh] overflow-y-auto pr-1 pt-1">
+            {/* Summary bar */}
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5 mb-3">
               <p className="text-sm text-slate-600">
-                {selectedPerms === null
-                  ? "Using role defaults. Toggle permissions to restrict access."
-                  : `${selectedPerms.length} permission${selectedPerms.length !== 1 ? "s" : ""} selected`}
+                <span className="font-bold text-[#17b4c9]">
+                  {(selectedPerms || []).length}
+                </span>
+                {" "}of{" "}
+                <span className="font-semibold text-slate-700">
+                  {Object.values(permData.all_permissions || {}).flat().length}
+                </span>
+                {" "}permissions enabled
               </p>
-              {selectedPerms !== null && (
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setSelectedPerms(null)}
-                  className="text-xs text-slate-400 hover:text-slate-600 underline"
+                  onClick={() => {
+                    const all = Object.values(permData.all_permissions || {}).flat().map((p) => p.key);
+                    setSelectedPerms(all);
+                  }}
+                  className="text-xs font-semibold text-[#17b4c9] hover:underline"
                 >
-                  Reset to defaults
+                  Enable all
                 </button>
-              )}
+                <button
+                  onClick={() => setSelectedPerms([])}
+                  className="text-xs font-semibold text-red-400 hover:underline"
+                >
+                  Disable all
+                </button>
+              </div>
             </div>
 
             {Object.entries(permData.all_permissions || {}).map(([mod, perms]) => {
               const current = selectedPerms || [];
               const modKeys = perms.map((p) => p.key);
-              const allModSelected = modKeys.every((k) => current.includes(k));
-              const someModSelected = modKeys.some((k) => current.includes(k));
+              const enabledCount = modKeys.filter((k) => current.includes(k)).length;
+              const allModSelected = enabledCount === modKeys.length;
+              const someModSelected = enabledCount > 0 && !allModSelected;
               const isExpanded = expandedModules[mod] !== false;
 
               return (
-                <div key={mod} className="rounded-xl border border-slate-100 overflow-hidden">
+                <div key={mod} className="rounded-xl border border-slate-200 overflow-hidden">
+                  {/* Module header */}
                   <button
-                    className="flex w-full items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
+                    className="flex w-full items-center justify-between px-4 py-3 bg-white hover:bg-slate-50 transition-colors"
                     onClick={() => setExpandedModules((p) => ({ ...p, [mod]: !isExpanded }))}
                   >
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
                         checked={allModSelected}
-                        ref={(el) => { if (el) el.indeterminate = someModSelected && !allModSelected; }}
-                        onChange={() => {
-                          if (selectedPerms === null) setSelectedPerms([]);
-                          toggleModule(mod);
+                        ref={(el) => { if (el) el.indeterminate = someModSelected; }}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          if (allModSelected) {
+                            setSelectedPerms((current || []).filter((k) => !modKeys.includes(k)));
+                          } else {
+                            setSelectedPerms([...new Set([...(current || []), ...modKeys])]);
+                          }
                         }}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-4 h-4 accent-[#17b4c9]"
+                        className="w-4 h-4 accent-[#17b4c9] cursor-pointer"
                       />
-                      <span className="font-semibold text-sm text-slate-700 capitalize">
+                      <span className="font-semibold text-sm text-slate-800 capitalize">
                         {mod.replace(/_/g, " ")}
                       </span>
-                      <span className="text-xs text-slate-400">({perms.length})</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        allModSelected ? "bg-cyan-100 text-[#17b4c9]" :
+                        someModSelected ? "bg-amber-100 text-amber-600" :
+                        "bg-slate-100 text-slate-400"
+                      }`}>
+                        {enabledCount}/{modKeys.length}
+                      </span>
                     </div>
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
-                    )}
+                    {isExpanded
+                      ? <ChevronUp className="w-4 h-4 text-slate-400" />
+                      : <ChevronDown className="w-4 h-4 text-slate-400" />
+                    }
                   </button>
 
+                  {/* Permission checkboxes */}
                   {isExpanded && (
-                    <div className="px-4 py-3 grid grid-cols-2 gap-2">
+                    <div className="border-t border-slate-100 divide-y divide-slate-50">
                       {perms.map((p) => {
                         const checked = (selectedPerms || []).includes(p.key);
                         return (
-                          <label key={p.key} className="flex items-center gap-2 cursor-pointer group">
+                          <label
+                            key={p.key}
+                            className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors ${
+                              checked ? "bg-cyan-50/60" : "hover:bg-slate-50"
+                            }`}
+                          >
                             <input
                               type="checkbox"
-                              checked={selectedPerms === null ? true : checked}
+                              checked={checked}
                               onChange={() => {
-                                if (selectedPerms === null) {
-                                  const allKeys = Object.values(permData.all_permissions || {}).flat().map((pp) => pp.key);
-                                  setSelectedPerms(allKeys.filter((k) => k !== p.key));
+                                if (checked) {
+                                  setSelectedPerms((selectedPerms || []).filter((k) => k !== p.key));
                                 } else {
-                                  togglePermKey(p.key);
+                                  setSelectedPerms([...(selectedPerms || []), p.key]);
                                 }
                               }}
-                              className="w-4 h-4 accent-[#17b4c9]"
+                              className="w-4 h-4 accent-[#17b4c9] cursor-pointer shrink-0"
                             />
-                            <span className="text-xs text-slate-600 group-hover:text-slate-900 capitalize">
-                              {p.action}
-                            </span>
+                            <div className="min-w-0">
+                              <p className={`text-sm font-medium ${checked ? "text-slate-900" : "text-slate-500"}`}>
+                                {p.label || p.action}
+                              </p>
+                              {p.description && (
+                                <p className="text-xs text-slate-400 mt-0.5">{p.description}</p>
+                              )}
+                            </div>
                           </label>
                         );
                       })}
@@ -453,7 +570,7 @@ const TeamManagement = () => {
             })}
           </div>
         ) : (
-          <p className="text-sm text-slate-400 py-4">No permission data available.</p>
+          <p className="text-sm text-slate-400 py-6 text-center">No permissions available.</p>
         )}
       </Modal>
     </div>

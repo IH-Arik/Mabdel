@@ -15,6 +15,7 @@ import {
   Brain,
   MessageSquare,
   LayoutDashboard,
+  TrendingUp,
 } from "lucide-react";
 import { BsBadgeAd } from "react-icons/bs";
 import { SiActivitypub } from "react-icons/si";
@@ -36,12 +37,14 @@ const ADMIN_MENU = [
 const OWNER_MENU = [
   { icon: <LayoutDashboard className="w-5 h-5" />, label: "Overview", Link: "/owner" },
   { icon: <Users className="w-5 h-5" />, label: "Team Management", Link: "/owner/team" },
+  { icon: <TrendingUp className="w-5 h-5" />, label: "Team Analysis", Link: "/owner/analysis" },
   { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
 ];
 
-const SUPERVISOR_MENU = [
+const MANAGER_MENU = [
   { icon: <LayoutDashboard className="w-5 h-5" />, label: "Overview", Link: "/owner" },
   { icon: <Users className="w-5 h-5" />, label: "My Team", Link: "/owner/team" },
+  { icon: <TrendingUp className="w-5 h-5" />, label: "Team Analysis", Link: "/owner/analysis" },
   { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
 ];
 
@@ -50,12 +53,18 @@ const STAFF_MENU = [
   { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
 ];
 
+const ASSISTANT_MENU = [
+  { icon: <LayoutDashboard className="w-5 h-5" />, label: "Overview", Link: "/owner" },
+  { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
+];
+
 const ROLE_MENU = {
   super_admin: ADMIN_MENU,
   admin: ADMIN_MENU,
   owner: OWNER_MENU,
-  supervisor: SUPERVISOR_MENU,
+  manager: MANAGER_MENU,
   staff: STAFF_MENU,
+  assistant: ASSISTANT_MENU,
 };
 
 const Sidebar = ({ closeDrawer }) => {
@@ -68,7 +77,7 @@ const Sidebar = ({ closeDrawer }) => {
   const handleLogout = () => {
     clearAdminSession();
     if (closeDrawer) closeDrawer();
-    navigate("/sign-in", { replace: true });
+    window.location.replace("/sign-in");
   };
 
   return (

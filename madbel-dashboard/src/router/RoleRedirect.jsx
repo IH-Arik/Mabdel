@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { getAdminRole } from "../utils/auth";
 
-const OWNER_ROLES = new Set(["owner", "supervisor", "staff"]);
+const OWNER_ROLES = new Set(["owner", "manager", "staff", "assistant"]);
 
 const RoleRedirect = () => {
   const role = getAdminRole();
