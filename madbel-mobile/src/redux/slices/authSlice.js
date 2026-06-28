@@ -56,6 +56,33 @@ export const authSlice = baseApi.injectEndpoints({
       },
     }),
 
+    googleLogin: builder.mutation({
+      query: (body) => ({
+        url: "/api/v1/auth/google",
+        method: "POST",
+        body,
+        headers: skipAuthHeaders,
+      }),
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          const tokens = getAuthTokens(data);
+
+          if (tokens.accessToken) {
+            dispatch(setToken(tokens.accessToken));
+          }
+
+          dispatch(
+            setCredentials({
+              accessToken: tokens.accessToken,
+              refreshToken: tokens.refreshToken,
+              user: tokens.user,
+            }),
+          );
+        } catch (error) {}
+      },
+    }),
+
     register: builder.mutation({
       query: (credentials) => ({
         url: "/api/v1/auth/register",
@@ -243,6 +270,7 @@ export const authSlice = baseApi.injectEndpoints({
 
 export const {
   useLoginMutation,
+  useGoogleLoginMutation,
   useRegisterMutation,
   useVerifyCodeMutation,
   useForgotPasswordMutation,

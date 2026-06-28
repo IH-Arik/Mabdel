@@ -1069,6 +1069,13 @@ async def admin_login(
     access_token = create_access_token(user_id=str(user["_id"]), email=user["email"])
     role = list(matching_roles)[0]
 
+    # Team members inherit owner's subscription — skip onboarding for them
+    non_owner_roles = {"super_admin", "admin", "supervisor", "staff"}
+    if role in non_owner_roles:
+        onboarding_complete = True
+    else:
+        onboarding_complete = bool(user.get("onboarding_complete", False))
+
     return BaseResponse(
         data={
             "accessToken": access_token,
@@ -1078,7 +1085,9 @@ async def admin_login(
                 "id": str(user["_id"]),
                 "full_name": user.get("full_name") or user.get("name") or "Admin",
                 "email": email,
-                "role": role
+                "role": role,
+                "onboarding_complete": onboarding_complete,
+                "subscription_status": user.get("subscription_status", "none"),
             }
         },
         message="Login successful"

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -8,17 +9,20 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { useFormContext, Controller } from "react-hook-form";
+import { useFormContext } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
 import { Bot, Eye, EyeOff, LockKeyhole, MailIcon } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLoginMutation } from "../../redux/slices/authSlice";
+import {
+  useLoginMutation,
+  useGoogleLoginMutation,
+} from "../../redux/slices/authSlice";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ControllerTextInput from "../../components/ControllerTextInput";
+import { googleSignIn } from "../../utils/googleAuth";
 
 const colors = {
   bg: "#02080B",
@@ -36,12 +40,15 @@ const LoginScreen = () => {
     handleSubmit,
     setError,
   } = useFormContext();
+
   const navigation = useNavigation();
   const [isPasswordVisible, setPasswordVisible] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const [login, { isLoading: loginLoading }] = useLoginMutation();
-  const togglePasswordVisibility = () => {
-    setPasswordVisible((prev) => !prev);
-  };
+  const [googleLogin] = useGoogleLoginMutation();
+
+  const isAnyLoading = loginLoading || googleLoading;
 
   const handleLogin = async (data) => {
     try {
@@ -49,12 +56,33 @@ const LoginScreen = () => {
         email: data?.loginEmail,
         password: data?.loginPassword,
       }).unwrap();
-      navigation.navigate("BottomNavigator");
+      // No navigate() call — RootAppNavigator re-renders automatically
+      // when setCredentials flips isAuthenticated to true
     } catch (error) {
       setError("root", {
         type: "login",
         message: error?.data?.message || "Unable to login.",
       });
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      const idToken = await googleSignIn();
+      await googleLogin({ id_token: idToken }).unwrap();
+      // No navigate() call — same pattern as handleLogin
+    } catch (error) {
+      if (error?.code === "SIGN_IN_CANCELLED") return;
+      setError("root", {
+        type: "google",
+        message:
+          error?.data?.message ||
+          error?.message ||
+          "Google sign-in failed. Please try again.",
+      });
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -76,6 +104,7 @@ const LoginScreen = () => {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
+              {/* Hero */}
               <View style={styles.heroWrap}>
                 <View style={styles.iconCard}>
                   <Bot size={42} color={colors.accent} strokeWidth={2.3} />
@@ -86,6 +115,7 @@ const LoginScreen = () => {
                 </Text>
               </View>
 
+              {/* Email */}
               <ControllerTextInput
                 name="loginEmail"
                 control={control}
@@ -103,6 +133,8 @@ const LoginScreen = () => {
                   },
                 }}
               />
+
+              {/* Password */}
               <ControllerTextInput
                 name="loginPassword"
                 control={control}
@@ -110,7 +142,6 @@ const LoginScreen = () => {
                 label="Password"
                 placeholder="Enter password"
                 type="password"
-                keyboardType="password"
                 secureTextEntry={!isPasswordVisible}
                 leftIcon={<LockKeyhole color="#14C6E4" size={20} />}
                 rightIcon={
@@ -120,7 +151,7 @@ const LoginScreen = () => {
                     <Eye color="#14C6E4" size={20} />
                   )
                 }
-                onPressToggle={togglePasswordVisibility}
+                onPressToggle={() => setPasswordVisible((p) => !p)}
                 rules={{
                   required: "Password is required",
                   minLength: {
@@ -130,6 +161,7 @@ const LoginScreen = () => {
                 }}
               />
 
+              {/* Forgot */}
               <Pressable
                 onPress={() => navigation.navigate("ForgotPassword")}
                 style={styles.forgotWrap}
@@ -137,13 +169,14 @@ const LoginScreen = () => {
                 <Text style={styles.link}>Forgot Password?</Text>
               </Pressable>
 
+              {/* Login button */}
               <Pressable
                 onPress={handleSubmit(handleLogin)}
                 style={[
                   styles.primaryButton,
-                  loginLoading && styles.buttonDisabled,
+                  isAnyLoading && styles.buttonDisabled,
                 ]}
-                disabled={loginLoading}
+                disabled={isAnyLoading}
               >
                 {loginLoading ? (
                   <ActivityIndicator color="#EAF9FD" size={20} />
@@ -152,30 +185,45 @@ const LoginScreen = () => {
                 )}
               </Pressable>
 
-              {errors?.root?.type === "login" && (
+              {/* Error */}
+              {errors?.root && (
                 <Text style={styles.errorTextCenter}>
-                  {errors?.root?.message}
+                  {errors.root.message}
                 </Text>
               )}
 
-              {/* Google OAuth — not yet implemented
+              {/* Divider */}
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>OR</Text>
                 <View style={styles.dividerLine} />
               </View>
 
-              <Pressable style={styles.googleButton}>
-                <Image
-                  source={require("../../../assets/images/google_icon.png")}
-                  style={{ width: 24, height: 24 }}
-                />
-                <Text style={styles.googleText}>Continue with Google</Text>
+              {/* Google button */}
+              <Pressable
+                onPress={handleGoogleLogin}
+                disabled={isAnyLoading}
+                style={[
+                  styles.googleButton,
+                  isAnyLoading && styles.buttonDisabled,
+                ]}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color={colors.textPrimary} size={20} />
+                ) : (
+                  <>
+                    <Image
+                      source={require("../../../assets/images/google_icon.png")}
+                      style={styles.googleIcon}
+                    />
+                    <Text style={styles.googleText}>Continue with Google</Text>
+                  </>
+                )}
               </Pressable>
-              */}
 
+              {/* Footer */}
               <View style={styles.footerRow}>
-                <Text style={styles.footerText}>Don’t have an account?</Text>
+                <Text style={styles.footerText}>Don't have an account?</Text>
                 <Pressable onPress={() => navigation.navigate("Register")}>
                   <Text style={styles.link}>Sign Up</Text>
                 </Pressable>
@@ -187,10 +235,6 @@ const LoginScreen = () => {
     </KeyboardAvoidingView>
   );
 };
-
-const FieldLabel = ({ label }) => (
-  <Text style={styles.fieldLabel}>{label}</Text>
-);
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
@@ -220,47 +264,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.textPrimary,
-    fontSize: 56 / 2,
+    fontSize: 28,
     fontWeight: "800",
   },
   subtitle: {
     color: colors.textSecondary,
-    fontSize: 21 / 2,
-    lineHeight: 30 / 2,
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: "center",
-  },
-  fieldLabel: {
-    color: colors.textPrimary,
-    fontSize: 22 / 2,
-    fontWeight: "500",
-    marginTop: 8,
-  },
-  inputWrap: { position: "relative" },
-  input: {
-    height: 76,
-    borderRadius: 20,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: "transparent",
-    color: colors.textPrimary,
-    fontSize: 20 / 2,
-    paddingHorizontal: 18,
-  },
-  inputWithRight: {
-    paddingRight: 56,
-  },
-  inputRightIcon: {
-    position: "absolute",
-    right: 14,
-    height: 76,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorBorder: { borderColor: "#FF5D6E" },
-  errorText: {
-    color: "#FF5D6E",
-    fontSize: 12,
-    marginTop: 4,
   },
   forgotWrap: {
     alignItems: "flex-end",
@@ -269,12 +280,12 @@ const styles = StyleSheet.create({
   },
   link: {
     color: colors.accent,
-    fontSize: 19 / 2,
+    fontSize: 13,
     fontWeight: "600",
   },
   primaryButton: {
     marginTop: 8,
-    height: 78,
+    height: 56,
     borderRadius: 22,
     backgroundColor: colors.accent,
     alignItems: "center",
@@ -288,20 +299,21 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.55 },
   primaryButtonText: {
     color: "#EAF5F8",
-    fontSize: 24 / 2,
+    fontSize: 16,
     fontWeight: "700",
   },
   errorTextCenter: {
     color: "#FF5D6E",
     textAlign: "center",
     marginTop: 8,
+    fontSize: 13,
   },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
-    marginTop: 18,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 4,
   },
   dividerLine: {
     flex: 1,
@@ -310,26 +322,27 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     color: "#C2C7CC",
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "600",
   },
   googleButton: {
-    height: 78,
+    height: 56,
     borderRadius: 20,
     backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 12,
   },
-  googleG: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#EA4335",
+  googleIcon: {
+    width: 22,
+    height: 22,
   },
   googleText: {
     color: colors.textPrimary,
-    fontSize: 22 / 2,
+    fontSize: 15,
     fontWeight: "600",
   },
   footerRow: {
@@ -341,7 +354,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: colors.textSecondary,
-    fontSize: 21 / 2,
+    fontSize: 13,
   },
 });
 

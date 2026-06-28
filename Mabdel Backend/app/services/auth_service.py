@@ -227,7 +227,7 @@ class AuthService:
                 code="GOOGLE_ID_TOKEN_REQUIRED",
                 message="Google ID token is required.",
             )
-        if not settings.GOOGLE_CLIENT_ID:
+        if not (settings.GOOGLE_MOBILE_CLIENT_ID or settings.GOOGLE_CLIENT_ID):
             raise AppException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 code="GOOGLE_LOGIN_NOT_CONFIGURED",
@@ -288,7 +288,8 @@ class AuthService:
                 message="Google token is invalid or expired.",
             )
         data = response.json()
-        if data.get("aud") != settings.GOOGLE_CLIENT_ID:
+        expected_client_id = settings.GOOGLE_MOBILE_CLIENT_ID or settings.GOOGLE_CLIENT_ID
+        if data.get("aud") != expected_client_id:
             raise AppException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 code="GOOGLE_TOKEN_AUDIENCE_INVALID",
