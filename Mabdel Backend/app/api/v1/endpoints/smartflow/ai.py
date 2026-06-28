@@ -7,7 +7,7 @@ from fastapi import Depends, File, Form, Query, Request, UploadFile
 from pydantic import ValidationError
 
 from app.core.exceptions import AppException
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
     AIChatRequest,
     AIWorkflowPrefillRequest,
@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 @router.post("/ai/chat")
 async def ai_chat(
     request: Request,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     try:
@@ -54,7 +55,8 @@ async def ai_chat(
 @router.post("/ai/generate-image")
 async def generate_ai_image(
     payload: ImageGenerationRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.generate_ai_image(str(current_user["_id"]), payload.prompt)
@@ -63,7 +65,7 @@ async def generate_ai_image(
 
 @router.get("/ai/voices")
 async def list_ai_voices(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.list_ai_voices()
@@ -81,7 +83,7 @@ async def list_ai_history(
     date_to: str | None = None,
     replayable_only: bool = False,
     group_by: str | None = None,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.list_ai_history(
@@ -102,7 +104,8 @@ async def list_ai_history(
 @router.post("/ai/history/{history_id}/replay")
 async def replay_ai_history(
     history_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.replay_ai_command(str(current_user["_id"]), history_id)
@@ -112,7 +115,8 @@ async def replay_ai_history(
 @router.post("/voice/transcribe", response_model=ApiResponse[VoiceCommandResponse])
 async def transcribe_voice(
     payload: VoiceCommandRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> Any:
     data = await service.process_voice_command(
@@ -131,7 +135,7 @@ async def transcribe_voice(
 @router.post("/ai/voice-chat", response_model=ApiResponse[VoiceCommandResponse])
 async def ai_voice_chat(
     payload: VoiceCommandRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> Any:
     data = await service.process_voice_command(
@@ -153,7 +157,7 @@ async def ai_voice_chat_upload(
     response_mode: str = Form(default="audio"),
     voice_id: str | None = Form(default=None),
     transcript: str | None = Form(default=None),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> Any:
     audio_bytes = await audio_file.read()
@@ -174,7 +178,7 @@ async def ai_voice_chat_upload(
 @router.post("/ai/workflow-prefill")
 async def ai_workflow_prefill(
     payload: AIWorkflowPrefillRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     try:

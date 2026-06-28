@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import Depends, Query, status
 
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
     CalendarEventCreateRequest,
     CalendarEventShareRequest,
@@ -24,7 +24,7 @@ async def list_calendar_events(
     date_from: str | None = None,
     date_to: str | None = None,
     contact_id: str | None = None,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("appointments", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.list_calendar_events(
@@ -43,7 +43,7 @@ async def list_calendar_events(
 @router.get("/calendar/events/{event_id}")
 async def get_calendar_event(
     event_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("appointments", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_calendar_event(str(current_user["_id"]), event_id)
@@ -53,7 +53,8 @@ async def get_calendar_event(
 @router.post("/calendar/events", status_code=status.HTTP_201_CREATED)
 async def create_calendar_event(
     payload: CalendarEventCreateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("appointments", "create")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.create_calendar_event(str(current_user["_id"]), payload.model_dump())
@@ -64,7 +65,8 @@ async def create_calendar_event(
 async def update_calendar_event(
     event_id: str,
     payload: CalendarEventUpdateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("appointments", "edit")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.update_calendar_event(str(current_user["_id"]), event_id, payload.model_dump(exclude_unset=True))
@@ -75,7 +77,8 @@ async def update_calendar_event(
 async def share_calendar_event(
     event_id: str,
     payload: CalendarEventShareRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("appointments", "edit")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.share_calendar_event(str(current_user["_id"]), event_id, payload.model_dump(exclude_unset=True))
@@ -85,7 +88,8 @@ async def share_calendar_event(
 @router.delete("/calendar/events/{event_id}")
 async def delete_calendar_event(
     event_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("appointments", "cancel")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     await service.delete_calendar_event(str(current_user["_id"]), event_id)

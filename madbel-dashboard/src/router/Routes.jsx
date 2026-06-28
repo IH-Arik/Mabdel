@@ -28,6 +28,11 @@ import EventCreatorDetails from "../Pages/EventCreator/EventCreatorDetails";
 import MakeAdmin from "../Pages/MakeAdmin/MakeAdmin";
 import OwnerDashboard from "../Pages/Owner/OwnerDashboard";
 import TeamManagement from "../Pages/Owner/TeamManagement";
+import TeamAnalysis from "../Pages/Owner/TeamAnalysis";
+import MemberAnalysis from "../Pages/Owner/MemberAnalysis";
+import OnboardingPage from "../Pages/Onboarding/OnboardingPage";
+import TrialExpiredPage from "../Pages/Onboarding/TrialExpiredPage";
+import BillingPage from "../Pages/Settings/Billing/BillingPage";
 
 export const router = createBrowserRouter([
   {
@@ -37,6 +42,9 @@ export const router = createBrowserRouter([
   {
     element: <PrivateRoute />,
     children: [
+      // Standalone full-screen pages (no sidebar/header)
+      { path: "/onboarding", element: <OnboardingPage /> },
+      { path: "/trial-expired", element: <TrialExpiredPage /> },
       {
         path: "/",
         element: <MainLayout />,
@@ -46,6 +54,8 @@ export const router = createBrowserRouter([
           // Owner routes
           { path: "/owner", element: <OwnerDashboard /> },
           { path: "/owner/team", element: <TeamManagement /> },
+          { path: "/owner/analysis", element: <TeamAnalysis /> },
+          { path: "/owner/member/:userId/analysis", element: <MemberAnalysis /> },
           // Admin / Super Admin routes
           { path: "/user-list", element: <UserList /> },
           { path: "/block-list", element: <BlockedList /> },
@@ -68,6 +78,7 @@ export const router = createBrowserRouter([
           { path: "/settings/terms-condition", element: <TermsCondition /> },
           { path: "/settings/profile", element: <ProfilePage /> },
           { path: "/settings/change-password", element: <ChangePass /> },
+          { path: "/settings/billing", element: <BillingPage /> },
           { path: "/messages", element: <AllMessages /> },
         ],
       },

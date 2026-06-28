@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import { Drawer } from "antd";
 import Header from "../../Components/Sidebar/Header";
+import UpgradeModal from "../../Components/Common/UpgradeModal";
 
 const MainLayout = () => {
   const onClose = () => setOpen(false);
@@ -45,6 +46,9 @@ const MainLayout = () => {
           <Outlet />
         </div>
       </div>
+
+      {/* Global subscription gate modal */}
+      <UpgradeModal />
     </div>
   );
 };

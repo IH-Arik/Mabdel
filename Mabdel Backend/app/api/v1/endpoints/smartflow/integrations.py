@@ -8,7 +8,7 @@ from fastapi import Depends, Header, Query, Request, status
 
 from app.core.config import settings
 from app.core.exceptions import AppException
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
     SocialIntegrationUpsertRequest,
     TelegramManualConnectRequest,
@@ -24,10 +24,9 @@ META_PLATFORMS = {"facebook_messenger", "instagram", "whatsapp"}
 
 
 def _verify_meta_signature(raw_body: bytes, signature_header: str | None) -> None:
-    """Validate X-Hub-Signature-256 from Meta using META_CLIENT_SECRET."""
     secret = settings.META_CLIENT_SECRET
     if not secret:
-        return  # not configured, skip
+        return
     if not signature_header or not signature_header.startswith("sha256="):
         raise AppException(status_code=401, code="WEBHOOK_SIGNATURE_MISSING", message="Meta webhook signature missing.")
     expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
@@ -37,7 +36,7 @@ def _verify_meta_signature(raw_body: bytes, signature_header: str | None) -> Non
 
 @router.get("/integrations")
 async def list_integrations(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("integrations", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.list_integrations(str(current_user["_id"]))
@@ -46,7 +45,7 @@ async def list_integrations(
 
 @router.get("/integrations/catalog")
 async def list_integration_catalog(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("integrations", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_integration_catalog(str(current_user["_id"]))
@@ -55,7 +54,7 @@ async def list_integration_catalog(
 
 @router.get("/integrations/status")
 async def get_integration_status(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("integrations", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_integration_status(str(current_user["_id"]))
@@ -65,7 +64,8 @@ async def get_integration_status(
 @router.post("/integrations", status_code=status.HTTP_201_CREATED)
 async def connect_integration(
     payload: SocialIntegrationUpsertRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("integrations", "manage")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.upsert_integration(str(current_user["_id"]), payload.model_dump())
@@ -75,7 +75,8 @@ async def connect_integration(
 @router.post("/integrations/{platform}/sync")
 async def sync_integration(
     platform: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("integrations", "manage")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.sync_integration(str(current_user["_id"]), platform)
@@ -85,7 +86,8 @@ async def sync_integration(
 @router.post("/integrations/telegram/manual-connect", status_code=status.HTTP_201_CREATED)
 async def connect_telegram_manual(
     payload: TelegramManualConnectRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("integrations", "manage")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.connect_telegram_manual(str(current_user["_id"]), payload.model_dump())
@@ -95,7 +97,8 @@ async def connect_telegram_manual(
 @router.post("/integrations/whatsapp/manual-connect", status_code=status.HTTP_201_CREATED)
 async def connect_whatsapp_manual(
     payload: WhatsAppManualConnectRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("integrations", "manage")),
+    _: dict = Depends(require_subscription),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.connect_whatsapp_manual(str(current_user["_id"]), payload.model_dump())
@@ -105,7 +108,7 @@ async def connect_whatsapp_manual(
 @router.get("/integrations/{platform}/oauth/start")
 async def start_integration_oauth(
     platform: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("integrations", "manage")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.start_integration_oauth(str(current_user["_id"]), platform)
@@ -126,7 +129,7 @@ async def complete_integration_oauth(
 @router.delete("/integrations/{platform}")
 async def disconnect_integration(
     platform: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("integrations", "manage")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.disconnect_integration(str(current_user["_id"]), platform)

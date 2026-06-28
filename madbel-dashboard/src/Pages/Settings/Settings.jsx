@@ -1,12 +1,16 @@
 import React from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CiUser } from "react-icons/ci";
 import { FaEdit } from "react-icons/fa";
 import { MdPrivacyTip } from "react-icons/md";
 import { RiTerminalWindowLine } from "react-icons/ri";
+import { getAdminRole } from "../../utils/auth";
 
 const Settings = () => {
+  const role = getAdminRole();
+  const isOwner = role === "owner";
+
   const subItems = [
     {
       icon: <CiUser className="w-5 h-5" />,
@@ -18,6 +22,15 @@ const Settings = () => {
       label: "Change Password",
       link: "/settings/change-password",
     },
+    ...(isOwner
+      ? [
+          {
+            icon: <CreditCard className="w-5 h-5" />,
+            label: "Billing & Subscription",
+            link: "/settings/billing",
+          },
+        ]
+      : []),
     {
       icon: <FaEdit className="w-5 h-5" />,
       label: "About Us",
