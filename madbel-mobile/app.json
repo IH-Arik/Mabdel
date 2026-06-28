@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.shovon12345.madbel",
+      "bundleIdentifier": "com.madbelai.madbel",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We use your location to show nearby activities within 10 miles.",
         "NSMicrophoneUsageDescription": "Allow Mabdel to record voice commands for AI assistance.",
@@ -32,7 +32,7 @@
         "ACCESS_FINE_LOCATION",
         "READ_CONTACTS"
       ],
-      "package": "com.shovon12345.madbel"
+      "package": "com.madbelai.madbel"
     },
     "plugins": [
       "expo-location",
