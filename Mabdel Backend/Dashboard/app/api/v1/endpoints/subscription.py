@@ -118,6 +118,8 @@ async def start_trial(
                 "trial_started_at": now,
                 "trial_ends_at": trial_ends,
                 "onboarding_complete": True,
+                "role": "owner",
+                "primary_role": "owner",
                 "updated_at": now,
             }
         },
@@ -175,6 +177,8 @@ async def activate_subscription(
                 "subscription_status": "active",
                 "subscription_started_at": now,
                 "onboarding_complete": True,
+                "role": "owner",
+                "primary_role": "owner",
                 "updated_at": now,
             }
         },

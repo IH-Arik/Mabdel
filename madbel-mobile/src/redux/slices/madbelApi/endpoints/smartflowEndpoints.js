@@ -1508,4 +1508,42 @@ export const buildSmartflowEndpoints = (builder) => ({
         { type: "MadbelSmartFlow", id: post_id },
       ],
     }),
+
+    madbelGetSubscriptionStatus: builder.query({
+      query: buildApiRequest({
+        path: "/api/v1/subscription/status",
+        method: "GET",
+      }),
+      providesTags: [{ type: "MadbelSmartFlow", id: "SUBSCRIPTION" }],
+    }),
+
+    madbelStartTrial: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/subscription/start-trial",
+        method: "POST",
+      }),
+      invalidatesTags: [
+        { type: "MadbelSmartFlow", id: "SUBSCRIPTION" },
+        { type: "UserProfile", id: "ME" },
+      ],
+    }),
+
+    madbelActivateSubscription: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/subscription/activate",
+        method: "POST",
+      }),
+      invalidatesTags: [
+        { type: "MadbelSmartFlow", id: "SUBSCRIPTION" },
+        { type: "UserProfile", id: "ME" },
+      ],
+    }),
+
+    madbelCompleteOnboarding: builder.mutation({
+      query: buildApiRequest({
+        path: "/api/v1/subscription/complete-onboarding",
+        method: "POST",
+      }),
+      invalidatesTags: [{ type: "MadbelSmartFlow", id: "SUBSCRIPTION" }],
+    }),
 });
