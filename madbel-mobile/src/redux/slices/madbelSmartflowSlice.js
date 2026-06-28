@@ -234,4 +234,9 @@ export const {
   useLazyMadbelListSocialPostsQuery,
   useMadbelGetSocialPostQuery,
   useLazyMadbelGetSocialPostQuery,
+  useMadbelGetSubscriptionStatusQuery,
+  useLazyMadbelGetSubscriptionStatusQuery,
+  useMadbelStartTrialMutation,
+  useMadbelActivateSubscriptionMutation,
+  useMadbelCompleteOnboardingMutation,
 } = madbelSmartflowSlice;

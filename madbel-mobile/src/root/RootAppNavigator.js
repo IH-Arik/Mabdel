@@ -1,10 +1,11 @@
-﻿import React, { useEffect } from "react";
-import { Platform } from "react-native";
+﻿import React, { useEffect, useState } from "react";
+import { Platform, View } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import BeginScreen from "../screens/auth/BeginScreen";
 import OnboardingScreen from "../screens/OnboardingScreen";
 import AuthStack from "../stack/AuthStack";
 import BottomNavigator from "../stack/BottomTabNavigator";
+import SubscriptionTrialScreen from "../screens/auth/SubscriptionTrialScreen";
 import { useSelector } from "react-redux";
 import NotificationScreen from "../screens/NotificaitonsScreen";
 import IncomingCallScreen from "../screens/call/IncomingCallScreen";
@@ -26,6 +27,28 @@ const RootAppNavigator = () => {
   const isAuthenticated =
     (typeof accessToken === "string" && accessToken.trim().length > 0) ||
     Boolean(authUser);
+
+  const [trialChecked, setTrialChecked] = useState(false);
+  const [showTrial, setShowTrial] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setTrialChecked(false);
+      setShowTrial(false);
+      return;
+    }
+    // redux-persist rehydrates authUser before first render, so this is synchronous —
+    // no API call, no network dependency, no black screen risk.
+    const status = authUser?.subscription_status;
+    const trialEndsAt = authUser?.trial_ends_at;
+    const hasAccess =
+      status === "active" ||
+      (status === "trial" &&
+        trialEndsAt &&
+        new Date(trialEndsAt) > new Date());
+    setShowTrial(!hasAccess);
+    setTrialChecked(true);
+  }, [isAuthenticated]);
 
   const [registerPushToken] = useMadbelRegisterPushTokenMutation();
 
@@ -74,13 +97,22 @@ const RootAppNavigator = () => {
     registerToken();
   }, [isAuthenticated]);
 
+  // Block navigator mount for one tick until the subscription check useEffect fires.
+  // This ensures initialRouteName is correct before the auth stack first renders.
+  if (isAuthenticated && !trialChecked) {
+    return <View style={{ flex: 1, backgroundColor: "#02080B" }} />;
+  }
+
+  const authInitialRoute = showTrial ? "SubscriptionTrial" : "BottomNavigator";
+
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
-      initialRouteName={isAuthenticated ? "BottomNavigator" : "Begin"}
+      initialRouteName={isAuthenticated ? authInitialRoute : "Begin"}
     >
       {isAuthenticated ? (
         <>
+          <Stack.Screen name="SubscriptionTrial" component={SubscriptionTrialScreen} />
           <Stack.Screen name="BottomNavigator" component={BottomNavigator} />
           <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
           <Stack.Screen name="ActiveCall" component={ActiveCallScreen} />

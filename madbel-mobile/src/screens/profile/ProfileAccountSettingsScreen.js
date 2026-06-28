@@ -27,11 +27,14 @@ import {
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
+import { useDispatch } from "react-redux";
+import { clearAuth } from "../../redux/reducers/authReducer";
 import {
   useMadbelGetTwilioStatusQuery,
   useMadbelProvisionTwilioMutation,
   useMadbelSaveCustomTwilioMutation,
   useMadbelRemoveCustomTwilioMutation,
+  useMadbelDeleteAccountMutation,
 } from "../../redux/slices/madbelApiSlice";
 
 const ACCOUNT_ITEMS = [
@@ -336,6 +339,30 @@ const TwilioSetupCard = () => {
 
 const ProfileAccountSettingsScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
+  const [deleteAccount, { isLoading: deleting }] = useMadbelDeleteAccountMutation();
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "This will permanently delete your account and all data. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAccount().unwrap();
+              dispatch(clearAuth());
+            } catch (e) {
+              Alert.alert("Error", e?.data?.message || "Could not delete account. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -363,8 +390,16 @@ const ProfileAccountSettingsScreen = () => {
           ))}
         </View>
 
-        <Pressable style={styles.deleteBtn}>
-          <Text style={styles.deleteText}>Delete Account</Text>
+        <Pressable
+          style={[styles.deleteBtn, deleting && { opacity: 0.55 }]}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color="#FC4C58" size="small" />
+          ) : (
+            <Text style={styles.deleteText}>Delete Account</Text>
+          )}
         </Pressable>
       </ScrollView>
     </SafeAreaView>
