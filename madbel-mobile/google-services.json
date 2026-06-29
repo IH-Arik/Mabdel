@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "314818251696",
+    "project_id": "mabdel-ai-797d8",
+    "storage_bucket": "mabdel-ai-797d8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:314818251696:android:b73e1c780432a1a0c62475",
+        "android_client_info": {
+          "package_name": "com.madbelai.madbel"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "314818251696-hu3jc619cpdmcs9esqe3h4ri19fava0l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.madbelai.madbel",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "314818251696-n1fklhtg2r5iiflj3gh6v6ckeitn7fvg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfACxTJc_RpB8BdlreAFc1w95zfa07SHc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "314818251696-n1fklhtg2r5iiflj3gh6v6ckeitn7fvg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
