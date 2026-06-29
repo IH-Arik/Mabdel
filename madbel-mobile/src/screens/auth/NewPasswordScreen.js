@@ -15,10 +15,21 @@ import {
 } from "react-native";
 import { Controller, useFormContext } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
-import { Eye, EyeOff, RotateCcw, CircleCheck } from "lucide-react-native";
+import {
+  Eye,
+  EyeOff,
+  RotateCcw,
+  CircleCheck,
+  LockKeyhole,
+} from "lucide-react-native";
 import { useSelector } from "react-redux";
 import { LinearGradient } from "expo-linear-gradient";
 import { useResetPasswordMutation } from "../../redux/slices/authSlice";
+import ControllerTextInput from "../../components/ControllerTextInput";
+import {
+  responsiveFontSize,
+  responsiveHeight,
+} from "react-native-responsive-dimensions";
 
 const colors = {
   bg: "#02080B",
@@ -82,7 +93,11 @@ const NewPasswordScreen = () => {
             >
               <View style={styles.heroWrap}>
                 <View style={styles.iconCard}>
-                  <RotateCcw size={42} color={colors.accent} strokeWidth={2.1} />
+                  <RotateCcw
+                    size={42}
+                    color={colors.accent}
+                    strokeWidth={2.1}
+                  />
                 </View>
                 <Text style={styles.title}>Set new Password</Text>
                 <Text style={styles.subtitle}>
@@ -91,86 +106,60 @@ const NewPasswordScreen = () => {
                 </Text>
               </View>
 
-              <Text style={styles.fieldLabel}>NEW PASSWORD</Text>
-              <Controller
-                control={control}
+              <ControllerTextInput
                 name="newPassword"
+                control={control}
+                error={errors?.newPassword?.message}
+                label="New Password"
+                placeholder="Enter new password"
+                type="password"
+                secureTextEntry={!isPasswordVisible}
+                leftIcon={<LockKeyhole color="#14C6E4" size={20} />}
+                rightIcon={
+                  isPasswordVisible ? (
+                    <EyeOff color="#14C6E4" size={20} />
+                  ) : (
+                    <Eye color="#14C6E4" size={20} />
+                  )
+                }
+                onPressToggle={() => setPasswordVisible((p) => !p)}
                 rules={{
-                  required: "Password is required",
+                  required: "New Password is required",
                   minLength: {
                     value: 8,
-                    message: "Password must be at least 8 characters",
+                    message: "New Password must be at least 8 characters",
                   },
                 }}
-                render={({ field: { onChange, value, onBlur } }) => (
-                  <View style={styles.inputWrap}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="SecurePass2024!"
-                      placeholderTextColor="#777F88"
-                      secureTextEntry={!isPasswordVisible}
-                      style={[styles.input, errors?.newPassword && styles.errorBorder]}
-                    />
-                    <Pressable
-                      onPress={() => setPasswordVisible((prev) => !prev)}
-                      style={styles.inputRightIcon}
-                    >
-                      {isPasswordVisible ? (
-                        <EyeOff size={28} color="#A9AFBD" />
-                      ) : (
-                        <Eye size={28} color="#A9AFBD" />
-                      )}
-                    </Pressable>
-                  </View>
-                )}
               />
-              {errors?.newPassword?.message && (
-                <Text style={styles.errorText}>{errors.newPassword.message}</Text>
-              )}
 
-              <Text style={styles.fieldLabel}>CONFIRM PASSWORD</Text>
-              <Controller
-                control={control}
+
+
+              <ControllerTextInput
                 name="newConfirmPassword"
+                control={control}
+                error={errors?.newConfirmPassword?.message}
+                label="Confirm Password"
+                placeholder="Enter confirm password"
+                type="password"
+                secureTextEntry={!isPasswordVisible}
+                leftIcon={<LockKeyhole color="#14C6E4" size={20} />}
+                rightIcon={
+                  isPasswordVisible ? (
+                    <EyeOff color="#14C6E4" size={20} />
+                  ) : (
+                    <Eye color="#14C6E4" size={20} />
+                  )
+                }
+                onPressToggle={() => setPasswordVisible((p) => !p)}
                 rules={{
                   required: "Confirm password is required",
                   validate: (value) =>
-                    value === getValues("newPassword") || "Passwords do not match",
+                    value === getValues("newPassword") ||
+                    "Passwords do not match",
                 }}
-                render={({ field: { onChange, value, onBlur } }) => (
-                  <View style={styles.inputWrap}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="SecurePass2024!"
-                      placeholderTextColor="#777F88"
-                      secureTextEntry={!isPasswordVisible2}
-                      style={[
-                        styles.input,
-                        errors?.newConfirmPassword && styles.errorBorder,
-                      ]}
-                    />
-                    <Pressable
-                      onPress={() => setPasswordVisible2((prev) => !prev)}
-                      style={styles.inputRightIcon}
-                    >
-                      {confirmPassword && confirmPassword === newPassword ? (
-                        <CircleCheck size={30} color="#1AD89A" />
-                      ) : isPasswordVisible2 ? (
-                        <EyeOff size={28} color="#A9AFBD" />
-                      ) : (
-                        <Eye size={28} color="#A9AFBD" />
-                      )}
-                    </Pressable>
-                  </View>
-                )}
               />
-              {errors?.newConfirmPassword?.message && (
-                <Text style={styles.errorText}>{errors.newConfirmPassword.message}</Text>
-              )}
+
+  
 
               <Pressable
                 onPress={handleSubmit(handleResetPassword)}
@@ -195,15 +184,17 @@ const NewPasswordScreen = () => {
               </Pressable>
 
               {errors?.root?.type === "resetPassword" && (
-                <Text style={styles.errorTextCenter}>{errors?.root?.message}</Text>
+                <Text style={styles.errorTextCenter}>
+                  {errors?.root?.message}
+                </Text>
               )}
 
-              <Text style={styles.terms}>
+              {/* <Text style={styles.terms}>
                 By setting a password, you agree to our
                 <Text style={styles.link}> Terms of Service </Text>
                 and
                 <Text style={styles.link}> Privacy Policy.</Text>
-              </Text>
+              </Text> */}
             </ScrollView>
           </LinearGradient>
         </SafeAreaView>
@@ -219,6 +210,7 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingBottom: 30,
+    gap: responsiveHeight(2),
   },
   heroWrap: {
     alignItems: "center",
@@ -243,7 +235,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: colors.textSecondary,
-    fontSize: 21 / 2,
+    fontSize: 13,
     lineHeight: 32 / 2,
     textAlign: "center",
   },
@@ -295,7 +287,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.55 },
   primaryButtonText: {
     color: "#EAF5F8",
-    fontSize: 24 / 2,
+    fontSize: responsiveFontSize(2),
     fontWeight: "700",
   },
   backWrap: {

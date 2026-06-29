@@ -27,6 +27,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRegisterMutation } from "../../redux/slices/authSlice";
 import ControllerTextInput from "../../components/ControllerTextInput";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { responsiveFontSize , responsiveWidth} from "react-native-responsive-dimensions";
 
 const colors = {
   bg: "#02080B",
@@ -179,8 +180,8 @@ const RegisterScreen = () => {
                     <Check size={16} color="#021016" strokeWidth={3} />
                   )}
                 </View>
-                <Text style={styles.termsText}>I agree to the</Text>
-                <Text style={styles.link}>Terms & Conditions</Text>
+                <Text style={styles.termsText}>I agree to the Terms & Conditions </Text>
+                {/* <Text style={styles.link}>Terms & Conditions</Text> */}
               </Pressable>
 
               <Pressable
@@ -300,9 +301,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   checkbox: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
+    width: responsiveWidth(5),
+    height: responsiveWidth(5),
+    borderRadius: 4,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "#272E3A",
@@ -316,11 +317,11 @@ const styles = StyleSheet.create({
   },
   termsText: {
     color: colors.textPrimary,
-    fontSize: 20 / 2,
+    fontSize: responsiveFontSize(2),
   },
   link: {
     color: colors.accent,
-    fontSize: 20 / 2,
+    fontSize: responsiveFontSize(1.5),
     fontWeight: "600",
   },
   primaryButton: {
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.55 },
   primaryButtonText: {
     color: "#EAF5F8",
-    fontSize: 24 / 2,
+    fontSize: responsiveFontSize(2),
     fontWeight: "700",
   },
   dividerRow: {
