@@ -7,7 +7,7 @@ from fastapi import APIRouter, Body, Depends, Path, Query, Request
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
 
-from app.dependencies import (
+from ....dependencies import (
     get_mongo_database,
     get_rbac_service,
     require_permission,

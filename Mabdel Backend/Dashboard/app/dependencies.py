@@ -7,10 +7,10 @@ from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.database import get_database
-from app.core.exceptions import AppException
-from app.core.security import decode_token
-from app.services.dashboard_service import DashboardService
+from .core.database import get_database
+from .core.exceptions import AppException
+from .core.security import decode_token
+from .services.dashboard_service import DashboardService
 
 
 async def get_mongo_database() -> AsyncIOMotorDatabase:
@@ -40,7 +40,7 @@ async def get_current_user(
 
 
 def _get_rbac(db: AsyncIOMotorDatabase) -> "RBACService":  # noqa: F821
-    from app.services.rbac_service import RBACService
+    from .services.rbac_service import RBACService
     return RBACService(db)
 
 
@@ -52,7 +52,7 @@ def _user_id(user: dict) -> str:
 
 
 def require_role(allowed_roles: list[str]) -> Callable:
-    from app.models.rbac_models import ROLE_HIERARCHY
+    from .models.rbac_models import ROLE_HIERARCHY
     min_level = min((ROLE_HIERARCHY.get(r, 0) for r in allowed_roles), default=0)
 
     async def role_checker(
@@ -122,7 +122,7 @@ def get_dashboard_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)
 
 
 def get_rbac_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)):
-    from app.services.rbac_service import RBACService
+    from .services.rbac_service import RBACService
     return RBACService(db)
 
 

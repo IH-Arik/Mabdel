@@ -1,6 +1,6 @@
 ﻿"""
 Subscription & Trial endpoints — dashboard backend.
-Mirrors app/api/v1/endpoints/subscription.py using Dashboard.app dependencies.
+Mirrors app/api/v1/endpoints/subscription.py using app dependencies.
 """
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.exceptions import AppException
-from app.dependencies import get_current_user, get_mongo_database
+from ....core.exceptions import AppException
+from ....dependencies import get_current_user, get_mongo_database
 
 router = APIRouter(prefix="/subscription", tags=["subscription"])
 
