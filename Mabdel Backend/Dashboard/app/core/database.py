@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo.errors import PyMongoError
 
-from Dashboard.app.core.config import settings
-from Dashboard.app.core.exceptions import AppException
+from app.core.config import settings
+from app.core.exceptions import AppException
 
 logger = logging.getLogger(__name__)
 
@@ -68,3 +68,4 @@ async def get_database() -> AsyncIOMotorDatabase:
 
 async def close_database_connection() -> None:
     await mongo_manager.close()
+

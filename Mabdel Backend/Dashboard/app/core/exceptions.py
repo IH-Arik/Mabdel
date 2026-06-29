@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 from typing import Any
@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette import status
 
-from Dashboard.app.core.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -78,3 +78,4 @@ def register_exception_handlers(app: FastAPI) -> None:
                 str(exc) if settings.DEBUG else None,
             ),
         )
+

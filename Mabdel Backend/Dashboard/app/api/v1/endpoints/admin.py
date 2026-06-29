@@ -1,14 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from Dashboard.app.dependencies import get_mongo_database, require_role, require_permission
-from Dashboard.app.utils.helpers import utc_now
-from Dashboard.app.dependencies import get_dashboard_service
-from Dashboard.app.core.security import hash_password, verify_password, create_access_token
-from Dashboard.app.core.exceptions import AppException
-from Dashboard.app.schemas.dashboard_schemas import (
+from app.dependencies import get_mongo_database, require_role, require_permission
+from app.utils.helpers import utc_now
+from app.dependencies import get_dashboard_service
+from app.core.security import hash_password, verify_password, create_access_token
+from app.core.exceptions import AppException
+from app.schemas.dashboard_schemas import (
     BaseResponse, DashboardSummary, GrowthMetrics, PaginatedResponse, 
     UserListItem, AdminCreateRequest, EarningsSummary, TransactionListItem, 
     TransactionDetails, SubscriptionPlan, SubscriptionPlanCreate, AIStats, AILog,
@@ -194,7 +194,7 @@ async def create_organization_admin(
     Create a new administrator or privileged user. Requires 'admins:create' permission.
     Super Admin can create any role; Admin can only create roles below their hierarchy.
     """
-    from Dashboard.app.core.exceptions import AppException
+    from app.core.exceptions import AppException
     from app.services.rbac_service import RBACService
     from app.models.rbac_models import ROLE_HIERARCHY
 
@@ -606,7 +606,7 @@ async def get_admin_activity(
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
-    from Dashboard.app.core.exceptions import AppException
+    from app.core.exceptions import AppException
 
     item = await db.activities.find_one({"_id": ObjectId(activity_id) if ObjectId.is_valid(activity_id) else activity_id})
     if not item:
@@ -816,7 +816,7 @@ async def get_event_creator(
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
-    from Dashboard.app.core.exceptions import AppException
+    from app.core.exceptions import AppException
 
     creator = await db.users.find_one({"_id": ObjectId(creator_id) if ObjectId.is_valid(creator_id) else creator_id})
     if not creator:
@@ -1092,3 +1092,4 @@ async def admin_login(
         },
         message="Login successful"
     )
+

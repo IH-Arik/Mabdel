@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from Dashboard.app.core.exceptions import AppException
-from Dashboard.app.utils.helpers import utc_now
+from app.core.exceptions import AppException
+from app.utils.helpers import utc_now
 
 
 def _object_id(value: str, code: str = "INVALID_ID") -> ObjectId:
@@ -357,3 +357,4 @@ class DashboardRepository:
             }},
             upsert=True
         )
+

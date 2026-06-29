@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, Request, Header
-from Dashboard.app.services.dashboard_service import DashboardService
-from Dashboard.app.dependencies import get_dashboard_service
-from Dashboard.app.core.config import settings
-from Dashboard.app.core.exceptions import AppException
+﻿from fastapi import APIRouter, Depends, Request, Header
+from app.services.dashboard_service import DashboardService
+from app.dependencies import get_dashboard_service
+from app.core.config import settings
+from app.core.exceptions import AppException
 import json
 import hmac
 import hashlib
@@ -46,3 +46,4 @@ def _verify_stripe_signature(payload: bytes, signature_header: str | None) -> No
     expected = hmac.new(settings.STRIPE_WEBHOOK_SECRET.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, signature):
         raise AppException(status_code=400, code="INVALID_STRIPE_SIGNATURE", message="Stripe signature verification failed.")
+
