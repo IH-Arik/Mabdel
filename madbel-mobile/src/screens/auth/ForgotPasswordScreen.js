@@ -18,6 +18,7 @@ import { useNavigation } from "@react-navigation/native";
 import {
   ArrowLeft,
   Mail,
+  MailIcon,
   SendHorizontal,
   ShieldAlert,
 } from "lucide-react-native";
@@ -25,6 +26,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useForgotPasswordMutation } from "../../redux/slices/authSlice";
 import { useDispatch } from "react-redux";
 import { setResetEmail } from "../../redux/reducers/authReducer";
+import ControllerTextInput from "../../components/ControllerTextInput";
+import { responsiveHeight, responsiveScreenFontSize, responsiveWidth } from "react-native-responsive-dimensions";
 
 const colors = {
   bg: "#02080B",
@@ -67,9 +70,9 @@ const ForgotPasswordScreen = () => {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.safeArea}>
           <LinearGradient colors={["#02080B", "#010406"]} style={styles.screen}>
-            <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
+            {/* <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
               <ArrowLeft size={32} color={colors.textPrimary} strokeWidth={2.5} />
-            </Pressable>
+            </Pressable> */}
 
             <ScrollView
               contentContainerStyle={styles.content}
@@ -78,19 +81,29 @@ const ForgotPasswordScreen = () => {
             >
               <View style={styles.heroWrap}>
                 <View style={styles.iconCard}>
-                  <ShieldAlert size={42} color={colors.accent} strokeWidth={2.1} />
+                  <ShieldAlert
+                    size={42}
+                    color={colors.accent}
+                    strokeWidth={2.1}
+                  />
                 </View>
                 <Text style={styles.title}>Forgot Password?</Text>
                 <Text style={styles.subtitle}>
-                  Enter your email address to receive a 4-digit verification code to
-                  reset your password.
+                  Enter your email address to receive a 4-digit verification
+                  code to reset your password.
                 </Text>
               </View>
 
-              <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-              <Controller
-                control={control}
+
+              <ControllerTextInput
                 name="forgotEmail"
+                control={control}
+                error={errors?.forgotEmail?.message}
+                label="Email Address"
+                placeholder="Enter your email"
+                type="email"
+                keyboardType="email"
+                leftIcon={<MailIcon color="#14C6E4" size={20} />}
                 rules={{
                   required: "Email is required",
                   pattern: {
@@ -98,24 +111,11 @@ const ForgotPasswordScreen = () => {
                     message: "Enter a valid email address",
                   },
                 }}
-                render={({ field: { onChange, value, onBlur } }) => (
-                  <View style={styles.inputWrap}>
-                    <Mail size={24} color={colors.accent} strokeWidth={2.2} />
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="example@mabdel.ai"
-                      placeholderTextColor="#777F88"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      style={[styles.input, errors?.forgotEmail && styles.errorBorder]}
-                    />
-                  </View>
-                )}
               />
               {errors?.forgotEmail?.message && (
-                <Text style={styles.errorText}>{errors.forgotEmail.message}</Text>
+                <Text style={styles.errorText}>
+                  {errors.forgotEmail.message}
+                </Text>
               )}
 
               <Pressable
@@ -130,22 +130,31 @@ const ForgotPasswordScreen = () => {
                   <ActivityIndicator color="#EAF9FD" size={20} />
                 ) : (
                   <View style={styles.buttonRow}>
-                    <Text style={styles.primaryButtonText}>Send Verification Code</Text>
-                    <SendHorizontal size={24} color="#EAF5F8" strokeWidth={2.3} />
+                    <Text style={styles.primaryButtonText}>
+                      Send Verification Code
+                    </Text>
+                    <SendHorizontal
+                      size={24}
+                      color="#EAF5F8"
+                      strokeWidth={2.3}
+                    />
                   </View>
                 )}
               </Pressable>
 
-              {errors?.root?.type === "forgotPassword" && (
-                <Text style={styles.errorTextCenter}>{errors?.root?.message}</Text>
-              )}
-
-              <View style={styles.footerRow}>
+               <View style={styles.footerRow}>
                 <Text style={styles.footerText}>Remember your password?</Text>
                 <Pressable onPress={() => navigation.navigate("Login")}>
                   <Text style={styles.link}>Back to Login</Text>
                 </Pressable>
               </View>
+
+              {errors?.root?.type === "forgotPassword" && (
+                <Text style={styles.errorTextCenter}>
+                  {errors?.root?.message}
+                </Text>
+              )}
+             
             </ScrollView>
           </LinearGradient>
         </SafeAreaView>
@@ -186,8 +195,8 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: colors.textSecondary,
-    fontSize: 21 / 2,
-    lineHeight: 32 / 2,
+    fontSize: 13,
+    lineHeight: 15,
     textAlign: "center",
   },
   fieldLabel: {
@@ -239,7 +248,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: "#EAF5F8",
-    fontSize: 24 / 2,
+    fontSize: responsiveScreenFontSize(2),
     fontWeight: "700",
   },
   errorTextCenter: {
@@ -252,16 +261,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
-    marginTop: "auto",
+    marginTop: responsiveHeight(2),
     marginBottom: 12,
   },
   footerText: {
     color: colors.textSecondary,
-    fontSize: 20 / 2,
+    fontSize: 13,
   },
   link: {
     color: colors.accent,
-    fontSize: 20 / 2,
+    fontSize: 13,
     fontWeight: "600",
   },
 });

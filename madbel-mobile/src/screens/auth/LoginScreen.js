@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import ControllerTextInput from "../../components/ControllerTextInput";
 import { googleSignIn } from "../../utils/googleAuth";
+import { responsiveScreenFontSize } from "react-native-responsive-dimensions";
 
 const colors = {
   bg: "#02080B",
@@ -74,6 +75,8 @@ const LoginScreen = () => {
       // No navigate() call — same pattern as handleLogin
     } catch (error) {
       if (error?.code === "SIGN_IN_CANCELLED") return;
+      console.log('LINE AT 78' , error);
+      
       setError("root", {
         type: "google",
         message:
@@ -123,7 +126,7 @@ const LoginScreen = () => {
                 label="Email Address"
                 placeholder="Enter your email"
                 type="email"
-                keyboardType="email-address"
+                keyboardType="email"
                 leftIcon={<MailIcon color="#14C6E4" size={20} />}
                 rules={{
                   required: "Email is required",
@@ -299,7 +302,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.55 },
   primaryButtonText: {
     color: "#EAF5F8",
-    fontSize: 16,
+    fontSize: responsiveScreenFontSize(2),
     fontWeight: "700",
   },
   errorTextCenter: {

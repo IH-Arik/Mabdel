@@ -18,6 +18,7 @@ import { ArrowLeft, Clock3, ShieldCheck } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useForgotPasswordVerifyCodeMutation } from "../../redux/slices/authSlice";
 import { setResetOtp } from "../../redux/reducers/authReducer";
+import { responsiveFontSize, responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 
 const colors = {
   bg: "#02080B",
@@ -47,7 +48,7 @@ const ForgotPasswordVerifyCodeScreen = () => {
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
-    const id = setInterval(() => setSecondsLeft((prev) => prev - 1), 1000);
+    const id = setInterval(() => setSecondsLeft((prev) => prev - 1), 5000);
     return () => clearInterval(id);
   }, [secondsLeft]);
 
@@ -77,9 +78,9 @@ const ForgotPasswordVerifyCodeScreen = () => {
     >
       <SafeAreaView style={styles.safeArea}>
         <LinearGradient colors={["#02080B", "#010406"]} style={styles.screen}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
+          {/* <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
             <ArrowLeft size={32} color={colors.textPrimary} strokeWidth={2.5} />
-          </Pressable>
+          </Pressable> */}
 
           <ScrollView contentContainerStyle={styles.content}>
             <View style={styles.heroWrap}>
@@ -167,7 +168,7 @@ const ForgotPasswordVerifyCodeScreen = () => {
               <Text style={styles.errorTextCenter}>{errors?.root?.message}</Text>
             )}
 
-            <Pressable
+            {/* <Pressable
               onPress={() => {
                 if (secondsLeft === 0) {
                   setSecondsLeft(45);
@@ -176,7 +177,7 @@ const ForgotPasswordVerifyCodeScreen = () => {
               style={styles.bottomHintWrap}
             >
               <Text style={styles.bottomHint}>I didn’t receive a code</Text>
-            </Pressable>
+            </Pressable> */}
           </ScrollView>
         </LinearGradient>
       </SafeAreaView>
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: colors.textSecondary,
-    fontSize: 21 / 2,
+    fontSize: 13,
     lineHeight: 30 / 2,
     textAlign: "center",
   },
@@ -225,8 +226,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   otpBox: {
-    width: 52,
-    height: 60,
+    width: responsiveWidth(12),
+    height: responsiveHeight(6.5),
     borderRadius: 14,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.55 },
   primaryButtonText: {
     color: "#EAF5F8",
-    fontSize: 24 / 2,
+    fontSize: responsiveFontSize(2),
     fontWeight: "700",
   },
   errorText: {
