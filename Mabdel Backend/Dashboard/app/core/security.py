@@ -8,8 +8,8 @@ from uuid import uuid4
 import bcrypt
 from jose import JWTError, jwt
 
-from app.core.config import settings
-from app.core.exceptions import AppException
+from ..core.config import settings
+from ..core.exceptions import AppException
 
 
 def _password_bytes(password: str) -> bytes:

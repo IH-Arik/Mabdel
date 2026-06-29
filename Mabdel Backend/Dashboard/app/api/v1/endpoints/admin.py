@@ -3,12 +3,12 @@
 from fastapi import APIRouter, Body, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.dependencies import get_mongo_database, require_role, require_permission
-from app.utils.helpers import utc_now
-from app.dependencies import get_dashboard_service
-from app.core.security import hash_password, verify_password, create_access_token
-from app.core.exceptions import AppException
-from app.schemas.dashboard_schemas import (
+from ....dependencies import get_mongo_database, require_role, require_permission
+from ....utils.helpers import utc_now
+from ....dependencies import get_dashboard_service
+from ....core.security import hash_password, verify_password, create_access_token
+from ....core.exceptions import AppException
+from ....schemas.dashboard_schemas import (
     BaseResponse, DashboardSummary, GrowthMetrics, PaginatedResponse, 
     UserListItem, AdminCreateRequest, EarningsSummary, TransactionListItem, 
     TransactionDetails, SubscriptionPlan, SubscriptionPlanCreate, AIStats, AILog,
@@ -194,9 +194,9 @@ async def create_organization_admin(
     Create a new administrator or privileged user. Requires 'admins:create' permission.
     Super Admin can create any role; Admin can only create roles below their hierarchy.
     """
-    from app.core.exceptions import AppException
-    from app.services.rbac_service import RBACService
-    from app.models.rbac_models import ROLE_HIERARCHY
+    from ....core.exceptions import AppException
+    from ....services.rbac_service import RBACService
+    from ....models.rbac_models import ROLE_HIERARCHY
 
     actor_role = current_user.get("primary_role") or current_user.get("role", "user")
     target_role = request.role  # e.g. "admin", "owner", "supervisor", "staff"
@@ -606,7 +606,7 @@ async def get_admin_activity(
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
-    from app.core.exceptions import AppException
+    from ....core.exceptions import AppException
 
     item = await db.activities.find_one({"_id": ObjectId(activity_id) if ObjectId.is_valid(activity_id) else activity_id})
     if not item:
@@ -816,7 +816,7 @@ async def get_event_creator(
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     from bson import ObjectId
-    from app.core.exceptions import AppException
+    from ....core.exceptions import AppException
 
     creator = await db.users.find_one({"_id": ObjectId(creator_id) if ObjectId.is_valid(creator_id) else creator_id})
     if not creator:
@@ -1056,7 +1056,7 @@ async def admin_login(
         raise AppException(status_code=401, code="INVALID_CREDENTIALS", message="Invalid email or password.")
 
     # Fetch effective user roles from the RBAC system
-    from app.services.rbac_service import RBACService
+    from ....services.rbac_service import RBACService
     rbac = RBACService(db)
     role_slugs = await rbac.get_user_role_slugs(str(user["_id"]), user.get("role", "user"))
     allowed_roles = {"super_admin", "admin", "owner", "supervisor", "staff"}

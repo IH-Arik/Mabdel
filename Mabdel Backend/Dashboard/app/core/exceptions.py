@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette import status
 
-from app.core.config import settings
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,8 @@
 ﻿from fastapi import APIRouter, Depends, Request, Header
-from app.services.dashboard_service import DashboardService
-from app.dependencies import get_dashboard_service
-from app.core.config import settings
-from app.core.exceptions import AppException
+from ....services.dashboard_service import DashboardService
+from ....dependencies import get_dashboard_service
+from ....core.config import settings
+from ....core.exceptions import AppException
 import json
 import hmac
 import hashlib

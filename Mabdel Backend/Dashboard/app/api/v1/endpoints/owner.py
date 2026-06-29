@@ -10,9 +10,9 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.exceptions import AppException
-from app.dependencies import get_current_user, get_mongo_database, require_role
-from app.repositories.dashboard_repository import DashboardRepository
+from ....core.exceptions import AppException
+from ....dependencies import get_current_user, get_mongo_database, require_role
+from ....repositories.dashboard_repository import DashboardRepository
 
 router = APIRouter()
 
@@ -35,7 +35,7 @@ def _user_id(user: dict) -> str:
 
 
 async def _get_rbac(db):
-    from app.services.rbac_service import RBACService
+    from ....services.rbac_service import RBACService
     return RBACService(db)
 
 
@@ -46,7 +46,7 @@ async def _resolve_owner_role(current_user: dict, db: AsyncIOMotorDatabase) -> s
     allowed = slugs & OWNER_ALLOWED_ROLES
     if not allowed:
         raise AppException(status_code=403, code="FORBIDDEN", message="Owner access required.")
-    from app.models.rbac_models import ROLE_HIERARCHY
+    from ....models.rbac_models import ROLE_HIERARCHY
     return max(allowed, key=lambda s: ROLE_HIERARCHY.get(s, 0))
 
 
