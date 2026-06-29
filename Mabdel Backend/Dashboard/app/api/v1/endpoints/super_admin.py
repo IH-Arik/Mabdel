@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from Dashboard.app.dependencies import get_mongo_database, require_role
-from Dashboard.app.dependencies import get_dashboard_service
-from Dashboard.app.schemas.dashboard_schemas import DashboardSummary, GrowthMetrics, BaseResponse
-from Dashboard.app.services.dashboard_service import DashboardService
+from app.dependencies import get_mongo_database, require_role
+from app.dependencies import get_dashboard_service
+from app.schemas.dashboard_schemas import DashboardSummary, GrowthMetrics, BaseResponse
+from app.services.dashboard_service import DashboardService
 
 router = APIRouter()
 
@@ -33,3 +33,4 @@ async def get_global_growth(
     """
     data = await service.get_growth_metrics("users")
     return BaseResponse(data=data)
+

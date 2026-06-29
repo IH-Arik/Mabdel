@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from Dashboard.app.dependencies import get_mongo_database, get_current_user
-from Dashboard.app.repositories.notification_repository import NotificationRepository
-from Dashboard.app.schemas.dashboard_schemas import (
+from app.dependencies import get_mongo_database, get_current_user
+from app.repositories.notification_repository import NotificationRepository
+from app.schemas.dashboard_schemas import (
     BaseResponse, 
     PaginatedResponse, 
     NotificationItem
@@ -81,3 +81,4 @@ async def get_unread_notifications_count(
     """
     count = await db.notifications.count_documents({"user_id": str(current_user["_id"]), "is_read": False})
     return BaseResponse(data=count)
+

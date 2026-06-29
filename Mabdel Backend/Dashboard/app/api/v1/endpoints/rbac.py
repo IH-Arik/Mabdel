@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
@@ -7,7 +7,7 @@ from fastapi import APIRouter, Body, Depends, Path, Query, Request
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
 
-from Dashboard.app.dependencies import (
+from app.dependencies import (
     get_mongo_database,
     get_rbac_service,
     require_permission,
@@ -242,3 +242,4 @@ async def get_audit_logs(
 ):
     logs, total = await rbac.get_audit_logs(actor_id, resource_type, resource_id, limit, offset)
     return ApiResponse(data={"items": logs, "total": total, "limit": limit, "offset": offset})
+

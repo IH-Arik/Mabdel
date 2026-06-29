@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from Dashboard.app.utils.helpers import utc_now
-from Dashboard.app.repositories.dashboard_repository import DashboardRepository
-from Dashboard.app.schemas.dashboard_schemas import (
+from app.utils.helpers import utc_now
+from app.repositories.dashboard_repository import DashboardRepository
+from app.schemas.dashboard_schemas import (
     AILog,
     AIStats,
     ChatConversation,
@@ -32,7 +32,7 @@ from Dashboard.app.schemas.dashboard_schemas import (
 
 
 def _object_id(value: str, code: str = "INVALID_ID") -> ObjectId:
-    from Dashboard.app.core.exceptions import AppException
+    from app.core.exceptions import AppException
 
     if not ObjectId.is_valid(value):
         raise AppException(status_code=400, code=code, message="Invalid MongoDB object id.")
@@ -150,7 +150,7 @@ class DashboardService:
     async def get_user_by_id(self, user_id: str) -> UserListItem:
         item = await self.repository.db.users.find_one({"_id": _object_id(user_id, "INVALID_USER_ID")})
         if not item:
-            from Dashboard.app.core.exceptions import AppException
+            from app.core.exceptions import AppException
             raise AppException(status_code=404, code="USER_NOT_FOUND", message="User not found")
             
         return UserListItem(
@@ -194,7 +194,7 @@ class DashboardService:
     async def get_transaction_details(self, trx_id: str) -> TransactionDetails:
         item = await self.repository.get_transaction_by_id(trx_id)
         if not item:
-            from Dashboard.app.core.exceptions import AppException
+            from app.core.exceptions import AppException
             raise AppException(status_code=404, code="TRANSACTION_NOT_FOUND", message="Transaction not found")
         
         return TransactionDetails(
@@ -286,8 +286,8 @@ class DashboardService:
         return await self.repository.update_user_profile(user_id, update_data)
 
     async def change_admin_password(self, user_id: str, data: ChangePasswordRequest) -> bool:
-        from Dashboard.app.core.security import verify_password, hash_password
-        from Dashboard.app.core.exceptions import AppException
+        from app.core.security import verify_password, hash_password
+        from app.core.exceptions import AppException
         from bson import ObjectId
         
         user = await self.repository.db.users.find_one({"_id": _object_id(user_id, "INVALID_USER_ID")})
@@ -299,8 +299,8 @@ class DashboardService:
         return await self.repository.update_user_password(user_id, new_hashed)
 
     async def forgot_password(self, email: str):
-        from Dashboard.app.core.exceptions import AppException
-        from Dashboard.app.utils.helpers import generate_otp
+        from app.core.exceptions import AppException
+        from app.utils.helpers import generate_otp
         
         user = await self.repository.db.users.find_one({"email": email})
         if not user:
@@ -313,8 +313,8 @@ class DashboardService:
         return await self.repository.verify_otp(data.email, data.otp)
 
     async def reset_password(self, data: ResetPasswordRequest) -> bool:
-        from Dashboard.app.core.security import hash_password
-        from Dashboard.app.core.exceptions import AppException
+        from app.core.security import hash_password
+        from app.core.exceptions import AppException
         
         if not await self.repository.verify_otp(data.email, data.otp):
             raise AppException(status_code=400, code="INVALID_OTP", message="Invalid or expired OTP")
@@ -366,7 +366,7 @@ class DashboardService:
 
     async def apply_report_action(self, report_id: str, action: str, note: str | None = None) -> bool:
         from bson import ObjectId
-        from Dashboard.app.core.exceptions import AppException
+        from app.core.exceptions import AppException
         
         report = await self.repository.db.user_reports.find_one({"_id": _object_id(report_id, "INVALID_REPORT_ID")})
         if not report:
@@ -442,3 +442,4 @@ class DashboardService:
             "subscriptionMonthlyPrice": monthly,
             "subscriptionYearlyPrice": yearly
         }
+

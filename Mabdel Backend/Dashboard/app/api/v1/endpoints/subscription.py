@@ -1,4 +1,4 @@
-"""
+﻿"""
 Subscription & Trial endpoints — dashboard backend.
 Mirrors app/api/v1/endpoints/subscription.py using Dashboard.app dependencies.
 """
@@ -10,8 +10,8 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from Dashboard.app.core.exceptions import AppException
-from Dashboard.app.dependencies import get_current_user, get_mongo_database
+from app.core.exceptions import AppException
+from app.dependencies import get_current_user, get_mongo_database
 
 router = APIRouter(prefix="/subscription", tags=["subscription"])
 
@@ -189,3 +189,4 @@ async def activate_subscription(
         "message": "Subscription activated.",
         "data": {"status": "active"},
     }
+

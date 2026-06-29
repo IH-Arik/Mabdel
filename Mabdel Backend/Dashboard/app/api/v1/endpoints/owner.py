@@ -1,4 +1,4 @@
-"""
+﻿"""
 Owner-specific endpoints.
 Owners can manage their team (manager/staff/assistant) and set restrictions.
 """
@@ -10,9 +10,9 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from Dashboard.app.core.exceptions import AppException
-from Dashboard.app.dependencies import get_current_user, get_mongo_database, require_role
-from Dashboard.app.repositories.dashboard_repository import DashboardRepository
+from app.core.exceptions import AppException
+from app.dependencies import get_current_user, get_mongo_database, require_role
+from app.repositories.dashboard_repository import DashboardRepository
 
 router = APIRouter()
 
@@ -977,3 +977,4 @@ async def member_analysis(
             "recent_invoices":   recent_invoices,
         },
     }
+

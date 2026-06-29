@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
@@ -8,8 +8,8 @@ from uuid import uuid4
 import bcrypt
 from jose import JWTError, jwt
 
-from Dashboard.app.core.config import settings
-from Dashboard.app.core.exceptions import AppException
+from app.core.config import settings
+from app.core.exceptions import AppException
 
 
 def _password_bytes(password: str) -> bytes:
@@ -51,3 +51,4 @@ def decode_token(token: str) -> dict[str, Any]:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError as exc:
         raise AppException(status_code=401, code="INVALID_TOKEN", message="Invalid or expired token.") from exc
+
