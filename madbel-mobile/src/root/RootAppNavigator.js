@@ -74,6 +74,7 @@ const RootAppNavigator = () => {
     registerToken();
   }, [isAuthenticated]);
 
+<<<<<<< Updated upstream
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
@@ -81,6 +82,25 @@ const RootAppNavigator = () => {
     >
       {isAuthenticated ? (
         <>
+=======
+  // Block navigator mount for one tick until the subscription check useEffect fires.
+  // This ensures initialRouteName is correct before the auth stack first renders.
+  if (isAuthenticated && !trialChecked) {
+    return <View style={{ flex: 1, backgroundColor: "#02080B" }} />;
+  }
+
+  // const authInitialRoute = showTrial ? "SubscriptionTrial" : "BottomNavigator";
+
+  return (
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={isAuthenticated ? "BottomNavigator"
+        : "Begin"}
+    >
+      {isAuthenticated ? (
+        <>
+          {/* <Stack.Screen name="SubscriptionTrial" component={SubscriptionTrialScreen} /> */}
+>>>>>>> Stashed changes
           <Stack.Screen name="BottomNavigator" component={BottomNavigator} />
           <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
           <Stack.Screen name="ActiveCall" component={ActiveCallScreen} />
