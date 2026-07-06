@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
@@ -13,6 +13,7 @@ from ....dependencies import (
     require_permission,
     require_role,
 )
+from ....models.rbac_models import SubordinateAccountCreate
 
 router = APIRouter()
 
@@ -225,6 +226,16 @@ async def get_user_roles(
 ):
     data = await rbac.get_user_role_details(user_id)
     return ApiResponse(data=data)
+
+
+@router.post("/roles/create-subordinate", response_model=ApiResponse, summary="Create a subordinate account based on ROLE_CREATION_MATRIX")
+async def create_subordinate_account(
+    body: SubordinateAccountCreate,
+    current_user: dict = Depends(require_permission("roles", "manage")),
+    rbac=Depends(get_rbac_service),
+):
+    data = await rbac.create_subordinate_account(current_user, body)
+    return ApiResponse(data=data, message="Subordinate account created successfully.")
 
 
 # ─── Audit Logs ───────────────────────────────────────────────────────────────

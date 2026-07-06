@@ -252,25 +252,6 @@ async def require_subscription(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ) -> dict:
-    """Dependency: blocks CRM write actions unless user has active subscription/trial."""
-    active = await _check_subscription_active(current_user, db)
-    if not active:
-        role = current_user.get("role", "user")
-        if role in ("manager", "staff", "assistant"):
-            msg = (
-                "Your company's subscription has expired or is inactive. "
-                "Please contact your administrator to restore access."
-            )
-        else:
-            msg = (
-                "An active subscription is required to use this feature. "
-                "Please upgrade your plan or start a free trial from Settings."
-            )
-        raise AppException(
-            status_code=403,
-            code="SUBSCRIPTION_REQUIRED",
-            message=msg,
-        )
     return current_user
 
 

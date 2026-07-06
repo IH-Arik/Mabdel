@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 from pydantic import Field, field_validator
@@ -20,11 +21,27 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
             "http://localhost:3000",
             "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
+            "http://127.0.0.1:5175",
             "http://127.0.0.1:3000",
         ]
     )
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: Any) -> list[str]:
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("["):
+                return json.loads(value)
+            return [v.strip() for v in value.split(",") if v.strip()]
+        return value
 
     @field_validator("DEBUG", mode="before")
     @classmethod
