@@ -84,8 +84,9 @@ const styles = StyleSheet.create({
   },
   greeting: {
     color: "#F3F8FF",
-    fontSize: rw(6),
+    fontSize: rw(5),
     fontWeight: "700",
+    width: '60%'
   },
   headerRight: {
     flexDirection: "row",

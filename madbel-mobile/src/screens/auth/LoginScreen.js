@@ -196,14 +196,10 @@ const LoginScreen = () => {
               )}
 
               {/* Divider */}
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
+              {/*   */}
 
               {/* Google button */}
-              <Pressable
+              {/* <Pressable 
                 onPress={handleGoogleLogin}
                 disabled={isAnyLoading}
                 style={[
@@ -222,15 +218,15 @@ const LoginScreen = () => {
                     <Text style={styles.googleText}>Continue with Google</Text>
                   </>
                 )}
-              </Pressable>
+              </Pressable> */}
 
               {/* Footer */}
-              <View style={styles.footerRow}>
+              {/* <View style={styles.footerRow}>
                 <Text style={styles.footerText}>Don't have an account?</Text>
                 <Pressable onPress={() => navigation.navigate("Register")}>
                   <Text style={styles.link}>Sign Up</Text>
                 </Pressable>
-              </View>
+              </View> */}
             </ScrollView>
           </LinearGradient>
         </SafeAreaView>
