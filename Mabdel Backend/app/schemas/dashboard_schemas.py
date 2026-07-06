@@ -51,6 +51,7 @@ class OwnerListItem(BaseModel):
     status: str = "active"
     plan: str | None = None
     expiration_date: datetime | None = None
+    subordinates: list[dict] = Field(default_factory=list)
 
 
 

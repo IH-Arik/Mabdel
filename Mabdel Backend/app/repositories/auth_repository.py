@@ -14,7 +14,13 @@ class AuthRepository:
         self.collection = db.users
 
     async def get_user_by_email(self, email: str) -> dict | None:
-        return await self.collection.find_one({"email": email.lower().strip()})
+        email_clean = email.lower().strip()
+        return await self.collection.find_one({
+            "$or": [
+                {"email": email_clean},
+                {"original_email": email_clean}
+            ]
+        })
 
     async def get_user_by_id(self, user_id: str) -> dict | None:
         if not ObjectId.is_valid(user_id):
