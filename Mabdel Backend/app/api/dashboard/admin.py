@@ -1121,8 +1121,39 @@ async def list_owners(
     
     items = []
     for user in users:
+        owner_id = str(user["_id"])
+        
+        # Fetch subordinates
+        assignments = await db.rbac_user_roles.find({"assigned_by": owner_id}).to_list(None)
+        subordinates = []
+        if assignments:
+            from bson import ObjectId
+            user_ids = [ObjectId(a["user_id"]) for a in assignments if ObjectId.is_valid(a["user_id"])]
+            string_user_ids = [a["user_id"] for a in assignments if not ObjectId.is_valid(a["user_id"])]
+            
+            query_conds = []
+            if user_ids:
+                query_conds.append({"_id": {"$in": user_ids}})
+            if string_user_ids:
+                query_conds.append({"id": {"$in": string_user_ids}})
+                
+            if query_conds:
+                sub_users = await db.users.find({"$or": query_conds}).to_list(None)
+                sub_user_map = {str(u["_id"]): u for u in sub_users}
+                for a in assignments:
+                    s_u = sub_user_map.get(str(a["user_id"]))
+                    if s_u:
+                        subordinates.append({
+                            "id": str(s_u["_id"]),
+                            "full_name": s_u.get("full_name") or "Unknown",
+                            "login_email": s_u.get("email", ""),
+                            "original_email": s_u.get("original_email", ""),
+                            "role": a.get("role_slug", "Unknown"),
+                            "status": "active" if s_u.get("is_active", True) else "blocked",
+                        })
+
         items.append(OwnerListItem(
-            id=str(user["_id"]),
+            id=owner_id,
             full_name=user.get("full_name") or "Unknown",
             login_email=user.get("email", ""),
             original_email=user.get("original_email", ""),
@@ -1130,7 +1161,8 @@ async def list_owners(
             created_at=user.get("created_at"),
             status="active" if user.get("is_active", True) else "blocked",
             plan=user.get("subscription_plan") or "7-Day Trial",
-            expiration_date=user.get("subscription_expiration")
+            expiration_date=user.get("subscription_expiration"),
+            subordinates=subordinates
         ))
         
     return BaseResponse(data=PaginatedResponse(
