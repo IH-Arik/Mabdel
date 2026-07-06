@@ -10,8 +10,9 @@ import {
   ArrowLeft,
   Search,
   Grid,
-  ShoppingBag,
-  Flame
+  Contact,
+  FileText,
+  PhoneCall
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { clsx } from 'clsx';
@@ -27,10 +28,11 @@ const primaryNavItems = [
   { name: 'Home', icon: LayoutDashboard, path: '/dashboard' },
   { name: 'Messages', icon: MessageSquare, path: '/conversations' },
   { name: 'Voice Assistant', icon: Mic, path: '/ai-workflow' },
+  { name: 'AI Calling', icon: PhoneCall, path: '/calls' },
+  { name: 'Contacts', icon: Contact, path: '/contacts' },
+  { name: 'Documents', icon: FileText, path: '/documents' },
   { name: 'Groups', icon: Users2, path: '/groups' },
-  { name: 'Shop', icon: ShoppingBag, path: '/shop' },
-  { name: 'Activities', icon: Flame, path: '/activities' },
-  { name: 'Settings', icon: Settings, path: '/settings' },
+  { name: 'Profile', icon: Settings, path: '/profile' },
 ];
 
 export default function MainLayout() {
@@ -41,7 +43,7 @@ export default function MainLayout() {
   const path = location.pathname;
   
   // Determine if we are on a primary page or a sub-page
-  const isPrimaryPage = ['/dashboard', '/conversations', '/ai-workflow', '/groups', '/shop', '/activities', '/settings'].includes(path);
+  const isPrimaryPage = ['/dashboard', '/conversations', '/ai-workflow', '/calls', '/contacts', '/documents', '/groups', '/profile'].includes(path);
 
   // Map sub-page paths to friendly titles
   const getSubPageTitle = () => {
@@ -55,8 +57,6 @@ export default function MainLayout() {
       case '/notifications': return 'System Notifications';
       case '/bulk-messaging': return 'Bulk Messaging';
       case '/admin': return 'System Administration';
-      case '/shop': return 'Mabdel Shop';
-      case '/activities': return 'Fitness Activities';
       default: return 'Back to Home';
     }
   };
@@ -174,7 +174,7 @@ export default function MainLayout() {
 
             {/* Profile Avatar */}
             <div 
-              onClick={() => navigate('/settings')}
+              onClick={() => navigate('/profile')}
               className="flex items-center gap-3 cursor-pointer group"
             >
               <div className="w-8 h-8 rounded-full bg-slate-800 border border-[#243041] flex items-center justify-center text-[#11C7E5] font-black overflow-hidden shadow-inner group-hover:border-[#11C7E5]/50 transition-colors">

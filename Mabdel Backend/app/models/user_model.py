@@ -11,8 +11,11 @@ class UserModel(BaseModel):
     id: str | None = Field(default=None, alias="_id")
     full_name: str
     email: EmailStr
+    original_email: EmailStr | None = None
     password_hash: str
     is_verified: bool = False
+    is_subordinate_account: bool = False
+    created_by: str | None = None
     auth_provider: str = "email"
     avatar_url: str | None = None
     date_of_birth: date | None = None
@@ -26,6 +29,7 @@ class UserModel(BaseModel):
     role: str = "user"  # legacy compat — mirrors primary role slug
     primary_role: str = "user"  # "super_admin" | "admin" | "owner" | "supervisor" | "staff" | "user"
     organization_id: str | None = None
+    organization_name: str | None = None
     # Twilio sub-account provisioning (platform-managed)
     twilio_sub_account_sid: str | None = None
     twilio_sub_auth_token_enc: str | None = None  # encrypted at rest
@@ -36,5 +40,7 @@ class UserModel(BaseModel):
     twilio_custom_account_sid: str | None = None
     twilio_custom_auth_token_enc: str | None = None  # encrypted at rest
     twilio_custom_phone_number: str | None = None
+    subscription_plan: str | None = None
+    subscription_expiration: datetime | None = None
     created_at: datetime
     updated_at: datetime

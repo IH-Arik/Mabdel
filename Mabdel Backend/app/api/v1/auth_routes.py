@@ -22,6 +22,8 @@ from app.schemas.auth_schema import (
     VerifyOTPRequest,
 )
 from app.schemas.common import ApiErrorResponse, ApiResponse
+from app.schemas.dashboard_schemas import OwnerCreateRequest
+from app.core.security import hash_password
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
 from app.services.otp_service import OTPService
@@ -122,6 +124,84 @@ async def forgot_password(payload: ForgotPasswordRequest, auth_service: AuthServ
 async def reset_password(payload: ResetPasswordRequest, auth_service: AuthService = Depends(get_auth_service)) -> dict:
     result = await auth_service.reset_password(payload)
     return success_response(data=result.model_dump(), message=result.message)
+
+
+@router.post(
+    "/subscription-signup",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ApiResponse[MessageResponse],
+)
+async def subscription_signup(
+    payload: OwnerCreateRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> dict:
+    from app.services.dashboard.credential_generator import generate_login_email, generate_secure_password
+    
+    while True:
+        generated_login_email = generate_login_email(payload.full_name, "owner")
+        existing = await db.users.find_one({"email": generated_login_email})
+        if not existing:
+            break
+            
+    generated_password = generate_secure_password()
+    hashed_pw = hash_password(generated_password)
+    
+    from app.utils.helpers import utc_now
+    from datetime import timedelta
+    now = utc_now()
+    
+    plan_name = "7-Day Trial"
+    expiration = now + timedelta(days=7)
+    
+    if payload.plan == "subscribe":
+        plan_name = "Monthly"
+        expiration = now + timedelta(days=30)
+        
+    user_doc = {
+        "email": generated_login_email,
+        "original_email": payload.original_email,
+        "password_hash": hashed_pw,
+        "full_name": payload.full_name,
+        "created_by": "system",
+        "is_subordinate_account": False,
+        "organization_name": payload.organization_name,
+        "role": "owner",
+        "primary_role": "owner",
+        "roles": ["owner"],
+        "is_verified": True,
+        "is_active": True,
+        "subscription_plan": plan_name,
+        "subscription_expiration": expiration,
+        "created_at": now,
+        "updated_at": now,
+    }
+    
+    result = await db.users.insert_one(user_doc)
+    new_user_id = str(result.inserted_id)
+
+    # Assign role
+    from app.repositories.dashboard.rbac_repository import RBACRepository
+    repo = RBACRepository(db)
+    role_doc = await repo.get_role_by_slug("owner")
+    if role_doc:
+        await repo.assign_role(
+            user_id=new_user_id,
+            role_id=str(role_doc["_id"]),
+            role_slug="owner",
+            assigned_by="system",
+            organization_id=None,
+        )
+
+    # Send credentials
+    from app.services.email_service import EmailService
+    await EmailService().send_subordinate_credentials_email(
+        email=payload.original_email,
+        login_email=generated_login_email,
+        password=generated_password,
+        role="owner"
+    )
+
+    return success_response(data={"message": "Subscription request received. Credentials have been emailed."}, message="Success")
 
 
 @router.post(

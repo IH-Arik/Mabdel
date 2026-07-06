@@ -110,7 +110,7 @@ export default function Landing() {
               Login
             </button>
             <button 
-              onClick={() => navigate('/login')} 
+              onClick={() => navigate('/subscription')} 
               className="px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl hover:opacity-90 transition-all shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.98]"
             >
               Get Started
@@ -162,7 +162,7 @@ export default function Landing() {
               className="flex flex-wrap gap-4 w-full sm:w-auto"
             >
               <button 
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/subscription')}
                 className="px-8 py-4 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-cyan-500/20 hover:opacity-95 hover:shadow-cyan-500/35 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group w-full sm:w-auto"
               >
                 Get Started
@@ -338,7 +338,7 @@ export default function Landing() {
           </p>
           <div className="pt-4">
             <button 
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/subscription')}
               className="px-8 py-4 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-cyan-500/20 hover:opacity-95 hover:shadow-cyan-500/35 transition-all active:scale-[0.98] inline-flex items-center gap-2"
             >
               Get Started

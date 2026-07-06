@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import { Form, Input, Select, message, Spin, Table, Tag } from "antd";
+import { Form, Input, Select, message, Spin, Table, Tag, Modal } from "antd";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import { ImageUp } from "lucide-react";
 import { listAdmins, createAdmin } from "../../services/adminApi";
 
 const MakeAdmin = () => {
   const [form] = Form.useForm();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [admins, setAdmins] = useState([]);
   const [loadingAdmins, setLoadingAdmins] = useState(false);
@@ -33,23 +31,35 @@ const MakeAdmin = () => {
   }, []);
 
   const handleSubmit = async (values) => {
-    if (values.password !== values.confirmPassword) {
-      message.error("Password and confirm password do not match.");
-      return;
-    }
-
     setSubmitting(true);
     try {
-      await createAdmin({
+      const res = await createAdmin({
         full_name: values.fullName,
-        email: values.email,
-        password: values.password,
-        role: values.role || "admin",
+        original_email: values.email,
+        target_role: values.role || "staff",
       });
-      message.success("New administrator created successfully.");
+      
+      const data = res?.data || res || {};
+      
+      message.success("New subordinate account created successfully.");
       form.resetFields();
       setPreviewImage("");
       fetchAdmins();
+
+      Modal.success({
+        title: "Subordinate Account Created",
+        content: (
+          <div className="mt-4 space-y-2">
+            <p>An email has been sent to <strong>{values.email}</strong> with these credentials.</p>
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <p className="mb-1"><strong>Login Email:</strong> <span className="font-mono text-slate-700">{data.login_email}</span></p>
+              <p><strong>Password:</strong> <span className="font-mono text-slate-700">{data.generated_password}</span></p>
+            </div>
+            <p className="text-red-500 text-sm mt-2 font-medium">Please save this password securely. For security reasons, it will not be shown again.</p>
+          </div>
+        ),
+        width: 500,
+      });
     } catch (error) {
       console.error("Failed to create admin:", error);
       const msg = error?.payload?.message || error?.message || "Failed to create administrator";
@@ -161,63 +171,7 @@ const MakeAdmin = () => {
               </Form.Item>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              <Form.Item
-                name="password"
-                label={
-                  <span className="text-2xl font-medium text-slate-700">
-                    Password
-                  </span>
-                }
-                rules={[
-                  { required: true, message: "Please enter password" },
-                  { min: 6, message: "Password must be at least 6 characters" },
-                ]}
-              >
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="********"
-                    className="h-14 rounded-xl border-slate-300 pr-12 text-xl"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"
-                  >
-                    {showPassword ? <FaRegEyeSlash /> : <FaRegEye />}
-                  </button>
-                </div>
-              </Form.Item>
-
-              <Form.Item
-                name="confirmPassword"
-                label={
-                  <span className="text-2xl font-medium text-slate-700">
-                    Confirm Password
-                  </span>
-                }
-                rules={[
-                  { required: true, message: "Please confirm password" },
-                  { min: 6, message: "Password must be at least 6 characters" },
-                ]}
-              >
-                <div className="relative">
-                  <Input
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="********"
-                    className="h-14 rounded-xl border-slate-300 pr-12 text-xl"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"
-                  >
-                    {showConfirmPassword ? <FaRegEyeSlash /> : <FaRegEye />}
-                  </button>
-                </div>
-              </Form.Item>
-
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-1 mb-6">
               <Form.Item
                 name="role"
                 label={<span className="text-2xl font-medium text-slate-700">Role</span>}
@@ -226,7 +180,6 @@ const MakeAdmin = () => {
               >
                 <Select className="h-14 rounded-xl border-slate-300 text-xl font-normal admin-role-select">
                   <Select.Option value="admin">Admin</Select.Option>
-                  <Select.Option value="super_admin">Super Admin</Select.Option>
                 </Select>
               </Form.Item>
             </div>

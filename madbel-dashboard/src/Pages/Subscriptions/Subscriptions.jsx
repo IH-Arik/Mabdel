@@ -1,8 +1,8 @@
-import { CircleX, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { CircleX, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import {
   getSubscriptionFees,
-  listSubscriptions,
+  listOwners,
   updateSubscriptionFees,
 } from "../../services/adminApi";
 
@@ -86,6 +86,7 @@ const Subscriptions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
+  const [expandedRows, setExpandedRows] = useState(new Set());
   const [showManageFeesModal, setShowManageFeesModal] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingFees, setLoadingFees] = useState(true);
@@ -119,7 +120,7 @@ const Subscriptions = () => {
     const loadSubscriptions = async () => {
       try {
         setLoadingList(true);
-        const payload = await listSubscriptions({
+        const payload = await listOwners({
           page: currentPage,
           limit: ITEMS_PER_PAGE,
           search: appliedSearch || undefined,
@@ -128,32 +129,34 @@ const Subscriptions = () => {
         if (!mounted) return;
 
         const normalized = normalizeListResponse(payload);
-        setSubscriptions(
-          normalized.items.map((item, index) => ({
+        
+        const groupedMap = new Map();
+        normalized.items.forEach((item, index) => {
+          const email = item.original_email || "N/A";
+          if (!groupedMap.has(email)) {
+            groupedMap.set(email, {
+              originalEmail: email,
+              organizations: []
+            });
+          }
+          
+          const expDate = item.expiration_date ? new Date(item.expiration_date) : (() => {
+            const d = new Date(item.created_at);
+            d.setDate(d.getDate() + 7);
+            return d;
+          })();
+          
+          groupedMap.get(email).organizations.push({
             id: item.id || item._id || `row-${currentPage}-${index}`,
-            sId:
-              item.sId
-              || item.serial
-              || (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
-            user: {
-              name:
-                item.user?.fullName
-                || item.user?.name
-                || item.user
-                || item.fullName
-                || "Unknown User",
-              avatar:
-                item.user?.avatarUrl
-                || item.user?.profileImageUrl
-                || item.avatarUrl
-                || null,
-            },
-            email: item.email || item.user?.email || "N/A",
+            assignedEmail: item.login_email || "N/A",
+            organization: item.organization_name || "-",
             status: normalizeStatus(item.status),
-            plan: normalizePlan(item.plans || item.plan),
-            expirationDate: formatDate(item.expirationDate || item.endAt),
-          }))
-        );
+            plan: item.plan || "7-Day Trial",
+            expirationDate: formatDate(expDate),
+          });
+        });
+
+        setSubscriptions(Array.from(groupedMap.values()));
         setTotalItems(normalized.totalItems);
         setTotalPages(Math.max(1, normalized.totalPages));
       } catch {
@@ -197,6 +200,13 @@ const Subscriptions = () => {
       mounted = false;
     };
   }, []);
+
+  const toggleRow = (email) => {
+    const next = new Set(expandedRows);
+    if (next.has(email)) next.delete(email);
+    else next.add(email);
+    setExpandedRows(next);
+  };
 
   const handlePageChange = (page) => {
     const nextPage = Math.max(1, Math.min(totalPages, page));
@@ -287,13 +297,13 @@ const Subscriptions = () => {
               <thead className="border-b border-gray-200 bg-gray-50">
                 <tr>
                   <th className="px-6 py-4 text-sm font-medium text-left text-[#17b4c9]">
-                    S.ID
+                    Original Email
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-left text-[#17b4c9]">
-                    User
+                    Assigned @mabdel.ai Email
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-left text-[#17b4c9]">
-                    Email
+                    Organization
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-left text-[#17b4c9]">
                     Status
@@ -326,42 +336,47 @@ const Subscriptions = () => {
                     </td>
                   </tr>
                 ) : (
-                  subscriptions.map((subscription, index) => (
-                    <tr
-                      key={subscription.id}
-                      className={`${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      } hover:bg-gray-100`}
-                    >
-                      <td className="px-6 py-4 text-sm text-gray-900">{subscription.sId}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={subscription.user.avatar || "/placeholder.svg"}
-                            alt={subscription.user.name}
-                            className="object-cover w-10 h-10 rounded-full"
-                          />
-                          <span className="text-sm font-medium text-gray-900">
-                            {subscription.user.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{subscription.email}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                            subscription.status
-                          )}`}
+                  subscriptions.map((group, index) => {
+                    const isExpanded = expandedRows.has(group.originalEmail);
+                    return (
+                      <Fragment key={group.originalEmail}>
+                        <tr
+                          className={`${
+                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          } hover:bg-gray-100 cursor-pointer`}
+                          onClick={() => toggleRow(group.originalEmail)}
                         >
-                          {subscription.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{subscription.plan}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {subscription.expirationDate}
-                      </td>
-                    </tr>
-                  ))
+                          <td className="px-6 py-4 text-sm font-semibold text-gray-900 flex items-center gap-2">
+                            {isExpanded ? <ChevronDown className="w-5 h-5 text-gray-500" /> : <ChevronRight className="w-5 h-5 text-gray-500" />}
+                            {group.originalEmail}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900" colSpan={5}>
+                            <span className="bg-indigo-100 text-indigo-700 py-1 px-3 rounded-full text-xs font-bold">
+                              {group.organizations.length} {group.organizations.length === 1 ? "Organization" : "Organizations"}
+                            </span>
+                          </td>
+                        </tr>
+                        {isExpanded && group.organizations.map((org) => (
+                          <tr key={org.id} className="bg-blue-50/30 border-b border-blue-100">
+                            <td className="px-6 py-3"></td>
+                            <td className="px-6 py-3 text-sm text-gray-900 font-mono bg-white">{org.assignedEmail}</td>
+                            <td className="px-6 py-3 text-sm text-gray-900 font-medium">{org.organization}</td>
+                            <td className="px-6 py-3">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                                  org.status
+                                )}`}
+                              >
+                                {org.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-sm text-gray-900">{org.plan}</td>
+                            <td className="px-6 py-3 text-sm text-gray-900">{org.expirationDate}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>

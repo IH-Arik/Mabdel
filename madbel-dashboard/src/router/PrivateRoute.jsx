@@ -10,11 +10,7 @@ const PrivateRoute = () => {
     return <Navigate to="/sign-in" state={{ from: location }} replace />;
   }
 
-  const exempt = EXEMPT_PATHS.includes(location.pathname);
-
-  if (!exempt && !isOnboardingComplete()) {
-    return <Navigate to="/onboarding" replace />;
-  }
+  // Subscriptions/Trials are now handled externally, so no onboarding force redirect needed.
 
   return <Outlet />;
 };

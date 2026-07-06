@@ -22,15 +22,7 @@ const Settings = () => {
       label: "Change Password",
       link: "/settings/change-password",
     },
-    ...(isOwner
-      ? [
-          {
-            icon: <CreditCard className="w-5 h-5" />,
-            label: "Billing & Subscription",
-            link: "/settings/billing",
-          },
-        ]
-      : []),
+
     {
       icon: <FaEdit className="w-5 h-5" />,
       label: "About Us",

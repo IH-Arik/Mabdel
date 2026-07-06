@@ -18,6 +18,29 @@ class EmailService:
     async def send_invoice_email(self, email: str, subject: str, text: str, html: str) -> None:
         await self._send_email(email=email, subject=subject, text=text, html=html)
 
+    async def send_subordinate_credentials_email(self, email: str, login_email: str, password: str, role: str) -> None:
+        subject = f"Your Mabdel AI {role.capitalize()} Credentials"
+        
+        text = f"Welcome to Mabdel AI! You have been granted access as a {role}.\n\n" \
+               f"Your login email: {login_email}\n" \
+               f"Your temporary password: {password}\n\n" \
+               f"You can change this password later from your profile settings."
+               
+        html = f"""
+        <html>
+            <body>
+                <h2>Welcome to Mabdel AI!</h2>
+                <p>You have been granted access as a <strong>{role}</strong>.</p>
+                <p><strong>Your login email:</strong> {login_email}</p>
+                <p><strong>Your temporary password:</strong> {password}</p>
+                <br/>
+                <p><em>You can change this password later from your profile settings.</em></p>
+            </body>
+        </html>
+        """
+        
+        await self._send_email(email=email, subject=subject, text=text, html=html)
+
     async def send_otp_email(self, email: str, otp_code: str, purpose: str) -> None:
         subject = "Your Mabdel verification code"
         if purpose == "forgot_password":
