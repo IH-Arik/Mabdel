@@ -100,6 +100,9 @@ const RootAppNavigator = () => {
       {isAuthenticated ? (
         <>
           {/* <Stack.Screen name="SubscriptionTrial" component={SubscriptionTrialScreen} /> */}
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
           <Stack.Screen name="BottomNavigator" component={BottomNavigator} />
           <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
