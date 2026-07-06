@@ -124,12 +124,33 @@ class AuditLogModel(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+# ─── Account Creation Restrictions ─────────────────────────────────────────────
+
+ROLE_CREATION_MATRIX: dict[str, set[str]] = {
+    "super_admin": {"owner"},
+    "admin": {"owner"},
+    "owner": {"manager", "staff", "assistant"},
+}
+
+from pydantic import EmailStr
+
+class SubordinateAccountCreate(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    target_role: str  # "owner" / "manager" / "staff" / "assistant"
+    organization_id: str | None = None  # owner এর ক্ষেত্রে creator এর org থেকেই নেবে
+    expires_at: datetime | None = None  # optional, temporary role হলে
+
+
 __all__ = [
     "PermissionModel",
     "RoleModel",
     "UserRoleModel",
     "AuditLogModel",
+    "SubordinateAccountCreate",
     "ROLE_HIERARCHY",
     "RBAC_MODULES",
     "RBAC_ACTIONS",
+    "ROLE_CREATION_MATRIX",
 ]

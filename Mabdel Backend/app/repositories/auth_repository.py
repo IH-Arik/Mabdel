@@ -33,7 +33,10 @@ class AuthRepository:
             "date_of_birth": None,
             "country": None,
             "language_preference": "EN",
-            "role": "user",
+            "role": "owner",
+            "primary_role": "owner",
+            "subscription_status": "active",
+            "onboarding_complete": True,
             "organization_id": None,
             "notification_preferences": {
                 "general_notification": True,
@@ -74,7 +77,10 @@ class AuthRepository:
             "date_of_birth": None,
             "country": None,
             "language_preference": "EN",
-            "role": "user",
+            "role": "owner",
+            "primary_role": "owner",
+            "subscription_status": "active",
+            "onboarding_complete": True,
             "organization_id": None,
             "notification_preferences": {
                 "general_notification": True,

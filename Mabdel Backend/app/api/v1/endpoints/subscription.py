@@ -93,14 +93,6 @@ async def start_trial(
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     uid = _uid(current_user)
-    role = current_user.get("role", "user")
-
-    if role in ("manager", "staff", "assistant"):
-        raise AppException(
-            status_code=400,
-            code="NOT_ALLOWED",
-            message="Team members cannot start a trial. Contact your company owner.",
-        )
 
     existing = current_user.get("subscription_status", "none")
     if existing in ("trial", "active"):
@@ -165,14 +157,6 @@ async def activate_subscription(
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     uid = _uid(current_user)
-    role = current_user.get("role", "user")
-
-    if role in ("manager", "staff", "assistant"):
-        raise AppException(
-            status_code=400,
-            code="NOT_ALLOWED",
-            message="Team members cannot manage subscriptions.",
-        )
 
     now = datetime.datetime.utcnow()
     await db.users.update_one(

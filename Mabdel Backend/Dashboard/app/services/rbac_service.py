@@ -294,4 +294,82 @@ class RBACService:
         return await self.repo.get_audit_logs(actor_id, resource_type, resource_id, limit, offset)
 
 
+    # ─── Account Creation Restrictions ─────────────────────────────────────────
+
+    async def create_subordinate_account(self, current_user: dict, payload: Any) -> dict:
+        creator_id = str(current_user.get("_id") or current_user.get("id"))
+        creator_role = current_user.get("primary_role") or current_user.get("role") or "user"
+
+        from ..models.rbac_models import ROLE_CREATION_MATRIX
+        
+        allowed_targets = ROLE_CREATION_MATRIX.get(creator_role, set())
+        if payload.target_role not in allowed_targets:
+            raise AppException(
+                status_code=403,
+                code="FORBIDDEN_ROLE_CREATION",
+                message=f"Role '{creator_role}' cannot create role '{payload.target_role}'."
+            )
+
+        target_hierarchy = ROLE_HIERARCHY.get(payload.target_role, 0)
+        creator_hierarchy = ROLE_HIERARCHY.get(creator_role, 0)
+        
+        if target_hierarchy >= creator_hierarchy and creator_role != "super_admin":
+            raise AppException(
+                status_code=403, 
+                code="INSUFFICIENT_HIERARCHY", 
+                message="Cannot create an account with a role equal to or higher than your own."
+            )
+
+        if creator_role == "owner":
+            org_id = current_user.get("organization_id")
+            if not org_id:
+                raise AppException(status_code=400, code="MISSING_ORGANIZATION", message="Owner must belong to an organization.")
+        else:
+            org_id = payload.organization_id
+
+        # Check if email exists
+        existing = await self.repo.db.users.find_one({"email": payload.email})
+        if existing:
+            raise AppException(status_code=400, code="EMAIL_EXISTS", message="An account with this email already exists.")
+
+        from ..core.security import hash_password
+        
+        hashed_pw = hash_password(payload.password)
+        user_doc = {
+            "email": payload.email,
+            "password_hash": hashed_pw,
+            "full_name": payload.full_name,
+            "created_by": creator_id,
+            "created_at": datetime.utcnow(),
+            "is_active": True,
+        }
+        
+        result = await self.repo.db.users.insert_one(user_doc)
+        new_user_id = str(result.inserted_id)
+
+        role_doc = await self.repo.get_role_by_slug(payload.target_role)
+        if not role_doc:
+            raise AppException(status_code=404, code="ROLE_NOT_FOUND", message="Target role not found.")
+
+        await self.repo.assign_role(
+            user_id=new_user_id,
+            role_id=str(role_doc["_id"]),
+            role_slug=payload.target_role,
+            assigned_by=creator_id,
+            organization_id=org_id,
+            expires_at=payload.expires_at,
+        )
+
+        await self.log_action(
+            actor_id=creator_id,
+            actor_role=creator_role,
+            action="user.create_subordinate",
+            resource_type="user",
+            resource_id=new_user_id,
+            changes={"target_role": payload.target_role, "organization_id": org_id},
+        )
+
+        return {"user_id": new_user_id, "role": payload.target_role, "organization_id": org_id}
+
+
 __all__ = ["RBACService"]
