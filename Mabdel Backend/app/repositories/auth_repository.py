@@ -33,8 +33,9 @@ class AuthRepository:
             "date_of_birth": None,
             "country": None,
             "language_preference": "EN",
-            "role": "owner",
-            "primary_role": "owner",
+            # Self-signup no longer grants owner role; owner accounts are created exclusively via admin/superadmin
+            "role": "user",
+            "primary_role": "user",
             "subscription_status": "active",
             "onboarding_complete": True,
             "organization_id": None,
@@ -77,8 +78,9 @@ class AuthRepository:
             "date_of_birth": None,
             "country": None,
             "language_preference": "EN",
-            "role": "owner",
-            "primary_role": "owner",
+            # Self-signup no longer grants owner role; owner accounts are created exclusively via admin/superadmin
+            "role": "user",
+            "primary_role": "user",
             "subscription_status": "active",
             "onboarding_complete": True,
             "organization_id": None,

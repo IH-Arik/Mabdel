@@ -15,7 +15,6 @@ import { useDispatch } from "react-redux";
 import {
   Crown,
   Zap,
-  Home,
   CheckCircle2,
   Mic,
   Mail,
@@ -26,7 +25,6 @@ import {
 import {
   useMadbelStartTrialMutation,
   useMadbelActivateSubscriptionMutation,
-  useMadbelCompleteOnboardingMutation,
 } from "../../redux/slices/madbelApiSlice";
 import { useLazyMadbelMeQuery } from "../../redux/slices/madbelApiSlice";
 import { setCredentials } from "../../redux/reducers/authReducer";
@@ -56,11 +54,10 @@ const colors = {
 export default function SubscriptionTrialScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const [loading, setLoading] = useState(null); // "subscription" | "trial" | "home"
+  const [loading, setLoading] = useState(null); // "subscription" | "trial"
 
   const [startTrial] = useMadbelStartTrialMutation();
   const [activateSubscription] = useMadbelActivateSubscriptionMutation();
-  const [completeOnboarding] = useMadbelCompleteOnboardingMutation();
   const [fetchMe] = useLazyMadbelMeQuery();
 
   const goHome = () => {
@@ -108,15 +105,6 @@ export default function SubscriptionTrialScreen() {
     }
   };
 
-  const handleGoHome = async () => {
-    setLoading("home");
-    try {
-      await completeOnboarding().unwrap();
-    } catch (_) {}
-    goHome();
-    setLoading(null);
-  };
-
   const isAnyLoading = loading !== null;
 
   return (
@@ -137,7 +125,7 @@ export default function SubscriptionTrialScreen() {
               Choose Your{"\n"}<Text style={styles.headlineAccent}>Access Level</Text>
             </Text>
             <Text style={styles.subline}>
-              Unlock Mabdel AI's full power or explore as a team member.
+              Unlock Mabdel AI's full power and get started as an Owner.
             </Text>
           </View>
 
@@ -217,31 +205,6 @@ export default function SubscriptionTrialScreen() {
             </LinearGradient>
           </Pressable>
 
-          {/* Button 3 — Go to Home */}
-          <Pressable
-            style={[styles.btn, styles.btnHome, isAnyLoading && styles.btnDisabled]}
-            onPress={handleGoHome}
-            disabled={isAnyLoading}
-          >
-            {loading === "home" ? (
-              <ActivityIndicator color={colors.textSecondary} size={20} />
-            ) : (
-              <>
-                <Home size={20} color={colors.textSecondary} strokeWidth={2.3} />
-                <View style={styles.btnTextWrap}>
-                  <Text style={styles.btnTitleMuted}>Go to Home</Text>
-                  <Text style={styles.btnSubMuted}>
-                    Join as team member · Features unlocked by your Owner
-                  </Text>
-                </View>
-              </>
-            )}
-          </Pressable>
-
-          {/* Footer note */}
-          <Text style={styles.footerNote}>
-            Team members get feature access only after an Owner assigns them a role & permissions.
-          </Text>
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -338,18 +301,6 @@ const styles = StyleSheet.create({
   btnSubscription: {
     shadowColor: colors.gold,
   },
-  btnHome: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
   btnDisabled: {
     opacity: 0.55,
   },
@@ -373,23 +324,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     color: "rgba(2,8,11,0.65)",
-  },
-  btnTitleMuted: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.textPrimary,
-  },
-  btnSubMuted: {
-    fontSize: 12,
-    fontWeight: "400",
-    color: colors.textSecondary,
-  },
-  footerNote: {
-    color: colors.textSecondary,
-    fontSize: 11.5,
-    textAlign: "center",
-    lineHeight: 17,
-    paddingHorizontal: 8,
-    marginTop: 4,
   },
 });

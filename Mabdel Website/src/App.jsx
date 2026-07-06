@@ -12,7 +12,7 @@ import Contacts from './pages/Contacts';
 import Groups from './pages/Groups';
 import BulkMessaging from './pages/BulkMessaging';
 import Invoices from './pages/Invoices';
-import Settings from './pages/Settings';
+import Profile from './pages/Profile';
 import LoginPage from './pages/Login';
 import Calendar from './pages/Calendar';
 import Documents from './pages/Documents';
@@ -20,10 +20,12 @@ import Integrations from './pages/Integrations';
 import Notifications from './pages/Notifications';
 import AdminPanel from './pages/AdminPanel';
 import Landing from './pages/Landing';
+import Subscription from './pages/Subscription';
 import Begin from './pages/Begin';
 import Onboarding from './pages/Onboarding';
-import Shop from './pages/Shop';
-import Activities from './pages/Activities';
+import VoiceConversation from './pages/VoiceConversation';
+import AiCall from './pages/AiCall';
+import JoinEvent from './pages/JoinEvent';
 
 function App() {
   const { isAuthenticated, checkAuth } = useAuthStore();
@@ -37,6 +39,7 @@ function App() {
       <Routes>
         {/* Unauthenticated Routes */}
         <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Landing />} />
+        <Route path="/subscription" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Subscription />} />
         <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/begin" element={<Begin />} />
         <Route path="/onboarding" element={<Onboarding />} />
@@ -55,10 +58,11 @@ function App() {
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/calls" element={<Calls />} />
+          <Route path="/ai-call" element={<AiCall />} />
           <Route path="/admin" element={<AdminPanel />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/activities" element={<Activities />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/voice-conversation" element={<VoiceConversation />} />
+          <Route path="/join-event" element={<JoinEvent />} />
         </Route>
 
         {/* Fallback route */}

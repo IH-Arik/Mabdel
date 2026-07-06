@@ -146,6 +146,12 @@ class MongoConnectionManager:
         await self.database.rbac_audit_logs.create_index([("resource_type", 1), ("resource_id", 1), ("created_at", -1)])
         await self.database.rbac_audit_logs.create_index("created_at")
 
+        # ── Dashboard Specific ────────────────────────────────────────────────
+        await self.database.users.create_index([("role", 1), ("status", 1)])
+        await self.database.users.create_index([("organization_id", 1), ("created_at", -1)])
+        await self.database.notifications.create_index([("user_id", 1), ("is_read", 1)])
+        await self.database.ai_logs.create_index([("timestamp", -1)])
+
     async def ping(self) -> bool:
         if self.client is None:
             return False

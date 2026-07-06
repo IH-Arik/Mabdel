@@ -3,13 +3,12 @@ import { message, Modal, Switch } from "antd";
 import { Search, UserPlus, Trash2, Settings, X, ChevronDown, ChevronUp, ShieldOff, ShieldCheck } from "lucide-react";
 import {
   listTeamMembers,
-  searchUsers,
-  assignTeamRole,
   revokeTeamRole,
   getUserPermissions,
   setUserPermissions,
   banTeamMember,
   unbanTeamMember,
+  createSubordinate,
 } from "../../services/ownerApi";
 
 const ROLE_LABELS = {
@@ -25,15 +24,10 @@ const TeamManagement = () => {
   const [roleFilter, setRoleFilter] = useState("");
 
   // Add member state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [newMemberForm, setNewMemberForm] = useState({ fullName: "", email: "", role: "staff" });
+  const [creatingMember, setCreatingMember] = useState(false);
 
-  // Assign role modal
-  const [assignTarget, setAssignTarget] = useState(null);
-  const [selectedRole, setSelectedRole] = useState("manager");
-  const [assigning, setAssigning] = useState(false);
 
   // Permission modal
   const [permTarget, setPermTarget] = useState(null);
@@ -59,42 +53,46 @@ const TeamManagement = () => {
 
   useEffect(() => { loadTeam(); }, [loadTeam]);
 
-  const handleSearch = async (q) => {
-    setSearchQuery(q);
-    if (q.length < 2) { setSearchResults([]); return; }
-    setSearching(true);
-    try {
-      const res = await searchUsers(q);
-      setSearchResults(res?.data || []);
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
+  const handleCreateMember = async () => {
+    if (!newMemberForm.fullName || !newMemberForm.email) {
+      message.error("Name and Email are required.");
+      return;
     }
-  };
-
-  const handleAssignOpen = (user) => {
-    setAssignTarget(user);
-    setSelectedRole("manager");
-  };
-
-  const handleAssignConfirm = async () => {
-    if (!assignTarget) return;
-    setAssigning(true);
+    setCreatingMember(true);
     try {
-      await assignTeamRole({ user_id: assignTarget.user_id, role_slug: selectedRole });
-      message.success(`${assignTarget.name || assignTarget.email} assigned as ${selectedRole}.`);
-      setAssignTarget(null);
+      const res = await createSubordinate({
+        full_name: newMemberForm.fullName,
+        original_email: newMemberForm.email,
+        target_role: newMemberForm.role,
+      });
+      const data = res?.data || res || {};
+      
+      message.success("New team member created successfully.");
       setShowSearch(false);
-      setSearchQuery("");
-      setSearchResults([]);
+      setNewMemberForm({ fullName: "", email: "", role: "staff" });
       await loadTeam();
+
+      Modal.success({
+        title: "Subordinate Account Created",
+        content: (
+          <div className="mt-4 space-y-2">
+            <p>An email has been sent to <strong>{newMemberForm.email}</strong> with these credentials.</p>
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <p className="mb-1"><strong>Login Email:</strong> <span className="font-mono text-slate-700">{data.login_email}</span></p>
+              <p><strong>Password:</strong> <span className="font-mono text-slate-700">{data.generated_password}</span></p>
+            </div>
+            <p className="text-red-500 text-sm mt-2 font-medium">Please save this password securely. For security reasons, it will not be shown again.</p>
+          </div>
+        ),
+        width: 500,
+      });
     } catch (err) {
-      message.error(err?.message || "Failed to assign role.");
+      message.error(err?.message || "Failed to create member.");
     } finally {
-      setAssigning(false);
+      setCreatingMember(false);
     }
   };
+
 
   const handleBanToggle = (member) => {
     const isBanned = member.status === "blocked";
@@ -210,64 +208,60 @@ const TeamManagement = () => {
         </button>
       </div>
 
-      {/* Search Panel */}
+      {/* Add Member Panel */}
       {showSearch && (
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800">Search & Add User</h2>
-            <button onClick={() => { setShowSearch(false); setSearchQuery(""); setSearchResults([]); }}>
+            <h2 className="font-semibold text-slate-800">Create New Team Member</h2>
+            <button onClick={() => { setShowSearch(false); setNewMemberForm({ fullName: "", email: "", role: "staff" }); }}>
               <X className="w-4 h-4 text-slate-400 hover:text-slate-600" />
             </button>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search by email or name..."
-              className="w-full rounded-xl border border-slate-200 pl-9 pr-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#17b4c9] focus:ring-1 focus:ring-[#17b4c9]"
-            />
-          </div>
-
-          {searching && <p className="text-sm text-slate-400">Searching...</p>}
-
-          {searchResults.length > 0 && (
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {searchResults.map((u) => {
-                const teamMember = members.find((m) => m.user_id === u.user_id);
-                const alreadyInTeam = !!teamMember;
-                return (
-                  <div
-                    key={u.user_id}
-                    className={`flex items-center justify-between rounded-xl border p-3 transition-colors ${
-                      alreadyInTeam
-                        ? "border-slate-200 bg-slate-50 opacity-70"
-                        : "border-slate-100 hover:border-[#17b4c9] hover:bg-cyan-50"
-                    }`}
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">{u.email}</p>
-                      {u.name && <p className="text-xs text-slate-500">{u.name}</p>}
-                      <p className="text-xs text-slate-400">Current role: {u.current_role}</p>
-                    </div>
-                    {alreadyInTeam ? (
-                      <span className="rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 capitalize">
-                        Already {teamMember.role_slug}
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleAssignOpen(u)}
-                        className="rounded-lg bg-[#17b4c9] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#149cb0]"
-                      >
-                        Assign Role
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+              <input
+                type="text"
+                value={newMemberForm.fullName}
+                onChange={(e) => setNewMemberForm({ ...newMemberForm, fullName: e.target.value })}
+                placeholder="John Doe"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#17b4c9] focus:ring-1 focus:ring-[#17b4c9]"
+              />
             </div>
-          )}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Real Email</label>
+              <input
+                type="email"
+                value={newMemberForm.email}
+                onChange={(e) => setNewMemberForm({ ...newMemberForm, email: e.target.value })}
+                placeholder="john@example.com"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#17b4c9] focus:ring-1 focus:ring-[#17b4c9]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+              <select
+                value={newMemberForm.role}
+                onChange={(e) => setNewMemberForm({ ...newMemberForm, role: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#17b4c9] focus:ring-1 focus:ring-[#17b4c9]"
+              >
+                <option value="manager">Manager</option>
+                <option value="staff">Staff</option>
+                <option value="assistant">Assistant</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={handleCreateMember}
+              disabled={creatingMember}
+              className={`rounded-xl bg-[#17b4c9] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#149cb0] transition-colors ${creatingMember ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              {creatingMember ? "Creating..." : "Create Member"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -390,41 +384,6 @@ const TeamManagement = () => {
           </div>
         )}
       </div>
-
-      {/* Assign Role Modal */}
-      <Modal
-        open={Boolean(assignTarget)}
-        onCancel={() => setAssignTarget(null)}
-        title={`Assign Role — ${assignTarget?.email || ""}`}
-        onOk={handleAssignConfirm}
-        okText={assigning ? "Assigning..." : "Assign"}
-        confirmLoading={assigning}
-        okButtonProps={{ style: { background: "#17b4c9", borderColor: "#17b4c9" } }}
-      >
-        <div className="space-y-4 py-2">
-          <p className="text-sm text-slate-600">
-            Select the role to assign to <strong>{assignTarget?.name || assignTarget?.email}</strong>:
-          </p>
-          <div className="flex gap-3">
-            {["manager", "staff", "assistant"].map((r) => (
-              <button
-                key={r}
-                onClick={() => setSelectedRole(r)}
-                className={`flex-1 rounded-xl border-2 py-3 text-sm font-semibold capitalize transition-colors ${
-                  selectedRole === r
-                    ? "border-[#17b4c9] bg-cyan-50 text-[#17b4c9]"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-slate-400">
-            You can manage specific permissions after assigning.
-          </p>
-        </div>
-      </Modal>
 
       {/* Permission Restriction Modal */}
       <Modal

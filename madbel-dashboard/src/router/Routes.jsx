@@ -33,6 +33,7 @@ import MemberAnalysis from "../Pages/Owner/MemberAnalysis";
 import OnboardingPage from "../Pages/Onboarding/OnboardingPage";
 import TrialExpiredPage from "../Pages/Onboarding/TrialExpiredPage";
 import BillingPage from "../Pages/Settings/Billing/BillingPage";
+import ClientManagement from "../Pages/ClientManagement/ClientManagement";
 
 export const router = createBrowserRouter([
   {
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
           { path: "/analysis/:id", element: <Analysis /> },
           { path: "/subscriptions", element: <Subscriptions /> },
           { path: "/create-admin", element: <MakeAdmin /> },
+          { path: "/client-management", element: <ClientManagement /> },
           { path: "/categories", element: <Categories /> },
           { path: "/reports", element: <Reports /> },
           { path: "/ads-setup", element: <AdsSetup /> },

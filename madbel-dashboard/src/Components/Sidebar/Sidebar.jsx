@@ -16,6 +16,7 @@ import {
   MessageSquare,
   LayoutDashboard,
   TrendingUp,
+  Building2,
 } from "lucide-react";
 import { BsBadgeAd } from "react-icons/bs";
 import { SiActivitypub } from "react-icons/si";
@@ -27,7 +28,7 @@ const ADMIN_MENU = [
   { icon: <ChartColumnIncreasing className="w-5 h-5" />, label: "Earnings", Link: "/earnings" },
   { icon: <Crown className="w-5 h-5" />, label: "Subscriptions", Link: "/subscriptions" },
   { icon: <UserCog className="w-5 h-5" />, label: "Create Admin", Link: "/create-admin" },
-  { icon: <LayoutDashboard className="w-5 h-5" />, label: "Team Management", Link: "/owner/team" },
+  { icon: <Building2 className="w-5 h-5" />, label: "Client Management", Link: "/client-management" },
   { icon: <Brain className="w-5 h-5" />, label: "AI Analysis", Link: "/analysis-page" },
   { icon: <MessageSquare className="w-5 h-5" />, label: "Support Chat", Link: "/messages" },
   { icon: <TriangleAlert className="w-5 h-5" />, label: "Reports", Link: "/reports" },

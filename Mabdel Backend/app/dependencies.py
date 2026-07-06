@@ -12,6 +12,7 @@ from app.core.security import decode_token
 from app.models.rbac_models import ROLE_HIERARCHY
 from app.repositories.auth_repository import AuthRepository
 from app.services.rbac_service import RBACService
+from app.services.dashboard.rbac_service import RBACService as DashboardRBACService
 
 
 async def get_mongo_database() -> AsyncIOMotorDatabase:
@@ -35,8 +36,17 @@ async def get_current_user(
     return user
 
 
+from app.services.dashboard.dashboard_service import DashboardService
+
 def get_rbac_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> RBACService:
     return RBACService(db)
+
+
+def get_dashboard_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> DashboardService:
+    return DashboardService(db)
+
+def get_dashboard_rbac_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> DashboardRBACService:
+    return DashboardRBACService(db)
 
 
 # ─── Role-based guard (backward-compatible + hierarchy-aware) ─────────────────
@@ -259,6 +269,7 @@ __all__ = [
     "get_mongo_database",
     "get_current_user",
     "get_rbac_service",
+    "get_dashboard_service",
     "require_role",
     "require_permission",
     "require_subscription",

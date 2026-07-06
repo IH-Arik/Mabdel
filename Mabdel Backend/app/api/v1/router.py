@@ -17,7 +17,7 @@ from app.api.v1.app_config_routes import router as app_config_router
 from app.api.v1.auth_routes import router as auth_router
 from app.api.v1.content_routes import router as content_router
 from app.api.v1.onboarding_routes import router as onboarding_router
-from Dashboard.app.api.v1.router import api_router as dashboard_router
+from app.api.dashboard.router import api_router as dashboard_router
 
 api_router = APIRouter()
 api_router.include_router(auth_router)

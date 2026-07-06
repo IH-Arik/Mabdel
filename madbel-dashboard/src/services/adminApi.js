@@ -66,6 +66,12 @@ export const getDashboardNotificationPreview = () =>
 export const listUsers = (query = {}) =>
   apiRequestWithFallback(["/admin/users"], { query: toListQuery(query) });
 
+export const listOwners = (query = {}) =>
+  apiRequest("/admin/owners", { query: toListQuery(query) });
+
+export const createOwner = (body) =>
+  apiRequest("/admin/owners/create", { method: "POST", body });
+
 const pickFirst = (...values) => values.find((v) => v !== undefined && v !== null);
 
 const buildUserListVariants = (query = {}) => {
@@ -322,7 +328,7 @@ export const updateSettingsSecurity = (body) =>
 export const listAdmins = () => apiRequest("/admin/admins");
 
 export const createAdmin = (body) =>
-  apiRequest("/admin/create-admin", {
+  apiRequest("/rbac/roles/create-subordinate", {
     method: "POST",
     body,
   });

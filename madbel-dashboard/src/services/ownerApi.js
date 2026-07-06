@@ -52,3 +52,9 @@ export const banTeamMember = (userId) =>
 
 export const unbanTeamMember = (userId) =>
   apiRequest(`/owner/team/${userId}/unban`, { method: "POST" });
+
+export const createSubordinate = (body) =>
+  apiRequest("/rbac/roles/create-subordinate", {
+    method: "POST",
+    body,
+  });
