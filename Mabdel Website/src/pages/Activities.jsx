@@ -3,64 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Search, Plus, MapPin, Calendar, Clock, Users, X, Info, CheckCircle2, Ticket } from 'lucide-react';
 import { smartflowApi } from '../api/services';
 
-const FALLBACK_ACTIVITIES = [
-  {
-    id: 'a1',
-    name: 'Morning Riverside Running',
-    category: 'running',
-    description: 'Join us for an energizing morning run along the scenic riverside trail. We will keep a comfortable pace (around 6:00/km) suitable for intermediate runners.',
-    location: 'Riverside Park Trailhead',
-    date: 'June 20, 2026',
-    time: '6:30 AM',
-    price: 0.0,
-    maxParticipants: 20,
-    joinedCount: 12,
-    hostName: 'Alex Martinez',
-    imageUrl: 'https://images.unsplash.com/photo-1502904585520-fa49580603f6?w=600&h=400&fit=crop'
-  },
-  {
-    id: 'a2',
-    name: 'Sunset Cycling Tour',
-    category: 'cycling',
-    description: 'A relaxing 25km cycling session catching the sunset views on the west loop route. Bring your bike, helmet, and some water!',
-    location: 'West Loop Bike Rental Hub',
-    date: 'June 22, 2026',
-    time: '5:45 PM',
-    price: 15.0,
-    maxParticipants: 15,
-    joinedCount: 8,
-    hostName: 'David Chen',
-    imageUrl: 'https://images.unsplash.com/photo-1541614101331-1a5a3a194e92?w=600&h=400&fit=crop'
-  },
-  {
-    id: 'a3',
-    name: 'HIIT Strength & Cardio',
-    category: 'workout',
-    description: 'High Intensity Interval Training to boost your aerobic capacity and build muscular endurance. Focused on bodyweight exercises.',
-    location: 'FitHQ Studio A',
-    date: 'June 23, 2026',
-    time: '10:00 AM',
-    price: 25.0,
-    maxParticipants: 30,
-    joinedCount: 28,
-    hostName: 'Sarah Jenkins',
-    imageUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&h=400&fit=crop'
-  },
-  {
-    id: 'a4',
-    name: 'Community Forest Walking',
-    category: 'walking',
-    description: 'A slow-paced, mindful walk through the botanical forest trails. Focused on relaxation, nature networking, and breathing techniques.',
-    location: 'Greenwood Forest Gate 2',
-    date: 'June 25, 2026',
-    time: '8:00 AM',
-    price: 0.0,
-    maxParticipants: 50,
-    joinedCount: 34,
-    hostName: 'Emma Watson',
-    imageUrl: 'https://images.unsplash.com/photo-1475503572774-15a45e5d60b9?w=600&h=400&fit=crop'
-  }
-];
 
 const categories = [
   { id: 'all', label: 'All Activities' },
@@ -102,11 +44,11 @@ export default function Activities() {
       if (response.data?.success && response.data?.data?.length > 0) {
         setActivities(response.data.data);
       } else {
-        setActivities(FALLBACK_ACTIVITIES);
+        setActivities([]);
       }
     } catch (err) {
-      console.error('Failed to list activities, using fallbacks:', err);
-      setActivities(FALLBACK_ACTIVITIES);
+      console.error('Failed to list activities:', err);
+      setActivities([]);
     } finally {
       setLoading(false);
     }
@@ -129,21 +71,7 @@ export default function Activities() {
         setErrorMessage(response.data?.message || 'Could not join activity.');
       }
     } catch (err) {
-      // If backend join fails/mocking locally fallback
-      console.warn('Backend join failed, mocking local join:', err);
-      setSuccessMessage('Successfully joined the activity (Demo mode)!');
-      setActivities(prev => prev.map(a => {
-        if (a.id === activityId || a._id === activityId) {
-          const currentCount = a.joinedCount || 0;
-          const limit = a.maxParticipants || 15;
-          return {
-            ...a,
-            joinedCount: currentCount < limit ? currentCount + 1 : currentCount,
-            joined: true
-          };
-        }
-        return a;
-      }));
+      setErrorMessage('Could not join activity. Backend error.');
       setSelectedActivity(null);
     }
   };
@@ -183,35 +111,8 @@ export default function Activities() {
         loadActivities();
       }
     } catch (err) {
-      console.warn('Backend hosting failed, seeding locally:', err);
-      // Local seed fallback
-      const newAct = {
-        id: 'user-' + Date.now(),
-        name: hostForm.name,
-        category: hostForm.category,
-        description: hostForm.description,
-        location: hostForm.location,
-        date: hostForm.date,
-        time: hostForm.time,
-        price: parseFloat(hostForm.price) || 0.0,
-        maxParticipants: parseInt(hostForm.maxParticipants) || 15,
-        joinedCount: 1,
-        hostName: 'Me',
-        imageUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&h=400&fit=crop'
-      };
-      setActivities(prev => [newAct, ...prev]);
-      setSuccessMessage('Activity hosted successfully!');
-      setShowHostModal(false);
-      setHostForm({
-        name: '',
-        category: 'running',
-        description: '',
-        location: '',
-        date: '',
-        time: '',
-        price: '0',
-        maxParticipants: '15'
-      });
+      console.warn('Backend hosting failed:', err);
+      setErrorMessage('Could not host activity.');
     }
   };
 

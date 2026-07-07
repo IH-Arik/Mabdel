@@ -5,11 +5,13 @@ import { smartflowApi } from '../api/services';
 
 export default function VoiceConversation() {
   const [isCallActive, setIsCallActive] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState([]);
-  const [listening, setListening] = useState(false);
+  const [loadingAI, setLoadingAI] = useState(false);
   
   const bottomRef = useRef(null);
+  const mediaRef = useRef(null);
+  const chunksRef = useRef([]);
 
   useEffect(() => {
     if (bottomRef.current) {
@@ -19,32 +21,76 @@ export default function VoiceConversation() {
 
   const handleStartCall = () => {
     setIsCallActive(true);
-    setTranscript([{ speaker: 'ai', text: 'Hello, I am ready to listen. How can I assist you today?' }]);
-    // In a real app, this would establish a WebRTC connection or a WebSocket.
+    setTranscript([{ speaker: 'ai', text: 'Hello, I am ready to listen. Click the microphone to start speaking.' }]);
   };
 
   const handleEndCall = () => {
+    stopRecording(true);
     setIsCallActive(false);
-    setListening(false);
+    setTranscript([]);
   };
 
-  const toggleMute = () => {
-      setIsMuted(!isMuted);
-  };
-
-  const handleSimulateUserSpeech = () => {
-      if(!isCallActive) return;
-      setListening(true);
-      setTimeout(() => {
-          setTranscript(prev => [...prev, { speaker: 'user', text: 'What is the status of my recent invoice?' }]);
-          setListening(false);
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = e => chunksRef.current.push(e.data);
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        
+        setLoadingAI(true);
+        try {
+          const res = await smartflowApi.voiceChat(blob);
+          const userTranscript = res.data?.data?.transcript || res.data?.transcript || '';
+          const aiResponse = res.data?.data?.response || res.data?.response || 'I processed your audio.';
           
-          // Simulate AI response
+          if (userTranscript) {
+            setTranscript(prev => [...prev, { speaker: 'user', text: userTranscript }]);
+          } else {
+            setTranscript(prev => [...prev, { speaker: 'user', text: '(Audio sent)' }]);
+          }
+
           setTimeout(() => {
-              setTranscript(prev => [...prev, { speaker: 'ai', text: 'Your recent invoice #INV-1004 is currently marked as pending. It was sent 2 days ago.' }]);
-          }, 1500);
-      }, 2000);
-  }
+            setTranscript(prev => [...prev, { speaker: 'ai', text: aiResponse }]);
+            setLoadingAI(false);
+            
+            // Play AI audio response if available
+            const audioUrl = res.data?.data?.audio_url || res.data?.audio_url;
+            if (audioUrl) {
+                const audio = new Audio(audioUrl);
+                audio.play().catch(() => {});
+            }
+          }, 300);
+
+        } catch (err) {
+          console.error(err);
+          setLoadingAI(false);
+          setTranscript(prev => [...prev, { speaker: 'ai', text: 'Sorry, I encountered an error processing your voice.' }]);
+        }
+      };
+      recorder.start();
+      mediaRef.current = recorder;
+      setIsRecording(true);
+    } catch { alert('Microphone access denied.'); }
+  };
+
+  const stopRecording = (discard = false) => {
+    if (mediaRef.current && mediaRef.current.state !== 'inactive') {
+      if (discard) chunksRef.current = [];
+      mediaRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const toggleRecording = () => {
+      if (isRecording) {
+          stopRecording();
+      } else {
+          startRecording();
+      }
+  };
 
   return (
     <div className="flex h-[calc(100vh-10rem)] bg-[#0c101b] border border-[#243041]/60 rounded-3xl overflow-hidden shadow-xl">
@@ -118,7 +164,14 @@ export default function VoiceConversation() {
                             </div>
                         </motion.div>
                     ))}
-                    {listening && (
+                    {loadingAI && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                             <div className="px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-3xl rounded-bl-none text-sm font-medium flex items-center gap-2">
+                                <Activity size={14} className="animate-pulse text-cyan-400" /> AI is thinking...
+                             </div>
+                        </motion.div>
+                    )}
+                    {isRecording && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
                              <div className="px-4 py-3 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-3xl rounded-br-none text-sm font-medium flex items-center gap-2">
                                 <Activity size={14} className="animate-pulse" /> Listening...
@@ -135,12 +188,13 @@ export default function VoiceConversation() {
                      </button>
                      
                      <button 
-                         onClick={toggleMute}
+                         onClick={toggleRecording}
                          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${
-                             isMuted ? 'bg-rose-500 text-white shadow-rose-500/20' : 'bg-slate-700 text-white hover:bg-slate-600'
+                             isRecording ? 'bg-cyan-500 text-[#070a13] shadow-cyan-500/20 animate-pulse' : 'bg-slate-700 text-white hover:bg-slate-600'
                          }`}
+                         title={isRecording ? 'Stop Recording' : 'Start Recording'}
                      >
-                         {isMuted ? <MicOff size={28} /> : <Mic size={28} />}
+                         {isRecording ? <Activity size={28} /> : <Mic size={28} />}
                      </button>
 
                      <button 
@@ -149,10 +203,6 @@ export default function VoiceConversation() {
                          title="End Session"
                      >
                          <Phone size={28} className="rotate-[135deg]" />
-                     </button>
-
-                     <button onClick={handleSimulateUserSpeech} className="text-[10px] text-slate-600 absolute right-4 bottom-4">
-                         Simulate Input
                      </button>
                  </div>
               </>

@@ -1,27 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Calendar, Clock, Users, Navigation, Search, CheckCircle2, Ticket } from 'lucide-react';
-
-const mockEvents = [
-  { id: 1, title: 'Real Estate Investor Meetup', location: 'Downtown Hub', date: 'Oct 15, 2026', time: '18:00', participants: 45, max: 50, price: 0 },
-  { id: 2, title: 'Property Tech Conference', location: 'Convention Center', date: 'Nov 02, 2026', time: '09:00', participants: 210, max: 300, price: 150 },
-  { id: 3, title: 'First-Time Homebuyer Seminar', location: 'Community Library', date: 'Oct 20, 2026', time: '14:00', participants: 12, max: 20, price: 0 }
-];
+import { smartflowApi } from '../api/services';
 
 export default function JoinEvent() {
+  const [events, setEvents] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isJoined, setIsJoined] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const filteredEvents = mockEvents.filter(e => e.title.toLowerCase().includes(search.toLowerCase()) || e.location.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await smartflowApi.listEvents();
+        if (response.data?.success && response.data?.data) {
+          setEvents(response.data.data.items || response.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch events:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvents();
+  }, []);
 
-  const handleJoin = (e) => {
+  const filteredEvents = events.filter(e => e.title?.toLowerCase().includes(search.toLowerCase()) || e.location?.toLowerCase().includes(search.toLowerCase()));
+
+  const handleJoin = async (e) => {
       e.stopPropagation();
-      setIsJoined(true);
-      setTimeout(() => {
-          setIsJoined(false);
-          setSelectedEvent(null);
-      }, 3000);
+      if (!selectedEvent) return;
+      try {
+        await smartflowApi.joinEvent(selectedEvent.id || selectedEvent._id);
+        setIsJoined(true);
+        setTimeout(() => {
+            setIsJoined(false);
+            setSelectedEvent(null);
+        }, 3000);
+      } catch (err) {
+        console.error('Failed to join event:', err);
+      }
   };
 
   return (
@@ -72,28 +91,36 @@ export default function JoinEvent() {
 
              {/* Events List */}
              <div className="grid gap-4">
-                 {filteredEvents.map(event => (
+                 {loading ? (
+                    <div className="text-center text-slate-400 py-10">Loading events...</div>
+                 ) : filteredEvents.length === 0 ? (
+                    <div className="text-center text-slate-400 py-10">No events found.</div>
+                 ) : filteredEvents.map(event => (
                      <div 
-                        key={event.id}
+                        key={event.id || event._id}
                         onClick={() => setSelectedEvent(event)}
-                        className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row gap-5 ${selectedEvent?.id === event.id ? 'bg-[#131A24] border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.1)]' : 'bg-[#0c101b] border-[#243041] hover:border-slate-600'}`}
+                        className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row gap-5 ${(selectedEvent?.id === event.id || selectedEvent?._id === event._id) ? 'bg-[#131A24] border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.1)]' : 'bg-[#0c101b] border-[#243041] hover:border-slate-600'}`}
                      >
-                         <div className="h-24 w-24 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700">
-                             <Calendar size={32} className="text-slate-500" />
+                         <div className="h-24 w-24 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700 overflow-hidden">
+                             {event.imageUrl ? (
+                                <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
+                             ) : (
+                                <Calendar size={32} className="text-slate-500" />
+                             )}
                          </div>
                          <div className="flex-1 flex flex-col justify-between">
                              <div>
-                                 <h3 className="text-lg font-bold text-white">{event.title}</h3>
-                                 <p className="text-emerald-400 text-sm font-semibold mt-1">${event.price === 0 ? 'FREE' : event.price}</p>
+                                 <h3 className="text-lg font-bold text-white">{event.title || event.name}</h3>
+                                 <p className="text-emerald-400 text-sm font-semibold mt-1">${!event.price || event.price === 0 ? 'FREE' : event.price}</p>
                              </div>
                              <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3 text-xs text-slate-400 font-medium">
                                  <span className="flex items-center gap-1.5"><MapPin size={14} /> {event.location}</span>
-                                 <span className="flex items-center gap-1.5"><Clock size={14} /> {event.date} at {event.time}</span>
+                                 <span className="flex items-center gap-1.5"><Clock size={14} /> {event.date} {event.time ? `at ${event.time}` : ''}</span>
                              </div>
                          </div>
                          <div className="flex sm:flex-col items-center justify-center sm:border-l border-[#243041] sm:pl-5 gap-2 shrink-0 pt-4 sm:pt-0 border-t sm:border-t-0 mt-4 sm:mt-0">
                              <Users size={20} className="text-emerald-500" />
-                             <span className="text-sm font-bold text-white">{event.participants}/{event.max}</span>
+                             <span className="text-sm font-bold text-white">{event.joinedCount || event.participants || 0}/{event.maxParticipants || event.max || 50}</span>
                              <span className="text-[10px] uppercase tracking-wider text-slate-500">Attending</span>
                          </div>
                      </div>
@@ -136,9 +163,9 @@ export default function JoinEvent() {
                              <div className="flex items-start gap-3 p-3 bg-slate-900/50 rounded-xl border border-slate-800">
                                  <Users size={18} className="text-slate-400 mt-0.5" />
                                  <div>
-                                     <p className="text-white font-semibold text-sm">{selectedEvent.participants} / {selectedEvent.max} Joined</p>
+                                     <p className="text-white font-semibold text-sm">{selectedEvent.joinedCount || selectedEvent.participants || 0} / {selectedEvent.maxParticipants || selectedEvent.max || 50} Joined</p>
                                      <div className="w-full h-1.5 bg-slate-800 rounded-full mt-2 overflow-hidden">
-                                         <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(selectedEvent.participants / selectedEvent.max) * 100}%` }} />
+                                         <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${((selectedEvent.joinedCount || selectedEvent.participants || 0) / (selectedEvent.maxParticipants || selectedEvent.max || 50)) * 100}%` }} />
                                      </div>
                                  </div>
                              </div>
