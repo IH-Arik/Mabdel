@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,6 +25,7 @@ import {
 import { useMadbelCallActionMutation, useMadbelGetLiveCallTranscriptQuery } from "../../redux/slices/madbelApiSlice";
 
 const AiCallScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
 
@@ -115,10 +117,10 @@ const AiCallScreen = () => {
         <View style={styles.topRow}>
           <View style={styles.aiHandlingPill}>
             <View style={styles.liveCallDot} />
-            <Text style={styles.aiHandlingText}>AI Handling Call</Text>
+            <Text style={styles.aiHandlingText}>{t("ai_handling_call")}</Text>
           </View>
           <Text style={styles.timerText}>{timer}</Text>
-          <Text style={styles.subText}>Live AI conversation active</Text>
+          <Text style={styles.subText}>{t("live_ai_conversation_active")}</Text>
         </View>
 
         {/* Abstract Glowing Orb */}
@@ -167,13 +169,12 @@ const AiCallScreen = () => {
         {/* Contact Info (Talking With) */}
         <View style={styles.contactInfo}>
           <Text style={styles.talkingLabel}>Talking With: {callerName || "Unknown Caller"}</Text>
-          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}
-        </View>
+          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}</View>
 
         {/* Live Transcript Dialog */}
         <View style={styles.transcriptCard}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>LIVE TRANSCRIPT</Text>
+            <Text style={styles.cardTitle}>{t("live_transcript")}</Text>
             <FileText size={14} color="#8E9AA0" />
           </View>
 
@@ -205,21 +206,21 @@ const AiCallScreen = () => {
               <Pressable style={styles.controlCircle}>
                 <MicOff size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>MUTE</Text>
+              <Text style={styles.controlLabel}>{t("mute")}</Text>
             </View>
 
             <View style={styles.controlItem}>
               <Pressable style={styles.controlCircle}>
                 <Volume2 size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>SPEAKER</Text>
+              <Text style={styles.controlLabel}>{t("speaker")}</Text>
             </View>
 
             <View style={styles.controlItem}>
               <Pressable style={styles.controlCircle}>
                 <Grid size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>KEYPAD</Text>
+              <Text style={styles.controlLabel}>{t("keypad")}</Text>
             </View>
           </View>
 
@@ -229,21 +230,21 @@ const AiCallScreen = () => {
               <Pressable style={styles.controlCircle}>
                 <Pause size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>HOLD</Text>
+              <Text style={styles.controlLabel}>{t("hold")}</Text>
             </View>
 
             <View style={styles.controlItem}>
               <Pressable style={[styles.controlCircle, styles.recordingCircle]}>
                 <Circle size={14} color="#00D2FF" fill="#00D2FF" />
               </Pressable>
-              <Text style={styles.recordingLabel}>RECORDING</Text>
+              <Text style={styles.recordingLabel}>{t("recording")}</Text>
             </View>
 
             <View style={styles.controlItem}>
               <Pressable style={styles.controlCircle}>
                 <UserPlus size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>ADD CALL</Text>
+              <Text style={styles.controlLabel}>{t("add_call")}</Text>
             </View>
           </View>
         </View>

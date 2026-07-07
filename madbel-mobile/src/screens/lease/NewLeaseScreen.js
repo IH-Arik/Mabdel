@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Switch, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,6 +12,7 @@ import {
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 
 const NewLeaseScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const [tenantSignature, setTenantSignature] = useState(true);
@@ -86,7 +88,7 @@ const NewLeaseScreen = () => {
 
   const runGenerate = async () => {
     if (!prompt.trim()) {
-      Alert.alert("Prompt required", "Please add a prompt to generate lease draft.");
+      Alert.alert(t("prompt_required"), t("please_add_a_prompt_to_generate_lease_draft"));
       return;
     }
     try {
@@ -113,7 +115,7 @@ const NewLeaseScreen = () => {
 
   const handleCreate = async () => {
     if (!address.trim() || !tenant.trim() || !rent.trim()) {
-      Alert.alert("Missing fields", "Property address, tenant name, and monthly rent are required.");
+      Alert.alert(t("missing_fields"), t("property_address_tenant_name_and_monthly_rent_are_"));
       return;
     }
     try {
@@ -121,7 +123,7 @@ const NewLeaseScreen = () => {
       const createdLease = response?.data || response;
       const leaseId = createdLease?.id;
       if (!leaseId) {
-        Alert.alert("Create failed", "Lease was created but lease id is missing in response.");
+        Alert.alert(t("create_failed"), t("lease_was_created_but_lease_id_is_missing_in_respo"));
         return;
       }
       navigation.replace("LeasePreview", { leaseId, lease: createdLease });
@@ -137,19 +139,19 @@ const NewLeaseScreen = () => {
           <Pressable onPress={() => navigation.goBack()}>
             <ChevronLeft size={34} color="#F5FAFF" />
           </Pressable>
-          <Text style={styles.headerTitle}>New Lease</Text>
+          <Text style={styles.headerTitle}>{t("new_lease")}</Text>
           <View style={{ width: 24 }} />
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>GENERATE LEASE WITH AI</Text>
+            <Text style={styles.sectionTitle}>{t("generate_lease_with_ai")}</Text>
             <View style={styles.promptBox}>
               <TextInput
                 value={prompt}
                 onChangeText={setPrompt}
-                placeholder="Create a 1-year apartment lease..."
+                placeholder={t("create_a_1_year_apartment_lease")}
                 placeholderTextColor="#66748C"
                 multiline
                 style={styles.promptInput}
@@ -164,66 +166,66 @@ const NewLeaseScreen = () => {
               ) : (
                 <>
                   <Sparkles size={20} color="#EAF9FF" />
-                  <Text style={styles.generateText}>Generate Lease</Text>
+                  <Text style={styles.generateText}>{t("generate_lease")}</Text>
                 </>
               )}
             </Pressable>
           </View>
 
           <View style={styles.card}>
-            <View style={styles.rowTitle}><House size={20} color="#11CDE8" /><Text style={styles.blockTitle}>Property Details</Text></View>
-            <Text style={styles.label}>Property Address</Text>
+            <View style={styles.rowTitle}><House size={20} color="#11CDE8" /><Text style={styles.blockTitle}>{t("property_details")}</Text></View>
+            <Text style={styles.label}>{t("property_address")}</Text>
             <TextInput value={address} onChangeText={setAddress} style={styles.input} />
-            <Text style={styles.label}>Property Type</Text>
+            <Text style={styles.label}>{t("property_type")}</Text>
             <TextInput value={propertyType} onChangeText={setPropertyType} style={styles.input} />
           </View>
 
           <View style={styles.card}>
-            <View style={styles.rowTitle}><Users size={20} color="#11CDE8" /><Text style={styles.blockTitle}>Parties Info</Text></View>
-            <Text style={styles.label}>Landlord Full Name</Text>
-            <TextInput value={landlord} onChangeText={setLandlord} placeholder="e.g. John Doe" placeholderTextColor="#66748C" style={styles.input} />
-            <Text style={styles.label}>Tenant Full Name</Text>
-            <TextInput value={tenant} onChangeText={setTenant} placeholder="e.g. Jane Smith" placeholderTextColor="#66748C" style={styles.input} />
-            <Text style={styles.label}>Tenant Email</Text>
-            <TextInput value={tenantEmail} onChangeText={setTenantEmail} placeholder="email@example.com" placeholderTextColor="#66748C" style={styles.input} autoCapitalize="none" />
-            <Text style={styles.label}>Tenant Phone</Text>
+            <View style={styles.rowTitle}><Users size={20} color="#11CDE8" /><Text style={styles.blockTitle}>{t("parties_info")}</Text></View>
+            <Text style={styles.label}>{t("landlord_full_name")}</Text>
+            <TextInput value={landlord} onChangeText={setLandlord} placeholder={t("e_g_john_doe")} placeholderTextColor="#66748C" style={styles.input} />
+            <Text style={styles.label}>{t("tenant_full_name")}</Text>
+            <TextInput value={tenant} onChangeText={setTenant} placeholder={t("e_g_jane_smith")} placeholderTextColor="#66748C" style={styles.input} />
+            <Text style={styles.label}>{t("tenant_email")}</Text>
+            <TextInput value={tenantEmail} onChangeText={setTenantEmail} placeholder={t("email_example_com")} placeholderTextColor="#66748C" style={styles.input} autoCapitalize="none" />
+            <Text style={styles.label}>{t("tenant_phone")}</Text>
             <TextInput value={tenantPhone} onChangeText={setTenantPhone} placeholder="+1 234 567 890" placeholderTextColor="#66748C" style={styles.input} />
           </View>
 
           <View style={styles.card}>
-            <View style={styles.rowTitle}><Wallet size={20} color="#11CDE8" /><Text style={styles.blockTitle}>Payment Details</Text></View>
+            <View style={styles.rowTitle}><Wallet size={20} color="#11CDE8" /><Text style={styles.blockTitle}>{t("payment_details")}</Text></View>
             <View style={styles.twoCol}>
               <View style={styles.col}>
-                <Text style={styles.label}>Monthly Rent</Text>
+                <Text style={styles.label}>{t("monthly_rent")}</Text>
                 <TextInput value={rent} onChangeText={setRent} keyboardType="numeric" style={styles.input} />
               </View>
               <View style={styles.col}>
-                <Text style={styles.label}>Security Deposit</Text>
+                <Text style={styles.label}>{t("security_deposit")}</Text>
                 <TextInput value={deposit} onChangeText={setDeposit} keyboardType="numeric" style={styles.input} />
               </View>
             </View>
           </View>
 
           <View style={styles.card}>
-            <View style={styles.rowTitle}><CalendarDays size={20} color="#11CDE8" /><Text style={styles.blockTitle}>Lease Duration</Text></View>
+            <View style={styles.rowTitle}><CalendarDays size={20} color="#11CDE8" /><Text style={styles.blockTitle}>{t("lease_duration")}</Text></View>
             <View style={styles.twoCol}>
               <View style={styles.col}>
-                <Text style={styles.label}>Start Date</Text>
-                <TextInput value={startDate} onChangeText={setStartDate} placeholder="yyyy-mm-dd" placeholderTextColor="#66748C" style={styles.input} />
+                <Text style={styles.label}>{t("start_date")}</Text>
+                <TextInput value={startDate} onChangeText={setStartDate} placeholder={t("yyyy_mm_dd")} placeholderTextColor="#66748C" style={styles.input} />
               </View>
               <View style={styles.col}>
-                <Text style={styles.label}>End Date</Text>
-                <TextInput value={endDate} onChangeText={setEndDate} placeholder="yyyy-mm-dd" placeholderTextColor="#66748C" style={styles.input} />
+                <Text style={styles.label}>{t("end_date")}</Text>
+                <TextInput value={endDate} onChangeText={setEndDate} placeholder={t("yyyy_mm_dd")} placeholderTextColor="#66748C" style={styles.input} />
               </View>
             </View>
           </View>
 
           <View style={styles.card}>
-            <View style={styles.rowTitle}><PenLine size={20} color="#11CDE8" /><Text style={styles.blockTitle}>Lease Terms</Text></View>
+            <View style={styles.rowTitle}><PenLine size={20} color="#11CDE8" /><Text style={styles.blockTitle}>{t("lease_terms")}</Text></View>
             <TextInput
               value={terms}
               onChangeText={setTerms}
-              placeholder="Enter custom terms or use AI to generate legal clauses..."
+              placeholder={t("enter_custom_terms_or_use_ai_to_generate_legal_cla")}
               placeholderTextColor="#66748C"
               multiline
               style={styles.textArea}
@@ -231,19 +233,19 @@ const NewLeaseScreen = () => {
           </View>
 
           <View style={styles.card}>
-            <View style={styles.rowTitle}><PenLine size={20} color="#11CDE8" /><Text style={styles.blockTitle}>Signature Fields</Text></View>
+            <View style={styles.rowTitle}><PenLine size={20} color="#11CDE8" /><Text style={styles.blockTitle}>{t("signature_fields")}</Text></View>
             <View style={styles.switchRow}>
-              <View style={styles.switchLabelWrap}><UserRound size={18} color="#AAB7CA" /><Text style={styles.switchText}>Tenant Signature</Text></View>
+              <View style={styles.switchLabelWrap}><UserRound size={18} color="#AAB7CA" /><Text style={styles.switchText}>{t("tenant_signature")}</Text></View>
               <Switch value={tenantSignature} onValueChange={setTenantSignature} trackColor={{ false: "#2C3445", true: "#10CDE9" }} thumbColor="#F2F8FF" />
             </View>
             <View style={styles.switchRow}>
-              <View style={styles.switchLabelWrap}><Building2 size={18} color="#AAB7CA" /><Text style={styles.switchText}>Landlord Signature</Text></View>
+              <View style={styles.switchLabelWrap}><Building2 size={18} color="#AAB7CA" /><Text style={styles.switchText}>{t("landlord_signature")}</Text></View>
               <Switch value={landlordSignature} onValueChange={setLandlordSignature} trackColor={{ false: "#2C3445", true: "#10CDE9" }} thumbColor="#F2F8FF" />
             </View>
           </View>
 
           <VoiceFormFillCard
-            label="lease"
+            label={t("lease")}
             workflowIntent="lease"
             sourceScreen="NewLease"
             triggerOpen={voiceTrigger}
@@ -266,7 +268,7 @@ const NewLeaseScreen = () => {
             {creating ? (
               <ActivityIndicator color="#EAF8FF" />
             ) : (
-              <Text style={styles.submitText}>Preview Lease</Text>
+              <Text style={styles.submitText}>{t("preview_lease")}</Text>
             )}
           </Pressable>
         </ScrollView>

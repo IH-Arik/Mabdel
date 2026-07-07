@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Image, Alert, ActivityIndicator, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +20,7 @@ import {
 } from "../../redux/slices/madbelApiSlice";
 
 const GroupSettingScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const routeGroup = route?.params?.group;
@@ -58,7 +60,7 @@ const GroupSettingScreen = () => {
 
   const handleDelete = () => {
     if (!groupId) return;
-    Alert.alert("Delete group", "Are you sure you want to delete this group?", [
+    Alert.alert(t("delete_group"), t("are_you_sure_you_want_to_delete_this_group"), [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -98,7 +100,7 @@ const GroupSettingScreen = () => {
     const contactId = String(contact?.contact_id || contact?.id || contact?._id || "").trim();
     if (!groupId || !contactId) return;
     if (memberIdsSet.has(contactId)) {
-      Alert.alert("Already added", "This contact is already a member of the group.");
+      Alert.alert(t("already_added"), t("this_contact_is_already_a_member_of_the_group"));
       return;
     }
     try {
@@ -113,7 +115,7 @@ const GroupSettingScreen = () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!groupId || !email) return;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert("Invalid email", "Please enter a valid email address.");
+      Alert.alert(t("invalid_email"), t("please_enter_a_valid_email_address"));
       return;
     }
     try {
@@ -140,7 +142,7 @@ const GroupSettingScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={28} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.headerTitle}>Group Setting</Text>
+          <Text style={styles.headerTitle}>{t("group_setting")}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -176,7 +178,7 @@ const GroupSettingScreen = () => {
 
           {members.length === 0 && !isLoading && (
             <View style={styles.emptyMembers}>
-              <Text style={styles.emptyMembersText}>No members yet. Add members below.</Text>
+              <Text style={styles.emptyMembersText}>{t("no_members_yet_add_members_below")}</Text>
             </View>
           )}
 
@@ -234,15 +236,15 @@ const GroupSettingScreen = () => {
           {showAddSection ? (
             <View style={styles.addSection}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <Text style={styles.addSectionTitle}>ADD MEMBER</Text>
+                <Text style={styles.addSectionTitle}>{t("add_member")}</Text>
                 <Pressable onPress={() => setShowAddSection(false)}>
-                  <Text style={{ color: "#00C2FF", fontWeight: "600" }}>Cancel</Text>
+                  <Text style={{ color: "#00C2FF", fontWeight: "600" }}>{t("cancel")}</Text>
                 </Pressable>
               </View>
               <TextInput
                 value={contactSearch}
                 onChangeText={setContactSearch}
-                placeholder="Search contacts by name or email"
+                placeholder={t("search_contacts_by_name_or_email")}
                 placeholderTextColor="#7F8AA1"
                 style={styles.input}
                 autoCapitalize="none"
@@ -266,33 +268,33 @@ const GroupSettingScreen = () => {
                       <Text style={styles.memberEmail}>{contactMeta}</Text>
                     </View>
                     <Pressable style={styles.smallBtn} onPress={() => handleAddMember(contact)} disabled={addingMembers}>
-                      {addingMembers ? <ActivityIndicator color="#EAF5FB" size="small" /> : <Text style={styles.smallBtnText}>Add</Text>}
+                      {addingMembers ? <ActivityIndicator color="#EAF5FB" size="small" /> : <Text style={styles.smallBtnText}>{t("add")}</Text>}
                     </Pressable>
                   </View>
                 );
               })}
 
               {!contactsFetching && filteredContacts.length === 0 ? (
-                <Text style={styles.emptyContacts}>No addable contacts found.</Text>
+                <Text style={styles.emptyContacts}>{t("no_addable_contacts_found")}</Text>
               ) : null}
             </View>
           ) : (
             <Pressable style={styles.addMembersBtn} onPress={() => setShowAddSection(true)}>
               <Plus size={18} color="#00D2FF" />
-              <Text style={styles.addMembersText}>Add Members</Text>
+              <Text style={styles.addMembersText}>{t("add_members")}</Text>
             </Pressable>
           )}
 
-          {isFetching ? <Text style={styles.refresh}>Refreshing...</Text> : null}
+          {isFetching ? <Text style={styles.refresh}>{t("refreshing")}</Text> : null}
         </ScrollView>
       </View>
       <View style={{ padding: responsiveWidth(4.2), borderTopWidth: 1, borderColor: "#2A3142" , marginBottom: responsiveHeight(13) , gap: responsiveHeight(2)}}>
          <Pressable style={styles.leaveBtn} onPress={handleLeave} disabled={leaving}>
-            {leaving ? <ActivityIndicator color="#FC4C58" /> : <Text style={styles.leaveText}>Leave Group</Text>}
+            {leaving ? <ActivityIndicator color="#FC4C58" /> : <Text style={styles.leaveText}>{t("leave_group")}</Text>}
           </Pressable>
 
           <Pressable style={styles.deleteBtn} onPress={handleDelete} disabled={deleting}>
-            {deleting ? <ActivityIndicator color="#F9FCFF" /> : <Text style={styles.deleteText}>Delete Group</Text>}
+            {deleting ? <ActivityIndicator color="#F9FCFF" /> : <Text style={styles.deleteText}>{t("delete_group")}</Text>}
           </Pressable>
       </View>
     </SafeAreaView>

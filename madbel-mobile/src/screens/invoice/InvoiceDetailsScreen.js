@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import {
   View,
@@ -29,6 +30,7 @@ import {
 } from "./invoiceUtils";
 
 const InvoiceDetailsScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const invoiceId = getInvoiceId(route.params?.invoice);
@@ -55,7 +57,7 @@ const InvoiceDetailsScreen = () => {
 
     try {
       await sendReminder({ invoice_id: invoiceId, channel: "email" }).unwrap();
-      Alert.alert("Reminder sent", "The invoice reminder was sent successfully.");
+      Alert.alert(t("reminder_sent"), t("the_invoice_reminder_was_sent_successfully"));
     } catch (error) {
       Alert.alert(
         "Reminder failed",
@@ -85,7 +87,7 @@ const InvoiceDetailsScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={34} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.headerTitle}>Invoice Details</Text>
+          <Text style={styles.headerTitle}>{t("invoice_details")}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -124,13 +126,13 @@ const InvoiceDetailsScreen = () => {
         </View>
 
         <Text style={styles.clientName}>{invoice.client_name}</Text>
-        <Text style={styles.amountLabel}>TOTAL AMOUNT</Text>
+        <Text style={styles.amountLabel}>{t("total_amount")}</Text>
         <Text style={styles.amount}>
           {formatCurrency(invoice.total_amount, invoice.currency)}
         </Text>
       </View>
 
-      <Text style={styles.progressTitle}>PROGRESS</Text>
+      <Text style={styles.progressTitle}>{t("progress")}</Text>
     </>
   }
   renderItem={({ item, index }) => (
@@ -153,7 +155,7 @@ const InvoiceDetailsScreen = () => {
   )}
   ListEmptyComponent={
     !timelineLoading ? (
-      <Text style={styles.timelineEmpty}>No timeline events yet.</Text>
+      <Text style={styles.timelineEmpty}>{t("no_timeline_events_yet")}</Text>
     ) : null
   }
   contentContainerStyle={styles.timelineContent}
@@ -176,7 +178,7 @@ const InvoiceDetailsScreen = () => {
             style={styles.viewBtn}
             onPress={() => navigation.navigate("InvoiceView", { invoice })}
           >
-            <Text style={styles.viewBtnText}>View</Text>
+            <Text style={styles.viewBtnText}>{t("view")}</Text>
           </Pressable>
 
           <Pressable
@@ -190,7 +192,7 @@ const InvoiceDetailsScreen = () => {
         </>
         ) : (
           <View style={styles.loaderWrap}>
-            <Text style={styles.timelineEmpty}>Invoice not found.</Text>
+            <Text style={styles.timelineEmpty}>{t("invoice_not_found")}</Text>
           </View>
         )}
       </View>

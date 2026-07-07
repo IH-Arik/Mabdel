@@ -1,4 +1,5 @@
-﻿import React, { useMemo, useState, useEffect } from "react";
+import { useAppLanguage } from "../context/LanguageContext";
+import React, { useMemo, useState, useEffect } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Image,
@@ -47,6 +48,7 @@ const colors = {
 const DEVICE_ID_KEY = "@device_id";
 
 const generateUUID = () => {
+  const { t } = useAppLanguage();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === "x" ? r : (r & 0x3) | 0x8;
@@ -339,11 +341,8 @@ export default function OnboardingScreen() {
             contentContainerStyle={styles.permissionScrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.permissionsTitle}>Permissions</Text>
-            <Text style={styles.permissionsSubTitle}>
-              Mabdel AI needs access to some features to provide the best business
-              assistance experience.
-            </Text>
+            <Text style={styles.permissionsTitle}>{t("permissions")}</Text>
+            <Text style={styles.permissionsSubTitle}>{t("mabdel_ai_needs_access_to_some_features_to_provide")}</Text>
 
             {permissionItems.map((item) => (
               <PermissionCard
@@ -373,7 +372,7 @@ export default function OnboardingScreen() {
               style={styles.ctaButton}
               onPress={handleAcceptAll}
             >
-              <Text style={styles.ctaText}>Accept All</Text>
+              <Text style={styles.ctaText}>{t("accept_all")}</Text>
             </Pressable>
           </ScrollView>
         </LinearGradient>
@@ -395,7 +394,7 @@ export default function OnboardingScreen() {
           </Pressable>
           {isSlidesLoading && <ActivityIndicator size="small" color={colors.accent} />}
           <Pressable onPress={handleSkip} hitSlop={12}>
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={styles.skipText}>{t("skip")}</Text>
           </Pressable>
         </View>
 

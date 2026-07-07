@@ -9,6 +9,7 @@ import {
   Keyboard,
   ActivityIndicator,
 } from "react-native";
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Navbar from "../../components/Navbar";
@@ -32,6 +33,7 @@ import LocationMapCard from "../../components/LocationMapCard";
 import SuccessModal from "../../components/SuccessModal";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 const CreateEventScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const {
     control,
@@ -156,7 +158,7 @@ const CreateEventScreen = () => {
             paddingHorizontal: responsiveWidth(5),
           }}
         >
-          <Navbar title="Create Event" />
+          <Navbar title={t("create_event")} />
           <ScrollView
             contentContainerStyle={{
               flexGrow: 1,
@@ -172,8 +174,8 @@ const CreateEventScreen = () => {
               name="eventTitle"
               control={control}
               error={errors?.eventTitle?.message}
-              label="Title"
-              placeholder="Enter your title"
+              label={t("title")}
+              placeholder={t("enter_your_title")}
               type="text"
               rules={{
                 required: "Title is required",
@@ -183,8 +185,8 @@ const CreateEventScreen = () => {
               name="eventType"
               control={control}
               error={errors?.eventType?.message}
-              label="Type"
-              placeholder="Enter your type"
+              label={t("type")}
+              placeholder={t("enter_your_type")}
               type="text"
               rules={{
                 required: "Type is required",
@@ -195,8 +197,8 @@ const CreateEventScreen = () => {
               name="eventDescription"
               control={control}
               error={errors?.eventDescription?.message}
-              label="Description"
-              placeholder="Enter your description"
+              label={t("description")}
+              placeholder={t("enter_your_description")}
               type="text"
               rules={{
                 required: "Description is required",
@@ -204,9 +206,7 @@ const CreateEventScreen = () => {
             />
             
             <View className="gap-2">
-              <Text className="text-base font-medium text-black mb-2">
-                Select Date
-              </Text>
+              <Text className="text-base font-medium text-black mb-2">{t("select_date")}</Text>
               <Pressable
                 className="border border-border rounded-xl "
                 style={{
@@ -224,13 +224,13 @@ const CreateEventScreen = () => {
               </Pressable>
             </View>
             <TimeSlotInput
-              label="Start Time"
+              label={t("start_time")}
               value={startTime}
               onChange={setStartTime}
               // disabled={isLoading}
             />
             <LocationMapCard
-              label="Location"
+              label={t("location")}
               selectedLocation={eventLocation}
               onLocationChange={setEventLocation}
               disabled={createEventLoading}
@@ -258,8 +258,8 @@ const CreateEventScreen = () => {
               name="eventDuration"
               control={control}
               error={errors?.eventDuration?.message}
-              label="Event Duration"
-              placeholder="Share your event time duration."
+              label={t("event_duration")}
+              placeholder={t("share_your_event_time_duration")}
               type="text"
               rules={{
                 required: "Event Duration is required",
@@ -269,13 +269,13 @@ const CreateEventScreen = () => {
             <MediaUploader
               control={control}
               name="eventMedia"
-              label="Upload Photos/Videos"
+              label={t("upload_photos_videos")}
               maxFiles={6}
               mediaType="mixed"
               disabled={createEventLoading}
             />
             <VoiceFormFillCard
-              label="event"
+              label={t("event")}
               workflowIntent="event"
               sourceScreen="CreateEvent"
             />
@@ -292,9 +292,7 @@ const CreateEventScreen = () => {
               {createEventLoading ? (
                 <ActivityIndicator color={"#edbe9c"} size={20} />
               ) : (
-                <Text className="text-white text-center font-bold text-lg">
-                  Create Event
-                </Text>
+                <Text className="text-white text-center font-bold text-lg">{t("create_event")}</Text>
               )}
             </Pressable>
           </View>
@@ -315,7 +313,7 @@ const CreateEventScreen = () => {
               setShowSuccessModal(false);
               navigation.goBack();
             }}
-            title="Event Created"
+            title={t("event_created")}
             message="Your event has been created successfully."
             autoClose={true}
             autoCloseTime={1500}

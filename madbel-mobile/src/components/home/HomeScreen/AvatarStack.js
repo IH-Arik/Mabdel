@@ -1,4 +1,5 @@
 import React from "react";
+import { useAppLanguage } from "../../../context/LanguageContext";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { responsiveWidth } from "react-native-responsive-dimensions";
 
@@ -11,6 +12,8 @@ const AvatarStack = ({
   overlap = -rw(2),
 }) => {
   const getAvatarUri = (avatar) => {
+  const { t } = useAppLanguage();
+
     if (!avatar) return "";
     if (typeof avatar === "string") return avatar;
     return avatar?.uri || avatar?.avatar || avatar?.profileImage || "";

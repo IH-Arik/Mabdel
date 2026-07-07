@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useAppLanguage } from "../../context/LanguageContext";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -40,6 +41,7 @@ import { useMadbelTranscribeVoiceMutation } from "../../redux/slices/madbelApiSl
 import useSocket from "../../hooks/useSocket";
 
 const formatTime = (dateValue) => {
+  const { t } = useAppLanguage();
   if (!dateValue) return "";
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return "";
@@ -268,7 +270,7 @@ const GroupChatScreen = () => {
                 if (word.startsWith("@")) {
                   return <Text key={idx} style={styles.mention}>{word} </Text>;
                 }
-                return word + " ";
+                return `${word} `;
               })
             ) : (
               msg.text
@@ -286,7 +288,7 @@ const GroupChatScreen = () => {
         {isPdf && (
           <View style={styles.fileCard}>
             <View style={styles.fileIconWrap}>
-              <Text style={styles.fileIcon}>📄</Text>
+              <Text style={styles.fileIcon}>{t("")}</Text>
             </View>
             <View style={styles.fileInfo}>
               <Text style={styles.fileName}>{msg.fileName || "Document.pdf"}</Text>
@@ -336,7 +338,7 @@ const GroupChatScreen = () => {
             contentContainerStyle={styles.chatContent}
           >
             {chatMessages.length === 0 ? (
-              <Text style={styles.typingText}>No messages yet. Start the conversation!</Text>
+              <Text style={styles.typingText}>{t("no_messages_yet_start_the_conversation")}</Text>
             ) : (
               chatMessages.map(renderMessageItem)
             )}
@@ -347,7 +349,7 @@ const GroupChatScreen = () => {
           <ControllerTextInput
             name="message"
             control={control}
-            placeholder="Type a message..."
+            placeholder={t("type_a_message")}
             placeholderTextColor="#7A879F"
             containerStyle={styles.chatInputContainer}
             inputStyle={styles.chatInput}

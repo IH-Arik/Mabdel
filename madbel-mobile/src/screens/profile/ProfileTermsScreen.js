@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +11,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useMadbelGetTermsAndConditionsQuery } from "../../redux/slices/madbelApiSlice";
 
 const ProfileTermsScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const { data: termsResponse, isLoading } = useMadbelGetTermsAndConditionsQuery(undefined, {
     refetchOnMountOrArgChange: true,
@@ -24,7 +26,7 @@ const ProfileTermsScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={35} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>Terms & Condition</Text>
+          <Text style={styles.title}>{t("terms_condition")}</Text>
           <View style={styles.spacer} />
         </View>
 

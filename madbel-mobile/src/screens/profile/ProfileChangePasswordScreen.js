@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import {
   View,
@@ -24,6 +25,7 @@ import ControllerTextInput from "../../components/ControllerTextInput";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 
 const ProfileChangePasswordScreen = () => {
+  const { t } = useAppLanguage();
   const {
     control,
     formState: { errors },
@@ -79,7 +81,7 @@ const ProfileChangePasswordScreen = () => {
               <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
                 <ChevronLeft size={35} color="#F8FAFC" strokeWidth={2.3} />
               </Pressable>
-              <Text style={styles.title}>Change Password</Text>
+              <Text style={styles.title}>{t("change_password")}</Text>
               <View style={styles.spacer} />
             </View>
 
@@ -99,7 +101,7 @@ const ProfileChangePasswordScreen = () => {
                     message: "Current Password must be at least 8 characters",
                   },
                 }}
-                label="Current Password"
+                label={t("current_password")}
                 placeholder="******"
                 secureTextEntry={!isCurrentPasswordVisible}
                 placeholderTextColor="#8493A8"
@@ -130,7 +132,7 @@ const ProfileChangePasswordScreen = () => {
                     message: "New Password must be at least 8 characters",
                   },
                 }}
-                label="New Password"
+                label={t("new_password")}
                 placeholder="******"
                 secureTextEntry={!isNewPasswordVisible}
                 placeholderTextColor="#8493A8"
@@ -162,7 +164,7 @@ const ProfileChangePasswordScreen = () => {
                     value === newPasswordValue ||
                     "Confirmed Password must match New Password",
                 }}
-                label="Confirmed Password"
+                label={t("confirmed_password")}
                 placeholder="******"
                 secureTextEntry={!isConfirmPasswordVisible}
                 placeholderTextColor="#8493A8"
@@ -182,7 +184,7 @@ const ProfileChangePasswordScreen = () => {
                 }
               />
               <VoiceFormFillCard
-                label="password form"
+                label={t("password_form")}
                 workflowIntent="profile"
                 sourceScreen="ProfileChangePassword"
               />
@@ -196,7 +198,7 @@ const ProfileChangePasswordScreen = () => {
               {changePasswordLoading ? (
                 <ActivityIndicator color="#E8F4FA" size={22} />
               ) : (
-                <Text style={styles.saveText}>Save</Text>
+                <Text style={styles.saveText}>{t("save")}</Text>
               )}
             </Pressable>
 

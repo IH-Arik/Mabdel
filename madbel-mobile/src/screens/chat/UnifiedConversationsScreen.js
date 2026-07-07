@@ -167,9 +167,9 @@ const UnifiedConversationsScreen = () => {
                 <Text style={styles.unreadText}>{Math.min(item.unreadCount, 99)}</Text>
               </View>
             ) : item.status === "read" ? (
-              <Text style={styles.readTick}>✓✓</Text>
+              <Text style={styles.readTick}>{t("")}</Text>
             ) : item.status === "delivered" ? (
-              <Text style={styles.deliveredTick}>✓✓</Text>
+              <Text style={styles.deliveredTick}>{t("")}</Text>
             ) : null}
           </View>
         </View>

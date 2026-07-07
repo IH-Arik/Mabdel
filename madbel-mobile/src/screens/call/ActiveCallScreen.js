@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,6 +22,7 @@ import {
 import { useMadbelCallActionMutation, useMadbelGetCallTranscriptQuery } from "../../redux/slices/madbelApiSlice";
 
 const ActiveCallScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const blinkAnim = useRef(new Animated.Value(1)).current;
@@ -94,7 +96,7 @@ const ActiveCallScreen = () => {
         <View style={styles.topRow}>
           <Animated.View style={[styles.recActivePill, { opacity: blinkAnim }]}>
             <View style={styles.recDot} />
-            <Text style={styles.recText}>REC ACTIVE</Text>
+            <Text style={styles.recText}>{t("rec_active")}</Text>
           </Animated.View>
           <Text style={styles.timerText}>{timer}</Text>
         </View>
@@ -109,26 +111,25 @@ const ActiveCallScreen = () => {
             </View>
           </View>
           <View style={styles.aiReadyBadge}>
-            <Text style={styles.aiReadyText}>AI READY CALL</Text>
+            <Text style={styles.aiReadyText}>{t("ai_ready_call")}</Text>
           </View>
         </View>
 
         {/* Caller Info */}
         <View style={styles.contactInfo}>
           <Text style={styles.contactName}>{callerName || "Unknown Caller"}</Text>
-          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}
-        </View>
+          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}</View>
 
         {/* AI Smart Transcript Card */}
         <View style={styles.transcriptCard}>
           <View style={styles.cardHeader}>
             <Brain size={16} color="#00D2FF" style={{ marginRight: 6 }} />
-            <Text style={styles.cardTitle}>AI SMART TRANSCRIPT</Text>
+            <Text style={styles.cardTitle}>{t("ai_smart_transcript")}</Text>
           </View>
           <Text style={styles.transcriptText}>{displayTranscript}</Text>
           <View style={styles.liveUpdateContainer}>
             <Animated.View style={[styles.liveUpdateDot, { opacity: blinkAnim }]} />
-            <Text style={styles.liveUpdateText}>Live Update</Text>
+            <Text style={styles.liveUpdateText}>{t("live_update")}</Text>
           </View>
         </View>
 
@@ -140,21 +141,21 @@ const ActiveCallScreen = () => {
               <Pressable style={styles.controlCircle}>
                 <MicOff size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>MUTE</Text>
+              <Text style={styles.controlLabel}>{t("mute")}</Text>
             </View>
 
             <View style={styles.controlItem}>
               <Pressable style={styles.controlCircle}>
                 <Volume2 size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>SPEAKER</Text>
+              <Text style={styles.controlLabel}>{t("speaker")}</Text>
             </View>
 
             <View style={styles.controlItem}>
               <Pressable style={styles.controlCircle}>
                 <Grid size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>KEYPAD</Text>
+              <Text style={styles.controlLabel}>{t("keypad")}</Text>
             </View>
           </View>
 
@@ -164,21 +165,21 @@ const ActiveCallScreen = () => {
               <Pressable style={styles.controlCircle}>
                 <Pause size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>HOLD</Text>
+              <Text style={styles.controlLabel}>{t("hold")}</Text>
             </View>
 
             <View style={styles.controlItem}>
               <Pressable style={[styles.controlCircle, styles.recordingCircle]}>
                 <Circle size={14} color="#00D2FF" fill="#00D2FF" />
               </Pressable>
-              <Text style={styles.recordingLabel}>RECORDING</Text>
+              <Text style={styles.recordingLabel}>{t("recording")}</Text>
             </View>
 
             <View style={styles.controlItem}>
               <Pressable style={styles.controlCircle}>
                 <UserPlus size={22} color="#FFFFFF" />
               </Pressable>
-              <Text style={styles.controlLabel}>ADD CALL</Text>
+              <Text style={styles.controlLabel}>{t("add_call")}</Text>
             </View>
           </View>
         </View>

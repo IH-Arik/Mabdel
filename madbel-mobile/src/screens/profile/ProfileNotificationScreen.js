@@ -1,4 +1,5 @@
-﻿import React, { useState } from "react";
+﻿import { useAppLanguage } from "../../context/LanguageContext";
+import React, { useState } from "react";
 import { View, Text, Pressable, StyleSheet, Switch, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft } from "lucide-react-native";
@@ -13,6 +14,7 @@ import {
 } from "../../redux/slices/madbelApiSlice";
 
 const ProfileNotificationScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
 
   const { data: settingsResponse, isLoading } = useMadbelGetNotificationSettingsQuery(undefined, {
@@ -41,10 +43,10 @@ const ProfileNotificationScreen = () => {
         sound: sound,
         vibrate: vibrate,
       }).unwrap();
-      Alert.alert("Success", "Notification settings saved successfully.");
+      Alert.alert(t("success"), t("notification_settings_saved_successfully"));
       navigation.goBack();
     } catch (err) {
-      Alert.alert("Error", "Could not save notification settings.");
+      Alert.alert(t("error"), t("could_not_save_notification_settings"));
     }
   };
 
@@ -55,7 +57,7 @@ const ProfileNotificationScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={35} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>Notification</Text>
+          <Text style={styles.title}>{t("notification")}</Text>
           <View style={styles.spacer} />
         </View>
 
@@ -67,7 +69,7 @@ const ProfileNotificationScreen = () => {
           <>
             <View style={styles.cardList}>
               <View style={styles.cardRow}>
-                <Text style={styles.rowText}>General notification</Text>
+                <Text style={styles.rowText}>{t("general_notification")}</Text>
                 <Switch
                   trackColor={{ false: "#1C2330", true: "#DFF3FF" }}
                   thumbColor={generalNotification ? "#12BFD9" : "#12BFD9"}
@@ -78,7 +80,7 @@ const ProfileNotificationScreen = () => {
               </View>
 
               <View style={styles.cardRow}>
-                <Text style={styles.rowText}>Sound</Text>
+                <Text style={styles.rowText}>{t("sound")}</Text>
                 <Switch
                   trackColor={{ false: "#1C2330", true: "#DFF3FF" }}
                   thumbColor={sound ? "#12BFD9" : "#12BFD9"}
@@ -89,7 +91,7 @@ const ProfileNotificationScreen = () => {
               </View>
 
               <View style={styles.cardRow}>
-                <Text style={styles.rowText}>Vibrate</Text>
+                <Text style={styles.rowText}>{t("vibrate")}</Text>
                 <Switch
                   trackColor={{ false: "#1C2330", true: "#DFF3FF" }}
                   thumbColor={vibrate ? "#12BFD9" : "#12BFD9"}

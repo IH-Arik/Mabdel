@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -38,6 +39,7 @@ const colors = {
 };
 
 const RegisterScreen = () => {
+  const { t } = useAppLanguage();
   const {
     control,
     formState: { errors },
@@ -94,18 +96,16 @@ const RegisterScreen = () => {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.heroWrap}>
-                <Text style={styles.title}>Create Account</Text>
-                <Text style={styles.subtitle}>
-                  Join Mabdel’s AI business assistant.
-                </Text>
+                <Text style={styles.title}>{t("create_account")}</Text>
+                <Text style={styles.subtitle}>{t("join_mabdels_ai_business_assistant")}</Text>
               </View>
 
               <ControllerTextInput
                 name="fullName"
                 control={control}
                 error={errors?.fullName?.message}
-                label="Full Name"
-                placeholder="Enter your full name"
+                label={t("full_name")}
+                placeholder={t("enter_your_full_name")}
                 type="text"
                 // keyboardType="email-address"
                 leftIcon={<User2 color="#14C6E4" size={20} />}
@@ -121,8 +121,8 @@ const RegisterScreen = () => {
                 name="regEmail"
                 control={control}
                 error={errors?.regEmail?.message}
-                label="Email Address"
-                placeholder="Enter your email"
+                label={t("email_address")}
+                placeholder={t("enter_your_email")}
                 type="email"
                 keyboardType="email-address"
                 leftIcon={<MailIcon color="#14C6E4" size={20} />}
@@ -138,8 +138,8 @@ const RegisterScreen = () => {
                 name="regPassword"
                 control={control}
                 error={errors?.regPassword?.message}
-                label="Password"
-                placeholder="Enter your password"
+                label={t("password")}
+                placeholder={t("enter_your_password")}
                 type="password"
                 keyboardType="password"
                 secureTextEntry={!isPasswordVisible}
@@ -180,8 +180,8 @@ const RegisterScreen = () => {
                     <Check size={16} color="#021016" strokeWidth={3} />
                   )}
                 </View>
-                <Text style={styles.termsText}>I agree to the Terms & Conditions </Text>
-                {/* <Text style={styles.link}>Terms & Conditions</Text> */}
+                <Text style={styles.termsText}>{t("i_agree_to_the_terms_conditions")}</Text>
+                {/* <Text style={styles.link}>{t("terms_conditions")}</Text> */}
               </Pressable>
 
               <Pressable
@@ -195,19 +195,19 @@ const RegisterScreen = () => {
                 {registerLoading ? (
                   <ActivityIndicator color="#EAF9FD" size={20} />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Sign Up</Text>
+                  <Text style={styles.primaryButtonText}>{t("sign_up")}</Text>
                 )}
               </Pressable>
 
               {/* <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
+                <Text style={styles.dividerText}>{t("or_continue_with")}</Text>
                 <View style={styles.dividerLine} />
               </View>
 
               <Pressable style={styles.googleButton}>
-                <Text style={styles.googleG}>G</Text>
-                <Text style={styles.googleText}>Continue with Google</Text>
+                <Text style={styles.googleG}>{t("g")}</Text>
+                <Text style={styles.googleText}>{t("continue_with_google")}</Text>
               </Pressable> */}
 
               {errors?.root?.type === "register" && (
@@ -217,9 +217,9 @@ const RegisterScreen = () => {
               )}
 
               <View style={styles.footerRow}>
-                <Text style={styles.footerText}>Already have an account?</Text>
+                <Text style={styles.footerText}>{t("already_have_an_account")}</Text>
                 <Pressable onPress={() => navigation.navigate("Login")}>
-                  <Text style={styles.link}>Log In</Text>
+                  <Text style={styles.link}>{t("log_in")}</Text>
                 </Pressable>
               </View>
             </ScrollView>

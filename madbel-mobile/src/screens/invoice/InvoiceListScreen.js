@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import {
   View,
@@ -25,6 +26,7 @@ import {
 } from "./invoiceUtils";
 
 const InvoiceListScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const { control } = useForm({
     defaultValues: { search: "" },
@@ -53,14 +55,14 @@ const InvoiceListScreen = () => {
             <Pressable onPress={() => navigation.goBack()}>
               <ChevronLeft size={responsiveWidth(5)} color="#F8FAFC" />
             </Pressable>
-            <Text style={styles.title}>Invoices</Text>
+            <Text style={styles.title}>{t("invoices")}</Text>
           </View>
 
           <Pressable
             style={styles.newBtn}
             onPress={() => navigation.navigate("CreateInvoice")}
           >
-            <Text style={styles.newBtnText}>+ New </Text>
+            <Text style={styles.newBtnText}>{t("new")}</Text>
           </Pressable>
         </View>
 
@@ -69,13 +71,13 @@ const InvoiceListScreen = () => {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search invoices"
+            placeholder={t("search_invoices")}
             placeholderTextColor="#626F86"
             style={styles.searchInput}
           />
         </View>
         <View style={styles.outstandingCard}>
-          <Text style={styles.outstandingLabel}>TOTAL OUTSTANDING</Text>
+          <Text style={styles.outstandingLabel}>{t("total_outstanding")}</Text>
           <View style={styles.outstandingRow}>
             <Text style={styles.outstandingAmount}>
               {formatCurrency(summary?.total_outstanding, "USD")}
@@ -92,9 +94,7 @@ const InvoiceListScreen = () => {
           </View>
         ) : error ? (
           <View style={styles.centerState}>
-            <Text style={styles.stateText}>
-              Could not load invoices right now.
-            </Text>
+            <Text style={styles.stateText}>{t("could_not_load_invoices_right_now")}</Text>
           </View>
         ) : (
           <FlatList
@@ -156,7 +156,7 @@ const InvoiceListScreen = () => {
         )}
 
         {isFetching && !isLoading ? (
-          <Text style={styles.fetchingText}>Refreshing invoices...</Text>
+          <Text style={styles.fetchingText}>{t("refreshing_invoices")}</Text>
         ) : null}
       </View>
     </SafeAreaView>

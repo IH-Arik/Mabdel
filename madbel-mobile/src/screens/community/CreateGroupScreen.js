@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Image, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,6 +19,7 @@ import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 const DEBOUNCE_MS = 350;
 
 const CreateGroupScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
 
   const { control, handleSubmit, watch } = useForm({
@@ -63,11 +65,11 @@ const CreateGroupScreen = () => {
   const onSubmit = async (data) => {
     const name = (data.groupName || "").trim();
     if (!name) {
-      Alert.alert("Missing name", "Please enter a group name.");
+      Alert.alert(t("missing_name"), t("please_enter_a_group_name"));
       return;
     }
     if (selectedMemberIds.length === 0) {
-      Alert.alert("No members", "Add at least one member to create a group.");
+      Alert.alert(t("no_members"), t("add_at_least_one_member_to_create_a_group"));
       return;
     }
     try {
@@ -91,7 +93,7 @@ const CreateGroupScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={34} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.headerTitle}>Create Group</Text>
+          <Text style={styles.headerTitle}>{t("create_group")}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -105,15 +107,15 @@ const CreateGroupScreen = () => {
             <ControllerTextInput
               name="groupName"
               control={control}
-              label="Group Name"
-              placeholder="Enter group name..."
+              label={t("group_name")}
+              placeholder={t("enter_group_name")}
               placeholderTextColor="#6F7C95"
               labelStyle={styles.label}
               inputStyle={styles.input}
             />
 
             <View style={styles.membersHeader}>
-              <Text style={styles.label}>Members</Text>
+              <Text style={styles.label}>{t("members")}</Text>
               <Text style={styles.selectedCount}>{selectedMemberIds.length} Selected</Text>
             </View>
 
@@ -138,7 +140,7 @@ const CreateGroupScreen = () => {
             <ControllerTextInput
               name="memberSearch"
               control={control}
-              placeholder="Search by name or email..."
+              placeholder={t("search_by_name_or_email")}
               placeholderTextColor="#6F7C95"
               inputStyle={[styles.input, styles.searchInput]}
               leftIcon={<Search size={24} color="#9AA7BE" />}
@@ -165,15 +167,14 @@ const CreateGroupScreen = () => {
                     )}
                     <View style={styles.memberInfo}>
                       <Text style={styles.memberName}>{member.name || "Unnamed"}</Text>
-                      {member.email ? <Text style={styles.memberEmail} numberOfLines={1}>{member.email}</Text> : null}
-                    </View>
-                    {selected ? <X size={20} color="#14C9E7" /> : <Text style={styles.addText}>Add</Text>}
+                      {member.email ? <Text style={styles.memberEmail} numberOfLines={1}>{member.email}</Text> : null}</View>
+                    {selected ? <X size={20} color="#14C9E7" /> : <Text style={styles.addText}>{t("add")}</Text>}
                   </Pressable>
                 );
               })}
             </View>
             <VoiceFormFillCard
-              label="group"
+              label={t("group")}
               workflowIntent="group"
               sourceScreen="CreateGroup"
             />
@@ -185,7 +186,7 @@ const CreateGroupScreen = () => {
           {creating ? (
             <ActivityIndicator color="#EAF5FB" />
           ) : (
-            <Text style={styles.createText}>Create</Text>
+            <Text style={styles.createText}>{t("create")}</Text>
           )}
         </Pressable>
       </View>

@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -21,6 +22,7 @@ import { useMadbelListContactsQuery, useMadbelCreateOutboundCallMutation } from 
 import PhoneContactsImportModal from "../../components/PhoneContactsImportModal";
 
 const ContactsScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const [query, setQuery] = useState("");
   const [importModalVisible, setImportModalVisible] = useState(false);
@@ -98,15 +100,14 @@ const ContactsScreen = () => {
               </Text>
             </View>
           )}
-          {item.is_online ? <View style={styles.onlineDot} /> : null}
-        </View>
+          {item.is_online ? <View style={styles.onlineDot} /> : null}</View>
 
         <View style={styles.contactContent}>
           <View style={styles.nameRow}>
             <Text style={styles.contactName} numberOfLines={1}>{item.name}</Text>
             {item.is_app_user && (
               <View style={styles.appBadge}>
-                <Text style={styles.appBadgeText}>Mabdel</Text>
+                <Text style={styles.appBadgeText}>{t("mabdel")}</Text>
               </View>
             )}
           </View>
@@ -121,7 +122,7 @@ const ContactsScreen = () => {
         <View style={styles.actionCol}>
           {!item.is_app_user && (
             <Pressable style={styles.inviteBtn} onPress={() => handleInvite(item)} hitSlop={8}>
-              <Text style={styles.inviteBtnText}>Invite</Text>
+              <Text style={styles.inviteBtnText}>{t("invite")}</Text>
             </Pressable>
           )}
           {item.phone && (
@@ -155,7 +156,7 @@ const ContactsScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ChevronLeft size={34} color="#F3F9FF" />
           </Pressable>
-          <Text style={styles.headerTitle}>Contacts</Text>
+          <Text style={styles.headerTitle}>{t("contacts")}</Text>
           <Pressable
             onPress={() => setImportModalVisible(true)}
             style={styles.importIconBtn}
@@ -169,7 +170,7 @@ const ContactsScreen = () => {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search contacts..."
+            placeholder={t("search_contacts")}
             placeholderTextColor="#7FA6B3"
             style={styles.searchInput}
           />
@@ -190,7 +191,7 @@ const ContactsScreen = () => {
           </View>
         ) : error ? (
           <View style={styles.centerState}>
-            <Text style={styles.stateText}>Could not load contacts.</Text>
+            <Text style={styles.stateText}>{t("could_not_load_contacts")}</Text>
           </View>
         ) : (
           <SectionList
@@ -217,7 +218,7 @@ const ContactsScreen = () => {
         )}
 
         {isFetching && !isLoading ? (
-          <Text style={styles.refreshText}>Refreshing contacts...</Text>
+          <Text style={styles.refreshText}>{t("refreshing_contacts")}</Text>
         ) : null}
 
         <Pressable style={styles.fab} onPress={() => navigation.navigate("AddContact")}>

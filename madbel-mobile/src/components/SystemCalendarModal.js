@@ -1,5 +1,6 @@
 /* eslint-disable react-native/no-inline-styles */
 import React from 'react';
+import { useAppLanguage } from "../context/LanguageContext";
 import { Modal, View, Pressable, Text } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { responsiveHeight } from 'react-native-responsive-dimensions';
@@ -75,7 +76,7 @@ const SystemCalendarModal = ({
           }}
           onPress={onClose}
         >
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Close</Text>
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t("close")}</Text>
         </Pressable>
       </View>
     </View>

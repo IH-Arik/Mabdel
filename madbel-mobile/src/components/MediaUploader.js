@@ -1,4 +1,5 @@
 import React from "react";
+import { useAppLanguage } from "../context/LanguageContext";
 import {
   Alert,
   Image,
@@ -12,6 +13,8 @@ import { ImagePlus, Trash2, Video } from "lucide-react-native";
 import { launchImageLibrary } from "react-native-image-picker";
 
 const isVideoAsset = (asset) => {
+  const { t } = useAppLanguage();
+
   const mimeType = asset?.type || "";
   if (mimeType.startsWith("video")) return true;
   const uri = asset?.uri || "";
@@ -104,7 +107,7 @@ const MediaUploaderView = ({
                     style={{ height: responsiveWidth(27) }}
                   >
                     <Video size={20} color="#666" />
-                    <Text className="text-xs text-gray-500 mt-1">Video</Text>
+                    <Text className="text-xs text-gray-500 mt-1">{t("video")}</Text>
                   </View>
                 ) : (
                   <Image

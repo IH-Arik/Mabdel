@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, TextInput, FlatList, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,6 +8,7 @@ import { ChevronLeft, Plus, Search, CalendarDays, Eye, Trash2 } from "lucide-rea
 import { useMadbelDeleteLeaseMutation, useMadbelListLeasesQuery } from "../../redux/slices/madbelApiSlice";
 
 const formatRent = (lease) => {
+  const { t } = useAppLanguage();
   const value = lease?.monthly_rent ?? lease?.rent_amount ?? lease?.monthly_rent_amount;
   if (value === undefined || value === null) return "--";
   const numeric = Number(value);
@@ -43,7 +45,7 @@ const LeaseListScreen = () => {
   const filtered = useMemo(() => leases, [leases]);
 
   const onDelete = (item) => {
-    Alert.alert("Delete lease", "Are you sure you want to delete this lease?", [
+    Alert.alert(t("delete_lease"), t("are_you_sure_you_want_to_delete_this_lease"), [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -67,11 +69,11 @@ const LeaseListScreen = () => {
             <Pressable onPress={() => navigation.goBack()}>
               <ChevronLeft size={responsiveWidth(5)} color="#F5FAFF" />
             </Pressable>
-            <Text style={styles.title}>Lease</Text>
+            <Text style={styles.title}>{t("lease")}</Text>
           </View>
           <Pressable style={styles.newBtn} onPress={() => navigation.navigate("NewLease")}>
             <Plus size={22} color="#EAF9FF" />
-            <Text style={styles.newBtnText}>New</Text>
+            <Text style={styles.newBtnText}>{t("new")}</Text>
           </Pressable>
         </View>
 
@@ -80,7 +82,7 @@ const LeaseListScreen = () => {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search by tenant or property"
+            placeholder={t("search_by_tenant_or_property")}
             placeholderTextColor="#6A768B"
             style={styles.searchInput}
           />
@@ -92,7 +94,7 @@ const LeaseListScreen = () => {
           </View>
         ) : error ? (
           <View style={styles.center}>
-            <Text style={styles.errorText}>Could not load leases.</Text>
+            <Text style={styles.errorText}>{t("could_not_load_leases")}</Text>
           </View>
         ) : (
           <FlatList
@@ -102,7 +104,7 @@ const LeaseListScreen = () => {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.center}>
-                <Text style={styles.errorText}>No leases found.</Text>
+                <Text style={styles.errorText}>{t("no_leases_found")}</Text>
               </View>
             }
             renderItem={({ item }) => (
@@ -110,19 +112,19 @@ const LeaseListScreen = () => {
                 <Text style={styles.tenant}>{item.tenant_name || item.tenant || item.client_name || "Tenant"}</Text>
                 <View style={styles.grid}>
                   <View>
-                    <Text style={styles.key}>PROPERTY</Text>
+                    <Text style={styles.key}>{t("property")}</Text>
                     <Text style={styles.value}>{item.property_address || item.property || "--"}</Text>
                   </View>
                   <View>
-                    <Text style={styles.key}>RENT</Text>
+                    <Text style={styles.key}>{t("rent")}</Text>
                     <Text style={styles.rent}>{formatRent(item)}</Text>
                   </View>
                   <View>
-                    <Text style={styles.key}>DURATION</Text>
+                    <Text style={styles.key}>{t("duration")}</Text>
                     <Text style={styles.value}>{leaseDuration(item)}</Text>
                   </View>
                   <View>
-                    <Text style={styles.key}>CREATED</Text>
+                    <Text style={styles.key}>{t("created")}</Text>
                     <Text style={styles.value}>{formatDate(item.created_at)}</Text>
                   </View>
                 </View>
@@ -145,7 +147,9 @@ const LeaseListScreen = () => {
             )}
           />
         )}
-        {(isFetching && !isLoading) ? <Text style={styles.refreshText}>Refreshing leases...</Text> : null}
+        {(isFetching && !isLoading) ? (
+          <Text style={styles.refreshText}>{t("refreshing_leases")}</Text>
+        ) : null}
       </View>
     </SafeAreaView>
   );

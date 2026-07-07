@@ -1,4 +1,5 @@
-﻿import React, { useState } from "react";
+﻿import { useAppLanguage } from "../../context/LanguageContext";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -35,6 +36,7 @@ import PaymentMethodCard from "../../components/PaymentMethodCard";
 const imgSize = responsiveWidth(10);
 
 const JoinEventScreen = ({ route }) => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const { item } = route.params || {};
   const [joined, setJoined] = useState(false);
@@ -121,7 +123,7 @@ const JoinEventScreen = ({ route }) => {
             </Text>
             <View className="flex-row items-center">
               <Star size={16} color="#F59E0B" fill="#F59E0B" />
-              <Text className="text-sm text-gray-600 ml-1">4.9</Text>
+              <Text className="text-sm text-gray-600 ml-1">{t("49")}</Text>
             </View>
           </View>
         </View>
@@ -162,7 +164,7 @@ const JoinEventScreen = ({ route }) => {
           }}
         >
           <View className="gap-2">
-            <Text className="text-white">Event Price</Text>
+            <Text className="text-white">{t("event_price")}</Text>
             <Text className="text-white text-xl font-bold">
               {item?.price ? `$${item?.price}` : "Free"}
             </Text>
@@ -202,9 +204,7 @@ const JoinEventScreen = ({ route }) => {
           }}
         >
           <MessageCircle size={18} color="#D6EB69" />
-          <Text className="text-black text-center font-bold text-lg">
-            Message Host
-          </Text>
+          <Text className="text-black text-center font-bold text-lg">{t("message_host")}</Text>
         </Pressable>
 
         {/* Action Buttons */}
@@ -217,7 +217,7 @@ const JoinEventScreen = ({ route }) => {
             onPress={() => setShowReportModal(true)}
           >
             <Flag size={20} color="#6B7280" />
-            <Text className="text-base text-gray-700 ml-3">Report</Text>
+            <Text className="text-base text-gray-700 ml-3">{t("report")}</Text>
           </Pressable>
 
           {joined && (
@@ -226,7 +226,7 @@ const JoinEventScreen = ({ route }) => {
               onPress={() => setShowLeaveModal(true)}
             >
               <LogOut size={20} color="#EF4444" />
-              <Text className="text-base text-red-500 ml-3">Leave</Text>
+              <Text className="text-base text-red-500 ml-3">{t("leave")}</Text>
             </Pressable>
           )}
         </View>
@@ -235,9 +235,9 @@ const JoinEventScreen = ({ route }) => {
         {joined && (
           <RatingCard
             onSubmit={handleSubmitRating}
-            title="Rate"
+            title={t("rate")}
             question="How was your workout experience?"
-            subtitle="Quick feedback (optional)"
+            subtitle={t("quick_feedback_optional")}
             commentsLabel="Additional comments (optional)"
             commentsPlaceholder="Share more details about your experience..."
             submitButtonText="Submit Rating"
@@ -252,7 +252,7 @@ const JoinEventScreen = ({ route }) => {
       <SuccessModal
         visible={showSuccessModal}
         onClose={handleCloseSuccessModal}
-        title="You Joined This Event!"
+        title={t("you_joined_this_event")}
         message="Get ready to meet your fitness partner."
         buttonText="Great!"
         buttonColor="bg-blue-500"
@@ -265,9 +265,9 @@ const JoinEventScreen = ({ route }) => {
         visible={showReportModal}
         onClose={() => setShowReportModal(false)}
         onReport={handleReport}
-        title="Report Event"
+        title={t("report_event")}
         description="Please tell us why you're reporting this Event. Your report will be anonymous."
-        placeholder="Describe the issue..."
+        placeholder={t("describe_the_issue")}
         cancelButtonText="Cancel"
         submitButtonText="Submit Report"
         cancelButtonColor="bg-gray-500"
@@ -279,7 +279,7 @@ const JoinEventScreen = ({ route }) => {
         visible={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
         onConfirm={handleLeaveEvent}
-        title="Leave Event?"
+        title={t("leave_event")}
         description="Are you sure you want to leave this Event? This action cannot be undone."
         cancelButtonText="Cancel"
         confirmButtonText="Leave"

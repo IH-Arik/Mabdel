@@ -461,7 +461,6 @@ const MicListeningScreen = () => {
               </ScrollView>
             </View>
           ) : null}
-
         </ScrollView>
 
         <View

@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import {
   ActivityIndicator,
@@ -38,6 +39,7 @@ const colors = {
 };
 
 const ForgotPasswordScreen = () => {
+  const { t } = useAppLanguage();
   const {
     control,
     formState: { errors },
@@ -87,11 +89,8 @@ const ForgotPasswordScreen = () => {
                     strokeWidth={2.1}
                   />
                 </View>
-                <Text style={styles.title}>Forgot Password?</Text>
-                <Text style={styles.subtitle}>
-                  Enter your email address to receive a 4-digit verification
-                  code to reset your password.
-                </Text>
+                <Text style={styles.title}>{t("forgot_password")}</Text>
+                <Text style={styles.subtitle}>{t("enter_your_email_address_to_receive_a_4digit_verif")}</Text>
               </View>
 
 
@@ -99,8 +98,8 @@ const ForgotPasswordScreen = () => {
                 name="forgotEmail"
                 control={control}
                 error={errors?.forgotEmail?.message}
-                label="Email Address"
-                placeholder="Enter your email"
+                label={t("email_address")}
+                placeholder={t("enter_your_email")}
                 type="email"
                 keyboardType="email"
                 leftIcon={<MailIcon color="#14C6E4" size={20} />}
@@ -130,9 +129,7 @@ const ForgotPasswordScreen = () => {
                   <ActivityIndicator color="#EAF9FD" size={20} />
                 ) : (
                   <View style={styles.buttonRow}>
-                    <Text style={styles.primaryButtonText}>
-                      Send Verification Code
-                    </Text>
+                    <Text style={styles.primaryButtonText}>{t("send_verification_code")}</Text>
                     <SendHorizontal
                       size={24}
                       color="#EAF5F8"
@@ -143,9 +140,9 @@ const ForgotPasswordScreen = () => {
               </Pressable>
 
                <View style={styles.footerRow}>
-                <Text style={styles.footerText}>Remember your password?</Text>
+                <Text style={styles.footerText}>{t("remember_your_password")}</Text>
                 <Pressable onPress={() => navigation.navigate("Login")}>
-                  <Text style={styles.link}>Back to Login</Text>
+                  <Text style={styles.link}>{t("back_to_login")}</Text>
                 </Pressable>
               </View>
 

@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -86,6 +87,7 @@ const PLAN_DETAILS = {
 };
 
 const ProfileSubscriptionScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
 
   const {
@@ -129,7 +131,7 @@ const ProfileSubscriptionScreen = () => {
         {
           text: "Upgrade",
           onPress: () => {
-            Alert.alert("Request Sent", "Processing subscription update via App Store...");
+            Alert.alert(t("request_sent"), t("processing_subscription_update_via_app_store"));
           },
         },
       ]
@@ -141,7 +143,7 @@ const ProfileSubscriptionScreen = () => {
       return (
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color="#00D2FF" />
-          <Text style={styles.stateText}>Loading subscription plans...</Text>
+          <Text style={styles.stateText}>{t("loading_subscription_plans")}</Text>
         </View>
       );
     }
@@ -150,9 +152,9 @@ const ProfileSubscriptionScreen = () => {
       return (
         <View style={styles.centerState}>
           <AlertCircle size={48} color="#FF6B6B" />
-          <Text style={styles.stateText}>Failed to load subscription details.</Text>
+          <Text style={styles.stateText}>{t("failed_to_load_subscription_details")}</Text>
           <Pressable style={styles.retryBtn} onPress={handleRefetch}>
-            <Text style={styles.retryText}>Retry</Text>
+            <Text style={styles.retryText}>{t("retry")}</Text>
           </Pressable>
         </View>
       );
@@ -170,10 +172,8 @@ const ProfileSubscriptionScreen = () => {
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.topWrap}>
-          <Text style={styles.screenTitle}>Choose Your Plan</Text>
-          <Text style={styles.screenSubTitle}>
-            Empower your business with Mabdel AI
-          </Text>
+          <Text style={styles.screenTitle}>{t("choose_your_plan")}</Text>
+          <Text style={styles.screenSubTitle}>{t("empower_your_business_with_mabdel_ai")}</Text>
         </View>
 
         {sortedPlans.map((plan) => {
@@ -214,7 +214,7 @@ const ProfileSubscriptionScreen = () => {
 
                 {details.bulletFeatures.map((feature, idx) => (
                   <View key={`bullet-${idx}`} style={styles.bulletRow}>
-                    <Text style={styles.bulletDot}>•</Text>
+                    <Text style={styles.bulletDot}>{t("")}</Text>
                     <Text style={styles.bulletText}>{feature}</Text>
                   </View>
                 ))}
@@ -249,10 +249,7 @@ const ProfileSubscriptionScreen = () => {
             <CreditCard size={18} color="#8E9AA0" />
             <BadgeCheck size={18} color="#8E9AA0" />
           </View>
-          <Text style={styles.footerText}>
-            Payments are secure and encrypted. Cancel anytime from your App
-            Store settings. Terms and conditions apply.
-          </Text>
+          <Text style={styles.footerText}>{t("payments_are_secure_and_encrypted_cancel_anytime_f")}</Text>
         </View>
       </ScrollView>
     );
@@ -265,7 +262,7 @@ const ProfileSubscriptionScreen = () => {
           <Pressable style={styles.headerIconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={30} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.headerTitle}>Subscription Plans</Text>
+          <Text style={styles.headerTitle}>{t("subscription_plans")}</Text>
           <View style={styles.headerSpacer} />
         </View>
 

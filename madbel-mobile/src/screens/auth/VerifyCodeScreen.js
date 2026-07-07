@@ -1,4 +1,5 @@
 
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -29,6 +30,7 @@ const colors = {
 const padTime = (v) => `${v}`.padStart(2, "0");
 
 const VerifyCodeScreen = () => {
+  const { t } = useAppLanguage();
   const {
     control,
     formState: { errors },
@@ -80,10 +82,8 @@ const VerifyCodeScreen = () => {
               <View style={styles.iconCard}>
                 <ShieldCheck size={42} color={colors.accent} strokeWidth={2.1} />
               </View>
-              <Text style={styles.title}>Verify Identity</Text>
-              <Text style={styles.subtitle}>
-                Enter the 6-digit code sent to your email
-              </Text>
+              <Text style={styles.title}>{t("verify_identity")}</Text>
+              <Text style={styles.subtitle}>{t("enter_the_6digit_code_sent_to_your_email")}</Text>
             </View>
 
             <Controller
@@ -141,7 +141,7 @@ const VerifyCodeScreen = () => {
 
             <View style={styles.timerRow}>
               <Clock3 size={28 / 2} color="#A3A9AF" strokeWidth={2.2} />
-              <Text style={styles.timerText}>Resend code in</Text>
+              <Text style={styles.timerText}>{t("resend_code_in")}</Text>
               <Text style={styles.timerStrong}>00:{padTime(secondsLeft)}</Text>
             </View>
 
@@ -153,7 +153,7 @@ const VerifyCodeScreen = () => {
               {verifyLoading ? (
                 <ActivityIndicator color="#EAF9FD" size={20} />
               ) : (
-                <Text style={styles.primaryButtonText}>Confirm</Text>
+                <Text style={styles.primaryButtonText}>{t("confirm")}</Text>
               )}
             </Pressable>
 
@@ -169,7 +169,7 @@ const VerifyCodeScreen = () => {
               }}
               style={styles.bottomHintWrap}
             >
-              <Text style={styles.bottomHint}>I didn’t receive a code</Text>
+              <Text style={styles.bottomHint}>{t("i_didnt_receive_a_code")}</Text>
             </Pressable>
           </ScrollView>
         </LinearGradient>

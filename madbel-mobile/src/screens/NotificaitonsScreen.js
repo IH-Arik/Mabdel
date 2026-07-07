@@ -1,4 +1,5 @@
-﻿import React from 'react';
+import { useAppLanguage } from "../context/LanguageContext";
+import React from 'react';
 import {
   View,
   Text,
@@ -33,6 +34,7 @@ const FILTER_OPTIONS = [
 ];
 
 const getChannelBadgeConfig = (channelValue) => {
+  const { t } = useAppLanguage();
   const channel = String(channelValue || "").toLowerCase();
   if (channel.includes("whatsapp")) {
     return {
@@ -103,8 +105,8 @@ const NotificationScreen = () => {
 
   const handleDelete = (id) => {
     Alert.alert(
-      'Delete Notification',
-      'Are you sure you want to delete this notification?',
+      t("delete_notification"),
+      t("are_you_sure_you_want_to_delete_this_notification"),
       [
         {
           text: 'Cancel',
@@ -116,7 +118,7 @@ const NotificationScreen = () => {
             try {
               await deleteNotification(id).unwrap();
             } catch (err) {
-              Alert.alert("Error", "Could not delete notification. Please try again.");
+              Alert.alert(t("error"), t("could_not_delete_notification_please_try_again"));
             }
           },
           style: 'destructive',
@@ -129,7 +131,7 @@ const NotificationScreen = () => {
     try {
       await markAllRead().unwrap();
     } catch (err) {
-      Alert.alert("Error", "Could not mark notifications as read.");
+      Alert.alert(t("error"), t("could_not_mark_notifications_as_read"));
     }
   };
 
@@ -183,7 +185,7 @@ const NotificationScreen = () => {
         style={styles.deleteButton}
         onPress={() => handleDelete(item.id)}
       >
-        <Text style={styles.deleteButtonText}>Delete</Text>
+        <Text style={styles.deleteButtonText}>{t("delete")}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -202,9 +204,9 @@ const NotificationScreen = () => {
         >
           <ChevronLeft size={26} color="#F8FAFC" />
         </Pressable>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={styles.headerTitle}>{t("notifications")}</Text>
         <TouchableOpacity onPress={handleMarkAllAsRead}>
-          <Text style={styles.markAllText}>Mark all as read</Text>
+          <Text style={styles.markAllText}>{t("mark_all_as_read")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -240,14 +242,14 @@ const NotificationScreen = () => {
       {newCount > 0 && activeFilter === "all" && (
         <View style={styles.newBadgeContainer}>
           <Bell size={16} color="#16CBEA" />
-          <Text style={styles.newBadgeText}>{newCount} new notification{newCount > 1 ? 's' : ''}</Text>
+          <Text style={styles.newBadgeText}>{newCount} {newCount > 1 ? t("new_notifications") : t("new_notification")}</Text>
         </View>
       )}
 
       {/* List of notifications */}
       {isLoading ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Loading notifications...</Text>
+          <Text style={styles.emptyText}>{t("loading_notifications")}</Text>
         </View>
       ) : filteredNotifications.length > 0 ? (
         <SwipeListView
@@ -269,8 +271,8 @@ const NotificationScreen = () => {
       ) : (
         <View style={styles.emptyContainer}>
           <Bell size={48} color="#2A313C" />
-          <Text style={styles.emptyText}>No notifications</Text>
-          <Text style={styles.emptySubText}>You're all caught up!</Text>
+          <Text style={styles.emptyText}>{t("no_notifications")}</Text>
+          <Text style={styles.emptySubText}>{t("youre_all_caught_up")}</Text>
         </View>
       )}
     </SafeAreaView>

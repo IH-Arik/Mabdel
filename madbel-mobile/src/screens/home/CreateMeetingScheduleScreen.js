@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import { useAppLanguage } from "../../context/LanguageContext";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
 
@@ -50,6 +51,7 @@ const formatTimeForInput = (date) =>
   date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 const parseTimeInput = (timeValue) => {
+  const { t } = useAppLanguage();
   const cleaned = String(timeValue || "").trim().toUpperCase();
   const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/);
   if (!match) return null;
@@ -178,7 +180,7 @@ const CreateMeetingScheduleScreen = () => {
   const sendMeeting = async () => {
     const startsAtDate = combineDateTime(dateISO, time);
     if (!startsAtDate) {
-      Alert.alert("Invalid time", "Use a valid time like 10:00 AM.");
+      Alert.alert(t("invalid_time"), t("use_a_valid_time_like_10_00_am"));
       return;
     }
 
@@ -190,11 +192,11 @@ const CreateMeetingScheduleScreen = () => {
       0,
     );
     if (endsAtDate <= startsAtDate) {
-      Alert.alert("Invalid time range", "End time must be later than start time.");
+      Alert.alert(t("invalid_time_range"), t("end_time_must_be_later_than_start_time"));
       return;
     }
     if (!meetingTitle.trim()) {
-      Alert.alert("Missing title", "Please add a meeting title.");
+      Alert.alert(t("missing_title"), t("please_add_a_meeting_title"));
       return;
     }
 
@@ -235,22 +237,22 @@ const CreateMeetingScheduleScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
             <ChevronLeft size={30} color="#11CDE8" />
           </Pressable>
-          <Text style={styles.title}>Create Meeting Schedule</Text>
+          <Text style={styles.title}>{t("create_meeting_schedule")}</Text>
         </View>
 
-        <Text style={styles.sectionLabel}>MEETING TITLE</Text>
+        <Text style={styles.sectionLabel}>{t("meeting_title")}</Text>
         <View style={styles.inputWrap}>
           <NotebookPen size={21} color="#798498" />
           <TextInput
             value={meetingTitle}
             onChangeText={setMeetingTitle}
             style={styles.input}
-            placeholder="Meeting title"
+            placeholder={t("meeting_title")}
             placeholderTextColor="#697588"
           />
         </View>
 
-        <Text style={styles.sectionLabel}>MEETING DESCRIPTION</Text>
+        <Text style={styles.sectionLabel}>{t("meeting_description")}</Text>
         <View style={[styles.inputWrap, styles.inputAreaWrap]}>
           <TextInput
             value={meetingDescription}
@@ -268,7 +270,7 @@ const CreateMeetingScheduleScreen = () => {
           </Pressable>
         </View>
         <VoiceFormFillCard
-          label="meeting schedule"
+          label={t("meeting_schedule")}
           workflowIntent="calendar"
           sourceScreen="CreateMeetingSchedule"
           triggerOpen={voiceTrigger}
@@ -285,28 +287,28 @@ const CreateMeetingScheduleScreen = () => {
 
         <View style={styles.twoCol}>
           <View style={styles.colItem}>
-            <Text style={styles.sectionLabel}>DATE</Text>
+            <Text style={styles.sectionLabel}>{t("date")}</Text>
             <Pressable style={styles.inputWrap} onPress={() => setCalendarVisible(true)}>
               <CalendarDays size={20} color="#798498" />
               <Text style={styles.input}>{dateLabel}</Text>
             </Pressable>
           </View>
           <View style={styles.colItem}>
-            <Text style={styles.sectionLabel}>TIME</Text>
+            <Text style={styles.sectionLabel}>{t("time")}</Text>
             <View style={styles.inputWrap}>
               <Clock3 size={20} color="#798498" />
               <TextInput
                 value={time}
                 onChangeText={setTime}
                 style={styles.input}
-                placeholder="10:00 AM"
+                placeholder={t("10_00_am")}
                 placeholderTextColor="#697588"
               />
             </View>
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>END TIME</Text>
+        <Text style={styles.sectionLabel}>{t("end_time")}</Text>
         <View style={styles.slotWrap}>
           <TimeSlotInput
             value={endTimeSlot}
@@ -327,9 +329,7 @@ const CreateMeetingScheduleScreen = () => {
                 styles.modeText,
                 meetingMode === "offline" && styles.modeTextActive,
               ]}
-            >
-              Offline
-            </Text>
+            >{t("offline")}</Text>
           </Pressable>
           <Pressable
             style={[
@@ -343,9 +343,7 @@ const CreateMeetingScheduleScreen = () => {
                 styles.modeText,
                 meetingMode === "online" && styles.modeTextActive,
               ]}
-            >
-              Online
-            </Text>
+            >{t("online")}</Text>
           </Pressable>
         </View>
 
@@ -369,8 +367,7 @@ const CreateMeetingScheduleScreen = () => {
 
         <View style={[styles.row, styles.recipientsHead]}>
           <Text style={styles.sectionLabel}>RECIPIENTS ({selectedRecipientIds.length})</Text>
-          {contactsFetching ? <ActivityIndicator color="#11CDE8" size="small" /> : null}
-        </View>
+          {contactsFetching ? <ActivityIndicator color="#11CDE8" size="small" /> : null}</View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -404,14 +401,14 @@ const CreateMeetingScheduleScreen = () => {
           })}
         </ScrollView>
 
-        <Text style={styles.sectionLabel}>NOTIFY VIA</Text>
+        <Text style={styles.sectionLabel}>{t("notify_via")}</Text>
         <View style={styles.notifyCard}>
           <View style={styles.notifyRow}>
             <View style={styles.notifyLeft}>
               <View style={styles.notifyIcon}>
                 <Bell size={20} color="#11CDE8" />
               </View>
-              <Text style={styles.notifyText}>Push Notification</Text>
+              <Text style={styles.notifyText}>{t("push_notification")}</Text>
             </View>
             <Switch value={notifyPush} onValueChange={setNotifyPush} />
           </View>
@@ -420,7 +417,7 @@ const CreateMeetingScheduleScreen = () => {
               <View style={styles.notifyIcon}>
                 <Mail size={20} color="#11CDE8" />
               </View>
-              <Text style={styles.notifyText}>Email</Text>
+              <Text style={styles.notifyText}>{t("email")}</Text>
             </View>
             <Switch value={notifyEmail} onValueChange={setNotifyEmail} />
           </View>
@@ -429,18 +426,15 @@ const CreateMeetingScheduleScreen = () => {
               <View style={styles.notifyIcon}>
                 <Phone size={20} color="#11CDE8" />
               </View>
-              <Text style={styles.notifyText}>SMS</Text>
+              <Text style={styles.notifyText}>{t("sms")}</Text>
             </View>
             <Switch value={notifySMS} onValueChange={setNotifySMS} />
           </View>
         </View>
 
-        <Text style={styles.helperText}>
-          Your AI assistant Mabdel will prioritize push notifications for urgent
-          meetings.
-        </Text>
+        <Text style={styles.helperText}>{t("your_ai_assistant_mabdel_will_prioritize_push_noti")}</Text>
 
-        <Text style={styles.sectionLabel}>REMINDER TIME</Text>
+        <Text style={styles.sectionLabel}>{t("reminder_time")}</Text>
         <View style={styles.reminderGrid}>
           {MEETING_REMINDERS.map((item) => (
             <Pressable
@@ -471,7 +465,7 @@ const CreateMeetingScheduleScreen = () => {
           {creatingMeeting ? (
             <ActivityIndicator color="#EAFDFF" />
           ) : (
-            <Text style={styles.submitText}>Send Schedule Meeting</Text>
+            <Text style={styles.submitText}>{t("send_schedule_meeting")}</Text>
           )}
         </Pressable>
       </ScrollView>

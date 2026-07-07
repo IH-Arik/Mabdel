@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { View, Text, Pressable, StyleSheet, FlatList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +11,7 @@ import { ChevronLeft, Plus, Users } from "lucide-react-native";
 import { useFetchConversationsQuery } from "../../redux/slices/chat/chatSlice";
 
 const GroupsHomeScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const { data: groups = [], isLoading, isFetching, error } = useFetchConversationsQuery({ type: "group" });
 
@@ -20,11 +22,11 @@ const GroupsHomeScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={34} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.headerTitle}>Groups</Text>
+          <Text style={styles.headerTitle}>{t("groups")}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
-        <Text style={styles.subTitle}>Manage your contact groups</Text>
+        <Text style={styles.subTitle}>{t("manage_your_contact_groups")}</Text>
 
         {isLoading ? (
           <View style={styles.center}>
@@ -32,7 +34,7 @@ const GroupsHomeScreen = () => {
           </View>
         ) : error ? (
           <View style={styles.center}>
-            <Text style={styles.metaText}>Could not load groups.</Text>
+            <Text style={styles.metaText}>{t("could_not_load_groups")}</Text>
           </View>
         ) : (
           <FlatList
@@ -63,14 +65,14 @@ const GroupsHomeScreen = () => {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.center}>
-                <Text style={styles.metaText}>No groups found.</Text>
+                <Text style={styles.metaText}>{t("no_groups_found")}</Text>
               </View>
             }
             showsVerticalScrollIndicator={false}
           />
         )}
 
-        {isFetching && !isLoading ? <Text style={styles.refresh}>Refreshing groups...</Text> : null}
+        {isFetching && !isLoading ? <Text style={styles.refresh}>{t("refreshing_groups")}</Text> : null}
 
         <Pressable style={styles.fab} onPress={() => navigation.navigate("CreateGroup")}>
           <Plus size={36} color="#020406" strokeWidth={2.5} />

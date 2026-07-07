@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { useAppLanguage } from "../context/LanguageContext";
 import {
   ActivityIndicator,
   FlatList,
@@ -25,6 +26,8 @@ const LocationMapCard = ({
   onLocationChange,
   disabled = false,
 }) => {
+  const { t } = useAppLanguage();
+
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -136,8 +139,7 @@ const LocationMapCard = ({
           region={displayedRegion}
           pointerEvents="none"
         >
-          {markerCoordinate ? <Marker coordinate={markerCoordinate} /> : null}
-        </MapView>
+          {markerCoordinate ? <Marker coordinate={markerCoordinate} /> : null}</MapView>
 
         <View className="absolute left-0 right-0 bottom-0">
           <View
@@ -166,9 +168,9 @@ const LocationMapCard = ({
             style={{ padding: responsiveWidth(4), maxHeight: "92%" }}
           >
             <View className="flex-row items-center justify-between">
-              <Text className="text-lg font-bold text-black">Select Location</Text>
+              <Text className="text-lg font-bold text-black">{t("select_location")}</Text>
               <Pressable onPress={() => setIsMapModalVisible(false)}>
-                <Text className="text-primary font-semibold">Done</Text>
+                <Text className="text-primary font-semibold">{t("done")}</Text>
               </Pressable>
             </View>
 
@@ -176,7 +178,7 @@ const LocationMapCard = ({
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder="Search location"
+                placeholder={t("search_location")}
                 placeholderTextColor="#9CA3AF"
                 className="flex-1 border border-border rounded-xl px-4 py-3 text-black"
                 returnKeyType="search"
@@ -187,7 +189,7 @@ const LocationMapCard = ({
                 className="bg-primary rounded-xl"
                 style={{ paddingHorizontal: responsiveWidth(4), paddingVertical: responsiveHeight(1.5) }}
               >
-                <Text className="text-white font-semibold">Search</Text>
+                <Text className="text-white font-semibold">{t("search")}</Text>
               </Pressable>
             </View>
 
@@ -239,8 +241,7 @@ const LocationMapCard = ({
                 rotateEnabled={!disabled}
                 pitchEnabled={!disabled}
               >
-                {markerCoordinate ? <Marker coordinate={markerCoordinate} /> : null}
-              </MapView>
+                {markerCoordinate ? <Marker coordinate={markerCoordinate} /> : null}</MapView>
             </View>
           </View>
         </View>

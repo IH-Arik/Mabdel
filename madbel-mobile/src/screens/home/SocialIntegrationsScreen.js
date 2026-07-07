@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState, useEffect, useRef } from "react";
 import {
   Pressable,
@@ -125,6 +126,7 @@ const PLATFORM_META = {
 };
 
 const getPlatformDesc = (platform) => {
+  const { t } = useAppLanguage();
   const descs = {
     facebook_messenger: "Manage page posts and messenger leads.",
     instagram: "Sync visual content and DMs.",
@@ -205,8 +207,8 @@ const SocialIntegrationsScreen = () => {
     }
     if (item.platform === "instagram") {
       Alert.alert(
-        "Instagram uses Facebook Login",
-        "Instagram Business accounts are managed through Meta. You'll be redirected to Facebook to authorize access to your connected Instagram account.",
+        t("instagram_uses_facebook_login"),
+        t("instagram_business_accounts_are_managed_through_me"),
         [
           { text: "Cancel", style: "cancel" },
           { text: "Continue", onPress: () => _startOauth(item) },
@@ -226,10 +228,10 @@ const SocialIntegrationsScreen = () => {
         if (supported) {
           await Linking.openURL(authUrl);
         } else {
-          Alert.alert("Error", "Cannot open authorization URL on this device.");
+          Alert.alert(t("error"), t("cannot_open_authorization_url_on_this_device"));
         }
       } else {
-        Alert.alert("Error", "Did not receive authorization URL from server.");
+        Alert.alert(t("error"), t("did_not_receive_authorization_url_from_server"));
       }
     } catch (err) {
       Alert.alert("Error", err?.data?.message || "Failed to initiate connection.");
@@ -239,7 +241,7 @@ const SocialIntegrationsScreen = () => {
   const handleWhatsAppConnectSubmit = async () => {
     const trimmedPhone = whatsappPhone.trim();
     if (!trimmedPhone) {
-      Alert.alert("Error", "Please enter a valid phone number.");
+      Alert.alert(t("error"), t("please_enter_a_valid_phone_number"));
       return;
     }
     try {
@@ -250,7 +252,7 @@ const SocialIntegrationsScreen = () => {
       setWhatsappModalVisible(false);
       setWhatsappPhone("");
       refetch();
-      Alert.alert("Success", "WhatsApp linked successfully!");
+      Alert.alert(t("success"), t("whatsapp_linked_successfully"));
     } catch (err) {
       Alert.alert("Error", err?.data?.message || "Failed to link WhatsApp.");
     }
@@ -271,7 +273,7 @@ const SocialIntegrationsScreen = () => {
     try {
       await disconnectIntegration({ platform }).unwrap();
       refetch();
-      Alert.alert("Success", "Integration disconnected.");
+      Alert.alert(t("success"), t("integration_disconnected"));
     } catch (err) {
       Alert.alert("Error", err?.data?.message || "Failed to disconnect.");
     }
@@ -286,21 +288,21 @@ const SocialIntegrationsScreen = () => {
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
           <ChevronLeft size={28} color="#F1F7FF" />
         </Pressable>
-        <Text style={styles.title}>Connect Social Media</Text>
+        <Text style={styles.title}>{t("connect_social_media")}</Text>
         <View style={styles.backBtn} />
       </View>
 
       {isCatalogLoading ? (
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color="#16CDE9" />
-          <Text style={styles.stateText}>Loading platforms...</Text>
+          <Text style={styles.stateText}>{t("loading_platforms")}</Text>
         </View>
       ) : isCatalogError ? (
         <View style={styles.centerState}>
           <AlertCircle size={40} color="#FF6B6B" />
-          <Text style={styles.stateText}>Failed to load platforms.</Text>
+          <Text style={styles.stateText}>{t("failed_to_load_platforms")}</Text>
           <Pressable style={styles.retryBtn} onPress={refetch}>
-            <Text style={styles.retryText}>Retry</Text>
+            <Text style={styles.retryText}>{t("retry")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -340,7 +342,7 @@ const SocialIntegrationsScreen = () => {
                       onLongPress={() => handleDisconnectPress(item)}
                     >
                       <CheckCircle2 size={16} color="#4DCE63" />
-                      <Text style={styles.connectedText}>Connected</Text>
+                      <Text style={styles.connectedText}>{t("connected")}</Text>
                     </Pressable>
                   ) : (
                     <Pressable
@@ -368,22 +370,22 @@ const SocialIntegrationsScreen = () => {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Connect WhatsApp</Text>
+              <Text style={styles.modalTitle}>{t("connect_whatsapp")}</Text>
 
-              <Text style={styles.inputLabel}>WhatsApp Number</Text>
+              <Text style={styles.inputLabel}>{t("whatsapp_number")}</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. 8801700000000"
+                placeholder={t("e_g_8801700000000")}
                 placeholderTextColor="#70829B"
                 value={whatsappPhone}
                 onChangeText={setWhatsappPhone}
                 keyboardType="phone-pad"
               />
 
-              <Text style={styles.inputLabel}>Gateway URL</Text>
+              <Text style={styles.inputLabel}>{t("gateway_url")}</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="http://localhost:3001"
+                placeholder={t("http_localhost_3001")}
                 placeholderTextColor="#70829B"
                 value={whatsappGatewayUrl}
                 onChangeText={setWhatsappGatewayUrl}
@@ -394,10 +396,10 @@ const SocialIntegrationsScreen = () => {
                   style={[styles.modalBtn, styles.modalBtnCancel]}
                   onPress={() => { setWhatsappModalVisible(false); setWhatsappPhone(""); }}
                 >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
+                  <Text style={styles.modalCancelText}>{t("cancel")}</Text>
                 </Pressable>
                 <Pressable style={[styles.modalBtn, styles.modalBtnSubmit]} onPress={handleWhatsAppConnectSubmit}>
-                  <Text style={styles.modalSubmitText}>Connect</Text>
+                  <Text style={styles.modalSubmitText}>{t("connect")}</Text>
                 </Pressable>
               </View>
             </View>

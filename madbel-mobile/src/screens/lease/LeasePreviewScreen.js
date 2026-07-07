@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, TextInput, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,6 +22,7 @@ const STATUS_TONE_MAP = {
 };
 
 const formatDate = (value) => {
+  const { t } = useAppLanguage();
   if (!value) return "--";
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) return "--";
@@ -64,11 +66,11 @@ const LeasePreviewScreen = () => {
 
   const handleDirectSign = async () => {
     if (!leaseId) {
-      Alert.alert("Unavailable", "Lease id is missing.");
+      Alert.alert(t("unavailable"), t("lease_id_is_missing"));
       return;
     }
     if (!signerName.trim() || !signatureText.trim()) {
-      Alert.alert("Missing fields", "Signer name and signature text are required.");
+      Alert.alert(t("missing_fields"), t("signer_name_and_signature_text_are_required"));
       return;
     }
     try {
@@ -79,7 +81,7 @@ const LeasePreviewScreen = () => {
         signature_text: signatureText.trim(),
       }).unwrap();
       setShowSignModal(false);
-      Alert.alert("Success", "Lease signed successfully.");
+      Alert.alert(t("success"), t("lease_signed_successfully"));
     } catch (error) {
       Alert.alert("Signature failed", error?.data?.message || "Could not sign the lease.");
     }
@@ -89,12 +91,12 @@ const LeasePreviewScreen = () => {
 
   const handleRunReview = async () => {
     if (!leaseId) {
-      Alert.alert("Unavailable", "Lease id is missing.");
+      Alert.alert(t("unavailable"), t("lease_id_is_missing"));
       return;
     }
     try {
       await reviewLease({ lease_id: leaseId }).unwrap();
-      Alert.alert("Review complete", "Lease review has been updated.");
+      Alert.alert(t("review_complete"), t("lease_review_has_been_updated"));
     } catch (error) {
       Alert.alert("Review failed", error?.data?.message || "Could not review the lease.");
     }
@@ -102,7 +104,7 @@ const LeasePreviewScreen = () => {
 
   const handleSendForSignature = async () => {
     if (!leaseId) {
-      Alert.alert("Unavailable", "Lease id is missing.");
+      Alert.alert(t("unavailable"), t("lease_id_is_missing"));
       return;
     }
     try {
@@ -115,7 +117,7 @@ const LeasePreviewScreen = () => {
       };
       await sendForSignature(payload).unwrap();
       setShowSendModal(false);
-      Alert.alert("Sent", "Lease sent for signature.");
+      Alert.alert(t("sent"), t("lease_sent_for_signature"));
     } catch (error) {
       Alert.alert("Send failed", error?.data?.message || "Could not send lease for signature.");
     }
@@ -123,14 +125,14 @@ const LeasePreviewScreen = () => {
 
   const handleDownloadPdf = async () => {
     if (!leaseId) {
-      Alert.alert("Unavailable", "Lease id is missing.");
+      Alert.alert(t("unavailable"), t("lease_id_is_missing"));
       return;
     }
     try {
       const response = await downloadLeasePdf({ lease_id: leaseId });
       const pdfUrl = response?.data?.data?.pdf_url || lease?.pdf_url;
       if (!pdfUrl) {
-        Alert.alert("PDF unavailable", "Could not generate PDF link.");
+        Alert.alert(t("pdf_unavailable"), t("could_not_generate_pdf_link"));
         return;
       }
       await Linking.openURL(pdfUrl);
@@ -157,7 +159,7 @@ const LeasePreviewScreen = () => {
             <Pressable onPress={() => navigation.goBack()}>
               <ChevronLeft size={34} color="#F5FAFF" />
             </Pressable>
-            <Text style={styles.headerTitle}>Lease Preview</Text>
+            <Text style={styles.headerTitle}>{t("lease_preview")}</Text>
           </View>
           <Pressable onPress={handleDownloadPdf} disabled={downloadingPdf}>
             {downloadingPdf ? <ActivityIndicator color="#D7E8FF" /> : <Download size={24} color="#D7E8FF" />}
@@ -173,29 +175,27 @@ const LeasePreviewScreen = () => {
           <View style={styles.docCard}>
             <Text style={styles.docTitle}>Residential Lease{"\n"}Agreement</Text>
             <View style={styles.docDivider} />
-            <Text style={styles.docText}>
-              This Residential Lease Agreement ("Agreement") is made and entered into this ____ day of _____, 2024, by and between:
-            </Text>
+            <Text style={styles.docText}>{t("this_residential_lease_agreement_agreement_is_made")}</Text>
             <View style={styles.partyBox}>
-              <Text style={styles.partyLabel}>LANDLORD</Text>
+              <Text style={styles.partyLabel}>{t("landlord")}</Text>
               <Text style={styles.partyName}>{lease.landlord_name || "SmartFlow Properties"}</Text>
             </View>
             <View style={styles.partyBox}>
-              <Text style={styles.partyLabel}>TENANT</Text>
+              <Text style={styles.partyLabel}>{t("tenant")}</Text>
               <Text style={styles.partyName}>{lease.tenant_name || "John Doe"}</Text>
             </View>
 
-            <Text style={styles.section}>1. PROPERTY ADDRESS</Text>
+            <Text style={styles.section}>{t("1_property_address")}</Text>
             <Text style={styles.docText}>{lease.property_address || "221B Baker Street, London, NW1 6XE"}</Text>
-            <Text style={styles.section}>2. RENT PAYMENT</Text>
+            <Text style={styles.section}>{t("2_rent_payment")}</Text>
             <Text style={styles.docText}>{formatMoney(lease.monthly_rent)}/month rent is due on the first day of each calendar month.</Text>
-            <Text style={styles.section}>3. TERM OF LEASE</Text>
+            <Text style={styles.section}>{t("3_term_of_lease")}</Text>
             <Text style={styles.docText}>
               The term of this lease begins on {formatDate(lease.start_date)} and terminates on {formatDate(lease.end_date)}.
             </Text>
             {lease.custom_terms ? (
               <>
-                <Text style={styles.section}>4. LEASE TERMS</Text>
+                <Text style={styles.section}>{t("4_lease_terms")}</Text>
                 <Text style={styles.docText}>{lease.custom_terms}</Text>
               </>
             ) : null}
@@ -208,12 +208,12 @@ const LeasePreviewScreen = () => {
             ) : (
               <>
                 <Pressable style={styles.signBlock} onPress={() => setShowSignModal(true)}>
-                  <Text style={styles.signHint}>Click to Sign</Text>
-                  <Text style={styles.signTag}>Tenant Signature Required</Text>
+                  <Text style={styles.signHint}>{t("click_to_sign")}</Text>
+                  <Text style={styles.signTag}>{t("tenant_signature_required")}</Text>
                 </Pressable>
                 <Pressable style={styles.signBlock} onPress={() => setShowSignModal(true)}>
-                  <Text style={styles.signHint}>Click to Sign</Text>
-                  <Text style={styles.signTag}>Landlord Signature Required</Text>
+                  <Text style={styles.signHint}>{t("click_to_sign")}</Text>
+                  <Text style={styles.signTag}>{t("landlord_signature_required")}</Text>
                 </Pressable>
               </>
             )}
@@ -222,9 +222,9 @@ const LeasePreviewScreen = () => {
           <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <Sparkles size={20} color="#10CDE9" />
-              <Text style={styles.reviewTitle}>AI Lease Review</Text>
+              <Text style={styles.reviewTitle}>{t("ai_lease_review")}</Text>
               <Pressable onPress={handleRunReview} disabled={reviewingLease} style={styles.reviewRefresh}>
-                {reviewingLease ? <ActivityIndicator color="#10CDE9" size="small" /> : <Text style={styles.reviewRefreshText}>Refresh</Text>}
+                {reviewingLease ? <ActivityIndicator color="#10CDE9" size="small" /> : <Text style={styles.reviewRefreshText}>{t("refresh")}</Text>}
               </Pressable>
             </View>
             {reviewItems.length ? (
@@ -242,7 +242,7 @@ const LeasePreviewScreen = () => {
               })
             ) : (
               <View style={styles.reviewItem}>
-                <Text style={styles.reviewItemSub}>No review findings yet. Tap Refresh to run lease review.</Text>
+                <Text style={styles.reviewItemSub}>{t("no_review_findings_yet_tap_refresh_to_run_lease_re")}</Text>
               </View>
             )}
           </View>
@@ -250,10 +250,10 @@ const LeasePreviewScreen = () => {
           {lease.status !== "active" && lease.status !== "signed" ? (
             <View style={styles.btnRow}>
               <Pressable style={[styles.sendBtn, { flex: 1 }]} onPress={() => setShowSendModal(true)}>
-                <Text style={styles.sendText}>Send For Signature</Text>
+                <Text style={styles.sendText}>{t("send_for_signature")}</Text>
               </Pressable>
               <Pressable style={styles.signBtn} onPress={() => setShowSignModal(true)}>
-                <Text style={styles.signBtnText}>Sign Document</Text>
+                <Text style={styles.signBtnText}>{t("sign_document")}</Text>
               </Pressable>
             </View>
           ) : (
@@ -261,7 +261,7 @@ const LeasePreviewScreen = () => {
               {downloadingPdf ? (
                 <ActivityIndicator color="#EAF8FF" />
               ) : (
-                <Text style={styles.sendText}>Download Signed PDF</Text>
+                <Text style={styles.sendText}>{t("download_signed_pdf")}</Text>
               )}
             </Pressable>
           )}
@@ -272,25 +272,25 @@ const LeasePreviewScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Send for Signature</Text>
+              <Text style={styles.modalTitle}>{t("send_for_signature")}</Text>
               <Pressable onPress={() => setShowSendModal(false)}>
                 <X size={34} color="#B7C1D0" />
               </Pressable>
             </View>
             <View style={styles.modalDivider} />
-            <Text style={styles.modalLabel}>RECIPIENT DETAILS</Text>
-            <Text style={styles.fieldLabel}>Name</Text>
-            <TextInput value={recipientName} onChangeText={setRecipientName} placeholder="Full Name" placeholderTextColor="#5D687D" style={styles.modalInput} />
-            <Text style={styles.fieldLabel}>Email</Text>
-            <TextInput value={recipientEmail} onChangeText={setRecipientEmail} placeholder="email@example.com" placeholderTextColor="#5D687D" style={styles.modalInput} autoCapitalize="none" />
-            <Text style={styles.fieldLabel}>Phone (Optional)</Text>
+            <Text style={styles.modalLabel}>{t("recipient_details")}</Text>
+            <Text style={styles.fieldLabel}>{t("name")}</Text>
+            <TextInput value={recipientName} onChangeText={setRecipientName} placeholder={t("full_name")} placeholderTextColor="#5D687D" style={styles.modalInput} />
+            <Text style={styles.fieldLabel}>{t("email")}</Text>
+            <TextInput value={recipientEmail} onChangeText={setRecipientEmail} placeholder={t("email_example_com")} placeholderTextColor="#5D687D" style={styles.modalInput} autoCapitalize="none" />
+            <Text style={styles.fieldLabel}>{t("phone_optional")}</Text>
             <TextInput value={recipientPhone} onChangeText={setRecipientPhone} placeholder="+1 234 567 890" placeholderTextColor="#5D687D" style={styles.modalInput} />
             <View style={styles.modalFooter}>
               <Pressable onPress={() => setShowSendModal(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{t("cancel")}</Text>
               </Pressable>
               <Pressable style={styles.modalSendBtn} onPress={handleSendForSignature} disabled={sendingForSignature}>
-                {sendingForSignature ? <ActivityIndicator color="#EAF8FF" /> : <Text style={styles.modalSendText}>Send Document</Text>}
+                {sendingForSignature ? <ActivityIndicator color="#EAF8FF" /> : <Text style={styles.modalSendText}>{t("send_document")}</Text>}
               </Pressable>
             </View>
           </View>
@@ -301,25 +301,25 @@ const LeasePreviewScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sign Document</Text>
+              <Text style={styles.modalTitle}>{t("sign_document")}</Text>
               <Pressable onPress={() => setShowSignModal(false)}>
                 <X size={34} color="#B7C1D0" />
               </Pressable>
             </View>
             <View style={styles.modalDivider} />
-            <Text style={styles.modalLabel}>SIGNATURE DETAILS</Text>
-            <Text style={styles.fieldLabel}>Signer Name</Text>
-            <TextInput value={signerName} onChangeText={setSignerName} placeholder="Your Full Name" placeholderTextColor="#5D687D" style={styles.modalInput} />
-            <Text style={styles.fieldLabel}>Email Address</Text>
-            <TextInput value={signerEmail} onChangeText={setSignerEmail} placeholder="email@example.com" placeholderTextColor="#5D687D" style={styles.modalInput} autoCapitalize="none" />
-            <Text style={styles.fieldLabel}>Signature Text</Text>
-            <TextInput value={signatureText} onChangeText={setSignatureText} placeholder="Type your signature here (e.g. John Doe)" placeholderTextColor="#5D687D" style={styles.modalInput} />
+            <Text style={styles.modalLabel}>{t("signature_details")}</Text>
+            <Text style={styles.fieldLabel}>{t("signer_name")}</Text>
+            <TextInput value={signerName} onChangeText={setSignerName} placeholder={t("your_full_name")} placeholderTextColor="#5D687D" style={styles.modalInput} />
+            <Text style={styles.fieldLabel}>{t("email_address")}</Text>
+            <TextInput value={signerEmail} onChangeText={setSignerEmail} placeholder={t("email_example_com")} placeholderTextColor="#5D687D" style={styles.modalInput} autoCapitalize="none" />
+            <Text style={styles.fieldLabel}>{t("signature_text")}</Text>
+            <TextInput value={signatureText} onChangeText={setSignatureText} placeholder={t("type_your_signature_here_e_g_john_doe")} placeholderTextColor="#5D687D" style={styles.modalInput} />
             <View style={styles.modalFooter}>
               <Pressable onPress={() => setShowSignModal(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{t("cancel")}</Text>
               </Pressable>
               <Pressable style={styles.modalSendBtn} onPress={handleDirectSign} disabled={signingLease}>
-                {signingLease ? <ActivityIndicator color="#EAF8FF" /> : <Text style={styles.modalSendText}>Sign Document</Text>}
+                {signingLease ? <ActivityIndicator color="#EAF8FF" /> : <Text style={styles.modalSendText}>{t("sign_document")}</Text>}
               </Pressable>
             </View>
           </View>

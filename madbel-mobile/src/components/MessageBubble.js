@@ -1,4 +1,5 @@
 import React from "react";
+import { useAppLanguage } from "../context/LanguageContext";
 import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 
 const STATUS_TICKS = {
@@ -17,6 +18,8 @@ const MessageBubble = ({
   isLastInGroup = false,
   onLongPress,
 }) => {
+  const { t } = useAppLanguage();
+
   const status = message?.raw?.status || message?.status || null;
   const tick = isMe && isLastInGroup ? (STATUS_TICKS[status] || STATUS_TICKS.sent) : null;
 
@@ -64,9 +67,7 @@ const MessageBubble = ({
 
           {/* Forward label */}
           {forwardFrom ? (
-            <Text style={[styles.forwardLabel, isMe ? styles.forwardLabelMe : styles.forwardLabelThem]}>
-              ↪ Forwarded
-            </Text>
+            <Text style={[styles.forwardLabel, isMe ? styles.forwardLabelMe : styles.forwardLabelThem]}>{t("forwarded")}</Text>
           ) : null}
 
           <Text style={[styles.text, isMe ? styles.textMe : styles.textThem]}>

@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import {
   Pressable,
@@ -41,6 +42,7 @@ const DetailRow = ({ icon: Icon, title, value }) => (
 );
 
 const MeetingDetailsScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const eventId =
@@ -113,7 +115,7 @@ const MeetingDetailsScreen = () => {
       setResolvingShare(true);
       const shareUrl = await ensureShareUrl();
       if (!shareUrl) {
-        Alert.alert("Share unavailable", "Could not generate a share link.");
+        Alert.alert(t("share_unavailable"), t("could_not_generate_a_share_link"));
         return;
       }
 
@@ -142,8 +144,8 @@ const MeetingDetailsScreen = () => {
   const handleDelete = () => {
     if (!eventId) return;
     Alert.alert(
-      "Delete Meeting",
-      "Are you sure you want to delete this meeting?",
+      t("delete_meeting"),
+      t("are_you_sure_you_want_to_delete_this_meeting"),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -176,7 +178,7 @@ const MeetingDetailsScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ChevronLeft size={34} color="#F2F8FF" />
           </Pressable>
-          <Text style={styles.headerTitle}>Meeting Details</Text>
+          <Text style={styles.headerTitle}>{t("meeting_details")}</Text>
           <View style={styles.backBtn} />
         </View>
 
@@ -190,7 +192,7 @@ const MeetingDetailsScreen = () => {
 
         <DetailRow
           icon={CalendarDays}
-          title="Date & Time"
+          title={t("date_time")}
           value={dateTimeLabel}
         />
         <DetailRow
@@ -204,7 +206,7 @@ const MeetingDetailsScreen = () => {
         />
         <DetailRow
           icon={List}
-          title="Description"
+          title={t("description")}
           value={event?.description || "No description provided."}
         />
 
@@ -213,7 +215,7 @@ const MeetingDetailsScreen = () => {
         <View style={styles.actionsRow}>
           <Pressable style={[styles.actionBtn, styles.actionBtnBlue]} onPress={handleEdit}>
             <Pencil size={30} color="#12CFEA" />
-            <Text style={[styles.actionText, styles.actionTextBlue]}>Edit</Text>
+            <Text style={[styles.actionText, styles.actionTextBlue]}>{t("edit")}</Text>
           </Pressable>
           <Pressable
             style={styles.actionBtn}

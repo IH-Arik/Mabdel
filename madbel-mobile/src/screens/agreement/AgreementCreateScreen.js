@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import { useAppLanguage } from "../../context/LanguageContext";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Switch, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -22,6 +23,7 @@ const normalizeReview = (review = []) =>
   }));
 
 const normalizeDate = (value) => {
+  const { t } = useAppLanguage();
   const trimmed = String(value || "").trim();
   if (!trimmed) return undefined;
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
@@ -75,7 +77,7 @@ const AgreementCreateScreen = () => {
 
   const runGenerate = async () => {
     if (!prompt.trim()) {
-      Alert.alert("Prompt required", "Please add a prompt to generate agreement draft.");
+      Alert.alert(t("prompt_required"), t("please_add_a_prompt_to_generate_agreement_draft"));
       return;
     }
     try {
@@ -98,7 +100,7 @@ const AgreementCreateScreen = () => {
 
   const runReview = async () => {
     if (!content.trim()) {
-      Alert.alert("Content required", "Generate or write agreement content first.");
+      Alert.alert(t("content_required"), t("generate_or_write_agreement_content_first"));
       return;
     }
     try {
@@ -129,7 +131,7 @@ const AgreementCreateScreen = () => {
 
   const handleCreate = async () => {
     if (!accessToken) {
-      Alert.alert("Session expired", "Please login again to create an agreement.", [
+      Alert.alert(t("session_expired"), t("please_login_again_to_create_an_agreement"), [
         {
           text: "OK",
           onPress: () => navigation.navigate("Auth"),
@@ -139,7 +141,7 @@ const AgreementCreateScreen = () => {
     }
 
     if (!title.trim() || !clientName.trim() || !content.trim()) {
-      Alert.alert("Missing fields", "Title, client name, and agreement content are required.");
+      Alert.alert(t("missing_fields"), t("title_client_name_and_agreement_content_are_requir"));
       return;
     }
     try {
@@ -158,7 +160,7 @@ const AgreementCreateScreen = () => {
 
       
       if (error?.status === 401 || error?.originalStatus === 401 || error?.data?.message === "Not authenticated") {
-        Alert.alert("Session expired", "Please login again to continue.", [
+        Alert.alert(t("session_expired"), t("please_login_again_to_continue"), [
           {
             text: "OK",
             onPress: () => navigation.navigate("Auth"),
@@ -178,10 +180,10 @@ const AgreementCreateScreen = () => {
             <Pressable onPress={() => navigation.goBack()}>
               <ChevronLeft size={35} color="#F8FAFC" />
             </Pressable>
-            <Text style={styles.headerTitle}>Agreement</Text>
+            <Text style={styles.headerTitle}>{t("agreement")}</Text>
           </View>
           <Pressable onPress={handlePreview}>
-            <Text style={styles.previewText}>Preview</Text>
+            <Text style={styles.previewText}>{t("preview")}</Text>
           </Pressable>
         </View>
 
@@ -190,23 +192,23 @@ const AgreementCreateScreen = () => {
           <View style={styles.panel}>
             <View style={styles.panelHeader}>
               <CircleAlert size={22} color="#12CDEA" />
-              <Text style={styles.panelHeaderText}>Agreement Basic Info</Text>
+              <Text style={styles.panelHeaderText}>{t("agreement_basic_info")}</Text>
             </View>
             <View style={styles.panelDivider} />
 
-            <Text style={styles.label}>Agreement Title</Text>
-            <TextInput value={title} onChangeText={setTitle} placeholder="e.g. Website Design Service" placeholderTextColor="#5F6B80" style={styles.input} />
+            <Text style={styles.label}>{t("agreement_title")}</Text>
+            <TextInput value={title} onChangeText={setTitle} placeholder={t("e_g_website_design_service")} placeholderTextColor="#5F6B80" style={styles.input} />
 
-            <Text style={styles.label}>Client Name</Text>
-            <TextInput value={clientName} onChangeText={setClientName} placeholder="Enter client name" placeholderTextColor="#5F6B80" style={styles.input} />
+            <Text style={styles.label}>{t("client_name")}</Text>
+            <TextInput value={clientName} onChangeText={setClientName} placeholder={t("enter_client_name")} placeholderTextColor="#5F6B80" style={styles.input} />
 
-            <Text style={styles.label}>Client Email</Text>
-            <TextInput value={clientEmail} onChangeText={setClientEmail} placeholder="email@example.com" placeholderTextColor="#5F6B80" style={styles.input} autoCapitalize="none" />
+            <Text style={styles.label}>{t("client_email")}</Text>
+            <TextInput value={clientEmail} onChangeText={setClientEmail} placeholder={t("email_example_com")} placeholderTextColor="#5F6B80" style={styles.input} autoCapitalize="none" />
 
-            <Text style={styles.label}>Client Phone</Text>
+            <Text style={styles.label}>{t("client_phone")}</Text>
             <TextInput value={clientPhone} onChangeText={setClientPhone} placeholder="+1 234 567 890" placeholderTextColor="#5F6B80" style={styles.input} />
 
-            <Text style={styles.label}>Agreement Type</Text>
+            <Text style={styles.label}>{t("agreement_type")}</Text>
             <TextInput
               value={agreementType}
               onChangeText={setAgreementType}
@@ -215,17 +217,17 @@ const AgreementCreateScreen = () => {
               style={styles.input}
             />
 
-            <Text style={styles.label}>Date</Text>
-            <TextInput value={date} onChangeText={setDate} placeholder="yyyy-mm-dd" placeholderTextColor="#5F6B80" style={styles.input} />
+            <Text style={styles.label}>{t("date")}</Text>
+            <TextInput value={date} onChangeText={setDate} placeholder={t("yyyy_mm_dd")} placeholderTextColor="#5F6B80" style={styles.input} />
           </View>
 
           <View style={styles.generateCard}>
-            <Text style={styles.generateTitle}>Generate with AI</Text>
+            <Text style={styles.generateTitle}>{t("generate_with_ai")}</Text>
             <View style={styles.promptBox}>
               <TextInput
                 value={prompt}
                 onChangeText={setPrompt}
-                placeholder="Create agreement draft..."
+                placeholder={t("create_agreement_draft")}
                 placeholderTextColor="#5F6B80"
                 multiline
                 style={styles.promptInput}
@@ -240,18 +242,18 @@ const AgreementCreateScreen = () => {
               ) : (
                 <>
                   <Sparkles size={20} color="#E9F8FF" />
-                  <Text style={styles.generateBtnText}>Generate Agreement</Text>
+                  <Text style={styles.generateBtnText}>{t("generate_agreement")}</Text>
                 </>
               )}
             </Pressable>
           </View>
 
           <View style={styles.generateCard}>
-            <Text style={styles.generateTitle}>Agreement Content</Text>
+            <Text style={styles.generateTitle}>{t("agreement_content")}</Text>
             <TextInput
               value={content}
               onChangeText={setContent}
-              placeholder="Agreement content..."
+              placeholder={t("agreement_content")}
               placeholderTextColor="#5F6B80"
               multiline
               style={styles.contentInput}
@@ -260,7 +262,7 @@ const AgreementCreateScreen = () => {
               {reviewing ? (
                 <ActivityIndicator color="#E9F8FF" />
               ) : (
-                <Text style={styles.generateBtnText}>Run AI Review</Text>
+                <Text style={styles.generateBtnText}>{t("run_ai_review")}</Text>
               )}
             </Pressable>
           </View>
@@ -268,7 +270,7 @@ const AgreementCreateScreen = () => {
           <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <Sparkles size={20} color="#10CDE9" />
-              <Text style={styles.reviewTitle}>AI Review</Text>
+              <Text style={styles.reviewTitle}>{t("ai_review")}</Text>
             </View>
             {aiReview.length ? (
               aiReview.map((item, idx) => {
@@ -289,13 +291,13 @@ const AgreementCreateScreen = () => {
               })
             ) : (
               <View style={styles.reviewItem}>
-                <Text style={styles.reviewItemSub}>No review yet. Generate or review a draft.</Text>
+                <Text style={styles.reviewItemSub}>{t("no_review_yet_generate_or_review_a_draft")}</Text>
               </View>
             )}
           </View>
 
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Signature Field</Text>
+            <Text style={styles.switchLabel}>{t("signature_field")}</Text>
             <Switch
               value={signatureEnabled}
               onValueChange={setSignatureEnabled}
@@ -305,7 +307,7 @@ const AgreementCreateScreen = () => {
           </View>
 
           <VoiceFormFillCard
-            label="agreement"
+            label={t("agreement")}
             workflowIntent="agreement"
             sourceScreen="AgreementCreate"
             triggerOpen={voiceTrigger}
@@ -324,7 +326,7 @@ const AgreementCreateScreen = () => {
             {creating ? (
               <ActivityIndicator color="#EAF8FF" />
             ) : (
-              <Text style={styles.sendBtnText}>Send For Signature</Text>
+              <Text style={styles.sendBtnText}>{t("send_for_signature")}</Text>
             )}
           </Pressable>
         </ScrollView>

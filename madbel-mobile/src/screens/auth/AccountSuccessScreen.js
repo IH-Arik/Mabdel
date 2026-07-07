@@ -1,10 +1,12 @@
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { CheckCircle2 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 
 const AccountSuccessScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
 
   return (
@@ -15,17 +17,14 @@ const AccountSuccessScreen = () => {
             <CheckCircle2 size={52} color="#14C6E4" strokeWidth={2.3} />
           </View>
 
-          <Text style={styles.title}>Account Created</Text>
-          <Text style={styles.subtitle}>
-            Your account has been created successfully. You can now log in with
-            your new credentials.
-          </Text>
+          <Text style={styles.title}>{t("account_created")}</Text>
+          <Text style={styles.subtitle}>{t("your_account_has_been_created_successfully_you_can")}</Text>
 
           <Pressable
             onPress={() => navigation.navigate("Login")}
             style={styles.primaryButton}
           >
-            <Text style={styles.primaryButtonText}>Back to Log In</Text>
+            <Text style={styles.primaryButtonText}>{t("back_to_log_in")}</Text>
           </Pressable>
         </View>
       </LinearGradient>

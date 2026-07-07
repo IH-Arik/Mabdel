@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { View, Text, Pressable, StyleSheet, FlatList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +11,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useMadbelListAiHistoryQuery } from "../../redux/slices/madbelSmartflowSlice";
 
 const formatTime = (dateValue) => {
+  const { t } = useAppLanguage();
   if (!dateValue) return "";
   try {
     return new Date(dateValue).toLocaleString([], {
@@ -54,14 +56,14 @@ const ProfileVoiceHistoryScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={35} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>AI Voice History</Text>
+          <Text style={styles.title}>{t("ai_voice_history")}</Text>
           <View style={styles.spacer} />
         </View>
 
         {isLoading ? (
           <ActivityIndicator color="#17b4c9" style={{ marginTop: responsiveHeight(10) }} />
         ) : isError || calls.length === 0 ? (
-          <Text style={styles.empty}>No voice history found.</Text>
+          <Text style={styles.empty}>{t("no_voice_history_found")}</Text>
         ) : (
           <FlatList
             data={calls}

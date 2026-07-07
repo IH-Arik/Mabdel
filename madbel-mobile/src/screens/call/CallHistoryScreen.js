@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -32,6 +33,7 @@ import {
 
 
 const CallHistoryScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -64,7 +66,7 @@ const CallHistoryScreen = () => {
   };
 
   const handleDownloadRecording = (callId) => {
-    Alert.alert("Recording Download", "Downloading call audio recording...");
+    Alert.alert(t("recording_download"), t("downloading_call_audio_recording"));
   };
 
   const callsList = useMemo(() => {
@@ -157,11 +159,11 @@ const CallHistoryScreen = () => {
             </View>
             <View style={styles.subtextRow}>
               {isMissed ? (
-                <Text style={styles.missedCallArrow}>🗙 </Text>
+                <Text style={styles.missedCallArrow}>{t("")}</Text>
               ) : item.call_type === "outgoing_direct" ? (
-                <Text style={styles.outgoingCallArrow}>➔ </Text>
+                <Text style={styles.outgoingCallArrow}>{t("")}</Text>
               ) : (
-                <Text style={styles.incomingCallArrow}>➔ </Text>
+                <Text style={styles.incomingCallArrow}>{t("")}</Text>
               )}
               <Text style={styles.callTypeLabel}>{item.call_type_label || "Call"}</Text>
             </View>
@@ -189,7 +191,7 @@ const CallHistoryScreen = () => {
               }
             >
               <MessageSquare size={14} color="#8E9AA0" />
-              <Text style={styles.actionBtnText}>Transcript</Text>
+              <Text style={styles.actionBtnText}>{t("transcript")}</Text>
             </Pressable>
           )}
 
@@ -206,14 +208,14 @@ const CallHistoryScreen = () => {
               }
             >
               <Sparkles size={14} color="#8E9AA0" />
-              <Text style={styles.actionBtnText}>AI Summary</Text>
+              <Text style={styles.actionBtnText}>{t("ai_summary")}</Text>
             </Pressable>
           )}
 
           {item.hasRecording && (
             <Pressable style={styles.actionBtn} onPress={() => handleDownloadRecording(item.id)}>
               <Download size={14} color="#8E9AA0" />
-              <Text style={styles.actionBtnText}>Recording</Text>
+              <Text style={styles.actionBtnText}>{t("recording")}</Text>
             </Pressable>
           )}
 
@@ -223,7 +225,7 @@ const CallHistoryScreen = () => {
               onPress={() => handleCallBack(item.phone_number || nameDisplay)}
             >
               <Phone size={14} color="#000" />
-              <Text style={styles.callBackBtnText}>Call Back</Text>
+              <Text style={styles.callBackBtnText}>{t("call_back")}</Text>
             </Pressable>
           )}
 
@@ -233,7 +235,7 @@ const CallHistoryScreen = () => {
               onPress={() => handleCallBack(nameDisplay)}
             >
               <Phone size={14} color="#FFF" />
-              <Text style={[styles.callBackBtnText, { color: "#FFF" }]}>Call Back Now</Text>
+              <Text style={[styles.callBackBtnText, { color: "#FFF" }]}>{t("call_back_now")}</Text>
             </Pressable>
           )}
         </View>
@@ -249,7 +251,7 @@ const CallHistoryScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ArrowLeft size={28} color="#FFFFFF" strokeWidth={2.2} />
           </Pressable>
-          <Text style={styles.headerTitle}>Call History</Text>
+          <Text style={styles.headerTitle}>{t("call_history")}</Text>
           <View style={styles.headerSpace} />
         </View>
 
@@ -259,7 +261,7 @@ const CallHistoryScreen = () => {
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search name or number"
+            placeholder={t("search_name_or_number")}
             placeholderTextColor="#7E8DA5"
             style={styles.searchInput}
           />
@@ -283,8 +285,8 @@ const CallHistoryScreen = () => {
             refreshing={isCallsLoading}
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Text style={styles.emptyText}>No calls yet</Text>
-                <Text style={styles.emptySubText}>Your call history will appear here.</Text>
+                <Text style={styles.emptyText}>{t("no_calls_yet")}</Text>
+                <Text style={styles.emptySubText}>{t("your_call_history_will_appear_here")}</Text>
               </View>
             }
           />

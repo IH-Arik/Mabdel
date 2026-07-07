@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useAppLanguage } from "../context/LanguageContext";
 import {
   ActivityIndicator,
   Modal,
@@ -77,6 +78,8 @@ const RETRY_HINTS = {
 
 // ─── TTS ─────────────────────────────────────────────────────────────────────
 const speakText = (text, options = {}) => {
+  const { t } = useAppLanguage();
+
   try {
     if (!Speech) return false;
     Speech.stop();
@@ -631,7 +634,7 @@ const VoiceFormFillCard = ({
                   <Text style={s.headerSub}>Question {fieldIdx + 1} of {totalQuestions}</Text>
                 )}
                 {isConfirming && (
-                  <Text style={s.headerSub}>Review & Confirm</Text>
+                  <Text style={s.headerSub}>{t("review_confirm")}</Text>
                 )}
               </View>
               <Pressable onPress={handleClose} hitSlop={12} style={s.closeBtn}>
@@ -679,7 +682,7 @@ const VoiceFormFillCard = ({
                     </Pressable>
                   ))}
                   {!isConfirming && (
-                    <Text style={s.editHint}>Tap a field to change it</Text>
+                    <Text style={s.editHint}>{t("tap_a_field_to_change_it")}</Text>
                   )}
                 </View>
               )}
@@ -728,11 +731,11 @@ const VoiceFormFillCard = ({
                   {isProcessing && (
                     <View style={s.statusRow}>
                       <ActivityIndicator size="small" color="#19CDEB" />
-                      <Text style={s.statusText}>Processing...</Text>
+                      <Text style={s.statusText}>{t("processing")}</Text>
                     </View>
                   )}
                   {phase === PHASE.COMPLETE && (
-                    <Text style={s.statusDone}>✓ All set! Applying to form...</Text>
+                    <Text style={s.statusDone}>{t("all_set_applying_to_form")}</Text>
                   )}
                   {errorText ? <Text style={s.errorText}>{errorText}</Text> : null}
                 </>
@@ -744,16 +747,16 @@ const VoiceFormFillCard = ({
               {isConfirming ? (
                 <>
                   <Pressable style={s.btnSecondary} onPress={handleEditFromConfirm}>
-                    <Text style={s.btnSecondaryText}>Edit</Text>
+                    <Text style={s.btnSecondaryText}>{t("edit")}</Text>
                   </Pressable>
                   <Pressable style={s.btnPrimary} onPress={handleConfirm}>
-                    <Text style={s.btnPrimaryText}>Confirm ✓</Text>
+                    <Text style={s.btnPrimaryText}>{t("confirm")}</Text>
                   </Pressable>
                 </>
               ) : isInitial ? (
                 <>
                   <Pressable style={s.btnSecondary} onPress={handleClose}>
-                    <Text style={s.btnSecondaryText}>Cancel</Text>
+                    <Text style={s.btnSecondaryText}>{t("cancel")}</Text>
                   </Pressable>
                   <Pressable
                     style={[s.btnPrimary, (!voiceInput.trim() || isProcessing) && s.btnDisabled]}
@@ -762,14 +765,14 @@ const VoiceFormFillCard = ({
                   >
                     {isProcessing
                       ? <ActivityIndicator size="small" color="#031218" />
-                      : <Text style={s.btnPrimaryText}>Process</Text>
+                      : <Text style={s.btnPrimaryText}>{t("process")}</Text>
                     }
                   </Pressable>
                 </>
               ) : (
                 <>
                   <Pressable style={s.btnSecondary} onPress={handleSkip}>
-                    <Text style={s.btnSecondaryText}>Skip</Text>
+                    <Text style={s.btnSecondaryText}>{t("skip")}</Text>
                   </Pressable>
                   <Pressable
                     style={[s.btnPrimary, !voiceInput.trim() && s.btnDisabled]}
@@ -777,7 +780,7 @@ const VoiceFormFillCard = ({
                     disabled={!voiceInput.trim()}
                   >
                     <Text style={s.btnPrimaryText}>
-                      {fieldIdx + 1 >= totalQuestions ? "Review →" : "Next →"}
+                      {fieldIdx + 1 >= totalQuestions ? "Review ->" : "Next ->"}
                     </Text>
                   </Pressable>
                 </>

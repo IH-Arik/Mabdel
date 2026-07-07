@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import {
   View,
@@ -31,6 +32,7 @@ import {
 } from "./invoiceUtils";
 
 const InvoiceViewScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const invoiceId = getInvoiceId(route.params?.invoice);
@@ -71,7 +73,7 @@ const InvoiceViewScreen = () => {
       setResolvingShareLink(true);
       const shareUrl = await ensureShareUrl();
       if (!shareUrl) {
-        Alert.alert("Share unavailable", "Could not generate a share link.");
+        Alert.alert(t("share_unavailable"), t("could_not_generate_a_share_link"));
         return;
       }
 
@@ -90,13 +92,13 @@ const InvoiceViewScreen = () => {
       const pdfUrl = getPublicInvoicePdfUrl(shareUrl);
 
       if (!pdfUrl) {
-        Alert.alert("PDF unavailable", "Could not generate the invoice PDF link.");
+        Alert.alert(t("pdf_unavailable"), t("could_not_generate_the_invoice_pdf_link"));
         return;
       }
 
       const canOpen = await Linking.canOpenURL(pdfUrl);
       if (!canOpen) {
-        Alert.alert("Open failed", "This device cannot open the PDF link.");
+        Alert.alert(t("open_failed"), t("this_device_cannot_open_the_pdf_link"));
         return;
       }
 
@@ -112,13 +114,13 @@ const InvoiceViewScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Invoice</Text>
+          <Text style={styles.headerTitle}>{t("invoice")}</Text>
           <Pressable
             style={styles.editBtn}
             onPress={() => navigation.navigate("CreateInvoice", { invoice })}
           >
             <PenLine size={20} color="#14C9E7" />
-            <Text style={styles.editText}>Edit Invoice</Text>
+            <Text style={styles.editText}>{t("edit_invoice")}</Text>
           </Pressable>
         </View>
 
@@ -135,7 +137,7 @@ const InvoiceViewScreen = () => {
                   {businessProfile?.logo_url ? (
                     <Image source={{ uri: businessProfile.logo_url }} style={styles.logoImage} />
                   ) : (
-                    <Text style={styles.logoBolt}>⚡</Text>
+                    <Text style={styles.logoBolt}>{t("")}</Text>
                   )}
                 </View>
                 <Text style={styles.brand}>
@@ -144,7 +146,7 @@ const InvoiceViewScreen = () => {
               </View>
 
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.invoiceLabel}>INVOICE</Text>
+                <Text style={styles.invoiceLabel}>{t("invoice")}</Text>
                 <Text style={styles.invoiceCode}>
                   #{invoice?.invoice_number || invoice?.id || "INV"}
                 </Text>
@@ -156,7 +158,7 @@ const InvoiceViewScreen = () => {
 
             <View style={styles.billRow}>
               <View style={{ width: "52%" }}>
-                <Text style={styles.metaLabel}>BILL TO</Text>
+                <Text style={styles.metaLabel}>{t("bill_to")}</Text>
                 <Text style={styles.metaMain}>{invoice?.client_name || "Client"}</Text>
                 {invoice?.billing_address ? (
                   <Text style={styles.metaSub}>{invoice.billing_address}</Text>
@@ -167,15 +169,15 @@ const InvoiceViewScreen = () => {
               </View>
 
               <View style={{ width: "42%" }}>
-                <Text style={styles.metaLabel}>DUE DATE</Text>
+                <Text style={styles.metaLabel}>{t("due_date")}</Text>
                 <Text style={styles.metaMain}>{formatInvoiceDate(invoice?.due_date)}</Text>
               </View>
             </View>
 
             <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeadText, { width: "52%" }]}>DESCRIPTION</Text>
-              <Text style={[styles.tableHeadText, { width: "16%", textAlign: "center" }]}>QTY</Text>
-              <Text style={[styles.tableHeadText, { width: "32%", textAlign: "right" }]}>AMOUNT</Text>
+              <Text style={[styles.tableHeadText, { width: "52%" }]}>{t("description")}</Text>
+              <Text style={[styles.tableHeadText, { width: "16%", textAlign: "center" }]}>{t("qty")}</Text>
+              <Text style={[styles.tableHeadText, { width: "32%", textAlign: "right" }]}>{t("amount")}</Text>
             </View>
 
             {(invoice?.items || []).map((item) => (
@@ -192,11 +194,11 @@ const InvoiceViewScreen = () => {
             ))}
 
             <View style={styles.totalWrap}>
-              <Text style={styles.signatureText}>Signature Of Customer</Text>
+              <Text style={styles.signatureText}>{t("signature_of_customer")}</Text>
 
               <View style={styles.totalCol}>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalMeta}>Subtotal</Text>
+                  <Text style={styles.totalMeta}>{t("subtotal")}</Text>
                   <Text style={styles.totalMetaStrong}>
                     {formatCurrency(invoice?.subtotal, invoice?.currency)}
                   </Text>
@@ -208,7 +210,7 @@ const InvoiceViewScreen = () => {
                   </Text>
                 </View>
                 <View style={[ styles.totalFinalRow]}>
-                  <Text style={styles.totalDueLabel}>TOTAL DUE</Text>
+                  <Text style={styles.totalDueLabel}>{t("total_due")}</Text>
                   <Text style={styles.totalDueValue}>
                     {formatCurrency(invoice?.total_amount, invoice?.currency)}
                   </Text>
@@ -218,7 +220,7 @@ const InvoiceViewScreen = () => {
           </View>
           ) : (
             <View style={styles.loaderWrap}>
-              <Text style={styles.emptyText}>Invoice not found.</Text>
+              <Text style={styles.emptyText}>{t("invoice_not_found")}</Text>
             </View>
           )}
         </ScrollView>

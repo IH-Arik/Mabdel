@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -41,6 +42,7 @@ const colors = {
 };
 
 const NewPasswordScreen = () => {
+  const { t } = useAppLanguage();
   const {
     control,
     formState: { errors },
@@ -99,19 +101,16 @@ const NewPasswordScreen = () => {
                     strokeWidth={2.1}
                   />
                 </View>
-                <Text style={styles.title}>Set new Password</Text>
-                <Text style={styles.subtitle}>
-                  Protect your SmartFlow productivity hub with a high-fidelity
-                  password.
-                </Text>
+                <Text style={styles.title}>{t("set_new_password")}</Text>
+                <Text style={styles.subtitle}>{t("protect_your_smartflow_productivity_hub_with_a_hig")}</Text>
               </View>
 
               <ControllerTextInput
                 name="newPassword"
                 control={control}
                 error={errors?.newPassword?.message}
-                label="New Password"
-                placeholder="Enter new password"
+                label={t("new_password")}
+                placeholder={t("enter_new_password")}
                 type="password"
                 secureTextEntry={!isPasswordVisible}
                 leftIcon={<LockKeyhole color="#14C6E4" size={20} />}
@@ -138,8 +137,8 @@ const NewPasswordScreen = () => {
                 name="newConfirmPassword"
                 control={control}
                 error={errors?.newConfirmPassword?.message}
-                label="Confirm Password"
-                placeholder="Enter confirm password"
+                label={t("confirm_password")}
+                placeholder={t("enter_confirm_password")}
                 type="password"
                 secureTextEntry={!isPasswordVisible}
                 leftIcon={<LockKeyhole color="#14C6E4" size={20} />}
@@ -172,7 +171,7 @@ const NewPasswordScreen = () => {
                 {resetPasswordLoading ? (
                   <ActivityIndicator color="#EAF9FD" size={20} />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Update Password</Text>
+                  <Text style={styles.primaryButtonText}>{t("update_password")}</Text>
                 )}
               </Pressable>
 
@@ -180,7 +179,7 @@ const NewPasswordScreen = () => {
                 onPress={() => navigation.navigate("Login")}
                 style={styles.backWrap}
               >
-                <Text style={styles.backLink}>Back to Log In</Text>
+                <Text style={styles.backLink}>{t("back_to_log_in")}</Text>
               </Pressable>
 
               {errors?.root?.type === "resetPassword" && (
@@ -191,9 +190,9 @@ const NewPasswordScreen = () => {
 
               {/* <Text style={styles.terms}>
                 By setting a password, you agree to our
-                <Text style={styles.link}> Terms of Service </Text>
+                <Text style={styles.link}>{t("terms_of_service")}</Text>
                 and
-                <Text style={styles.link}> Privacy Policy.</Text>
+                <Text style={styles.link}>{t("privacy_policy")}</Text>
               </Text> */}
             </ScrollView>
           </LinearGradient>

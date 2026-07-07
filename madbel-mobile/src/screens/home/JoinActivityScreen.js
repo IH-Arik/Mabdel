@@ -1,4 +1,5 @@
-﻿import React, { useState } from "react";
+﻿import { useAppLanguage } from "../../context/LanguageContext";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -36,6 +37,7 @@ import { useJoinActivityMutation } from "../../redux/slices/event/eventSlice";
 const imgSize = responsiveWidth(10);
 
 const JoinActivityScreen = ({ route }) => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const { item } = route.params || {};
   const authUser = useSelector((state) => state?.auth?.user);
@@ -72,7 +74,7 @@ const JoinActivityScreen = ({ route }) => {
       setJoined(true);
       setShowSuccessModal(true);
     } catch (error) {
-      Alert.alert("Failed", "Could not join this activity. Please try again.");
+      Alert.alert(t("failed"), t("could_not_join_this_activity_please_try_again"));
     }
   };
 
@@ -197,7 +199,7 @@ const JoinActivityScreen = ({ route }) => {
             </Text>
             <View className="flex-row items-center">
               <Star size={16} color="#F59E0B" fill="#F59E0B" />
-              <Text className="text-sm text-gray-600 ml-1">4.9</Text>
+              <Text className="text-sm text-gray-600 ml-1">{t("49")}</Text>
             </View>
           </View>
         </View>
@@ -222,9 +224,7 @@ const JoinActivityScreen = ({ route }) => {
         {/* Location */}
         <View className="flex-row items-center">
           <MapPin size={20} color="#71ABE0" />
-          <Text className="text-base text-gray-700 ml-3">
-            Riverside Trail, Central Park
-          </Text>
+          <Text className="text-base text-gray-700 ml-3">{t("riverside_trail_central_park")}</Text>
         </View>
 
         {/* View Full Map */}
@@ -293,7 +293,7 @@ const JoinActivityScreen = ({ route }) => {
             onPress={() => setShowReportModal(true)}
           >
             <Flag size={20} color="#6B7280" />
-            <Text className="text-base text-gray-700 ml-3">Report</Text>
+            <Text className="text-base text-gray-700 ml-3">{t("report")}</Text>
           </Pressable>
 
           {joined && (
@@ -302,7 +302,7 @@ const JoinActivityScreen = ({ route }) => {
               onPress={() => setShowLeaveModal(true)}
             >
               <LogOut size={20} color="#EF4444" />
-              <Text className="text-base text-red-500 ml-3">Leave</Text>
+              <Text className="text-base text-red-500 ml-3">{t("leave")}</Text>
             </Pressable>
           )}
         </View>
@@ -311,9 +311,9 @@ const JoinActivityScreen = ({ route }) => {
         {joined && (
           <RatingCard
             onSubmit={handleSubmitRating}
-            title="Rate"
+            title={t("rate")}
             question="How was your workout experience?"
-            subtitle="Quick feedback (optional)"
+            subtitle={t("quick_feedback_optional")}
             commentsLabel="Additional comments (optional)"
             commentsPlaceholder="Share more details about your experience..."
             submitButtonText="Submit Rating"
@@ -328,7 +328,7 @@ const JoinActivityScreen = ({ route }) => {
       <SuccessModal
         visible={showSuccessModal}
         onClose={handleCloseSuccessModal}
-        title="You Joined This Activity!"
+        title={t("you_joined_this_activity")}
         message="Get ready to meet your fitness partner."
         buttonText="Great!"
         buttonColor="bg-blue-500"
@@ -341,9 +341,9 @@ const JoinActivityScreen = ({ route }) => {
         visible={showReportModal}
         onClose={() => setShowReportModal(false)}
         onReport={handleReport}
-        title="Report Activity"
+        title={t("report_activity")}
         description="Please tell us why you're reporting this activity. Your report will be anonymous."
-        placeholder="Describe the issue..."
+        placeholder={t("describe_the_issue")}
         cancelButtonText="Cancel"
         submitButtonText="Submit Report"
         cancelButtonColor="bg-gray-500"
@@ -355,7 +355,7 @@ const JoinActivityScreen = ({ route }) => {
         visible={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
         onConfirm={handleLeaveActivity}
-        title="Leave Activity?"
+        title={t("leave_activity")}
         description="Are you sure you want to leave this activity? This action cannot be undone."
         cancelButtonText="Cancel"
         confirmButtonText="Leave"
