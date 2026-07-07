@@ -118,7 +118,7 @@ const AddContactScreen = () => {
 
     if (response?.didCancel) return;
     if (response?.errorCode) {
-      Alert.alert("Avatar failed", response?.errorMessage || "Could not pick image.");
+      Alert.alert(t("avatar_failed"), response?.errorMessage || t("could_not_pick_image"));
       return;
     }
 
@@ -172,10 +172,7 @@ const AddContactScreen = () => {
       }
       navigation.goBack();
     } catch (error) {
-      Alert.alert(
-        "Save failed",
-        error?.data?.message || "Could not save contact.",
-      );
+      Alert.alert(t("save_failed"), error?.data?.message || t("could_not_save_contact"));
     }
   };
 
@@ -185,9 +182,9 @@ const AddContactScreen = () => {
       t("delete_contact"),
       t("are_you_sure_you_want_to_delete_this_contact"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("cancel"), style: "cancel" },
         {
-          text: "Delete",
+          text: t("delete"),
           style: "destructive",
           onPress: async () => {
             try {
@@ -195,8 +192,8 @@ const AddContactScreen = () => {
               navigation.goBack();
             } catch (error) {
               Alert.alert(
-                "Delete failed",
-                error?.data?.message || "Could not delete contact.",
+                t("delete_failed"),
+                error?.data?.message || t("could_not_delete_contact"),
               );
             }
           },
@@ -212,7 +209,7 @@ const AddContactScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ChevronLeft size={36} color="#F4F9FF" />
           </Pressable>
-          <Text style={styles.title}>{isEditMode ? "Edit Contact" : "Add Contact"}</Text>
+          <Text style={styles.title}>{isEditMode ? t("edit_contact") : t("add_contact")}</Text>
           <View style={styles.headerActions}>
             {isEditMode ? (
               <Pressable onPress={handleDelete} style={styles.deleteIconBtn}>

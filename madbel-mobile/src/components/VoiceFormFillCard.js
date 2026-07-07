@@ -293,6 +293,9 @@ const VoiceFormFillCard = ({
 
   const [workflowPrefill] = useMadbelAiWorkflowPrefillMutation();
 
+  const { t } = useAppLanguage();
+
+
   // Keep phaseRef synced (avoids stale closure in speech event handlers)
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 

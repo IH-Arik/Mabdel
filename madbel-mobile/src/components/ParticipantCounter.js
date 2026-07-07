@@ -39,7 +39,9 @@ const CounterView = ({
         className="flex-1 flex-row bg-white items-center  justify-between border border-border rounded-xl"
         style={{ padding: responsiveWidth(3) }}
       >
-        <Text className="text-base text-gray-600 ">Max Participants: {max}</Text>
+        <Text className="text-base text-gray-600 ">
+          {t("max_participants")}: {max}
+        </Text>
 
         <View className="flex-row items-center justify-between gap-3  bg-white">
           <TouchableOpacity
@@ -81,7 +83,7 @@ const CounterView = ({
 const ParticipantCounter = ({
   name = "participantLimit",
   control,
-  label = "Participant Limit",
+  label,
   min = 0,
   max = 25,
   step = 1,
@@ -91,6 +93,8 @@ const ParticipantCounter = ({
   disabled = false,
   errorMessage,
 }) => {
+  const { t } = useAppLanguage();
+  const resolvedLabel = label || t("participant_limit");
   const formContext = useFormContext();
   const shouldUseForm = Boolean(
     !onChange && value === undefined && name && (control || formContext?.control),
@@ -105,7 +109,7 @@ const ParticipantCounter = ({
         defaultValue={min}
         render={({ field, fieldState }) => (
           <CounterView
-            label={label}
+            label={resolvedLabel}
             min={min}
             max={max}
             step={step}
@@ -121,7 +125,7 @@ const ParticipantCounter = ({
 
   return (
     <CounterView
-      label={label}
+      label={resolvedLabel}
       min={min}
       max={max}
       step={step}

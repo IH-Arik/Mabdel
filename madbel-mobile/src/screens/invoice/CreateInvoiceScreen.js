@@ -38,19 +38,15 @@ import {
   getInvoiceId,
 } from "./invoiceUtils";
 
-const normalizePrefillItems = (items = []) => {
-  const { t } = useAppLanguage();
-  if (Array.isArray(items) && items.length) {
-    return items.map((item) => ({
-      description: item?.description || "",
-      details: item?.details || "",
-      quantity: String(item?.quantity ?? 1),
-      unit_price: String(item?.unit_price ?? 0),
-    }));
-  }
-
-  return [];
-};
+const normalizePrefillItems = (items = []) =>
+  Array.isArray(items) && items.length
+    ? items.map((item) => ({
+        description: item?.description || "",
+        details: item?.details || "",
+        quantity: String(item?.quantity ?? 1),
+        unit_price: String(item?.unit_price ?? 0),
+      }))
+    : [];
 
 
 const CreateInvoiceScreen = () => {
@@ -162,7 +158,7 @@ const CreateInvoiceScreen = () => {
     setNewItem({
       description: item?.description || "",
       details: item?.details || "",
-      quantity: String(item?.quantity ?? "Nan"),
+      quantity: String(item?.quantity ?? "0"),
       unit_price: String(item?.unit_price ?? ""),
     });
     setItemModalVisible(true);
@@ -229,10 +225,7 @@ const CreateInvoiceScreen = () => {
       const invoice = response?.data;
       navigation.replace("InvoiceDetails", { invoice });
     } catch (error) {
-      Alert.alert(
-        "Invoice failed",
-        error?.data?.message || "Could not save the invoice.",
-      );
+      Alert.alert(t("invoice_failed"), error?.data?.message || t("could_not_save_the_invoice"));
     }
   };
 
@@ -244,7 +237,7 @@ const CreateInvoiceScreen = () => {
             <ChevronLeft size={34} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
           <Text style={styles.headerTitle}>
-            {editingInvoice ? "Edit Invoice" : "Create Invoice"}
+            {editingInvoice ? t("edit_invoice") : t("create_invoice")}
           </Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -332,7 +325,7 @@ const CreateInvoiceScreen = () => {
                   !dueDate ? styles.datePlaceholderText : null,
                 ]}
               >
-                {dueDate ? formatInvoiceDate(dueDate) : "Select due date"}
+                {dueDate ? formatInvoiceDate(dueDate) : t("select_due_date")}
               </Text>
               <CalendarDays size={24} color="#90A0B8" />
             </Pressable>
@@ -343,7 +336,7 @@ const CreateInvoiceScreen = () => {
             <View style={styles.totalRow}>
               <Text style={styles.totalAmount}>{formatCurrency(totalAmount)}</Text>
               <Text style={styles.autoCalculated}>
-                {dueDate ? `Due ${formatInvoiceDate(dueDate)}` : "Due date not set"}
+                {dueDate ? `${t("due")} ${formatInvoiceDate(dueDate)}` : t("due_date_not_set")}
               </Text>
             </View>
           </View>
@@ -392,7 +385,7 @@ const CreateInvoiceScreen = () => {
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>
-                {editingItemIndex !== null ? "Edit Item" : "Add Item"}
+                {editingItemIndex !== null ? t("edit_item") : t("add_item")}
               </Text>
 
               <View style={styles.modalField}>
@@ -460,7 +453,7 @@ const CreateInvoiceScreen = () => {
                 </Pressable>
                 <Pressable style={styles.modalSaveBtn} onPress={handleAddItem}>
                   <Text style={styles.modalSaveText}>
-                    {editingItemIndex !== null ? "Update" : "Add"}
+                    {editingItemIndex !== null ? t("update") : t("add")}
                   </Text>
                 </Pressable>
               </View>
@@ -477,7 +470,7 @@ const CreateInvoiceScreen = () => {
             <ActivityIndicator color="#EAF8FF" />
           ) : (
             <Text style={styles.createText}>
-              {editingInvoice ? "Save Invoice" : "Create Invoice"}
+              {editingInvoice ? t("save") : t("create_invoice")}
             </Text>
           )}
         </Pressable>

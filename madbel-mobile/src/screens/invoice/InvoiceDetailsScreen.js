@@ -59,10 +59,7 @@ const InvoiceDetailsScreen = () => {
       await sendReminder({ invoice_id: invoiceId, channel: "email" }).unwrap();
       Alert.alert(t("reminder_sent"), t("the_invoice_reminder_was_sent_successfully"));
     } catch (error) {
-      Alert.alert(
-        "Reminder failed",
-        error?.data?.message || "Could not send the reminder.",
-      );
+      Alert.alert(t("reminder_failed"), error?.data?.message || t("could_not_send_the_reminder"));
     }
   };
 
@@ -73,10 +70,7 @@ const InvoiceDetailsScreen = () => {
       await deleteInvoice({ invoice_id: invoiceId }).unwrap();
       navigation.goBack();
     } catch (error) {
-      Alert.alert(
-        "Delete failed",
-        error?.data?.message || "Could not delete the invoice.",
-      );
+      Alert.alert(t("delete_failed"), error?.data?.message || t("could_not_delete_the_invoice"));
     }
   };
 
@@ -170,7 +164,7 @@ const InvoiceDetailsScreen = () => {
           >
             <SendHorizontal size={26} color="#EAF8FF" />
             <Text style={styles.sendBtnText}>
-              {sendingReminder ? "Sending..." : "Send Reminder"}
+              {sendingReminder ? t("sending") : t("send_reminder")}
             </Text>
           </Pressable>
 

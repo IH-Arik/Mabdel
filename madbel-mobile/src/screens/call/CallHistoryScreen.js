@@ -46,7 +46,7 @@ const CallHistoryScreen = () => {
 
   const handleCallBack = async (numberOrContactId) => {
     try {
-      Alert.alert("Initiating Outbound Call", `Connecting outbound call session...`);
+      Alert.alert(t("initiating_outbound_call"), t("connecting_outbound_call_session"));
       const payload = numberOrContactId.includes("+")
         ? { phone_number: numberOrContactId }
         : { contact_id: numberOrContactId };
@@ -61,7 +61,7 @@ const CallHistoryScreen = () => {
         });
       }
     } catch (err) {
-      Alert.alert("Call Failed", err?.data?.message || "Could not place outbound call.");
+      Alert.alert(t("call_failed_title"), err?.data?.message || t("could_not_place_outbound_call"));
     }
   };
 
@@ -124,7 +124,7 @@ const CallHistoryScreen = () => {
 
   const renderItem = ({ item }) => {
     const isMissed = item.call_type === "missed";
-    const nameDisplay = item.contact_name || item.phone_number || "Unknown Caller";
+    const nameDisplay = item.contact_name || item.phone_number || t("unknown_caller");
 
     return (
       <Pressable
@@ -159,20 +159,20 @@ const CallHistoryScreen = () => {
             </View>
             <View style={styles.subtextRow}>
               {isMissed ? (
-                <Text style={styles.missedCallArrow}>{t("")}</Text>
+                <Text style={styles.missedCallArrow}>↙</Text>
               ) : item.call_type === "outgoing_direct" ? (
-                <Text style={styles.outgoingCallArrow}>{t("")}</Text>
+                <Text style={styles.outgoingCallArrow}>↗</Text>
               ) : (
-                <Text style={styles.incomingCallArrow}>{t("")}</Text>
+                <Text style={styles.incomingCallArrow}>↙</Text>
               )}
-              <Text style={styles.callTypeLabel}>{item.call_type_label || "Call"}</Text>
+              <Text style={styles.callTypeLabel}>{item.call_type_label || t("call")}</Text>
             </View>
           </View>
 
           {/* Time & Duration */}
           <View style={styles.timeInfo}>
             <Text style={styles.durationText}>{item.duration_label || "--"}</Text>
-            <Text style={styles.timestampText}>{item.display_time_label || "Yesterday"}</Text>
+            <Text style={styles.timestampText}>{item.display_time_label || t("yesterday")}</Text>
           </View>
         </View>
 

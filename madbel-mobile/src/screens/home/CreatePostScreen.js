@@ -86,7 +86,7 @@ const CreatePostScreen = () => {
         Alert.alert(t("ai_error"), t("could_not_generate_content_please_try_again"));
       }
     } catch (error) {
-      Alert.alert("AI Error", error?.data?.message || "Something went wrong during generation.");
+      Alert.alert(t("ai_error"), error?.data?.message || t("something_went_wrong_during_generation"));
     }
   };
 
@@ -113,18 +113,21 @@ const CreatePostScreen = () => {
       const published = results.filter((r) => r.status === "published");
 
       if (published.length > 0 && failed.length === 0) {
-        Alert.alert("Published!", `Posted to ${published.map((r) => r.platform).join(", ")}.`);
+        Alert.alert(t("published"), `${t("posted_to")} ${published.map((r) => r.platform).join(", ")}.`);
         navigation.goBack();
       } else if (published.length > 0) {
         const failedNames = failed.map((r) => `${r.platform}: ${r.error}`).join("\n");
-        Alert.alert("Partial Success", `Published to ${published.map((r) => r.platform).join(", ")}.\n\nFailed:\n${failedNames}`);
+        Alert.alert(
+          t("partial_success"),
+          `${t("published_to")} ${published.map((r) => r.platform).join(", ")}.\n\n${t("failed")}:\n${failedNames}`,
+        );
         navigation.goBack();
       } else {
         const failedNames = failed.map((r) => `${r.platform}: ${r.error}`).join("\n");
-        Alert.alert("Publish Failed", failedNames || "Could not publish your post.");
+        Alert.alert(t("publish_failed"), failedNames || t("could_not_publish_your_post"));
       }
     } catch (error) {
-      Alert.alert("Publish Failed", error?.data?.message || "Could not publish your post.");
+      Alert.alert(t("publish_failed"), error?.data?.message || t("could_not_publish_your_post"));
     }
   };
 
@@ -147,10 +150,10 @@ const CreatePostScreen = () => {
         scheduled_at: scheduledIso,
       }).unwrap();
 
-      Alert.alert("Scheduled!", `Post scheduled for ${dateStr} at 10:00 AM.`);
+      Alert.alert(t("scheduled"), t("post_scheduled_for", { date: dateStr }));
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Schedule Failed", error?.data?.message || "Could not schedule your post.");
+      Alert.alert(t("schedule_failed"), error?.data?.message || t("could_not_schedule_your_post"));
     }
   };
 
@@ -164,7 +167,7 @@ const CreatePostScreen = () => {
         message: content,
       });
     } catch (error) {
-      Alert.alert("Share Failed", error.message);
+      Alert.alert(t("share_failed"), error.message);
     }
   };
 
@@ -234,7 +237,7 @@ const CreatePostScreen = () => {
           {/* Content Header & Counter */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t("content")}</Text>
-            <Text style={styles.counterText}>{characterCount} Characters</Text>
+            <Text style={styles.counterText}>{characterCount} {t("characters")}</Text>
           </View>
 
           {/* Content Editor Card */}

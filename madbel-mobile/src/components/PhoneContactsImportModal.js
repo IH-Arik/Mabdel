@@ -44,7 +44,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
       }
 
       if (finalStatus !== "granted") {
-        setDebugError(`Permission status: "${finalStatus}". Tap "Open Settings" to grant access.`);
+        setDebugError(t("permission_status_tap_open_settings_to_grant_access", { status: finalStatus }));
         setLoadingContacts(false);
         return;
       }
@@ -61,7 +61,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
       const valid = data.filter((c) => c.name && c.name.trim().length > 0);
       setDeviceContacts(valid);
     } catch (e) {
-      setDebugError("Error: " + (e?.message || JSON.stringify(e)));
+      setDebugError(`${t("error")}: ${e?.message || JSON.stringify(e)}`);
     } finally {
       setLoadingContacts(false);
     }
@@ -148,9 +148,9 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
     setImportProgress(null);
     const msg =
       failed > 0
-        ? `Imported ${done} contact${done !== 1 ? "s" : ""}. ${failed} failed (may already exist).`
-        : `Successfully imported ${done} contact${done !== 1 ? "s" : ""}.`;
-    Alert.alert("Import complete", msg);
+        ? t("imported_with_failures", { done, failed })
+        : t("successfully_imported", { done });
+    Alert.alert(t("import_complete"), msg);
     if (done > 0) onImported?.();
     onClose();
   };
@@ -222,8 +222,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
                 )}
               </View>
               <Text style={styles.selectAllText}>
-                {allFilteredSelected ? "Deselect all" : "Select all"} (
-                {filtered.length})
+                {allFilteredSelected ? t("deselect_all") : t("select_all")} ({filtered.length})
               </Text>
             </Pressable>
           )}
@@ -266,8 +265,8 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
                 <View style={styles.centerState}>
                   <Text style={styles.stateText}>
                     {query.trim()
-                      ? "No matches found."
-                      : "No contacts on device."}
+                      ? t("no_matches_found")
+                      : t("no_contacts_on_device")}
                   </Text>
                 </View>
               }
@@ -281,7 +280,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
                 <View style={styles.progressWrap}>
                   <ActivityIndicator color="#12D0ED" />
                   <Text style={styles.progressText}>
-                    Importing {importProgress.done}/{importProgress.total}...
+                    {t("importing")} {importProgress.done}/{importProgress.total}...
                   </Text>
                 </View>
               ) : (
@@ -294,7 +293,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
                   disabled={selected.size === 0}
                 >
                   <Text style={styles.importBtnText}>
-                    Import {selected.size > 0 ? `(${selected.size})` : ""}
+                    {t("import")} {selected.size > 0 ? `(${selected.size})` : ""}
                   </Text>
                 </Pressable>
               )}

@@ -1,4 +1,4 @@
-import { useAppLanguage } from "../../context/LanguageContext";
+
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -35,7 +35,7 @@ import {
   DocumentTile,
   HomeHeader,
 } from "../../components/home/HomeScreen";
-import { useLanguage } from "../../context/LanguageContext";
+import { useAppLanguage } from "../../context/LanguageContext";
 import {
   useMadbelListContactsQuery,
   useMadbelGetCallSummaryQuery,
@@ -120,7 +120,7 @@ const HomeScreenSkeleton = () => (
 const HomeScreen = () => {
   const navigation = useNavigation();
   const authUser = useSelector((state) => state?.auth?.user || {});
-  const { t } = useLanguage();
+  const { t } = useAppLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const { data: threads = [] } = useFetchConversationsQuery();
   const { data: contactsResponse } = useMadbelListContactsQuery({

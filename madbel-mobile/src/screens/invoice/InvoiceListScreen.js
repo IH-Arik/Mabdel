@@ -83,7 +83,7 @@ const InvoiceListScreen = () => {
               {formatCurrency(summary?.total_outstanding, "USD")}
             </Text>
             <Text style={styles.outstandingMeta}>
-              {summary?.total_invoices || 0} invoices created
+              {summary?.total_invoices || 0} {t("invoices_created")}
             </Text>
           </View>
         </View>
@@ -105,9 +105,9 @@ const InvoiceListScreen = () => {
             ListEmptyComponent={
               <View style={styles.centerState}>
                 <Text style={styles.stateText}>
-                  {search?.trim()
-                    ? "No invoices matched that search."
-                    : "No invoices yet."}
+                  {query.trim()
+                    ? t("no_invoices_matched_that_search")
+                    : t("no_invoices_yet")}
                 </Text>
               </View>
             }
@@ -121,9 +121,7 @@ const InvoiceListScreen = () => {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.clientName}>{item.client_name}</Text>
                   <Text style={styles.invoiceId}>{item.invoice_number}</Text>
-                  <Text
-                    style={styles.dueDate}
-                  >{`Due: ${formatInvoiceDate(item.due_date)}`}</Text>
+                  <Text style={styles.dueDate}>{`${t("due")}: ${formatInvoiceDate(item.due_date)}`}</Text>
                 </View>
                 <View style={styles.cardRight}>
                   <View

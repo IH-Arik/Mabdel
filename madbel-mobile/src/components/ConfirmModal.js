@@ -78,39 +78,46 @@
 // export default ConfirmModal;
 
 import React from "react";
+import { useAppLanguage } from "../context/LanguageContext";
 import { Modal, View, Text, Pressable, StyleSheet } from "react-native";
 
 const ConfirmModal = ({
   visible,
   onClose,
   onConfirm,
-  title = "Are you sure?",
-  description = "This action cannot be undone.",
-  cancelButtonText = "Cancel",
-  confirmButtonText = "Confirm",
+  title,
+  description,
+  cancelButtonText,
+  confirmButtonText,
   confirmBg = "#EF4444",
   cancelBg = "#6B7280",
 }) => {
+  const { t } = useAppLanguage();
+  const resolvedTitle = title || t("are_you_sure");
+  const resolvedDescription = description || t("this_action_cannot_be_undone");
+  const resolvedCancelButtonText = cancelButtonText || t("cancel");
+  const resolvedConfirmButtonText = confirmButtonText || t("confirm");
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.description}>{description}</Text>
+          <Text style={styles.title}>{resolvedTitle}</Text>
+          <Text style={styles.description}>{resolvedDescription}</Text>
 
           <View style={styles.row}>
             <Pressable
               style={[styles.button, { backgroundColor: confirmBg }]}
               onPress={onConfirm}
             >
-              <Text style={styles.buttonText}>{confirmButtonText}</Text>
+              <Text style={styles.buttonText}>{resolvedConfirmButtonText}</Text>
             </Pressable>
 
             <Pressable
               style={[styles.button, { backgroundColor: cancelBg }]}
               onPress={onClose}
             >
-              <Text style={styles.buttonText}>{cancelButtonText}</Text>
+              <Text style={styles.buttonText}>{resolvedCancelButtonText}</Text>
             </Pressable>
           </View>
         </View>

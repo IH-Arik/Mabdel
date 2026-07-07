@@ -59,6 +59,7 @@ const getChannelBadgeConfig = (channelValue) => {
 const NotificationScreen = () => {
   const navigation = useNavigation();
   const [activeFilter, setActiveFilter] = React.useState("all");
+  const { t } = useAppLanguage();
 
   const { data: apiResponse, isLoading, refetch } = useMadbelListNotificationsQuery({
     page: 1,
@@ -198,45 +199,23 @@ const NotificationScreen = () => {
       
       {/* Header */}
       <View style={styles.header}>
+        <View style={styles.header2}>
+
         <Pressable
           onPress={() => navigation.canGoBack() && navigation.goBack()}
           style={styles.backBtn}
-        >
-          <ChevronLeft size={26} color="#F8FAFC" />
+          >
+          <ChevronLeft size={responsiveWidth(5)} color="#F8FAFC" />
         </Pressable>
         <Text style={styles.headerTitle}>{t("notifications")}</Text>
+          </View>
         <TouchableOpacity onPress={handleMarkAllAsRead}>
           <Text style={styles.markAllText}>{t("mark_all_as_read")}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Filter Chips */}
-      {/* <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterRow}
-      >
-        {FILTER_OPTIONS.map((option) => (
-          <Pressable
-            key={option.key}
-            style={[
-              styles.filterChip,
-              activeFilter === option.key && styles.filterChipActive,
-            ]}
-            onPress={() => setActiveFilter(option.key)}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                activeFilter === option.key && styles.filterTextActive,
-              ]}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView> */}
+
 
       {/* NEW badge */}
       {newCount > 0 && activeFilter === "all" && (
@@ -292,6 +271,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: responsiveHeight(2.2),
   },
+    header2: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    // marginBottom: responsiveHeight(2.2),
+  },
   backBtn: {
     width: 38,
     height: 38,
@@ -301,7 +286,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: "#F8FAFC",
-    fontSize: 25,
+    fontSize: responsiveWidth(5),
     fontWeight: "700",
     letterSpacing: 0.3,
   },
