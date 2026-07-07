@@ -124,9 +124,8 @@ export default function Notifications() {
         isRealApi: true
       }));
 
-      // Combine mock alerts with real API alerts
-      const combined = [...mappedApiItems, ...MOCK_NOTIFICATIONS];
-      
+      // Use only real API alerts
+      const combined = [...mappedApiItems];      
       // Sort by created_at descending
       combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
