@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -60,14 +61,14 @@ const CALL_ICON_MAP = {
 };
 
 const PLATFORM_BADGE_CONFIG = {
-  instagram:        { label: "IG", backgroundColor: "#EA4C89", color: "#FFFFFF" },
-  facebook:         { label: "f",  backgroundColor: "#1877F2", color: "#FFFFFF" },
-  x_twitter:        { label: "X",  backgroundColor: "#FFFFFF", color: "#000000" },
-  x:                { label: "X",  backgroundColor: "#FFFFFF", color: "#000000" },
-  whatsapp:         { label: "W",  backgroundColor: "#25D366", color: "#FFFFFF" },
-  telegram:         { label: "TG", backgroundColor: "#2AABEE", color: "#FFFFFF" },
-  google_business:  { label: "G",  backgroundColor: "#F4F4F4", color: "#EA4335" },
-  linkedin:         { label: "in", backgroundColor: "#0A66C2", color: "#FFFFFF" },
+  instagram: { label: "IG", backgroundColor: "#EA4C89", color: "#FFFFFF" },
+  facebook: { label: "f", backgroundColor: "#1877F2", color: "#FFFFFF" },
+  x_twitter: { label: "X", backgroundColor: "#FFFFFF", color: "#000000" },
+  x: { label: "X", backgroundColor: "#FFFFFF", color: "#000000" },
+  whatsapp: { label: "W", backgroundColor: "#25D366", color: "#FFFFFF" },
+  telegram: { label: "TG", backgroundColor: "#2AABEE", color: "#FFFFFF" },
+  google_business: { label: "G", backgroundColor: "#F4F4F4", color: "#EA4335" },
+  linkedin: { label: "in", backgroundColor: "#0A66C2", color: "#FFFFFF" },
 };
 
 const Shimmer = ({ width, height, radius, style }) => (
@@ -138,21 +139,35 @@ const HomeScreen = () => {
   const totalCallsCount = callSummaryData?.total_calls ?? 0;
   const minutesSavedCount = callSummaryData?.total_minutes_saved ?? 0;
 
-  const { data: recentCallsResponse } = useMadbelListCallsQuery({ page: 1, limit: 5 });
-  const { data: integrationStatusResponse } = useMadbelGetIntegrationStatusQuery();
-  const recentCallsRaw = recentCallsResponse?.calls ?? recentCallsResponse?.data ?? recentCallsResponse?.items ?? recentCallsResponse;
+  const { data: recentCallsResponse } = useMadbelListCallsQuery({
+    page: 1,
+    limit: 5,
+  });
+  const { data: integrationStatusResponse } =
+    useMadbelGetIntegrationStatusQuery();
+  const recentCallsRaw =
+    recentCallsResponse?.calls ??
+    recentCallsResponse?.data ??
+    recentCallsResponse?.items ??
+    recentCallsResponse;
   const recentCalls = Array.isArray(recentCallsRaw) ? recentCallsRaw : [];
   const recentCallRows = recentCalls.slice(0, 3).map((call, i) => ({
     id: call?._id || call?.id || `call-${i}`,
     icon: PhoneCall,
     iconColor: call?.status === "missed" ? "#ED4444" : "#11D1ED",
     muted: false,
-    name: call?.contact_name || call?.caller_name || call?.phone_number || t("unknown"),
+    name:
+      call?.contact_name ||
+      call?.caller_name ||
+      call?.phone_number ||
+      t("unknown"),
     subtitle: call?.ai_summary?.purpose || call?.summary || call?.status || "",
     rightType: call?.duration ? "text" : "badge",
     rightText: call?.duration
       ? `${Math.round(Number(call.duration) / 60)}m`
-      : call?.status === "completed" ? t("done") : t("ai_ready"),
+      : call?.status === "completed"
+        ? t("done")
+        : t("ai_ready"),
   }));
 
   const analyticsCallRows = recentCallRows;
@@ -280,194 +295,189 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       {isLoading ? <HomeScreenSkeleton /> : null}
-      {!isLoading ? (
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          <HomeHeader
-            greeting={`${t("good_morning")}, ${displayName}`}
-            onNotificationPress={() => navigation.navigate("Notification")}
-          />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <HomeHeader
+          greeting={`${t("good_morning")}, ${displayName}`}
+          onNotificationPress={() => navigation.navigate("Notification")}
+        />
 
-          <Pressable style={styles.searchCard} onPress={openVoiceAssistant}>
-            <Mic size={rw(6)} color="#11D1ED" />
-            <Text style={styles.searchPlaceholder}>
-              {t("tap_to_ask_smartflow")}
-            </Text>
-            <Text style={styles.dots}>...</Text>
-          </Pressable>
+        <Pressable style={styles.searchCard} onPress={openVoiceAssistant}>
+          <Mic size={rw(6)} color="#11D1ED" />
+          <Text style={styles.searchPlaceholder}>
+            {t("tap_to_ask_smartflow")}
+          </Text>
+          <Text style={styles.dots}>{t("")}</Text>
+        </Pressable>
 
-          <Pressable style={styles.bulkQuickAction} onPress={openBulkMessaging}>
-            <View style={styles.bulkQuickLeft}>
-              <Megaphone size={20} color="#13D0EC" />
-              <Text style={styles.bulkQuickText}>{t("bulk_messaging")}</Text>
+        <Pressable style={styles.bulkQuickAction} onPress={openBulkMessaging}>
+          <View style={styles.bulkQuickLeft}>
+            <Megaphone size={20} color="#13D0EC" />
+            <Text style={styles.bulkQuickText}>{t("bulk_messaging")}</Text>
+          </View>
+          <Text style={styles.bulkQuickHint}>{t("open")}</Text>
+        </Pressable>
+
+        <DashboardCard baseStyle={styles.cardBase}>
+          <View style={styles.rowBetween}>
+            <View style={styles.inboxBadge}>
+              <Text style={styles.inboxText}>{t("inbox")}</Text>
             </View>
-            <Text style={styles.bulkQuickHint}>{t("open")}</Text>
-          </Pressable>
-
-          <DashboardCard baseStyle={styles.cardBase}>
-            <View style={styles.rowBetween}>
-              <View style={styles.inboxBadge}>
-                <Text style={styles.inboxText}>{t("inbox")}</Text>
-              </View>
-              <Text style={styles.mutedText}>{totalChats} {t("chats")}</Text>
-            </View>
-
-            <Text style={styles.cardTitle}>{t("unified_conversations")}</Text>
-            <Text style={styles.cardSubTitle}>
-              {t("latest")}: {latestPeerName} - "
-              {latestMessage.length > 50
-                ? latestMessage.slice(0, 47) + "..."
-                : latestMessage}
-              "
+            <Text style={styles.mutedText}>
+              {totalChats} {t("chats")}
             </Text>
+          </View>
 
-            <View style={[styles.rowBetween, styles.mt18]}>
-              <AvatarStack avatars={inboxAvatars} countText={inboxCountText} />
-              <ActionButton
-                title={t("view_all")}
-                onPress={openUnifiedConversations}
-                baseStyle={styles.actionButton}
-                baseTextStyle={styles.actionButtonText}
+          <Text style={styles.cardTitle}>{t("unified_conversations")}</Text>
+          <Text style={styles.cardSubTitle}>
+            {t("latest")}: {latestPeerName} - "
+            {latestMessage.length > 50
+              ? latestMessage.slice(0, 47) + "..."
+              : latestMessage}
+            "
+          </Text>
+
+          <View style={[styles.rowBetween, styles.mt18]}>
+            <AvatarStack avatars={inboxAvatars} countText={inboxCountText} />
+            <ActionButton
+              title={t("view_all")}
+              onPress={openUnifiedConversations}
+              baseStyle={styles.actionButton}
+              baseTextStyle={styles.actionButtonText}
+            />
+          </View>
+        </DashboardCard>
+
+        <View style={styles.gridWrap}>
+          <DashboardCard
+            baseStyle={styles.cardBase}
+            style={styles.leftTallCard}
+            onPress={openContacts}
+          >
+            <View style={styles.iconSquare}>
+              <Users size={24} color="#12D2ED" />
+            </View>
+            <Text style={styles.cardTitle}>{t("contacts")}</Text>
+            <View style={styles.contactsStackWrap}>
+              <AvatarStack
+                avatars={contactAvatars}
+                countText={contactCountText}
+                size={rw(8.5)}
+                overlap={-rw(2.4)}
               />
             </View>
+            <ActionButton
+              title={t("view_all")}
+              onPress={openContacts}
+              style={styles.secondaryBtn}
+              baseStyle={styles.actionButton}
+              baseTextStyle={styles.actionButtonText}
+            />
           </DashboardCard>
 
-          <View style={styles.gridWrap}>
+          <View style={styles.rightCol}>
             <DashboardCard
               baseStyle={styles.cardBase}
-              style={styles.leftTallCard}
-              onPress={openContacts}
+              style={styles.upcomingLargeCard}
+              onPress={openScheduleMeeting}
             >
-              <View style={styles.iconSquare}>
-                <Users size={24} color="#12D2ED" />
+              <View style={styles.rowBetween}>
+                <Text style={styles.labelText}>{t("upcoming")}</Text>
+                <CalendarCheck2 size={23} color="#12D2ED" />
               </View>
-              <Text style={styles.cardTitle}>{t("contacts")}</Text>
-              <View style={styles.contactsStackWrap}>
-                <AvatarStack
-                  avatars={contactAvatars}
-                  countText={contactCountText}
-                  size={rw(8.5)}
-                  overlap={-rw(2.4)}
-                />
-              </View>
+              <Text style={styles.cardTitle}>{t("calendar")}</Text>
+              <View style={styles.upcomingAvatarWrap} />
               <ActionButton
-                title={t("view_all")}
-                onPress={openContacts}
-                style={styles.secondaryBtn}
-                baseStyle={styles.actionButton}
+                title={t("add_your_calendar")}
+                onPress={openScheduleMeeting}
+                baseStyle={[styles.actionButton, styles.upcomingActionButton]}
                 baseTextStyle={styles.actionButtonText}
               />
             </DashboardCard>
 
-            <View style={styles.rightCol}>
-              <DashboardCard
-                baseStyle={styles.cardBase}
-                style={styles.upcomingLargeCard}
-                onPress={openScheduleMeeting}
-              >
-                <View style={styles.rowBetween}>
-                  <Text style={styles.labelText}>{t("upcoming")}</Text>
-                  <CalendarCheck2 size={23} color="#12D2ED" />
-                </View>
-                <Text style={styles.cardTitle}>{t("calendar")}</Text>
-                <View style={styles.upcomingAvatarWrap} />
-                <ActionButton
-                  title={t("add_your_calendar")}
-                  onPress={openScheduleMeeting}
-                  baseStyle={[styles.actionButton, styles.upcomingActionButton]}
-                  baseTextStyle={styles.actionButtonText}
-                />
-              </DashboardCard>
-
-              <DashboardCard
-                baseStyle={styles.cardBase}
-                style={styles.smallCard}
-              >
-                <Text style={styles.labelText}>{t("integrations")}</Text>
-                <View style={styles.integrationRow}>
-                  {connectedBadges.map((item) => (
-                    <View
-                      key={item.id}
-                      style={[
-                        styles.integrationBadge,
-                        { backgroundColor: item.backgroundColor },
-                      ]}
+            <DashboardCard baseStyle={styles.cardBase} style={styles.smallCard}>
+              <Text style={styles.labelText}>{t("integrations")}</Text>
+              <View style={styles.integrationRow}>
+                {connectedBadges.map((item) => (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.integrationBadge,
+                      { backgroundColor: item.backgroundColor },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.integrationLabel, { color: item.color }]}
                     >
-                      <Text
-                        style={[styles.integrationLabel, { color: item.color }]}
-                      >
-                        {item.label}
-                      </Text>
-                    </View>
-                  ))}
-                  <Pressable
-                    style={styles.integrationAdd}
-                    onPress={openSocialIntegrations}
-                  >
-                    <Plus size={16} color="#6A7C95" />
-                  </Pressable>
-                </View>
-              </DashboardCard>
-            </View>
+                      {item.label}
+                    </Text>
+                  </View>
+                ))}
+                <Pressable
+                  style={styles.integrationAdd}
+                  onPress={openSocialIntegrations}
+                >
+                  <Plus size={16} color="#6A7C95" />
+                </Pressable>
+              </View>
+            </DashboardCard>
           </View>
+        </View>
 
-          <DashboardCard baseStyle={styles.cardBase}>
-            <Text style={styles.cardTitle}>{t("documents")}</Text>
-            <View style={styles.docsRow}>
-              {HOME_DOC_ITEMS.map((item) => (
-                <DocumentTile
-                  key={item.id}
-                  item={{
-                    ...item,
-                    icon: DOC_ICON_MAP[item.iconKey] || FileText,
-                  }}
-                  onPress={openDocScreen}
-                  cardStyle={styles.docCard}
-                  iconWrapStyle={styles.docIconWrap}
-                  titleStyle={styles.docTitle}
-                />
-              ))}
-            </View>
-          </DashboardCard>
-
-          <DashboardCard
-            baseStyle={styles.cardBase}
-            style={styles.analyticsCard}
-            onPress={() => navigation.navigate("CallHistory")}
-          >
-            <View style={styles.analyticsHeader}>
-              <PhoneCall size={21} color="#12D2ED" />
-              <Text style={styles.analyticsTitle}>{t("ai_call_analytics")}</Text>
-            </View>
-
-            <View style={styles.statsRow}>
-              {analyticsStats.map((item) => (
-                <View key={item.id} style={styles.statBox}>
-                  <Text style={styles.statLabel}>{item.label}</Text>
-                  <Text
-                    style={[styles.statValue, item.accent && styles.accent]}
-                  >
-                    {item.value}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {analyticsCallRows.map((item) => (
-              <AnalyticsCallRow
+        <DashboardCard baseStyle={styles.cardBase}>
+          <Text style={styles.cardTitle}>{t("documents")}</Text>
+          <View style={styles.docsRow}>
+            {HOME_DOC_ITEMS.map((item) => (
+              <DocumentTile
                 key={item.id}
                 item={{
                   ...item,
-                  icon: item.icon || CALL_ICON_MAP[item.iconKey] || PhoneCall,
+                  icon: DOC_ICON_MAP[item.iconKey] || FileText,
                 }}
-                styles={styles}
+                onPress={openDocScreen}
+                cardStyle={styles.docCard}
+                iconWrapStyle={styles.docIconWrap}
+                titleStyle={styles.docTitle}
               />
             ))}
-          </DashboardCard>
-        </ScrollView>
-      ) : null}
+          </View>
+        </DashboardCard>
+
+        <DashboardCard
+          baseStyle={styles.cardBase}
+          style={styles.analyticsCard}
+          onPress={() => navigation.navigate("CallHistory")}
+        >
+          <View style={styles.analyticsHeader}>
+            <PhoneCall size={21} color="#12D2ED" />
+            <Text style={styles.analyticsTitle}>{t("ai_call_analytics")}</Text>
+          </View>
+
+          <View style={styles.statsRow}>
+            {analyticsStats.map((item) => (
+              <View key={item.id} style={styles.statBox}>
+                <Text style={styles.statLabel}>{item.label}</Text>
+                <Text style={[styles.statValue, item.accent && styles.accent]}>
+                  {item.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {analyticsCallRows.map((item) => (
+            <AnalyticsCallRow
+              key={item.id}
+              item={{
+                ...item,
+                icon: item.icon || CALL_ICON_MAP[item.iconKey] || PhoneCall,
+              }}
+              styles={styles}
+            />
+          ))}
+        </DashboardCard>
+      </ScrollView>{" "}
     </SafeAreaView>
   );
 };
@@ -493,7 +503,7 @@ const styles = StyleSheet.create({
     color: "#F3F8FF",
     fontSize: rw(5),
     fontWeight: "700",
-    width: '60%'
+    width: "60%",
   },
   headerRight: {
     flexDirection: "row",

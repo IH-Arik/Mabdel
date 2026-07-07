@@ -296,7 +296,7 @@ const MicConversationScreen = () => {
               </View>
 
               <View style={styles.thinkingBubble}>
-                <Text style={styles.thinkingDots}>...</Text>
+                <Text style={styles.thinkingDots}>{t("")}</Text>
               </View>
             </View>
           ) : null}

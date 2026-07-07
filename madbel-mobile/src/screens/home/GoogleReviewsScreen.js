@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState, useCallback } from "react";
 import {
   ActivityIndicator,
@@ -30,6 +31,7 @@ const STAR_COLORS = {
 };
 
 const ratingToNumber = (rating) => {
+  const { t } = useAppLanguage();
   const map = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
   return map[rating] || 0;
 };
@@ -108,7 +110,7 @@ const GoogleReviewsScreen = () => {
 
   const handleSyncToInbox = async () => {
     if (!accountId || !locationId) {
-      Alert.alert("Select Location", "Please select an account and location first.");
+      Alert.alert(t("select_location"), t("please_select_an_account_and_location_first"));
       return;
     }
     try {
@@ -121,7 +123,7 @@ const GoogleReviewsScreen = () => {
 
   const handleSubmitReply = async () => {
     if (!replyText.trim()) {
-      Alert.alert("Error", "Reply cannot be empty.");
+      Alert.alert(t("error"), t("reply_cannot_be_empty"));
       return;
     }
     const reviewId = replyModal.review?.reviewId;
@@ -134,14 +136,14 @@ const GoogleReviewsScreen = () => {
       }).unwrap();
       closeReplyModal();
       fetchReviews({ account_id: accountId, location_id: locationId });
-      Alert.alert("Success", "Reply posted successfully.");
+      Alert.alert(t("success"), t("reply_posted_successfully"));
     } catch (err) {
       Alert.alert("Error", err?.data?.message || "Failed to post reply.");
     }
   };
 
   const handleDeleteReply = (review) => {
-    Alert.alert("Delete Reply", "Are you sure you want to delete this reply?", [
+    Alert.alert(t("delete_reply"), t("are_you_sure_you_want_to_delete_this_reply"), [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -154,7 +156,7 @@ const GoogleReviewsScreen = () => {
               review_id: review.reviewId,
             }).unwrap();
             fetchReviews({ account_id: accountId, location_id: locationId });
-            Alert.alert("Success", "Reply deleted.");
+            Alert.alert(t("success"), t("reply_deleted"));
           } catch (err) {
             Alert.alert("Error", err?.data?.message || "Failed to delete reply.");
           }
@@ -177,8 +179,7 @@ const GoogleReviewsScreen = () => {
             </Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
               <StarRating rating={item.starRating} />
-              {date ? <Text style={styles.dateText}>{date}</Text> : null}
-            </View>
+              {date ? <Text style={styles.dateText}>{date}</Text> : null}</View>
           </View>
         </View>
 
@@ -188,7 +189,7 @@ const GoogleReviewsScreen = () => {
 
         {hasReply && (
           <View style={styles.replyBox}>
-            <Text style={styles.replyLabel}>Your Reply</Text>
+            <Text style={styles.replyLabel}>{t("your_reply")}</Text>
             <Text style={styles.replyText}>{item.reviewReply.comment}</Text>
             <View style={styles.replyActions}>
               <Pressable
@@ -196,14 +197,14 @@ const GoogleReviewsScreen = () => {
                 onPress={() => openReplyModal(item)}
               >
                 <MessageSquare size={14} color="#16CDE9" />
-                <Text style={styles.editReplyText}>Edit</Text>
+                <Text style={styles.editReplyText}>{t("edit")}</Text>
               </Pressable>
               <Pressable
                 style={styles.deleteReplyBtn}
                 onPress={() => handleDeleteReply(item)}
               >
                 <Trash2 size={14} color="#FF6B6B" />
-                <Text style={styles.deleteReplyText}>Delete</Text>
+                <Text style={styles.deleteReplyText}>{t("delete")}</Text>
               </Pressable>
             </View>
           </View>
@@ -215,7 +216,7 @@ const GoogleReviewsScreen = () => {
             onPress={() => openReplyModal(item)}
           >
             <MessageSquare size={16} color="#03141E" />
-            <Text style={styles.replyBtnText}>Reply</Text>
+            <Text style={styles.replyBtnText}>{t("reply")}</Text>
           </Pressable>
         )}
       </View>
@@ -229,25 +230,25 @@ const GoogleReviewsScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ChevronLeft size={36} color="#F1F7FF" />
           </Pressable>
-          <Text style={styles.title}>Google Reviews</Text>
+          <Text style={styles.title}>{t("google_reviews")}</Text>
           <View style={styles.backBtn} />
         </View>
 
         {loadingAccounts ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color="#16CDE9" />
-            <Text style={styles.stateText}>Loading accounts...</Text>
+            <Text style={styles.stateText}>{t("loading_accounts")}</Text>
           </View>
         ) : accountsError ? (
           <View style={styles.center}>
-            <Text style={styles.stateText}>Failed to load Google Business accounts.</Text>
+            <Text style={styles.stateText}>{t("failed_to_load_google_business_accounts")}</Text>
             <Text style={styles.hintText}>
               {accountsResp?.error?.data?.message || accountsError?.data?.message || accountsError?.error || JSON.stringify(accountsError)}
             </Text>
           </View>
         ) : accounts.length === 0 ? (
           <View style={styles.center}>
-            <Text style={styles.stateText}>No Google Business accounts found.</Text>
+            <Text style={styles.stateText}>{t("no_google_business_accounts_found")}</Text>
           </View>
         ) : (
           <>
@@ -290,9 +291,7 @@ const GoogleReviewsScreen = () => {
                 {locationDropdownOpen && (
                   <View style={styles.dropdownList}>
                     {locations.length === 0 ? (
-                      <Text style={[styles.dropdownItemText, { padding: 12 }]}>
-                        No locations found
-                      </Text>
+                      <Text style={[styles.dropdownItemText, { padding: 12 }]}>{t("no_locations_found")}</Text>
                     ) : (
                       locations.map((loc) => (
                         <Pressable
@@ -321,7 +320,7 @@ const GoogleReviewsScreen = () => {
                 {isSyncing ? (
                   <ActivityIndicator size="small" color="#03141E" />
                 ) : (
-                  <Text style={styles.syncBtnText}>Sync Reviews to Messages</Text>
+                  <Text style={styles.syncBtnText}>{t("sync_reviews_to_messages")}</Text>
                 )}
               </Pressable>
             )}
@@ -331,11 +330,11 @@ const GoogleReviewsScreen = () => {
               loadingReviews ? (
                 <View style={styles.center}>
                   <ActivityIndicator size="large" color="#16CDE9" />
-                  <Text style={styles.stateText}>Loading reviews...</Text>
+                  <Text style={styles.stateText}>{t("loading_reviews")}</Text>
                 </View>
               ) : reviews.length === 0 ? (
                 <View style={styles.center}>
-                  <Text style={styles.stateText}>No reviews found.</Text>
+                  <Text style={styles.stateText}>{t("no_reviews_found")}</Text>
                 </View>
               ) : (
                 <FlatList
@@ -373,7 +372,7 @@ const GoogleReviewsScreen = () => {
             ) : null}
             <TextInput
               style={styles.replyInput}
-              placeholder="Write your reply..."
+              placeholder={t("write_your_reply")}
               placeholderTextColor="#70829B"
               value={replyText}
               onChangeText={setReplyText}
@@ -383,7 +382,7 @@ const GoogleReviewsScreen = () => {
             />
             <View style={styles.modalBtnRow}>
               <Pressable style={styles.modalBtnCancel} onPress={closeReplyModal}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t("cancel")}</Text>
               </Pressable>
               <Pressable
                 style={styles.modalBtnSubmit}
@@ -393,7 +392,7 @@ const GoogleReviewsScreen = () => {
                 {isReplying ? (
                   <ActivityIndicator size="small" color="#03141E" />
                 ) : (
-                  <Text style={styles.modalSubmitText}>Post Reply</Text>
+                  <Text style={styles.modalSubmitText}>{t("post_reply")}</Text>
                 )}
               </Pressable>
             </View>

@@ -1,4 +1,5 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useAppLanguage } from "../../context/LanguageContext";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -38,6 +39,7 @@ import {
 } from "./invoiceUtils";
 
 const normalizePrefillItems = (items = []) => {
+  const { t } = useAppLanguage();
   if (Array.isArray(items) && items.length) {
     return items.map((item) => ({
       description: item?.description || "",
@@ -121,15 +123,15 @@ const CreateInvoiceScreen = () => {
       Number(String(newItem.unit_price || "0").replace(/[^0-9.-]/g, "")) || 0;
 
     if (!description) {
-      Alert.alert("Missing item", "Please enter an item description.");
+      Alert.alert(t("missing_item"), t("please_enter_an_item_description"));
       return;
     }
     if (!quantity || quantity <= 0) {
-      Alert.alert("Invalid quantity", "Quantity must be greater than 0.");
+      Alert.alert(t("invalid_quantity"), t("quantity_must_be_greater_than_0"));
       return;
     }
     if (unitPrice < 0) {
-      Alert.alert("Invalid price", "Price cannot be negative.");
+      Alert.alert(t("invalid_price"), t("price_cannot_be_negative"));
       return;
     }
 
@@ -204,7 +206,7 @@ const CreateInvoiceScreen = () => {
   const onCreate = async (values) => {
     try {
       if (!invoiceItems.length) {
-        Alert.alert("No items", "Please add at least one item.");
+        Alert.alert(t("no_items"), t("please_add_at_least_one_item"));
         return;
       }
 
@@ -254,8 +256,8 @@ const CreateInvoiceScreen = () => {
           <ControllerTextInput
             name="clientName"
             control={control}
-            label="Client Name"
-            placeholder="Enter name"
+            label={t("client_name")}
+            placeholder={t("enter_name")}
             placeholderTextColor="#6D7B93"
             labelStyle={styles.label}
             inputStyle={styles.input}
@@ -263,7 +265,7 @@ const CreateInvoiceScreen = () => {
 
           <View>
             <View style={styles.rowTitle}>
-              <Text style={styles.label}>Items</Text>
+              <Text style={styles.label}>{t("items")}</Text>
               <Pressable
                 style={styles.addItemRow}
                 onPress={() => {
@@ -272,7 +274,7 @@ const CreateInvoiceScreen = () => {
                 }}
               >
                 <PlusCircle size={22} color="#14C9E7" />
-                <Text style={styles.addItemText}>Add Item</Text>
+                <Text style={styles.addItemText}>{t("add_item")}</Text>
               </Pressable>
             </View>
 
@@ -303,12 +305,12 @@ const CreateInvoiceScreen = () => {
 
                 <View style={styles.qtyPriceRow}>
                   <View style={{ width: "32%" }}>
-                    <Text style={styles.smallLabel}>QTY</Text>
+                    <Text style={styles.smallLabel}>{t("qty")}</Text>
                     <Text style={styles.itemMetricText}>{item.quantity}</Text>
                   </View>
 
                   <View style={{ width: "63%" }}>
-                    <Text style={styles.smallLabel}>PRICE</Text>
+                    <Text style={styles.smallLabel}>{t("price")}</Text>
                     <Text style={styles.itemMetricText}>
                       {formatCurrency(item.unit_price)}
                     </Text>
@@ -319,7 +321,7 @@ const CreateInvoiceScreen = () => {
           </View>
 
           <View>
-            <Text style={styles.label}>Date</Text>
+            <Text style={styles.label}>{t("date")}</Text>
             <Pressable
               style={[styles.input, styles.dateInput]}
               onPress={() => setCalendarVisible(true)}
@@ -337,7 +339,7 @@ const CreateInvoiceScreen = () => {
           </View>
 
           <View style={styles.totalWrap}>
-            <Text style={styles.totalLabel}>TOTAL AMOUNT</Text>
+            <Text style={styles.totalLabel}>{t("total_amount")}</Text>
             <View style={styles.totalRow}>
               <Text style={styles.totalAmount}>{formatCurrency(totalAmount)}</Text>
               <Text style={styles.autoCalculated}>
@@ -349,14 +351,14 @@ const CreateInvoiceScreen = () => {
           <ControllerTextInput
             name="email"
             control={control}
-            label="Client Email"
-            placeholder="client@example.com"
+            label={t("client_email")}
+            placeholder={t("client_example_com")}
             inputStyle={styles.input}
             placeholderTextColor="#6D7B93"
           />
 
           <VoiceFormFillCard
-            label="invoice"
+            label={t("invoice")}
             workflowIntent="invoice"
             sourceScreen="CreateInvoice"
             currentValues={{
@@ -394,7 +396,7 @@ const CreateInvoiceScreen = () => {
               </Text>
 
               <View style={styles.modalField}>
-                <Text style={styles.smallLabel}>DESCRIPTION</Text>
+                <Text style={styles.smallLabel}>{t("description")}</Text>
                 <ControllerTextInput
                   name="add_item_description"
                   control={control}
@@ -403,13 +405,13 @@ const CreateInvoiceScreen = () => {
                     setNewItem((prev) => ({ ...prev, description: text }))
                   }
                   inputStyle={styles.input}
-                  placeholder="Item description"
+                  placeholder={t("item_description")}
                   placeholderTextColor="#6D7B93"
                 />
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.smallLabel}>DETAILS (OPTIONAL)</Text>
+                <Text style={styles.smallLabel}>{t("details_optional")}</Text>
                 <ControllerTextInput
                   name="add_item_details"
                   control={control}
@@ -418,14 +420,14 @@ const CreateInvoiceScreen = () => {
                     setNewItem((prev) => ({ ...prev, details: text }))
                   }
                   inputStyle={styles.input}
-                  placeholder="Extra details"
+                  placeholder={t("extra_details")}
                   placeholderTextColor="#6D7B93"
                 />
               </View>
 
               <View style={styles.qtyPriceRow}>
                 <View style={{ width: "32%" }}>
-                  <Text style={styles.smallLabel}>QTY</Text>
+                  <Text style={styles.smallLabel}>{t("qty")}</Text>
                   <ControllerTextInput
                     name="add_item_qty"
                     control={control}
@@ -438,7 +440,7 @@ const CreateInvoiceScreen = () => {
                   />
                 </View>
                 <View style={{ width: "63%" }}>
-                  <Text style={styles.smallLabel}>PRICE</Text>
+                  <Text style={styles.smallLabel}>{t("price")}</Text>
                   <ControllerTextInput
                     name="add_item_price"
                     control={control}
@@ -454,7 +456,7 @@ const CreateInvoiceScreen = () => {
 
               <View style={styles.modalActions}>
                 <Pressable style={styles.modalCancelBtn} onPress={closeItemModal}>
-                  <Text style={styles.modalCancelText}>Cancel</Text>
+                  <Text style={styles.modalCancelText}>{t("cancel")}</Text>
                 </Pressable>
                 <Pressable style={styles.modalSaveBtn} onPress={handleAddItem}>
                   <Text style={styles.modalSaveText}>

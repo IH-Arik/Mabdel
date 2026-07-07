@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
   Pressable,
@@ -38,6 +39,7 @@ import {
 const palette = ["#18C6E3", "#6C70F0", "#31B47B", "#FF8A2A", "#D16BE8"];
 
 const getInitials = (value) => {
+  const { t } = useAppLanguage();
   if (!value) return "?";
   const local = String(value).split("@")[0] || "";
   const parts = local.split(/[._-]+/).filter(Boolean);
@@ -138,11 +140,11 @@ const BulkMessagingScreen = () => {
 
   const upsertBulk = async () => {
     if (!message.trim()) {
-      Alert.alert("Missing message", "Please enter your bulk message.");
+      Alert.alert(t("missing_message"), t("please_enter_your_bulk_message"));
       return null;
     }
     if (!subject.trim()) {
-      Alert.alert("Missing subject", "Email bulk messages require a subject.");
+      Alert.alert(t("missing_subject"), t("email_bulk_messages_require_a_subject"));
       return null;
     }
 
@@ -154,7 +156,7 @@ const BulkMessagingScreen = () => {
       .map((item) => item?.email)
       .filter(Boolean);
     if (!validRecipients.length) {
-      Alert.alert("No recipients", "Please add at least one valid recipient.");
+      Alert.alert(t("no_recipients"), t("please_add_at_least_one_valid_recipient"));
       return null;
     }
 
@@ -162,7 +164,7 @@ const BulkMessagingScreen = () => {
       ? toLocalDateTimeIso(scheduleDate, scheduleTime)
       : null;
     if (scheduleEnabled && !scheduledAt) {
-      Alert.alert("Invalid schedule", "Use time format like 10:00 AM.");
+      Alert.alert(t("invalid_schedule"), t("use_time_format_like_10_00_am"));
       return null;
     }
 
@@ -204,12 +206,12 @@ const BulkMessagingScreen = () => {
 
   const handleCancelScheduled = async () => {
     if (!bulkMessageId) {
-      Alert.alert("Unavailable", "Save the draft before canceling.");
+      Alert.alert(t("unavailable"), t("save_the_draft_before_canceling"));
       return;
     }
     try {
       await cancelBulkMessage({ bulk_message_id: bulkMessageId }).unwrap();
-      Alert.alert("Cancelled", "Scheduled bulk message has been cancelled.");
+      Alert.alert(t("cancelled"), t("scheduled_bulk_message_has_been_cancelled"));
     } catch (error) {
       Alert.alert("Cancel failed", error?.data?.message || "Could not cancel.");
     }
@@ -219,7 +221,7 @@ const BulkMessagingScreen = () => {
     const label = attachmentLabel.trim();
     const url = attachmentUrl.trim();
     if (!label || !url) {
-      Alert.alert("Attachment required", "Please provide attachment label and URL.");
+      Alert.alert(t("attachment_required"), t("please_provide_attachment_label_and_url"));
       return;
     }
     setAttachments((prev) => [...prev, { label, url }]);
@@ -234,7 +236,7 @@ const BulkMessagingScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ArrowLeft size={responsiveWidth(7.2)} color="#F4F8FF" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>Bulk Messaging</Text>
+          <Text style={styles.title}>{t("bulk_messaging")}</Text>
           <Pressable
             style={styles.userPlusWrap}
             onPress={() => navigation.navigate("BulkEmailRecipients", { recipients })}
@@ -252,7 +254,7 @@ const BulkMessagingScreen = () => {
           <View style={styles.recipientHeaderRow}>
             <Text style={styles.sectionLabel}>RECIPIENTS ({recipients.length})</Text>
             <Pressable onPress={() => navigation.navigate("BulkEmailRecipients", { recipients })}>
-              <Text style={styles.editAllText}>Edit All</Text>
+              <Text style={styles.editAllText}>{t("edit_all")}</Text>
             </Pressable>
           </View>
 
@@ -282,24 +284,24 @@ const BulkMessagingScreen = () => {
             </View>
           </ScrollView>
 
-          <Text style={styles.sectionLabel}>SUBJECT</Text>
+          <Text style={styles.sectionLabel}>{t("subject")}</Text>
           <TextInput
             value={subject}
             onChangeText={setSubject}
-            placeholder="Write email subject"
+            placeholder={t("write_email_subject")}
             placeholderTextColor="#4D5770"
             style={styles.subjectInput}
           />
 
           <View style={styles.messageHeaderRow}>
-            <Text style={styles.sectionLabel}>MESSAGE</Text>
+            <Text style={styles.sectionLabel}>{t("message")}</Text>
             <Text style={styles.counterText}>{message.length} / 5000</Text>
           </View>
 
           <View style={styles.messageCard}>
             <View style={styles.toolbarRow}>
-              <Text style={styles.toolbarGlyph}>B</Text>
-              <Text style={styles.toolbarGlyph}>I</Text>
+              <Text style={styles.toolbarGlyph}>{t("b")}</Text>
+              <Text style={styles.toolbarGlyph}>{t("i")}</Text>
               <Paperclip size={responsiveWidth(6)} color="#A8B4CC" strokeWidth={2.2} />
               <ClipboardList size={responsiveWidth(6)} color="#A8B4CC" strokeWidth={2.2} />
             </View>
@@ -307,7 +309,7 @@ const BulkMessagingScreen = () => {
             <TextInput
               value={message}
               onChangeText={(value) => setMessage(value.slice(0, 5000))}
-              placeholder="Type your message or use AI voice-to-text..."
+              placeholder={t("type_your_message_or_use_ai_voice_to_text")}
               placeholderTextColor="#4D5770"
               multiline
               style={styles.messageInput}
@@ -320,24 +322,24 @@ const BulkMessagingScreen = () => {
           </View>
 
           <View style={styles.attachCard}>
-            <Text style={styles.sectionLabel}>ATTACHMENT URLS (IMAGE API)</Text>
+            <Text style={styles.sectionLabel}>{t("attachment_urls_image_api")}</Text>
             <TextInput
               value={attachmentLabel}
               onChangeText={setAttachmentLabel}
-              placeholder="Attachment label"
+              placeholder={t("attachment_label")}
               placeholderTextColor="#66748D"
               style={styles.attachInput}
             />
             <TextInput
               value={attachmentUrl}
               onChangeText={setAttachmentUrl}
-              placeholder="https://...image.jpg"
+              placeholder={t("https_image_jpg")}
               placeholderTextColor="#66748D"
               style={styles.attachInput}
               autoCapitalize="none"
             />
             <Pressable onPress={addAttachment} style={styles.attachBtn}>
-              <Text style={styles.attachBtnText}>Add Attachment</Text>
+              <Text style={styles.attachBtnText}>{t("add_attachment")}</Text>
             </Pressable>
             {attachments.map((item, idx) => (
               <View key={`${item.url}-${idx}`} style={styles.attachRow}>
@@ -354,8 +356,8 @@ const BulkMessagingScreen = () => {
           <View style={styles.scheduleCard}>
             <View style={styles.scheduleTopRow}>
               <View style={styles.scheduleTextCol}>
-                <Text style={styles.scheduleTitle}>Schedule Send</Text>
-                <Text style={styles.scheduleSubtitle}>Pick a later date and time</Text>
+                <Text style={styles.scheduleTitle}>{t("schedule_send")}</Text>
+                <Text style={styles.scheduleSubtitle}>{t("pick_a_later_date_and_time")}</Text>
               </View>
               <Switch
                 value={scheduleEnabled}
@@ -367,19 +369,19 @@ const BulkMessagingScreen = () => {
 
             <View style={styles.dateTimeRow}>
               <Pressable style={styles.dateTimeCol} onPress={() => setCalendarVisible(true)}>
-                <Text style={styles.dateTimeLabel}>DATE</Text>
+                <Text style={styles.dateTimeLabel}>{t("date")}</Text>
                 <Text style={styles.dateTimeValue}>{dateLabel}</Text>
               </Pressable>
 
               <View style={styles.divider} />
 
               <View style={styles.dateTimeCol}>
-                <Text style={styles.dateTimeLabel}>TIME</Text>
+                <Text style={styles.dateTimeLabel}>{t("time")}</Text>
                 <TextInput
                   value={scheduleTime}
                   onChangeText={setScheduleTime}
                   style={styles.dateTimeInput}
-                  placeholder="10:00 AM"
+                  placeholder={t("10_00_am")}
                   placeholderTextColor="#90A0B8"
                 />
               </View>
@@ -397,7 +399,7 @@ const BulkMessagingScreen = () => {
               {cancellingBulk ? (
                 <ActivityIndicator color="#DFF8FF" />
               ) : (
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t("cancel")}</Text>
               )}
             </Pressable>
             <Pressable style={[styles.sendBtn, isBusy && styles.disabledBtn]} onPress={handleSend} disabled={isBusy}>

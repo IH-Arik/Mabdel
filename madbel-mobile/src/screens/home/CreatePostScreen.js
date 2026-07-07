@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
   Pressable,
@@ -42,6 +43,7 @@ const PLATFORMS = [
 ];
 
 const CreatePostScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const [prompt, setPrompt] = useState("");
   const [content, setContent] = useState("");
@@ -63,7 +65,7 @@ const CreatePostScreen = () => {
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      Alert.alert("Empty Prompt", "Please enter a prompt describing your post idea.");
+      Alert.alert(t("empty_prompt"), t("please_enter_a_prompt_describing_your_post_idea"));
       return;
     }
     try {
@@ -81,7 +83,7 @@ const CreatePostScreen = () => {
       if (generated) {
         setContent(generated);
       } else {
-        Alert.alert("AI Error", "Could not generate content. Please try again.");
+        Alert.alert(t("ai_error"), t("could_not_generate_content_please_try_again"));
       }
     } catch (error) {
       Alert.alert("AI Error", error?.data?.message || "Something went wrong during generation.");
@@ -90,11 +92,11 @@ const CreatePostScreen = () => {
 
   const handlePublishNow = async () => {
     if (!content.trim()) {
-      Alert.alert("Empty Content", "Please generate or write some content first.");
+      Alert.alert(t("empty_content"), t("please_generate_or_write_some_content_first"));
       return;
     }
     if (selectedPlatforms.length === 0) {
-      Alert.alert("No Platform Selected", "Please select at least one platform to publish.");
+      Alert.alert(t("no_platform_selected"), t("please_select_at_least_one_platform_to_publish"));
       return;
     }
 
@@ -128,11 +130,11 @@ const CreatePostScreen = () => {
 
   const handleSchedulePost = async (dateStr) => {
     if (!content.trim()) {
-      Alert.alert("Empty Content", "Please generate or write some content first.");
+      Alert.alert(t("empty_content"), t("please_generate_or_write_some_content_first"));
       return;
     }
     if (selectedPlatforms.length === 0) {
-      Alert.alert("No Platform Selected", "Please select at least one platform.");
+      Alert.alert(t("no_platform_selected"), t("please_select_at_least_one_platform"));
       return;
     }
 
@@ -154,7 +156,7 @@ const CreatePostScreen = () => {
 
   const handleShare = async () => {
     if (!content.trim()) {
-      Alert.alert("Empty Content", "Please generate or write some content first.");
+      Alert.alert(t("empty_content"), t("please_generate_or_write_some_content_first"));
       return;
     }
     try {
@@ -174,7 +176,7 @@ const CreatePostScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ArrowLeft size={28} color="#FFFFFF" strokeWidth={2.2} />
           </Pressable>
-          <Text style={styles.title}>Create post With AI</Text>
+          <Text style={styles.title}>{t("create_post_with_ai")}</Text>
           <View style={styles.headerSpace} />
         </View>
 
@@ -190,13 +192,13 @@ const CreatePostScreen = () => {
               >
                 <Sparkles size={16} color="#FFFFFF" />
               </LinearGradient>
-              <Text style={styles.cardTitle}>Generate Post with AI</Text>
+              <Text style={styles.cardTitle}>{t("generate_post_with_ai")}</Text>
             </View>
             <View style={styles.promptWrap}>
               <TextInput
                 value={prompt}
                 onChangeText={setPrompt}
-                placeholder="Describe your post idea..."
+                placeholder={t("describe_your_post_idea")}
                 placeholderTextColor="#7E8DA5"
                 style={styles.promptInput}
                 multiline
@@ -222,7 +224,7 @@ const CreatePostScreen = () => {
                 ) : (
                   <>
                     <Sparkles size={16} color={prompt.trim() ? "#FFFFFF" : "#7E8DA5"} />
-                    <Text style={[styles.generateBtnText, !prompt.trim() && { color: "#7E8DA5" }]}>Generate Post</Text>
+                    <Text style={[styles.generateBtnText, !prompt.trim() && { color: "#7E8DA5" }]}>{t("generate_post")}</Text>
                   </>
                 )}
               </LinearGradient>
@@ -231,7 +233,7 @@ const CreatePostScreen = () => {
 
           {/* Content Header & Counter */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Content</Text>
+            <Text style={styles.sectionTitle}>{t("content")}</Text>
             <Text style={styles.counterText}>{characterCount} Characters</Text>
           </View>
 
@@ -247,17 +249,17 @@ const CreatePostScreen = () => {
             <View style={styles.contentActions}>
               <Pressable style={styles.pillBtn}>
                 <ImageIcon size={16} color="#96A8C2" />
-                <Text style={styles.pillText}>Media</Text>
+                <Text style={styles.pillText}>{t("media")}</Text>
               </Pressable>
               <Pressable style={styles.pillBtn}>
                 <Smile size={16} color="#96A8C2" />
-                <Text style={styles.pillText}>Emojis</Text>
+                <Text style={styles.pillText}>{t("emojis")}</Text>
               </Pressable>
             </View>
           </View>
 
           {/* Post to Platforms Grid */}
-          <Text style={styles.sectionTitle}>Post to Platforms</Text>
+          <Text style={styles.sectionTitle}>{t("post_to_platforms")}</Text>
           <View style={styles.platformRow}>
             {PLATFORMS.map((platform) => {
               const selected = selectedPlatforms.includes(platform.id);
@@ -294,7 +296,7 @@ const CreatePostScreen = () => {
           <View style={styles.footerRow}>
             <Pressable style={styles.scheduleBtn} onPress={() => setCalendarVisible(true)}>
               <Clock3 size={18} color="#B8C8DA" />
-              <Text style={styles.scheduleText}>Schedule</Text>
+              <Text style={styles.scheduleText}>{t("schedule")}</Text>
             </Pressable>
             <Pressable
               style={[styles.publishBtn, (isPublishing) && { opacity: 0.6 }]}
@@ -306,14 +308,14 @@ const CreatePostScreen = () => {
               ) : (
                 <>
                   <Send size={18} color="#B8C8DA" />
-                  <Text style={styles.publishText}>Publish Now</Text>
+                  <Text style={styles.publishText}>{t("publish_now")}</Text>
                 </>
               )}
             </Pressable>
           </View>
           <Pressable style={styles.shareBtn} onPress={handleShare}>
             <Share2 size={20} color="#001C24" />
-            <Text style={styles.shareText}>Share to Social Media</Text>
+            <Text style={styles.shareText}>{t("share_to_social_media")}</Text>
           </Pressable>
         </View>
       </View>

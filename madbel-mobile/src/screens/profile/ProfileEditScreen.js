@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -42,6 +43,7 @@ import {
 const avatarSize = responsiveWidth(40);
 
 const ProfileEditScreen = () => {
+  const { t } = useAppLanguage();
   const {
     control,
     formState: { errors },
@@ -156,7 +158,7 @@ const ProfileEditScreen = () => {
               <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
                 <ChevronLeft size={35} color="#F8FAFC" strokeWidth={2.3} />
               </Pressable>
-              <Text style={styles.title}>Edit Profile</Text>
+              <Text style={styles.title}>{t("edit_profile")}</Text>
               <View style={styles.spacer} />
             </View>
 
@@ -211,8 +213,8 @@ const ProfileEditScreen = () => {
                 control={control}
                 error={errors?.profileFullName?.message}
                 rules={{ required: "Name is required" }}
-                label="Name"
-                placeholder="Name"
+                label={t("name")}
+                placeholder={t("name")}
                 placeholderTextColor="#8493A8"
                 inputStyle={styles.input}
                 labelStyle={styles.label}
@@ -224,8 +226,8 @@ const ProfileEditScreen = () => {
                 control={control}
                 error={errors?.email?.message}
                 rules={{ required: "Email is required" }}
-                label="Email"
-                placeholder="Email"
+                label={t("email")}
+                placeholder={t("email")}
                 type="email-address"
                 autoCapitalize="none"
                 placeholderTextColor="#8493A8"
@@ -236,7 +238,7 @@ const ProfileEditScreen = () => {
               />
 
               <View>
-                <Text style={styles.label}>Date of Birth</Text>
+                <Text style={styles.label}>{t("date_of_birth")}</Text>
                 <Pressable style={styles.inputIconWrap} onPress={() => setModalVisible(true)}>
                   <View style={styles.inputStaticTextWrap}>
                     <Text style={styles.inputStaticText}>{formatSelectedDate(selectedDate)}</Text>
@@ -248,15 +250,15 @@ const ProfileEditScreen = () => {
               <ControllerTextInput
                 name="country"
                 control={control}
-                label="Country"
-                placeholder="Country"
+                label={t("country")}
+                placeholder={t("country")}
                 placeholderTextColor="#8493A8"
                 inputStyle={[styles.input, styles.inputWithIcon]}
                 labelStyle={styles.label}
                 rightIcon={<ChevronDown size={28} color="#D5E5EF" />}
               />
               <VoiceFormFillCard
-                label="profile"
+                label={t("profile")}
                 workflowIntent="profile"
                 sourceScreen="ProfileEdit"
               />
@@ -277,7 +279,7 @@ const ProfileEditScreen = () => {
               {editProfileLoading ? (
                 <ActivityIndicator color="#E8F4FA" size={22} />
               ) : (
-                <Text style={styles.saveText}>Save</Text>
+                <Text style={styles.saveText}>{t("save")}</Text>
               )}
             </Pressable>
 
@@ -291,7 +293,7 @@ const ProfileEditScreen = () => {
                 setShowSuccessModal(false);
                 navigation.goBack();
               }}
-              title="Profile Updated"
+              title={t("profile_updated")}
               message="Your profile has been updated successfully."
               autoClose
               autoCloseTime={1500}

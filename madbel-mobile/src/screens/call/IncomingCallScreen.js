@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +20,7 @@ import {
 import { useMadbelCallActionMutation } from "../../redux/slices/madbelApiSlice";
 
 const IncomingCallScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const authUser = useSelector((state) => state?.auth?.user);
@@ -84,7 +86,7 @@ const IncomingCallScreen = () => {
         <View style={styles.topRow}>
           <View style={styles.liveCallPill}>
             <View style={styles.liveCallDot} />
-            <Text style={styles.liveCallText}>Live Call</Text>
+            <Text style={styles.liveCallText}>{t("live_call")}</Text>
           </View>
           <Text style={styles.timerText}>{timer}</Text>
           <View style={{ width: 85 }} /> {/* Spacer to center the timer */}
@@ -100,40 +102,39 @@ const IncomingCallScreen = () => {
             </View>
           </View>
           <View style={styles.aiReadyBadge}>
-            <Text style={styles.aiReadyText}>AI READY CALL</Text>
+            <Text style={styles.aiReadyText}>{t("ai_ready_call")}</Text>
           </View>
         </View>
 
         {/* Contact Info */}
         <View style={styles.contactInfo}>
           <Text style={styles.contactName}>{callerName || "Incoming Call"}</Text>
-          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}
-        </View>
+          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}</View>
  
         {/* AI Assistant Available Card */}
         <View style={styles.aiAssistantCard}>
           <View style={styles.cardHeader}>
             <Brain size={20} color="#00D2FF" style={{ marginRight: 8 }} />
-            <Text style={styles.cardTitle}>AI Assistant Available</Text>
+            <Text style={styles.cardTitle}>{t("ai_assistant_available")}</Text>
           </View>
  
           {/* Grid of features */}
           <View style={styles.featuresGrid}>
             <View style={styles.featureItem}>
               <MessageSquare size={18} color="#00D2FF" style={styles.featureIcon} />
-              <Text style={styles.featureText}>Answer questions</Text>
+              <Text style={styles.featureText}>{t("answer_questions")}</Text>
             </View>
             <View style={styles.featureItem}>
               <Calendar size={18} color="#00D2FF" style={styles.featureIcon} />
-              <Text style={styles.featureText}>Schedule meetings</Text>
+              <Text style={styles.featureText}>{t("schedule_meetings")}</Text>
             </View>
             <View style={styles.featureItem}>
               <PenLine size={18} color="#00D2FF" style={styles.featureIcon} />
-              <Text style={styles.featureText}>Take notes</Text>
+              <Text style={styles.featureText}>{t("take_notes")}</Text>
             </View>
             <View style={styles.featureItem}>
               <FileText size={18} color="#00D2FF" style={styles.featureIcon} />
-              <Text style={styles.featureText}>Generate summaries</Text>
+              <Text style={styles.featureText}>{t("generate_summaries")}</Text>
             </View>
           </View>
         </View>
@@ -148,7 +149,7 @@ const IncomingCallScreen = () => {
             >
               <Phone size={24} color="#FFFFFF" style={{ transform: [{ rotate: "135deg" }] }} />
             </Pressable>
-            <Text style={styles.actionLabel}>DECLINE</Text>
+            <Text style={styles.actionLabel}>{t("decline")}</Text>
           </View>
  
           {/* Transfer to AI Button */}
@@ -159,8 +160,8 @@ const IncomingCallScreen = () => {
             >
               <Brain size={28} color="#00D2FF" />
             </Pressable>
-            <Text style={styles.transferLabel}>Transfer to AI</Text>
-            <Text style={styles.transferSubLabel}>AI handles the call</Text>
+            <Text style={styles.transferLabel}>{t("transfer_to_ai")}</Text>
+            <Text style={styles.transferSubLabel}>{t("ai_handles_the_call")}</Text>
           </View>
  
           {/* Accept Button */}
@@ -171,7 +172,7 @@ const IncomingCallScreen = () => {
             >
               <Phone size={24} color="#FFFFFF" />
             </Pressable>
-            <Text style={styles.actionLabel}>ACCEPT</Text>
+            <Text style={styles.actionLabel}>{t("accept")}</Text>
           </View>
         </View>
       </View>

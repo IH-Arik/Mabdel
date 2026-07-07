@@ -1,10 +1,12 @@
 import { View, Text, StyleSheet, Image } from "react-native";
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 
 const BeginScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -29,8 +31,8 @@ const BeginScreen = () => {
           resizeMode="contain"
         />
         <View style={styles.brandWrap}>
-          <Text style={styles.brandTitle}>SmartFlow</Text>
-          <Text style={styles.brandSubTitle}>AUTOMATING FUTURE</Text>
+          <Text style={styles.brandTitle}>{t("smartflow")}</Text>
+          <Text style={styles.brandSubTitle}>{t("automating_future")}</Text>
         </View>
       </LinearGradient>
     </SafeAreaView>

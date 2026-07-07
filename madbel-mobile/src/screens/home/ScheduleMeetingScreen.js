@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
   Pressable,
@@ -21,6 +22,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const INITIAL_DATE = new Date().toISOString().slice(0, 10);
 
 const ScheduleMeetingScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const [selectedDate, setSelectedDate] = useState(INITIAL_DATE);
   const { data: calendarResponse, isLoading, isFetching } =
@@ -101,7 +103,7 @@ const ScheduleMeetingScreen = () => {
         {showJoinCall ? (
           <View style={styles.joinBtn}>
             <Video size={15} color="#11CDE9" />
-            <Text style={styles.joinText}>Join Call</Text>
+            <Text style={styles.joinText}>{t("join_call")}</Text>
           </View>
         ) : (
           <View style={styles.attendeeRow}>
@@ -120,7 +122,7 @@ const ScheduleMeetingScreen = () => {
               ))
             ) : (
               <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>NA</Text>
+                <Text style={styles.avatarText}>{t("na")}</Text>
               </View>
             )}
           </View>
@@ -136,7 +138,7 @@ const ScheduleMeetingScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
             <ChevronLeft size={30} color="#11CDE8" />
           </Pressable>
-          <Text style={styles.title}>Create Meeting Schedule</Text>
+          <Text style={styles.title}>{t("create_meeting_schedule")}</Text>
         </View>
         <Calendar
           current={selectedDate}
@@ -193,13 +195,11 @@ const ScheduleMeetingScreen = () => {
           )}
           {selectedEvents.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>
-                No meetings scheduled for this date
-              </Text>
+              <Text style={styles.emptyText}>{t("no_meetings_scheduled_for_this_date")}</Text>
             </View>
           ) : null}
           {isFetching && !isLoading ? (
-            <Text style={styles.refreshText}>Refreshing schedule...</Text>
+            <Text style={styles.refreshText}>{t("refreshing_schedule")}</Text>
           ) : null}
         </View>
       </View>

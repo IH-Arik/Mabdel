@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import {
   View,
@@ -48,6 +49,7 @@ const FAQ_ITEMS = [
 ];
 
 const FaqItem = ({ item }) => {
+  const { t } = useAppLanguage();
   const [open, setOpen] = useState(false);
   return (
     <Pressable style={styles.faqCard} onPress={() => setOpen((prev) => !prev)}>
@@ -66,7 +68,7 @@ const ProfileSupportScreen = () => {
 
   const handleSendEmail = () => {
     if (!message.trim()) {
-      Alert.alert("Empty message", "Please describe your issue before sending.");
+      Alert.alert(t("empty_message"), t("please_describe_your_issue_before_sending"));
       return;
     }
     Linking.openURL(
@@ -81,12 +83,12 @@ const ProfileSupportScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={35} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>Help & Support</Text>
+          <Text style={styles.title}>{t("help_support")}</Text>
           <View style={styles.spacer} />
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-          <Text style={styles.sectionTitle}>Contact Us</Text>
+          <Text style={styles.sectionTitle}>{t("contact_us")}</Text>
 
           <View style={styles.contactRow}>
             <Pressable
@@ -94,28 +96,28 @@ const ProfileSupportScreen = () => {
               onPress={() => Linking.openURL("mailto:support@mabdel.com")}
             >
               <Mail size={22} color="#17b4c9" />
-              <Text style={styles.contactLabel}>Email</Text>
+              <Text style={styles.contactLabel}>{t("email")}</Text>
             </Pressable>
             <Pressable
               style={styles.contactCard}
               onPress={() => Linking.openURL("tel:+18001234567")}
             >
               <Phone size={22} color="#17b4c9" />
-              <Text style={styles.contactLabel}>Call Us</Text>
+              <Text style={styles.contactLabel}>{t("call_us")}</Text>
             </Pressable>
             <Pressable
               style={styles.contactCard}
               onPress={() => navigation.navigate("AllChat")}
             >
               <MessageCircle size={22} color="#17b4c9" />
-              <Text style={styles.contactLabel}>Live Chat</Text>
+              <Text style={styles.contactLabel}>{t("live_chat")}</Text>
             </Pressable>
           </View>
 
-          <Text style={styles.sectionTitle}>Send a Message</Text>
+          <Text style={styles.sectionTitle}>{t("send_a_message")}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Describe your issue..."
+            placeholder={t("describe_your_issue")}
             placeholderTextColor="#5A6478"
             multiline
             numberOfLines={4}
@@ -124,10 +126,10 @@ const ProfileSupportScreen = () => {
             onChangeText={setMessage}
           />
           <Pressable style={styles.sendBtn} onPress={handleSendEmail}>
-            <Text style={styles.sendText}>Send Message</Text>
+            <Text style={styles.sendText}>{t("send_message")}</Text>
           </Pressable>
 
-          <Text style={styles.sectionTitle}>FAQ</Text>
+          <Text style={styles.sectionTitle}>{t("faq")}</Text>
           <View style={{ gap: responsiveHeight(1.2) }}>
             {FAQ_ITEMS.map((item) => (
               <FaqItem key={item.id} item={item} />

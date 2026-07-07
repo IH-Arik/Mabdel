@@ -1,4 +1,5 @@
 import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -12,6 +13,7 @@ import { useSelector } from "react-redux";
 import { useGetAllEventsQuery } from "../../redux/slices/event/eventSlice";
 
 const isHostedByUser = (item, userId) => {
+  const { t } = useAppLanguage();
   if (!item || !userId) return false;
   const id = String(userId);
   return [
@@ -62,7 +64,7 @@ const ProfileEarningsScreen = () => {
           paddingTop: responsiveWidth(5),
         }}
       >
-        <Navbar title="My Earnings" />
+        <Navbar title={t("my_earnings")} />
 
         {isLoading ? (
           <ActivityIndicator color="#c7df57" style={{ marginTop: responsiveHeight(10) }} />
@@ -81,13 +83,11 @@ const ProfileEarningsScreen = () => {
             >
               <View className="flex-row items-start justify-between">
                 <View>
-                  <Text className="text-[#44502a] text-xl">Total Earnings</Text>
+                  <Text className="text-[#44502a] text-xl">{t("total_earnings")}</Text>
                   <Text className="text-black font-bold text-5xl mt-2">
                     ${totalEarnings.toLocaleString()}
                   </Text>
-                  <Text className="text-[#4b5563] mt-3 text-base">
-                    Total earnings from your events
-                  </Text>
+                  <Text className="text-[#4b5563] mt-3 text-base">{t("total_earnings_from_your_events")}</Text>
                 </View>
 
                 <View
@@ -100,10 +100,10 @@ const ProfileEarningsScreen = () => {
             </View>
 
             <View style={{ gap: responsiveHeight(1.6) }}>
-              <Text className="text-3xl font-bold text-[#1f2937]">My Events</Text>
+              <Text className="text-3xl font-bold text-[#1f2937]">{t("my_events")}</Text>
 
               {hostedEvents.length === 0 ? (
-                <Text className="text-gray-500 text-center mt-4">No hosted events found.</Text>
+                <Text className="text-gray-500 text-center mt-4">{t("no_hosted_events_found")}</Text>
               ) : (
                 hostedEvents.map((eventItem) => {
                   const price = Number(eventItem?.ticketPrice || eventItem?.price || eventItem?.ticket_price || 0);
@@ -154,7 +154,7 @@ const ProfileEarningsScreen = () => {
                             navigation.navigate("EventParticipants", { event: eventItem })
                           }
                         >
-                          <Text className="text-black text-xl">View Details</Text>
+                          <Text className="text-black text-xl">{t("view_details")}</Text>
                           <ChevronRight color="#111" size={18} />
                         </Pressable>
                       </View>
@@ -177,7 +177,7 @@ const ProfileEarningsScreen = () => {
           onPress={() => {}}
         >
           <Wallet color="#111" size={20} />
-          <Text className="text-black font-bold text-3xl">Withdraw Earnings</Text>
+          <Text className="text-black font-bold text-3xl">{t("withdraw_earnings")}</Text>
         </Pressable>
 
         <Text className="text-[#6b7280] text-center mt-4 text-base">

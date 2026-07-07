@@ -1,4 +1,5 @@
 import React from "react";
+import { useAppLanguage } from "../context/LanguageContext";
 import { View, Text, Pressable, Image } from "react-native";
 import {
   responsiveHeight,
@@ -6,6 +7,8 @@ import {
 } from "react-native-responsive-dimensions";
 
 const EventCard = ({ item, onPress }) => {
+  const { t } = useAppLanguage();
+
   return (
     <View className="bg-white rounded-2xl shadow-lg overflow-hidden  border border-gray-200">
       {/* Content Section - More compact like the image */}
@@ -53,9 +56,7 @@ const EventCard = ({ item, onPress }) => {
           className="bg-primary rounded-lg"
           onPress={()=> onPress(item)}
         >
-          <Text className="font-semibold text-lg text-center text-black">
-            Join Event
-          </Text>
+          <Text className="font-semibold text-lg text-center text-black">{t("join_event")}</Text>
         </Pressable>
       </View>
     </View>

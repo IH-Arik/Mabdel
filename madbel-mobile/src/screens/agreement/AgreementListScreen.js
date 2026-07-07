@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, TextInput, FlatList, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,10 +20,10 @@ const STATUS_MAP = {
 };
 
 const iconForType = (type) => {
-  const t = String(type || "").toLowerCase();
-  if (t.includes("lease")) return Building2;
-  if (t.includes("legal") || t.includes("nda")) return Shield;
-  if (t.includes("vendor")) return Phone;
+  const typeStr = String(type || "").toLowerCase();
+  if (typeStr.includes("lease")) return Building2;
+  if (typeStr.includes("legal") || typeStr.includes("nda")) return Shield;
+  if (typeStr.includes("vendor")) return Phone;
   return UserRound;
 };
 
@@ -34,6 +35,7 @@ const formatDate = (value) => {
 };
 
 const AgreementListScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const [query, setQuery] = useState("");
   const {
@@ -54,7 +56,7 @@ const AgreementListScreen = () => {
   const filtered = useMemo(() => agreements, [agreements]);
 
   const handleDelete = (agreement) => {
-    Alert.alert("Delete agreement", "Are you sure you want to delete this agreement?", [
+    Alert.alert(t("delete_agreement"), t("are_you_sure_you_want_to_delete_this_agreement"), [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -78,7 +80,7 @@ const AgreementListScreen = () => {
         recipient_email: agreement.client_email,
         channel: "email",
       }).unwrap();
-      Alert.alert("Sent", "Agreement sent for signature.");
+      Alert.alert(t("sent"), t("agreement_sent_for_signature"));
     } catch (err) {
       Alert.alert("Send failed", err?.data?.message || "Could not send agreement for signature.");
     }
@@ -92,11 +94,11 @@ const AgreementListScreen = () => {
             <Pressable onPress={() => navigation.goBack()}>
               <ChevronLeft size={responsiveWidth(5)} color="#F8FAFC" />
             </Pressable>
-            <Text style={styles.headerTitle}>Agreement</Text>
+            <Text style={styles.headerTitle}>{t("agreement")}</Text>
           </View>
           <Pressable style={styles.newBtn} onPress={() => navigation.navigate("AgreementCreate")}>
             <Plus size={24} color="#EAF9FF" />
-            <Text style={styles.newBtnText}>New</Text>
+            <Text style={styles.newBtnText}>{t("new")}</Text>
           </Pressable>
         </View>
 
@@ -105,7 +107,7 @@ const AgreementListScreen = () => {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search agreements"
+            placeholder={t("search_agreements")}
             placeholderTextColor="#626F86"
             style={styles.searchInput}
           />
@@ -117,7 +119,7 @@ const AgreementListScreen = () => {
           </View>
         ) : error ? (
           <View style={styles.center}>
-            <Text style={styles.metaText}>Could not load agreements.</Text>
+            <Text style={styles.metaText}>{t("could_not_load_agreements")}</Text>
           </View>
         ) : (
           <FlatList
@@ -127,7 +129,7 @@ const AgreementListScreen = () => {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.center}>
-                <Text style={styles.metaText}>No agreements found.</Text>
+                <Text style={styles.metaText}>{t("no_agreements_found")}</Text>
               </View>
             }
             renderItem={({ item }) => {
@@ -178,7 +180,9 @@ const AgreementListScreen = () => {
             }}
           />
         )}
-        {(isFetching && !isLoading) ? <Text style={styles.refresh}>Refreshing agreements...</Text> : null}
+        {(isFetching && !isLoading) ? (
+          <Text style={styles.refresh}>{t("refreshing_agreements")}</Text>
+        ) : null}
       </View>
     </SafeAreaView>
   );

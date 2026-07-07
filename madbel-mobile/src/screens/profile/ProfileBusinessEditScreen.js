@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -29,6 +30,7 @@ import {
 const logoSize = responsiveWidth(46);
 
 const ProfileBusinessEditScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const { control, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
@@ -109,7 +111,7 @@ const ProfileBusinessEditScreen = () => {
         logo_url: values.logoUrl || undefined,
       }).unwrap();
 
-      Alert.alert("Saved", "Business profile updated successfully.");
+      Alert.alert(t("saved"), t("business_profile_updated_successfully"));
       navigation.goBack();
     } catch (error) {
       Alert.alert(
@@ -126,20 +128,20 @@ const ProfileBusinessEditScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={35} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>Edit Business Profile</Text>
+          <Text style={styles.title}>{t("edit_business_profile")}</Text>
           <View style={styles.spacer} />
         </View>
 
         {loadingProfile ? (
           <View style={styles.centerState}>
             <ActivityIndicator color="#15C8E3" size="large" />
-            <Text style={styles.stateText}>Loading business profile...</Text>
+            <Text style={styles.stateText}>{t("loading_business_profile")}</Text>
           </View>
         ) : businessProfileError ? (
           <View style={styles.centerState}>
-            <Text style={styles.stateText}>Could not load business profile.</Text>
+            <Text style={styles.stateText}>{t("could_not_load_business_profile")}</Text>
             <Pressable style={styles.retryBtn} onPress={refetch}>
-              <Text style={styles.retryText}>Retry</Text>
+              <Text style={styles.retryText}>{t("retry")}</Text>
             </Pressable>
           </View>
         ) : (
@@ -151,7 +153,7 @@ const ProfileBusinessEditScreen = () => {
               ) : (
                 <>
                   <Camera size={40} color="#12C9EB" />
-                  <Text style={styles.logoText}>UPLOAD LOGO</Text>
+                  <Text style={styles.logoText}>{t("upload_logo")}</Text>
                 </>
               )}
             </Pressable>
@@ -166,8 +168,8 @@ const ProfileBusinessEditScreen = () => {
             <ControllerTextInput
               name="businessName"
               control={control}
-              label="Business Name"
-              placeholder="Business Name"
+              label={t("business_name")}
+              placeholder={t("business_name")}
               placeholderTextColor="#8291A8"
               labelStyle={styles.label}
               inputStyle={styles.input}
@@ -175,12 +177,12 @@ const ProfileBusinessEditScreen = () => {
           </View>
 
           <View>
-            <Text style={styles.sectionTitle}>Contact Information</Text>
+            <Text style={styles.sectionTitle}>{t("contact_information")}</Text>
             <ControllerTextInput
               name="email"
               control={control}
-              label="Email"
-              placeholder="Email"
+              label={t("email")}
+              placeholder={t("email")}
               type="email-address"
               autoCapitalize="none"
               placeholderTextColor="#8291A8"
@@ -194,8 +196,8 @@ const ProfileBusinessEditScreen = () => {
             <ControllerTextInput
               name="website"
               control={control}
-              label="Company Website"
-              placeholder="Company Website"
+              label={t("company_website")}
+              placeholder={t("company_website")}
               placeholderTextColor="#8291A8"
               labelStyle={styles.label}
               inputStyle={[styles.input, styles.inputWithIcon]}
@@ -207,8 +209,8 @@ const ProfileBusinessEditScreen = () => {
             <ControllerTextInput
               name="officeAddress"
               control={control}
-              label="Office Address"
-              placeholder="Street address, Suite, City, State, Zip Code"
+              label={t("office_address")}
+              placeholder={t("street_address_suite_city_state_zip_code")}
               placeholderTextColor="#8291A8"
               labelStyle={styles.label}
               inputStyle={[styles.input, styles.multilineInput]}
@@ -217,7 +219,7 @@ const ProfileBusinessEditScreen = () => {
             />
           </View>
           <VoiceFormFillCard
-            label="business profile"
+            label={t("business_profile")}
             workflowIntent="business_profile"
             sourceScreen="ProfileBusinessEdit"
           />
@@ -232,7 +234,7 @@ const ProfileBusinessEditScreen = () => {
           {savingProfile ? (
             <ActivityIndicator color="#E8F4FA" />
           ) : (
-            <Text style={styles.saveText}>Save</Text>
+            <Text style={styles.saveText}>{t("save")}</Text>
           )}
         </Pressable>
       </View>

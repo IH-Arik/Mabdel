@@ -1,4 +1,5 @@
 import { View, Text, ScrollView, Image, Pressable } from "react-native";
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -51,6 +52,7 @@ const participants = [
 ];
 
 const EventParticipantsScreen = ({ route }) => {
+  const { t } = useAppLanguage();
   const event = route?.params?.event || {
     title: "Summer Music Festival",
     dateTime: "July 15, 2024 • 7:00 PM",
@@ -69,7 +71,7 @@ const EventParticipantsScreen = ({ route }) => {
           paddingTop: responsiveWidth(5),
         }}
       >
-        <Navbar title="Event Participants" />
+        <Navbar title={t("event_participants")} />
 
         <ScrollView
           style={{ marginTop: responsiveHeight(3) }}
@@ -101,15 +103,15 @@ const EventParticipantsScreen = ({ route }) => {
             <View className="flex-row justify-between">
               <View className="items-center" style={{ width: "30%" }}>
                 <Text className="text-[#22c55e] font-bold text-4xl">{event.booked}</Text>
-                <Text className="text-[#6b7280] text-xl">Booked</Text>
+                <Text className="text-[#6b7280] text-xl">{t("booked")}</Text>
               </View>
               <View className="items-center" style={{ width: "30%" }}>
                 <Text className="text-[#f97316] font-bold text-4xl">{event.pending}</Text>
-                <Text className="text-[#6b7280] text-xl">Pending</Text>
+                <Text className="text-[#6b7280] text-xl">{t("pending")}</Text>
               </View>
               <View className="items-center" style={{ width: "30%" }}>
                 <Text className="text-[#2563eb] font-bold text-4xl">{event.revenue}</Text>
-                <Text className="text-[#6b7280] text-xl">Revenue</Text>
+                <Text className="text-[#6b7280] text-xl">{t("revenue")}</Text>
               </View>
             </View>
           </View>

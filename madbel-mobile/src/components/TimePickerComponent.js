@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAppLanguage } from "../context/LanguageContext";
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 
@@ -9,6 +10,8 @@ const TimePickerComponent = ({
   onCancel,
   title = "Select Time" 
 }) => {
+  const { t } = useAppLanguage();
+
   const [time, setTime] = useState(selectedTime || new Date());
 
   const handleConfirm = () => {
@@ -30,7 +33,7 @@ const TimePickerComponent = ({
               {title}
             </Text>
             <TouchableOpacity onPress={onCancel}>
-              <Text className="text-base text-gray-500">Cancel</Text>
+              <Text className="text-base text-gray-500">{t("cancel")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -50,9 +53,7 @@ const TimePickerComponent = ({
             className="bg-black rounded-2xl py-4 mt-4 items-center"
             activeOpacity={0.8}
           >
-            <Text className="text-white font-medium text-base">
-              Confirm
-            </Text>
+            <Text className="text-white font-medium text-base">{t("confirm")}</Text>
           </TouchableOpacity>
         </View>
       </View>

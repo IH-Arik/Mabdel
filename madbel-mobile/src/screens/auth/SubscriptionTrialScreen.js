@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -61,6 +62,7 @@ export default function SubscriptionTrialScreen() {
   const [fetchMe] = useLazyMadbelMeQuery();
 
   const goHome = () => {
+  const { t } = useAppLanguage();
     navigation.reset({ index: 0, routes: [{ name: "BottomNavigator" }] });
   };
 
@@ -122,16 +124,14 @@ export default function SubscriptionTrialScreen() {
           {/* Header */}
           <View style={styles.heroWrap}>
             <Text style={styles.headline}>
-              Choose Your{"\n"}<Text style={styles.headlineAccent}>Access Level</Text>
+              Choose Your{"\n"}<Text style={styles.headlineAccent}>{t("access_level")}</Text>
             </Text>
-            <Text style={styles.subline}>
-              Unlock Mabdel AI's full power and get started as an Owner.
-            </Text>
+            <Text style={styles.subline}>{t("unlock_mabdel_ais_full_power_and_get_started_as_an")}</Text>
           </View>
 
           {/* Features list */}
           <View style={styles.featureCard}>
-            <Text style={styles.featureCardTitle}>Owner Features Include</Text>
+            <Text style={styles.featureCardTitle}>{t("owner_features_include")}</Text>
             {FEATURES.map(({ icon: Icon, label }, idx) => (
               <View
                 key={idx}
@@ -167,10 +167,8 @@ export default function SubscriptionTrialScreen() {
                 <>
                   <Crown size={20} color="#02080B" strokeWidth={2.5} />
                   <View style={styles.btnTextWrap}>
-                    <Text style={[styles.btnTitle, { color: "#02080B" }]}>Subscription</Text>
-                    <Text style={[styles.btnSub, { color: "rgba(2,8,11,0.65)" }]}>
-                      Full access as Owner
-                    </Text>
+                    <Text style={[styles.btnTitle, { color: "#02080B" }]}>{t("subscription")}</Text>
+                    <Text style={[styles.btnSub, { color: "rgba(2,8,11,0.65)" }]}>{t("full_access_as_owner")}</Text>
                   </View>
                 </>
               )}
@@ -195,10 +193,8 @@ export default function SubscriptionTrialScreen() {
                 <>
                   <Zap size={20} color="#02080B" strokeWidth={2.5} />
                   <View style={styles.btnTextWrap}>
-                    <Text style={[styles.btnTitle, { color: "#02080B" }]}>7 Day Trial as Owner</Text>
-                    <Text style={[styles.btnSub, { color: "rgba(2,8,11,0.65)" }]}>
-                      Free · No credit card needed
-                    </Text>
+                    <Text style={[styles.btnTitle, { color: "#02080B" }]}>{t("7_day_trial_as_owner")}</Text>
+                    <Text style={[styles.btnSub, { color: "rgba(2,8,11,0.65)" }]}>{t("free_no_credit_card_needed")}</Text>
                   </View>
                 </>
               )}

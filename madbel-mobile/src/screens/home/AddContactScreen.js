@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
@@ -39,6 +40,7 @@ import {
 } from "../../redux/slices/madbelApiSlice";
 
 const AddContactScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const contact = route.params?.contact;
@@ -135,7 +137,7 @@ const AddContactScreen = () => {
 
     const fullName = `${firstName} ${lastName}`.trim();
     if (!fullName || fullName.length < 2) {
-      Alert.alert("Invalid name", "Please enter a valid contact name.");
+      Alert.alert(t("invalid_name"), t("please_enter_a_valid_contact_name"));
       return;
     }
 
@@ -180,8 +182,8 @@ const AddContactScreen = () => {
   const handleDelete = () => {
     if (!currentContactId) return;
     Alert.alert(
-      "Delete contact",
-      "Are you sure you want to delete this contact?",
+      t("delete_contact"),
+      t("are_you_sure_you_want_to_delete_this_contact"),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -245,8 +247,8 @@ const AddContactScreen = () => {
           <ControllerTextInput
             name="firstName"
             control={control}
-            label="FIRST NAME"
-            placeholder="First name"
+            label={t("first_name")}
+            placeholder={t("first_name")}
             leftIcon={<User size={23} color="#A3AFBC" strokeWidth={2} />}
             labelStyle={styles.fieldLabel}
             containerStyle={styles.fieldGroup}
@@ -257,8 +259,8 @@ const AddContactScreen = () => {
           <ControllerTextInput
             name="lastName"
             control={control}
-            label="LAST NAME"
-            placeholder="Last name"
+            label={t("last_name")}
+            placeholder={t("last_name")}
             leftIcon={<User size={23} color="#A3AFBC" strokeWidth={2} />}
             labelStyle={styles.fieldLabel}
             containerStyle={styles.fieldGroup}
@@ -269,7 +271,7 @@ const AddContactScreen = () => {
           <ControllerTextInput
             name="phone"
             control={control}
-            label="PHONE NUMBER"
+            label={t("phone_number")}
             placeholder="+1 (415) 555-0123"
             type="phone-pad"
             leftIcon={<Phone size={23} color="#A3AFBC" strokeWidth={2} />}
@@ -282,8 +284,8 @@ const AddContactScreen = () => {
           <ControllerTextInput
             name="email"
             control={control}
-            label="EMAIL ADDRESS"
-            placeholder="name@example.com"
+            label={t("email_address")}
+            placeholder={t("name_example_com")}
             type="email-address"
             leftIcon={<Mail size={23} color="#A3AFBC" strokeWidth={2} />}
             labelStyle={styles.fieldLabel}
@@ -293,7 +295,7 @@ const AddContactScreen = () => {
             placeholderTextColor="#7C8796"
           />
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>DATE OF BIRTH (DOB)</Text>
+            <Text style={styles.fieldLabel}>{t("date_of_birth_dob")}</Text>
             <Pressable style={styles.inputWrap} onPress={() => setCalendarVisible(true)}>
               <CalendarDays size={23} color="#A3AFBC" strokeWidth={2} />
               <Text style={[styles.input, { paddingTop: 0 }]}>{displayDob}</Text>
@@ -302,8 +304,8 @@ const AddContactScreen = () => {
           <ControllerTextInput
             name="notes"
             control={control}
-            label="NOTES"
-            placeholder="Type notes..."
+            label={t("notes")}
+            placeholder={t("type_notes")}
             multiline
             leftIcon={<NotebookText size={23} color="#A3AFBC" strokeWidth={2} />}
             labelStyle={styles.fieldLabel}
@@ -313,7 +315,7 @@ const AddContactScreen = () => {
             placeholderTextColor="#7C8796"
           />
           <VoiceFormFillCard
-            label="contact"
+            label={t("contact")}
             workflowIntent="contact"
             sourceScreen="AddContact"
             triggerOpen={voiceTrigger}
@@ -336,7 +338,7 @@ const AddContactScreen = () => {
               {isSaving ? (
                 <ActivityIndicator color="#EEFFFF" />
               ) : (
-                <Text style={styles.saveText}>Save</Text>
+                <Text style={styles.saveText}>{t("save")}</Text>
               )}
             </Pressable>
           </View>
@@ -346,7 +348,10 @@ const AddContactScreen = () => {
           visible={calendarVisible}
           onClose={() => setCalendarVisible(false)}
           selectedDate={dob || undefined}
-          onSelectDate={(selectedDate) => setDob(selectedDate)}
+          onSelectDate={(selectedDate) => {
+            setDob(selectedDate);
+            setCalendarVisible(false);
+          }}
         />
       </View>
     </SafeAreaView>

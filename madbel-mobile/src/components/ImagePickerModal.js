@@ -1,19 +1,22 @@
 import React from 'react';
+import { useAppLanguage } from "../context/LanguageContext";
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 const ImagePickerModal = ({ visible, onClose, onPickGallery }) => {
+  const { t } = useAppLanguage();
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <Text style={styles.title}>Upload Photo</Text>
+          <Text style={styles.title}>{t("upload_photo")}</Text>
 
           <TouchableOpacity style={styles.option} onPress={onPickGallery}>
-            <Text className="text-white">🖼 Choose from Gallery</Text>
+            <Text className="text-white">{t("choose_from_gallery")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.cancel} onPress={onClose}>
-            <Text>Cancel</Text>
+            <Text>{t("cancel")}</Text>
           </TouchableOpacity>
         </View>
       </View>

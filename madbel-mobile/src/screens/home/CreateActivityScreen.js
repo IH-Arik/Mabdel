@@ -9,6 +9,7 @@ import {
   Keyboard,
   ActivityIndicator,
 } from "react-native";
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Navbar from "../../components/Navbar";
@@ -33,6 +34,7 @@ import SuccessModal from "../../components/SuccessModal";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 import { useCreateActivityMutation } from "../../redux/slices/event/eventSlice";
 const CreateActivityScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const {
     control,
@@ -128,7 +130,7 @@ const CreateActivityScreen = () => {
             paddingHorizontal: responsiveWidth(5),
           }}
         >
-          <Navbar title="Create Activity" />
+          <Navbar title={t("create_activity")} />
           <ScrollView
             contentContainerStyle={{
               flexGrow: 1,
@@ -144,8 +146,8 @@ const CreateActivityScreen = () => {
               name="activityTitle"
               control={control}
               error={errors?.activityTitle?.message}
-              label="Title"
-              placeholder="Enter your title"
+              label={t("title")}
+              placeholder={t("enter_your_title")}
               type="text"
               rules={{
                 required: "Title is required",
@@ -155,16 +157,16 @@ const CreateActivityScreen = () => {
               data={types}
               selectedValue={selectedValue}
               onValueChange={handleStatusChange}
-              placeholder="Select Type"
-              label="Type"
+              placeholder={t("select_type")}
+              label={t("type")}
             /> */}
 
             <ControllerTextInput
               name="activityType"
               control={control}
               error={errors?.activityType?.message}
-              label="Type"
-              placeholder="Enter your type"
+              label={t("type")}
+              placeholder={t("enter_your_type")}
               type="text"
               rules={{
                 required: "Type is required",
@@ -175,17 +177,15 @@ const CreateActivityScreen = () => {
               name="activityDescription"
               control={control}
               error={errors?.activityDescription?.message}
-              label="Description"
-              placeholder="Enter your description"
+              label={t("description")}
+              placeholder={t("enter_your_description")}
               type="text"
               rules={{
                 required: "Description is required",
               }}
             />
             <View className="gap-2">
-              <Text className="text-base font-medium text-black mb-2">
-                Select Date
-              </Text>
+              <Text className="text-base font-medium text-black mb-2">{t("select_date")}</Text>
               <Pressable
                 className="border border-border rounded-xl "
                 style={{
@@ -203,14 +203,14 @@ const CreateActivityScreen = () => {
               </Pressable>
             </View>
             <TimeSlotInput
-              label="Start Time"
+              label={t("start_time")}
               value={startTime}
               onChange={setStartTime}
               // disabled={isLoading}
             />
 
             <LocationMapCard
-              label="Location"
+              label={t("location")}
               selectedLocation={eventLocation}
               onLocationChange={setEventLocation}
               disabled={createActivityLoading}
@@ -227,8 +227,8 @@ const CreateActivityScreen = () => {
               name="acitivityMile"
               control={control}
               error={errors?.acitivityMile?.message}
-              label="Mile"
-              placeholder="How many miles do you want to walk?"
+              label={t("mile")}
+              placeholder={t("how_many_miles_do_you_want_to_walk")}
               type="text"
               rules={{
                 required: "Mile is required",
@@ -237,13 +237,13 @@ const CreateActivityScreen = () => {
             <MediaUploader
               control={control}
               name="activityMedia"
-              label="Upload Photos/Videos"
+              label={t("upload_photos_videos")}
               maxFiles={6}
               mediaType="mixed"
               disabled={createActivityLoading}
             />
             <VoiceFormFillCard
-              label="activity"
+              label={t("activity")}
               workflowIntent="activity"
               sourceScreen="CreateActivity"
             />
@@ -262,9 +262,7 @@ const CreateActivityScreen = () => {
               {createActivityLoading ? (
                 <ActivityIndicator color={"#edbe9c"} size={20} />
               ) : (
-                <Text className="text-white text-center font-bold text-lg">
-                  Create Activity
-                </Text>
+                <Text className="text-white text-center font-bold text-lg">{t("create_activity")}</Text>
               )}
             </Pressable>
           </View>
@@ -285,7 +283,7 @@ const CreateActivityScreen = () => {
               setShowSuccessModal(false);
               navigation.goBack();
             }}
-            title="Activity Created"
+            title={t("activity_created")}
             message="Your activity has been created successfully."
             autoClose={true}
             autoCloseTime={1500}

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useAppLanguage } from "../context/LanguageContext";
 import {
   View,
   Text,
@@ -28,6 +29,8 @@ const PriceSelectorView = ({
   disabled,
   errorMessage,
 }) => {
+  const { t } = useAppLanguage();
+
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handlePriceTypeSelect = (type) => {
@@ -70,9 +73,7 @@ const PriceSelectorView = ({
             className={`text-center font-semibold text-base ${
               selectedPriceType === "free" ? "text-white" : "text-gray-600"
             }`}
-          >
-            Free
-          </Text>
+          >{t("free")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -88,9 +89,7 @@ const PriceSelectorView = ({
             className={`text-center font-semibold text-base ${
               selectedPriceType === "paid" ? "text-white" : "text-gray-600"
             }`}
-          >
-            Paid
-          </Text>
+          >{t("paid")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -116,21 +115,17 @@ const PriceSelectorView = ({
         >
           <View className="bg-white rounded-2xl mx-4 w-11/12 max-w-md">
             <View className="p-5 border-b border-gray-200">
-              <Text className="text-xl font-bold text-gray-900">
-                Set Ticket Price
-              </Text>
+              <Text className="text-xl font-bold text-gray-900">{t("set_ticket_price")}</Text>
             </View>
 
             <ScrollView className="p-5">
               <View className="mb-6">
-                <Text className="text-lg font-semibold text-gray-900 mb-2">
-                  Ticket Price
-                </Text>
+                <Text className="text-lg font-semibold text-gray-900 mb-2">{t("ticket_price")}</Text>
                 <View className="flex-row items-center border border-gray-300 rounded-xl px-4 py-3 bg-white">
                   <Text className="text-gray-500 mr-2 text-lg">$</Text>
                   <TextInput
                     className="flex-1 text-gray-900 text-lg"
-                    placeholder="Enter ticket price"
+                    placeholder={t("enter_ticket_price")}
                     placeholderTextColor="#9CA3AF"
                     keyboardType="decimal-pad"
                     value={ticketPrice}
@@ -143,13 +138,11 @@ const PriceSelectorView = ({
               </View>
 
               <View className="mb-6">
-                <Text className="text-lg font-semibold text-gray-900 mb-2">
-                  Discount %
-                </Text>
+                <Text className="text-lg font-semibold text-gray-900 mb-2">{t("discount")}</Text>
                 <View className="flex-row items-center border border-gray-300 rounded-xl px-4 py-3 bg-white">
                   <TextInput
                     className="flex-1 text-gray-900 text-lg"
-                    placeholder="Discount %"
+                    placeholder={t("discount")}
                     placeholderTextColor="#9CA3AF"
                     keyboardType="decimal-pad"
                     value={discountPercentage}
@@ -168,9 +161,7 @@ const PriceSelectorView = ({
                 className="flex-1 py-3 px-4 bg-gray-100 rounded-xl mr-2"
                 onPress={() => setIsModalVisible(false)}
               >
-                <Text className="text-gray-700 text-center font-semibold text-base">
-                  Cancel
-                </Text>
+                <Text className="text-gray-700 text-center font-semibold text-base">{t("cancel")}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -178,9 +169,7 @@ const PriceSelectorView = ({
                 onPress={handleSavePrice}
                 disabled={disabled}
               >
-                <Text className="text-white text-center font-semibold text-base">
-                  Save
-                </Text>
+                <Text className="text-white text-center font-semibold text-base">{t("save")}</Text>
               </TouchableOpacity>
             </View>
           </View>

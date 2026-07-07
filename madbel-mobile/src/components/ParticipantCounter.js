@@ -1,4 +1,5 @@
 import React from "react";
+import { useAppLanguage } from "../context/LanguageContext";
 import { View, Text, TouchableOpacity } from "react-native";
 import { responsiveWidth } from "react-native-responsive-dimensions";
 import { Controller, useFormContext } from "react-hook-form";
@@ -15,6 +16,8 @@ const CounterView = ({
   disabled,
   errorMessage,
 }) => {
+  const { t } = useAppLanguage();
+
   const currentValue = typeof value === "number" ? value : Number(value || min) || min;
   const resolvedValue = clamp(currentValue, min, max);
   const resolvedOnChange = onChange || (() => undefined);

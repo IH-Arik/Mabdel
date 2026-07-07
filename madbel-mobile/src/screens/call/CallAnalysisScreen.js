@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -40,6 +41,7 @@ const WAVEFORM_HEIGHTS = [
 ];
 
 const CallAnalysisScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const { callId, callerName } = route.params || {};
@@ -92,7 +94,7 @@ const CallAnalysisScreen = () => {
 
   const handlePlaceCall = async () => {
     if (!details?.phone) {
-      Alert.alert("No phone number", "This contact has no phone number on record.");
+      Alert.alert(t("no_phone_number"), t("this_contact_has_no_phone_number_on_record"));
       return;
     }
     try {
@@ -126,11 +128,11 @@ const CallAnalysisScreen = () => {
             <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
               <ArrowLeft size={28} color="#FFFFFF" strokeWidth={2.2} />
             </Pressable>
-            <Text style={styles.headerTitle}>Call Analysis</Text>
+            <Text style={styles.headerTitle}>{t("call_analysis")}</Text>
             <View style={styles.headerSpace} />
           </View>
           <View style={styles.loaderWrap}>
-            <Text style={{ color: "#687588", fontSize: 16 }}>No call selected.</Text>
+            <Text style={{ color: "#687588", fontSize: 16 }}>{t("no_call_selected")}</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -204,17 +206,17 @@ const CallAnalysisScreen = () => {
             <View style={styles.actionButtons}>
               <Pressable style={styles.callBtn} onPress={handlePlaceCall}>
                 <Phone size={18} color="#FFFFFF" />
-                <Text style={styles.callBtnText}>Call</Text>
+                <Text style={styles.callBtnText}>{t("call")}</Text>
               </Pressable>
               <Pressable style={styles.messageBtn} onPress={handleSendMessage}>
                 <MessageSquare size={18} color="#FF7E40" />
-                <Text style={styles.messageBtnText}>Message</Text>
+                <Text style={styles.messageBtnText}>{t("message")}</Text>
               </Pressable>
             </View>
           </View>
 
           {/* Section Header */}
-          <Text style={styles.sectionHeaderTitle}>Call History</Text>
+          <Text style={styles.sectionHeaderTitle}>{t("call_history")}</Text>
 
           {/* Call Detail Box */}
           <View style={styles.detailBox}>
@@ -224,12 +226,12 @@ const CallAnalysisScreen = () => {
                   <Phone size={16} color="#17CBE8" />
                 </View>
                 <View>
-                  <Text style={styles.detailTitle}>Incoming Call</Text>
+                  <Text style={styles.detailTitle}>{t("incoming_call")}</Text>
                   <Text style={styles.detailSub}>{`${details.callTime} • ${details.callDuration}`}</Text>
                 </View>
               </View>
               <View style={styles.recordedBadge}>
-                <Text style={styles.recordedBadgeText}>Recorded</Text>
+                <Text style={styles.recordedBadgeText}>{t("recorded")}</Text>
               </View>
             </View>
 
@@ -289,7 +291,7 @@ const CallAnalysisScreen = () => {
             {/* Transcript Area */}
             {showTranscript && (
               <View style={styles.transcriptCard}>
-                <Text style={styles.transcriptHeader}>Call Transcript</Text>
+                <Text style={styles.transcriptHeader}>{t("call_transcript")}</Text>
                 <ScrollView nestedScrollEnabled style={styles.transcriptScroll}>
                   <Text style={styles.transcriptBodyText}>
                     {details.transcript ||
@@ -306,20 +308,20 @@ const CallAnalysisScreen = () => {
             <View style={styles.summarySection}>
               <View style={styles.summaryTitleRow}>
                 <View style={styles.summaryDot} />
-                <Text style={styles.summaryTitle}>AI Call Summary</Text>
+                <Text style={styles.summaryTitle}>{t("ai_call_summary")}</Text>
               </View>
 
               {/* Purpose */}
-              <Text style={styles.labelTitle}>PURPOSE</Text>
+              <Text style={styles.labelTitle}>{t("purpose")}</Text>
               <Text style={styles.purposeText}>{details.purpose}</Text>
 
               {/* Key Points */}
               {details.keyPoints.length > 0 && (
                 <>
-                  <Text style={styles.labelTitle}>Key Points</Text>
+                  <Text style={styles.labelTitle}>{t("key_points")}</Text>
                   {details.keyPoints.map((pt, idx) => (
                     <View key={`pt-${idx}`} style={styles.bulletRow}>
-                      <Text style={styles.bulletDot}>•</Text>
+                      <Text style={styles.bulletDot}>{t("")}</Text>
                       {renderBulletText(pt)}
                     </View>
                   ))}
@@ -329,10 +331,10 @@ const CallAnalysisScreen = () => {
               {/* Action Items */}
               {details.actionItems.length > 0 && (
                 <>
-                  <Text style={styles.labelTitle}>Action Items</Text>
+                  <Text style={styles.labelTitle}>{t("action_items")}</Text>
                   {details.actionItems.map((item, idx) => (
                     <View key={`act-${idx}`} style={styles.bulletRow}>
-                      <Text style={styles.bulletDotGold}>•</Text>
+                      <Text style={styles.bulletDotGold}>{t("")}</Text>
                       {renderBulletText(item)}
                     </View>
                   ))}

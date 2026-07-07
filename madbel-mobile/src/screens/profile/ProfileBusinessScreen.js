@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import {
   View,
@@ -20,6 +21,7 @@ import { useMadbelGetBusinessProfileQuery } from "../../redux/slices/madbelApiSl
 const logoSize = responsiveWidth(36);
 
 const ProfileBusinessScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
 
   const {
@@ -50,12 +52,12 @@ const ProfileBusinessScreen = () => {
             <ChevronLeft size={35} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
 
-          <Text style={styles.title}>Business Profile</Text>
+          <Text style={styles.title}>{t("business_profile")}</Text>
 
           <Pressable
             onPress={() => navigation.navigate("ProfileBusinessEdit")}
           >
-            <Text style={styles.editText}>Edit</Text>
+            <Text style={styles.editText}>{t("edit")}</Text>
           </Pressable>
         </View>
 
@@ -63,19 +65,15 @@ const ProfileBusinessScreen = () => {
         {isLoading ? (
           <View style={styles.centerState}>
             <ActivityIndicator color="#14C9E7" size="large" />
-            <Text style={styles.stateText}>
-              Loading business profile...
-            </Text>
+            <Text style={styles.stateText}>{t("loading_business_profile")}</Text>
           </View>
         ) : isError ? (
           /* ERROR */
           <View style={styles.centerState}>
-            <Text style={styles.stateText}>
-              Could not load business profile.
-            </Text>
+            <Text style={styles.stateText}>{t("could_not_load_business_profile")}</Text>
 
             <Pressable style={styles.retryBtn} onPress={refetch}>
-              <Text style={styles.retryText}>Retry</Text>
+              <Text style={styles.retryText}>{t("retry")}</Text>
             </Pressable>
           </View>
         ) : (
@@ -103,28 +101,28 @@ const ProfileBusinessScreen = () => {
 
             {/* CARD 1 */}
             <View style={styles.card}>
-              <Text style={styles.fieldLabel}>BUSINESS NAME</Text>
+              <Text style={styles.fieldLabel}>{t("business_name")}</Text>
               <Text style={styles.fieldValue}>
                 {profile?.business_name || "-"}
               </Text>
 
               <View style={styles.divider} />
 
-              <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+              <Text style={styles.fieldLabel}>{t("email_address")}</Text>
               <Text style={styles.fieldValue}>
                 {profile?.email || "-"}
               </Text>
 
               <View style={styles.divider} />
 
-              <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
+              <Text style={styles.fieldLabel}>{t("phone_number")}</Text>
               <Text style={styles.fieldValue}>
                 {profile?.phone_number || "-"}
               </Text>
 
               <View style={styles.divider} />
 
-              <Text style={styles.fieldLabel}>WEBSITE</Text>
+              <Text style={styles.fieldLabel}>{t("website")}</Text>
               <Text style={styles.fieldLink}>
                 {profile?.website || "-"}
               </Text>
@@ -132,7 +130,7 @@ const ProfileBusinessScreen = () => {
 
             {/* CARD 2 */}
             <View style={styles.card}>
-              <Text style={styles.fieldLabel}>OFFICE LOCATION</Text>
+              <Text style={styles.fieldLabel}>{t("office_location")}</Text>
 
               <View
                 style={{
@@ -154,7 +152,7 @@ const ProfileBusinessScreen = () => {
                     </Text>
                   ))
                 ) : (
-                  <Text style={styles.fieldValue}>-</Text>
+                  <Text style={styles.fieldValue}>{t("")}</Text>
                 )}
               </View>
             </View>

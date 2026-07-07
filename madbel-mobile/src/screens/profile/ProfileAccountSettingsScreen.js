@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -68,6 +69,7 @@ const STEPS = [
 ];
 
 const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
+  const { t } = useAppLanguage();
   const [accountSid, setAccountSid] = useState("");
   const [authToken, setAuthToken] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -75,11 +77,11 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
 
   const handleSave = async () => {
     if (!accountSid.trim() || !authToken.trim() || !phoneNumber.trim()) {
-      Alert.alert("Missing fields", "Please fill in all three fields.");
+      Alert.alert(t("missing_fields"), t("please_fill_in_all_three_fields"));
       return;
     }
     if (!accountSid.trim().startsWith("AC") || accountSid.trim().length !== 34) {
-      Alert.alert("Invalid Account SID", "Account SID must start with 'AC' and be 34 characters long.");
+      Alert.alert(t("invalid_account_sid"), t("account_sid_must_start_with"));
       return;
     }
     try {
@@ -118,17 +120,15 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
               <Pressable onPress={onClose} style={styles.modalCloseBtn}>
                 <X size={24} color="#F3F9FF" />
               </Pressable>
-              <Text style={styles.modalTitle}>Connect Your Twilio</Text>
+              <Text style={styles.modalTitle}>{t("connect_your_twilio")}</Text>
               <View style={{ width: 38 }} />
             </View>
 
-            <Text style={styles.modalSubtitle}>
-              Use your own Twilio account for calls. Follow the steps below to get your credentials.
-            </Text>
+            <Text style={styles.modalSubtitle}>{t("use_your_own_twilio_account_for_calls_follow_the_s")}</Text>
 
             {/* Step by step guide */}
             <View style={styles.stepsCard}>
-              <Text style={styles.stepsHeading}>How to set up</Text>
+              <Text style={styles.stepsHeading}>{t("how_to_set_up")}</Text>
               {STEPS.map((step) => (
                 <View key={step.num} style={styles.stepRow}>
                   <View style={styles.stepNumCircle}>
@@ -142,38 +142,38 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
               ))}
               <View style={styles.twilioLinkRow}>
                 <ExternalLink size={14} color="#12D0ED" />
-                <Text style={styles.twilioLink}>twilio.com/console</Text>
+                <Text style={styles.twilioLink}>{t("twiliocomconsole")}</Text>
               </View>
             </View>
 
             {/* Input fields */}
             <View style={styles.inputsCard}>
-              <Text style={styles.inputsHeading}>Your Twilio credentials</Text>
+              <Text style={styles.inputsHeading}>{t("your_twilio_credentials")}</Text>
 
-              <Text style={styles.inputLabel}>Account SID</Text>
+              <Text style={styles.inputLabel}>{t("account_sid")}</Text>
               <TextInput
                 style={styles.input}
                 value={accountSid}
                 onChangeText={setAccountSid}
-                placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                placeholder={t("acxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")}
                 placeholderTextColor="#4A6070"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
 
-              <Text style={styles.inputLabel}>Auth Token</Text>
+              <Text style={styles.inputLabel}>{t("auth_token")}</Text>
               <TextInput
                 style={styles.input}
                 value={authToken}
                 onChangeText={setAuthToken}
-                placeholder="Your Auth Token"
+                placeholder={t("your_auth_token")}
                 placeholderTextColor="#4A6070"
                 autoCapitalize="none"
                 autoCorrect={false}
                 secureTextEntry
               />
 
-              <Text style={styles.inputLabel}>Phone Number</Text>
+              <Text style={styles.inputLabel}>{t("phone_number")}</Text>
               <TextInput
                 style={styles.input}
                 value={phoneNumber}
@@ -184,9 +184,7 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
                 autoCorrect={false}
               />
 
-              <Text style={styles.inputHint}>
-                Your credentials are encrypted and stored securely. We validate them before saving.
-              </Text>
+              <Text style={styles.inputHint}>{t("your_credentials_are_encrypted_and_stored_securely")}</Text>
             </View>
 
             <Pressable
@@ -197,7 +195,7 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
               {isLoading ? (
                 <ActivityIndicator color="#020406" />
               ) : (
-                <Text style={styles.saveBtnText}>Validate & Save</Text>
+                <Text style={styles.saveBtnText}>{t("validate_save")}</Text>
               )}
             </Pressable>
           </ScrollView>
@@ -224,8 +222,8 @@ const TwilioSetupCard = () => {
 
   const handleActivatePlatform = () => {
     Alert.alert(
-      "Activate Platform Calling",
-      "We'll assign a dedicated phone number to your account automatically. This may take up to 30 seconds.",
+      t("activate_platform_calling"),
+      t("we_ll_assign_a_dedicated_phone_number_to_your_acc"),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -245,8 +243,8 @@ const TwilioSetupCard = () => {
 
   const handleRemoveCustom = () => {
     Alert.alert(
-      "Remove Custom Twilio",
-      "Are you sure you want to remove your Twilio credentials?",
+      t("remove_custom_twilio"),
+      t("are_you_sure_you_want_to_remove_your_twilio_creden"),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -270,7 +268,7 @@ const TwilioSetupCard = () => {
       <View style={styles.twilioCard}>
         <View style={styles.twilioHeader}>
           <PhoneCall size={17} color="#12D0ED" />
-          <Text style={styles.twilioTitle}>Calling Setup</Text>
+          <Text style={styles.twilioTitle}>{t("calling_setup")}</Text>
           {(statusLoading || isProvisioning) && (
             <ActivityIndicator size="small" color="#12D0ED" style={{ marginLeft: 8 }} />
           )}
@@ -278,21 +276,21 @@ const TwilioSetupCard = () => {
 
         {/* Option A — Platform number */}
         <View style={styles.optionBlock}>
-          <Text style={styles.optionLabel}>Option A — Platform number</Text>
-          <Text style={styles.optionDesc}>We assign a dedicated number automatically. No setup needed.</Text>
+          <Text style={styles.optionLabel}>{t("option_a_platform_number")}</Text>
+          <Text style={styles.optionDesc}>{t("we_assign_a_dedicated_number_automatically_no_setu")}</Text>
           {platformStatus === "active" && platformNumber ? (
             <View style={styles.activeRow}>
               <Phone size={13} color="#2DDD60" />
               <Text style={styles.activeNumber}>{platformNumber}</Text>
               <View style={styles.activeBadge}>
-                <Text style={styles.activeBadgeText}>Active</Text>
+                <Text style={styles.activeBadgeText}>{t("active")}</Text>
               </View>
             </View>
           ) : isProvisioning ? (
-            <Text style={styles.provisioningText}>Setting up your number...</Text>
+            <Text style={styles.provisioningText}>{t("setting_up_your_number")}</Text>
           ) : (
             <Pressable style={styles.optionBtn} onPress={handleActivatePlatform}>
-              <Text style={styles.optionBtnText}>Activate</Text>
+              <Text style={styles.optionBtnText}>{t("activate")}</Text>
             </Pressable>
           )}
         </View>
@@ -301,20 +299,20 @@ const TwilioSetupCard = () => {
 
         {/* Option B — User's own Twilio */}
         <View style={styles.optionBlock}>
-          <Text style={styles.optionLabel}>Option B — Your own Twilio</Text>
-          <Text style={styles.optionDesc}>Connect your Twilio account and use your own number.</Text>
+          <Text style={styles.optionLabel}>{t("option_b_your_own_twilio")}</Text>
+          <Text style={styles.optionDesc}>{t("connect_your_twilio_account_and_use_your_own_numbe")}</Text>
           {mode === "custom" && customNumber ? (
             <View>
               <View style={styles.activeRow}>
                 <CheckCircle size={13} color="#2DDD60" />
                 <Text style={styles.activeNumber}>{customNumber}</Text>
                 <View style={styles.activeBadge}>
-                  <Text style={styles.activeBadgeText}>Connected</Text>
+                  <Text style={styles.activeBadgeText}>{t("connected")}</Text>
                 </View>
               </View>
               <Text style={styles.customSidText}>SID: {customSid}</Text>
               <Pressable onPress={handleRemoveCustom} style={styles.removeBtn}>
-                <Text style={styles.removeBtnText}>Remove</Text>
+                <Text style={styles.removeBtnText}>{t("remove")}</Text>
               </Pressable>
             </View>
           ) : (
@@ -322,7 +320,7 @@ const TwilioSetupCard = () => {
               style={[styles.optionBtn, styles.optionBtnOutline]}
               onPress={() => setCustomModalVisible(true)}
             >
-              <Text style={[styles.optionBtnText, { color: "#12D0ED" }]}>Connect Twilio</Text>
+              <Text style={[styles.optionBtnText, { color: "#12D0ED" }]}>{t("connect_twilio")}</Text>
             </Pressable>
           )}
         </View>
@@ -344,8 +342,8 @@ const ProfileAccountSettingsScreen = () => {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      "Delete Account",
-      "This will permanently delete your account and all data. This cannot be undone.",
+      t("delete_account"),
+      t("this_will_permanently_delete_your_account_and_all_"),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -371,7 +369,7 @@ const ProfileAccountSettingsScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={35} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>Account Settings</Text>
+          <Text style={styles.title}>{t("account_settings")}</Text>
           <View style={styles.spacer} />
         </View>
 
@@ -398,7 +396,7 @@ const ProfileAccountSettingsScreen = () => {
           {deleting ? (
             <ActivityIndicator color="#FC4C58" size="small" />
           ) : (
-            <Text style={styles.deleteText}>Delete Account</Text>
+            <Text style={styles.deleteText}>{t("delete_account")}</Text>
           )}
         </Pressable>
       </ScrollView>

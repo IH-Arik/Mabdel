@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAppLanguage } from "../context/LanguageContext";
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +19,8 @@ import { Check, Search, X } from "lucide-react-native";
 import { useMadbelCreateContactMutation } from "../redux/slices/madbelApiSlice";
 
 const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
+  const { t } = useAppLanguage();
+
   const [deviceContacts, setDeviceContacts] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [query, setQuery] = useState("");
@@ -113,7 +116,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
   const handleImport = async () => {
     const toImport = deviceContacts.filter((c) => selected.has(c.id));
     if (toImport.length === 0) {
-      Alert.alert("No contacts selected", "Please select at least one contact.");
+      Alert.alert(t("no_contacts_selected"), t("please_select_at_least_one_contact"));
       return;
     }
 
@@ -189,7 +192,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
             <Pressable onPress={onClose} style={styles.closeBtn}>
               <X size={26} color="#F3F9FF" />
             </Pressable>
-            <Text style={styles.title}>Import from Phone</Text>
+            <Text style={styles.title}>{t("import_from_phone")}</Text>
             <View style={{ width: 38 }} />
           </View>
 
@@ -199,7 +202,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder="Search..."
+              placeholder={t("search")}
               placeholderTextColor="#7FA6B3"
               style={styles.searchInput}
             />
@@ -229,7 +232,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
           {loadingContacts ? (
             <View style={styles.centerState}>
               <ActivityIndicator color="#12D0ED" size="large" />
-              <Text style={styles.stateText}>Loading contacts...</Text>
+              <Text style={styles.stateText}>{t("loading_contacts")}</Text>
             </View>
           ) : debugError ? (
             <View style={styles.centerState}>
@@ -243,13 +246,13 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
                   Linking.openSettings();
                 }}
               >
-                <Text style={styles.importBtnText}>Open Settings</Text>
+                <Text style={styles.importBtnText}>{t("open_settings")}</Text>
               </Pressable>
               <Pressable
                 style={[styles.importBtn, { marginTop: 10, backgroundColor: "#1B3A44" }]}
                 onPress={loadContacts}
               >
-                <Text style={[styles.importBtnText, { color: "#12D0ED" }]}>Retry</Text>
+                <Text style={[styles.importBtnText, { color: "#12D0ED" }]}>{t("retry")}</Text>
               </Pressable>
             </View>
           ) : (

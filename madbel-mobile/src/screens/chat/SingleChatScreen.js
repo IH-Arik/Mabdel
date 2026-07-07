@@ -1,4 +1,10 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   View,
   Text,
@@ -74,7 +80,9 @@ const toUiMessage = (message, myUserId) => {
 
 const upsertMessages = (prev, nextMessage) => {
   if (!nextMessage?.id) return prev;
-  const exists = prev.some((item) => String(item.id) === String(nextMessage.id));
+  const exists = prev.some(
+    (item) => String(item.id) === String(nextMessage.id),
+  );
   if (exists) return prev;
   return [...prev, nextMessage];
 };
@@ -102,13 +110,16 @@ const SingleChatScreen = () => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [peerIsTyping, setPeerIsTyping] = useState(false);
-  const [peerIsOnline, setPeerIsOnline] = useState(Boolean(conversation?.isOnline));
+  const [peerIsOnline, setPeerIsOnline] = useState(
+    Boolean(conversation?.isOnline),
+  );
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [forwardMessage, setForwardMessage] = useState(null);
   const [forwardModalVisible, setForwardModalVisible] = useState(false);
   const typingTimeoutRef = useRef(null);
   const isSelfTypingRef = useRef(false);
-  const [sendMessageMutation, { isLoading: isSending }] = useSendMessageMutation();
+  const [sendMessageMutation, { isLoading: isSending }] =
+    useSendMessageMutation();
   const [markThreadSeen] = useMarkThreadSeenMutation();
   const [setTypingState] = useMadbelSetTypingStateMutation();
   const [replyToMessageMutation] = useMadbelReplyToMessageMutation();
@@ -117,7 +128,8 @@ const SingleChatScreen = () => {
 
   const recorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
   const recorderState = useAudioRecorderState(recorder, 250);
-  const [transcribeVoice, { isLoading: isTranscribing }] = useMadbelTranscribeVoiceMutation();
+  const [transcribeVoice, { isLoading: isTranscribing }] =
+    useMadbelTranscribeVoiceMutation();
 
   const {
     data: threadMessagesData,
@@ -173,7 +185,10 @@ const SingleChatScreen = () => {
       setPeerIsTyping(isTyping);
       if (isTyping) {
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = setTimeout(() => setPeerIsTyping(false), 8000);
+        typingTimeoutRef.current = setTimeout(
+          () => setPeerIsTyping(false),
+          8000,
+        );
       }
     };
     addEventListener("chat:typing:updated", handler);
@@ -199,12 +214,20 @@ const SingleChatScreen = () => {
       if (!threadId) return;
       if (text.length > 0 && !isSelfTypingRef.current) {
         isSelfTypingRef.current = true;
-        setTypingState({ conversation_id: threadId, is_typing: true, actor_type: "user" }).catch(() => null);
+        setTypingState({
+          conversation_id: threadId,
+          is_typing: true,
+          actor_type: "user",
+        }).catch(() => null);
       }
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
         isSelfTypingRef.current = false;
-        setTypingState({ conversation_id: threadId, is_typing: false, actor_type: "user" }).catch(() => null);
+        setTypingState({
+          conversation_id: threadId,
+          is_typing: false,
+          actor_type: "user",
+        }).catch(() => null);
       }, 3000);
     },
     [threadId, setTypingState],
@@ -235,7 +258,11 @@ const SingleChatScreen = () => {
     if (isSelfTypingRef.current) {
       isSelfTypingRef.current = false;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      setTypingState({ conversation_id: threadId, is_typing: false, actor_type: "user" }).catch(() => null);
+      setTypingState({
+        conversation_id: threadId,
+        is_typing: false,
+        actor_type: "user",
+      }).catch(() => null);
     }
 
     try {
@@ -248,11 +275,17 @@ const SingleChatScreen = () => {
         }).unwrap();
         created = result?.message || result;
       } else {
-        const result = await sendMessageMutation({ threadId, type: "text", text }).unwrap();
+        const result = await sendMessageMutation({
+          threadId,
+          type: "text",
+          text,
+        }).unwrap();
         created = result?.message || result;
       }
       if (created?._id || created?.id) {
-        setMessages((prev) => upsertMessages(prev, toUiMessage(created, myUserId)));
+        setMessages((prev) =>
+          upsertMessages(prev, toUiMessage(created, myUserId)),
+        );
       }
     } catch {
       setMessage(text);
@@ -260,42 +293,48 @@ const SingleChatScreen = () => {
     }
   };
 
-  const handleLongPressMessage = useCallback((item) => {
-    Alert.alert(
-      t("message_actions"),
-      null,
-      [
-        {
-          text: t("reply"),
-          onPress: () => setReplyToMessage(item),
-        },
-        {
-          text: t("forward"),
-          onPress: () => {
-            setForwardMessage(item);
-            setForwardModalVisible(true);
+  const handleLongPressMessage = useCallback(
+    (item) => {
+      Alert.alert(
+        t("message_actions"),
+        null,
+        [
+          {
+            text: t("reply"),
+            onPress: () => setReplyToMessage(item),
           },
-        },
-        { text: t("cancel"), style: "cancel" },
-      ],
-      { cancelable: true },
-    );
-  }, [t]);
+          {
+            text: t("forward"),
+            onPress: () => {
+              setForwardMessage(item);
+              setForwardModalVisible(true);
+            },
+          },
+          { text: t("cancel"), style: "cancel" },
+        ],
+        { cancelable: true },
+      );
+    },
+    [t],
+  );
 
-  const handleForwardTo = useCallback(async (targetThreadId) => {
-    if (!forwardMessage || !targetThreadId) return;
-    setForwardModalVisible(false);
-    try {
-      await forwardMessageMutation({
-        message_id: forwardMessage.id,
-        conversation_id: targetThreadId,
-        platform: "ai",
-      }).unwrap();
-    } catch {
-      Alert.alert(t("error"), t("could_not_forward_message"));
-    }
-    setForwardMessage(null);
-  }, [forwardMessage, forwardMessageMutation, t]);
+  const handleForwardTo = useCallback(
+    async (targetThreadId) => {
+      if (!forwardMessage || !targetThreadId) return;
+      setForwardModalVisible(false);
+      try {
+        await forwardMessageMutation({
+          message_id: forwardMessage.id,
+          conversation_id: targetThreadId,
+          platform: "ai",
+        }).unwrap();
+      } catch {
+        Alert.alert(t("error"), t("could_not_forward_message"));
+      }
+      setForwardMessage(null);
+    },
+    [forwardMessage, forwardMessageMutation, t],
+  );
 
   const handleRecordButtonPress = async () => {
     if (recorderState?.isRecording) {
@@ -305,10 +344,10 @@ const SingleChatScreen = () => {
         if (uri) {
           const fetchResponse = await fetch(uri);
           const blob = await fetchResponse.blob();
-          
+
           const audioBase64 = await new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onload = () => resolve(reader.result.split(",")[1]);
             reader.onerror = reject;
             reader.readAsDataURL(blob);
           });
@@ -318,15 +357,14 @@ const SingleChatScreen = () => {
             audio_filename: `mabdel-transcribe-${Date.now()}.m4a`,
             audio_mime_type: "audio/m4a",
           }).unwrap();
-          
+
           const transcriptData = result?.data || result;
           const t = transcriptData?.transcript;
           if (t) {
-             setMessage((prev) => (prev ? prev + " " + t : t));
+            setMessage((prev) => (prev ? prev + " " + t : t));
           }
         }
-      } catch (error) {
-      }
+      } catch (error) {}
     } else {
       try {
         const permission = await requestRecordingPermissionsAsync();
@@ -340,16 +378,17 @@ const SingleChatScreen = () => {
         });
         await recorder.prepareToRecordAsync();
         recorder.record();
-      } catch (error) {
-      }
+      } catch (error) {}
     }
   };
 
   const renderMessageItem = ({ item, index }) => {
     const isMe = item.sender === "me";
-    const showAvatar = !isMe && (index === 0 || messages[index - 1]?.sender === "me");
+    const showAvatar =
+      !isMe && (index === 0 || messages[index - 1]?.sender === "me");
     const isLastInGroup =
-      isMe && (index === messages.length - 1 || messages[index + 1]?.sender !== "me");
+      isMe &&
+      (index === messages.length - 1 || messages[index + 1]?.sender !== "me");
 
     const showDateSeparator =
       index === 0 ||
@@ -364,10 +403,12 @@ const SingleChatScreen = () => {
               {new Date(item?.raw?.createdAt || Date.now()).toDateString() ===
               new Date().toDateString()
                 ? `${t("today")}, ${item.time}`
-                : new Date(item?.raw?.createdAt || 0).toLocaleDateString([], {
-                    month: "short",
-                    day: "numeric",
-                  }).toUpperCase()}
+                : new Date(item?.raw?.createdAt || 0)
+                    .toLocaleDateString([], {
+                      month: "short",
+                      day: "numeric",
+                    })
+                    .toUpperCase()}
             </Text>
           </View>
         ) : null}
@@ -377,27 +418,50 @@ const SingleChatScreen = () => {
           showAvatar={showAvatar}
           isLastInGroup={isLastInGroup}
           avatar={currentConversation.avatar}
-          onLongPress={() => handleLongPressMessage(item)}
+          onLongPress={() => {
+            handleLongPressMessage(item);
+          }}
         />
       </>
     );
   };
 
   const renderEmptyComponent = () => (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
+    <View
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 32,
+      }}
+    >
       {currentConversation.avatar ? (
         <Image
           source={{ uri: currentConversation.avatar }}
           style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 16 }}
         />
       ) : null}
-      <Text style={{ fontSize: 18, fontWeight: "600", color: "#F8FAFC", marginBottom: 4 }}>
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: "600",
+          color: "#F8FAFC",
+          marginBottom: 4,
+        }}
+      >
         {currentConversation.name}
       </Text>
       <Text style={{ color: "#5D6A7A", fontSize: 15, textAlign: "center" }}>
         {isThreadError ? t("failed_to_load_messages") : t("no_messages_yet")}
       </Text>
-      <Text style={{ color: "#3D4A58", fontSize: 14, textAlign: "center", marginTop: 4 }}>
+      <Text
+        style={{
+          color: "#3D4A58",
+          fontSize: 14,
+          textAlign: "center",
+          marginTop: 4,
+        }}
+      >
         {t("send_message_to_start")}
       </Text>
     </View>
@@ -445,8 +509,23 @@ const SingleChatScreen = () => {
               }}
             />
           </View>
-          <Text style={{ fontSize: 13, color: peerIsTyping ? "#17CBE8" : peerIsOnline ? "#22C55E" : "#5D6A7A", fontWeight: "600", marginTop: 1 }}>
-            {peerIsTyping ? t("typing") : peerIsOnline ? t("online") : t("offline")}
+          <Text
+            style={{
+              fontSize: 13,
+              color: peerIsTyping
+                ? "#17CBE8"
+                : peerIsOnline
+                  ? "#22C55E"
+                  : "#5D6A7A",
+              fontWeight: "600",
+              marginTop: 1,
+            }}
+          >
+            {peerIsTyping
+              ? t("typing")
+              : peerIsOnline
+                ? t("online")
+                : t("offline")}
           </Text>
         </View>
 
@@ -502,27 +581,49 @@ const SingleChatScreen = () => {
         >
           {/* Reply preview bar */}
           {replyToMessage ? (
-            <View style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: "#1A2435",
-              borderRadius: 12,
-              paddingHorizontal: responsiveWidth(3),
-              paddingVertical: responsiveHeight(0.8),
-              marginBottom: responsiveHeight(0.8),
-              borderLeftWidth: 3,
-              borderLeftColor: "#17CBE8",
-            }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#1A2435",
+                borderRadius: 12,
+                paddingHorizontal: responsiveWidth(3),
+                paddingVertical: responsiveHeight(0.8),
+                marginBottom: responsiveHeight(0.8),
+                borderLeftWidth: 3,
+                borderLeftColor: "#17CBE8",
+              }}
+            >
               <View style={{ flex: 1 }}>
-                <Text style={{ color: "#17CBE8", fontSize: 12, fontWeight: "700", marginBottom: 2 }}>
-                  {t("replying_to")} {replyToMessage.sender === "me" ? t("yourself") : currentConversation.name}
+                <Text
+                  style={{
+                    color: "#17CBE8",
+                    fontSize: 12,
+                    fontWeight: "700",
+                    marginBottom: 2,
+                  }}
+                >
+                  {t("replying_to")}{" "}
+                  {replyToMessage.sender === "me"
+                    ? t("yourself")
+                    : currentConversation.name}
                 </Text>
-                <Text style={{ color: "#8A9AB0", fontSize: 13 }} numberOfLines={1}>
+                <Text
+                  style={{ color: "#8A9AB0", fontSize: 13 }}
+                  numberOfLines={1}
+                >
                   {replyToMessage.text}
                 </Text>
               </View>
-              <Pressable onPress={() => setReplyToMessage(null)} style={{ paddingLeft: 8, paddingVertical: 4 }}>
-                <Text style={{ color: "#5D6A7A", fontSize: 20, lineHeight: 20 }}>✕</Text>
+              <Pressable
+                onPress={() => setReplyToMessage(null)}
+                style={{ paddingLeft: 8, paddingVertical: 4 }}
+              >
+                <Text
+                  style={{ color: "#5D6A7A", fontSize: 20, lineHeight: 20 }}
+                >
+                  ✕
+                </Text>
               </Pressable>
             </View>
           ) : null}
@@ -551,7 +652,14 @@ const SingleChatScreen = () => {
                     paddingHorizontal: responsiveWidth(1.5),
                   }}
                 >
-                  <Text style={{ color: "#D5DEE9", fontSize: 13, fontWeight: "500", textAlign: "center" }}>
+                  <Text
+                    style={{
+                      color: "#D5DEE9",
+                      fontSize: 13,
+                      fontWeight: "500",
+                      textAlign: "center",
+                    }}
+                  >
                     {t(item)}
                   </Text>
                 </Pressable>
@@ -560,42 +668,56 @@ const SingleChatScreen = () => {
           )}
 
           {/* My avatar + input row */}
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: responsiveWidth(2) }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-end",
+              gap: responsiveWidth(2),
+            }}
+          >
             {/* User avatar */}
-            <View style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: "#1B2A3B",
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-            }}>
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: "#1B2A3B",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
               {authUser?.avatar || authUser?.profile_image ? (
                 <Image
                   source={{ uri: authUser?.avatar || authUser?.profile_image }}
                   style={{ width: 36, height: 36, borderRadius: 18 }}
                 />
               ) : (
-                <Text style={{ color: "#17CBE8", fontWeight: "700", fontSize: 14 }}>
-                  {String(authUser?.full_name || authUser?.name || "M")[0].toUpperCase()}
+                <Text
+                  style={{ color: "#17CBE8", fontWeight: "700", fontSize: 14 }}
+                >
+                  {String(
+                    authUser?.full_name || authUser?.name || "M",
+                  )[0].toUpperCase()}
                 </Text>
               )}
             </View>
 
             {/* Input + mic + send */}
-            <View style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "flex-end",
-              backgroundColor: "#1A2435",
-              borderRadius: 24,
-              paddingHorizontal: responsiveWidth(4),
-              paddingVertical: responsiveHeight(0.8),
-              borderWidth: 1,
-              borderColor: "#232A34",
-              gap: 8,
-            }}>
+            <View
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "flex-end",
+                backgroundColor: "#1A2435",
+                borderRadius: 24,
+                paddingHorizontal: responsiveWidth(4),
+                paddingVertical: responsiveHeight(0.8),
+                borderWidth: 1,
+                borderColor: "#232A34",
+                gap: 8,
+              }}
+            >
               <TextInput
                 style={{
                   flex: 1,
@@ -604,7 +726,9 @@ const SingleChatScreen = () => {
                   maxHeight: 100,
                   paddingVertical: 6,
                 }}
-                placeholder={threadId ? t("type_message") : t("chat_unavailable")}
+                placeholder={
+                  threadId ? t("type_message") : t("chat_unavailable")
+                }
                 placeholderTextColor="#4A5568"
                 value={message}
                 onChangeText={handleTextChange}
@@ -632,12 +756,14 @@ const SingleChatScreen = () => {
               onPress={sendMessage}
               disabled={!message.trim() || inputDisabled}
               style={{
-                backgroundColor: message.trim() && !inputDisabled ? "#17CBE8" : "#1A2435",
+                backgroundColor:
+                  message.trim() && !inputDisabled ? "#17CBE8" : "#1A2435",
                 borderRadius: 24,
                 paddingHorizontal: responsiveWidth(5),
                 paddingVertical: responsiveHeight(1.3),
                 borderWidth: 1,
-                borderColor: message.trim() && !inputDisabled ? "#17CBE8" : "#232A34",
+                borderColor:
+                  message.trim() && !inputDisabled ? "#17CBE8" : "#232A34",
                 alignItems: "center",
                 justifyContent: "center",
               }}
@@ -645,11 +771,14 @@ const SingleChatScreen = () => {
               {isSending ? (
                 <ActivityIndicator size="small" color="#020406" />
               ) : (
-                <Text style={{
-                  color: message.trim() && !inputDisabled ? "#020406" : "#5D6A7A",
-                  fontWeight: "700",
-                  fontSize: 15,
-                }}>
+                <Text
+                  style={{
+                    color:
+                      message.trim() && !inputDisabled ? "#020406" : "#5D6A7A",
+                    fontWeight: "700",
+                    fontSize: 15,
+                  }}
+                >
                   {t("send")}
                 </Text>
               )}
@@ -666,7 +795,11 @@ const SingleChatScreen = () => {
         onRequestClose={() => setForwardModalVisible(false)}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" }}
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            justifyContent: "flex-end",
+          }}
           onPress={() => setForwardModalVisible(false)}
         >
           <Pressable
@@ -680,7 +813,15 @@ const SingleChatScreen = () => {
             }}
             onPress={(e) => e.stopPropagation()}
           >
-            <Text style={{ color: "#F8FAFC", fontSize: 17, fontWeight: "700", textAlign: "center", marginBottom: 14 }}>
+            <Text
+              style={{
+                color: "#F8FAFC",
+                fontSize: 17,
+                fontWeight: "700",
+                textAlign: "center",
+                marginBottom: 14,
+              }}
+            >
               {t("forward_to")}
             </Text>
             <FlatList
@@ -699,24 +840,56 @@ const SingleChatScreen = () => {
                   }}
                   onPress={() => handleForwardTo(item._id || item.id)}
                 >
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#1B2A3B", alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ color: "#17CBE8", fontWeight: "700", fontSize: 16 }}>
-                      {String(item.directPeer?.fullName || item.name || "?")[0].toUpperCase()}
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: "#1B2A3B",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#17CBE8",
+                        fontWeight: "700",
+                        fontSize: 16,
+                      }}
+                    >
+                      {String(
+                        item.directPeer?.fullName || item.name || "?",
+                      )[0].toUpperCase()}
                     </Text>
                   </View>
-                  <Text style={{ color: "#E8EFF7", fontSize: 15, fontWeight: "600" }}>
-                    {item.directPeer?.fullName || item.name || t("unknown_user")}
+                  <Text
+                    style={{
+                      color: "#E8EFF7",
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {item.directPeer?.fullName ||
+                      item.name ||
+                      t("unknown_user")}
                   </Text>
                 </Pressable>
               )}
               ListEmptyComponent={
-                <Text style={{ color: "#5D6A7A", textAlign: "center", paddingVertical: 24 }}>{t("no_other_conversations")}</Text>
+                <Text
+                  style={{
+                    color: "#5D6A7A",
+                    textAlign: "center",
+                    paddingVertical: 24,
+                  }}
+                >
+                  {t("no_other_conversations")}
+                </Text>
               }
             />
           </Pressable>
         </Pressable>
       </Modal>
-
     </SafeAreaView>
   );
 };

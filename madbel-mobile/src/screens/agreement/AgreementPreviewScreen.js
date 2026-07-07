@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Modal, TextInput, ActivityIndicator, Alert, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,6 +21,7 @@ const STATUS_TONE_MAP = {
 };
 
 const AgreementPreviewScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const routeAgreement = route?.params?.agreement || {};
@@ -44,7 +46,7 @@ const AgreementPreviewScreen = () => {
 
   const handleSend = async () => {
     if (!agreementId) {
-      Alert.alert("Unavailable", "Agreement not found.");
+      Alert.alert(t("unavailable"), t("agreement_not_found"));
       return;
     }
     try {
@@ -56,7 +58,7 @@ const AgreementPreviewScreen = () => {
       };
       await sendForSignature(payload).unwrap();
       setShowModal(false);
-      Alert.alert("Sent", "Agreement sent for signature.");
+      Alert.alert(t("sent"), t("agreement_sent_for_signature"));
     } catch (error) {
       Alert.alert("Send failed", error?.data?.message || "Could not send agreement.");
     }
@@ -71,7 +73,7 @@ const AgreementPreviewScreen = () => {
         await Linking.openURL(url);
         return;
       }
-      Alert.alert("Unavailable", "PDF URL not available.");
+      Alert.alert(t("unavailable"), t("pdf_url_not_available"));
     } catch (error) {
       Alert.alert("PDF failed", error?.data?.message || "Could not open agreement PDF.");
     }
@@ -93,7 +95,7 @@ const AgreementPreviewScreen = () => {
             <Pressable onPress={() => navigation.goBack()}>
               <ChevronLeft size={35} color="#F8FAFC" />
             </Pressable>
-            <Text style={styles.headerTitle}>Agreement Preview</Text>
+            <Text style={styles.headerTitle}>{t("agreement_preview")}</Text>
           </View>
           <Pressable onPress={openPdf} disabled={downloadingPdf}>
             {downloadingPdf ? <ActivityIndicator color="#D7E8FF" /> : <Download size={24} color="#D7E8FF" />}
@@ -114,15 +116,15 @@ const AgreementPreviewScreen = () => {
             <Text style={styles.docTitle}>{agreement?.title || "Agreement"}</Text>
             <Text style={styles.docBody}>{agreement?.content || "No agreement content available."}</Text>
             <View style={styles.signatureBox}>
-              <Text style={styles.signatureTag}>SIGNATURE REQUIRED</Text>
-              <Text style={styles.signatureHint}>Click to Sign</Text>
+              <Text style={styles.signatureTag}>{t("signature_required")}</Text>
+              <Text style={styles.signatureHint}>{t("click_to_sign")}</Text>
             </View>
           </View>
 
           <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <Sparkles size={20} color="#10CDE9" />
-              <Text style={styles.reviewTitle}>AI Review</Text>
+              <Text style={styles.reviewTitle}>{t("ai_review")}</Text>
             </View>
             {review.length ? (
               review.map((item, index) => {
@@ -143,13 +145,13 @@ const AgreementPreviewScreen = () => {
               })
             ) : (
               <View style={styles.reviewItem}>
-                <Text style={styles.reviewItemSub}>No AI review findings available.</Text>
+                <Text style={styles.reviewItemSub}>{t("no_ai_review_findings_available")}</Text>
               </View>
             )}
           </View>
 
           <Pressable style={styles.sendBtn} onPress={() => setShowModal(true)}>
-            <Text style={styles.sendBtnText}>Send For Signature</Text>
+            <Text style={styles.sendBtnText}>{t("send_for_signature")}</Text>
           </Pressable>
         </ScrollView>
       </View>
@@ -158,28 +160,28 @@ const AgreementPreviewScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Send for Signature</Text>
+              <Text style={styles.modalTitle}>{t("send_for_signature")}</Text>
               <Pressable onPress={() => setShowModal(false)}>
                 <X size={34} color="#B7C1D0" />
               </Pressable>
             </View>
             <View style={styles.modalDivider} />
-            <Text style={styles.modalLabel}>RECIPIENT DETAILS</Text>
-            <Text style={styles.fieldLabel}>Name</Text>
-            <TextInput value={name} onChangeText={setName} placeholder="Full Name" placeholderTextColor="#5D687D" style={styles.modalInput} />
-            <Text style={styles.fieldLabel}>Email</Text>
-            <TextInput value={email} onChangeText={setEmail} placeholder="email@example.com" placeholderTextColor="#5D687D" style={styles.modalInput} autoCapitalize="none" />
-            <Text style={styles.fieldLabel}>Phone (Optional)</Text>
+            <Text style={styles.modalLabel}>{t("recipient_details")}</Text>
+            <Text style={styles.fieldLabel}>{t("name")}</Text>
+            <TextInput value={name} onChangeText={setName} placeholder={t("full_name")} placeholderTextColor="#5D687D" style={styles.modalInput} />
+            <Text style={styles.fieldLabel}>{t("email")}</Text>
+            <TextInput value={email} onChangeText={setEmail} placeholder={t("email_example_com")} placeholderTextColor="#5D687D" style={styles.modalInput} autoCapitalize="none" />
+            <Text style={styles.fieldLabel}>{t("phone_optional")}</Text>
             <TextInput value={phone} onChangeText={setPhone} placeholder="+1 234 567 890" placeholderTextColor="#5D687D" style={styles.modalInput} />
             <View style={styles.modalFooter}>
               <Pressable onPress={() => setShowModal(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{t("cancel")}</Text>
               </Pressable>
               <Pressable style={styles.modalSendBtn} onPress={handleSend} disabled={sending}>
                 {sending ? (
                   <ActivityIndicator color="#EAF8FF" />
                 ) : (
-                  <Text style={styles.modalSendText}>Send Document</Text>
+                  <Text style={styles.modalSendText}>{t("send_document")}</Text>
                 )}
               </Pressable>
             </View>

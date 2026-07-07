@@ -1,3 +1,4 @@
+import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -27,6 +28,7 @@ import {
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeRecipients = (values) => {
+  const { t } = useAppLanguage();
   if (!Array.isArray(values)) return [];
   return values
     .map((item) => (typeof item === "string" ? item.trim() : ""))
@@ -133,7 +135,7 @@ const BulkEmailRecipientsScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ArrowLeft size={responsiveWidth(7.2)} color="#F4F8FF" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>Add Recipients</Text>
+          <Text style={styles.title}>{t("add_recipients")}</Text>
           <View style={styles.rightSpacer} />
         </View>
 
@@ -174,7 +176,7 @@ const BulkEmailRecipientsScreen = () => {
               value={inputValue}
               onChangeText={setInputValue}
               onSubmitEditing={pushInputEmails}
-              placeholder="Type email..."
+              placeholder={t("type_email")}
               placeholderTextColor="#7B8498"
               style={styles.input}
               returnKeyType="done"
@@ -189,9 +191,8 @@ const BulkEmailRecipientsScreen = () => {
 
           <View style={styles.card}>
             <View style={styles.contactsHeaderRow}>
-              <Text style={styles.contactsTitle}>Add from Contacts</Text>
-              {contactsFetching ? <ActivityIndicator color="#87D9E9" size="small" /> : null}
-            </View>
+              <Text style={styles.contactsTitle}>{t("add_from_contacts")}</Text>
+              {contactsFetching ? <ActivityIndicator color="#87D9E9" size="small" /> : null}</View>
 
             {contactsLoading ? (
               <View style={styles.contactsStateRow}>
@@ -223,7 +224,7 @@ const BulkEmailRecipientsScreen = () => {
               })
             ) : (
               <View style={styles.contactsStateRow}>
-                <Text style={styles.emptyStateText}>No contacts found</Text>
+                <Text style={styles.emptyStateText}>{t("no_contacts_found")}</Text>
               </View>
             )}
           </View>
@@ -234,7 +235,7 @@ const BulkEmailRecipientsScreen = () => {
             {validatingRecipients ? (
               <ActivityIndicator color="#DFF8FF" />
             ) : (
-              <Text style={styles.continueBtnText}>Continue</Text>
+              <Text style={styles.continueBtnText}>{t("continue")}</Text>
             )}
           </Pressable>
         </View>

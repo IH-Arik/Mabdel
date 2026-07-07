@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useAppLanguage } from "../../context/LanguageContext";
 import { View, Text, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
@@ -7,6 +8,8 @@ import Navbar from "../../components/Navbar";
 import { useGetAllEventsQuery } from "../../redux/slices/event/eventSlice";
 
 const isHostedByUser = (item, userId) => {
+  const { t } = useAppLanguage();
+
   if (!item || !userId) return false;
   const id = String(userId);
   const candidates = [
@@ -47,7 +50,7 @@ const HostedEventsScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-white" style={{ padding: responsiveWidth(5) }}>
-      <Navbar title="Hosted Events" />
+      <Navbar title={t("hosted_events")} />
       <FlatList
         contentContainerStyle={{ paddingTop: responsiveHeight(2), paddingBottom: responsiveHeight(2) }}
         data={hostedEvents}

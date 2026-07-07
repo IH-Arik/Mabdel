@@ -24,6 +24,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import ControllerTextInput from "../../components/ControllerTextInput";
 import { googleSignIn } from "../../utils/googleAuth";
 import { responsiveScreenFontSize } from "react-native-responsive-dimensions";
+import { useAppLanguage } from "../../context/LanguageContext";
 
 const colors = {
   bg: "#02080B",
@@ -35,6 +36,7 @@ const colors = {
 };
 
 const LoginScreen = () => {
+  const { t } = useAppLanguage();
   const {
     control,
     formState: { errors },
@@ -63,7 +65,7 @@ const LoginScreen = () => {
     } catch (error) {
       setError("root", {
         type: "login",
-        message: error?.data?.message || "Unable to login.",
+        message: error?.data?.message || t("unable_to_login"),
       });
     }
   };
@@ -83,7 +85,7 @@ const LoginScreen = () => {
         message:
           error?.data?.message ||
           error?.message ||
-          "Google sign-in failed. Please try again.",
+          t("google_sign_in_failed"),
       });
     } finally {
       setGoogleLoading(false);
@@ -113,9 +115,9 @@ const LoginScreen = () => {
                 <View style={styles.iconCard}>
                   <Bot size={42} color={colors.accent} strokeWidth={2.3} />
                 </View>
-                <Text style={styles.title}>Welcome Back</Text>
+                <Text style={styles.title}>{t("welcome_back")}</Text>
                 <Text style={styles.subtitle}>
-                  Login to your Mabdel AI business assistant
+                  {t("login_subtitle")}
                 </Text>
               </View>
 
@@ -124,16 +126,16 @@ const LoginScreen = () => {
                 name="loginEmail"
                 control={control}
                 error={errors?.loginEmail?.message}
-                label="Email Address"
-                placeholder="Enter your email"
+                label={t("email_address")}
+                placeholder={t("enter_your_email")}
                 type="email"
                 keyboardType="email"
                 leftIcon={<MailIcon color="#14C6E4" size={20} />}
                 rules={{
-                  required: "Email is required",
+                  required: t("email_is_required"),
                   pattern: {
                     value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    message: "Enter a valid email address",
+                    message: t("enter_valid_email"),
                   },
                 }}
               />
@@ -143,8 +145,8 @@ const LoginScreen = () => {
                 name="loginPassword"
                 control={control}
                 error={errors?.loginPassword?.message}
-                label="Password"
-                placeholder="Enter password"
+                label={t("password")}
+                placeholder={t("enter_password")}
                 type="password"
                 secureTextEntry={!isPasswordVisible}
                 leftIcon={<LockKeyhole color="#14C6E4" size={20} />}
@@ -157,10 +159,10 @@ const LoginScreen = () => {
                 }
                 onPressToggle={() => setPasswordVisible((p) => !p)}
                 rules={{
-                  required: "Password is required",
+                  required: t("password_is_required"),
                   minLength: {
                     value: 8,
-                    message: "Password must be at least 8 characters",
+                    message: t("password_min_length"),
                   },
                 }}
               />
@@ -170,7 +172,7 @@ const LoginScreen = () => {
                 onPress={() => navigation.navigate("ForgotPassword")}
                 style={styles.forgotWrap}
               >
-                <Text style={styles.link}>Forgot Password?</Text>
+                <Text style={styles.link}>{t("forgot_password_question")}</Text>
               </Pressable>
 
               {/* Login button */}
@@ -185,7 +187,7 @@ const LoginScreen = () => {
                 {loginLoading ? (
                   <ActivityIndicator color="#EAF9FD" size={20} />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Login</Text>
+                  <Text style={styles.primaryButtonText}>{t("login")}</Text>
                 )}
               </Pressable>
 
@@ -216,16 +218,16 @@ const LoginScreen = () => {
                       source={require("../../../assets/images/google_icon.png")}
                       style={styles.googleIcon}
                     />
-                    <Text style={styles.googleText}>Continue with Google</Text>
+                    <Text style={styles.googleText}>{t("continue_with_google")}</Text>
                   </>
                 )}
               </Pressable> */}
 
               {/* Footer */}
               {/* <View style={styles.footerRow}>
-                <Text style={styles.footerText}>Don't have an account?</Text>
+                <Text style={styles.footerText}>{t("dont_have_account")}</Text>
                 <Pressable onPress={() => navigation.navigate("Register")}>
-                  <Text style={styles.link}>Sign Up</Text>
+                  <Text style={styles.link}>{t("register")}</Text>
                 </Pressable>
               </View> */}
             </ScrollView>

@@ -6,6 +6,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from "react-native";
+import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -18,6 +19,7 @@ import EventCard from "../../components/EventCard";
 import { useCommunityLogic } from "./hooks/useCommunityLogic";
 
 const CommunityHomeScreen = () => {
+  const { t } = useAppLanguage();
   const {
     events,
     isLoading,
@@ -39,7 +41,7 @@ const CommunityHomeScreen = () => {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center">
         <ActivityIndicator size="large" color="#D6EB69" />
-        <Text className="text-gray-500 mt-3">Loading events...</Text>
+        <Text className="text-gray-500 mt-3">{t("loading_events")}</Text>
       </SafeAreaView>
     );
   }
@@ -47,9 +49,7 @@ const CommunityHomeScreen = () => {
   if (isError && !events.length) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
-        <Text className="text-black text-lg font-semibold text-center">
-          Failed to load events
-        </Text>
+        <Text className="text-black text-lg font-semibold text-center">{t("failed_to_load_events")}</Text>
         <Text className="text-gray-500 text-center mt-2">
           {error?.data?.message || "Please check your connection and try again."}
         </Text>
@@ -58,7 +58,7 @@ const CommunityHomeScreen = () => {
           className="bg-primary rounded-xl mt-4"
           style={{ paddingHorizontal: responsiveWidth(6), paddingVertical: responsiveHeight(1.5) }}
         >
-          <Text className="text-black font-bold">Retry</Text>
+          <Text className="text-black font-bold">{t("retry")}</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -92,7 +92,7 @@ const CommunityHomeScreen = () => {
         }
         ListEmptyComponent={
           <View className="py-10 items-center">
-            <Text className="text-gray-500">No events found.</Text>
+            <Text className="text-gray-500">{t("no_events_found")}</Text>
           </View>
         }
         ListHeaderComponent={
@@ -116,7 +116,7 @@ const CommunityHomeScreen = () => {
         
                 <TextInput
                   className="flex-1 ml-2 text-gray-900 text-base p-2"
-                  placeholder="Search activities or users"
+                  placeholder={t("search_activities_or_users")}
                   placeholderTextColor="#9CA3AF"
                   returnKeyType="search"
                   value={searchText}
