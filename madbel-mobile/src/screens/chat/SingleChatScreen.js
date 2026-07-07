@@ -25,6 +25,7 @@ import * as FileSystem from "expo-file-system";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import MessageBubble from "../../components/MessageBubble";
+import { useAppLanguage } from "../../context/LanguageContext";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -78,14 +79,15 @@ const upsertMessages = (prev, nextMessage) => {
   return [...prev, nextMessage];
 };
 const ADMIN_SUPPORT_SUGGESTIONS = [
-  "Billing Issue",
-  "Technical Help",
-  "Account Problem",
+  "billing_issue",
+  "technical_help",
+  "account_problem",
 ];
 
 const SingleChatScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const { t } = useAppLanguage();
   const authUser = useSelector((state) => state?.auth?.user);
   const myUserId = authUser?._id || authUser?.id || authUser?.userId;
 
@@ -136,13 +138,13 @@ const SingleChatScreen = () => {
   const scrollTimeoutRef = useRef(null);
 
   const defaultConversation = {
-    name: "Chat",
+    name: t("chat"),
     avatar: "https://robohash.org/user.png",
   };
 
   const groupConversation = group
     ? {
-        name: group?.name || "Group Chat",
+        name: group?.name || t("group_chat"),
         avatar: group?.avatar || "https://robohash.org/group.png",
       }
     : null;
@@ -260,25 +262,25 @@ const SingleChatScreen = () => {
 
   const handleLongPressMessage = useCallback((item) => {
     Alert.alert(
-      "Message",
+      t("message_actions"),
       null,
       [
         {
-          text: "Reply",
+          text: t("reply"),
           onPress: () => setReplyToMessage(item),
         },
         {
-          text: "Forward",
+          text: t("forward"),
           onPress: () => {
             setForwardMessage(item);
             setForwardModalVisible(true);
           },
         },
-        { text: "Cancel", style: "cancel" },
+        { text: t("cancel"), style: "cancel" },
       ],
       { cancelable: true },
     );
-  }, []);
+  }, [t]);
 
   const handleForwardTo = useCallback(async (targetThreadId) => {
     if (!forwardMessage || !targetThreadId) return;
@@ -290,10 +292,10 @@ const SingleChatScreen = () => {
         platform: "ai",
       }).unwrap();
     } catch {
-      Alert.alert("Error", "Could not forward the message.");
+      Alert.alert(t("error"), t("could_not_forward_message"));
     }
     setForwardMessage(null);
-  }, [forwardMessage, forwardMessageMutation]);
+  }, [forwardMessage, forwardMessageMutation, t]);
 
   const handleRecordButtonPress = async () => {
     if (recorderState?.isRecording) {
@@ -361,7 +363,7 @@ const SingleChatScreen = () => {
             <Text style={{ color: "#5D6A7A", fontSize: 12, fontWeight: "600" }}>
               {new Date(item?.raw?.createdAt || Date.now()).toDateString() ===
               new Date().toDateString()
-                ? `TODAY, ${item.time}`
+                ? `${t("today")}, ${item.time}`
                 : new Date(item?.raw?.createdAt || 0).toLocaleDateString([], {
                     month: "short",
                     day: "numeric",
@@ -393,10 +395,10 @@ const SingleChatScreen = () => {
         {currentConversation.name}
       </Text>
       <Text style={{ color: "#5D6A7A", fontSize: 15, textAlign: "center" }}>
-        {isThreadError ? "Failed to load messages" : "No messages yet"}
+        {isThreadError ? t("failed_to_load_messages") : t("no_messages_yet")}
       </Text>
       <Text style={{ color: "#3D4A58", fontSize: 14, textAlign: "center", marginTop: 4 }}>
-        Send a message to start the conversation.
+        {t("send_message_to_start")}
       </Text>
     </View>
   );
@@ -404,8 +406,8 @@ const SingleChatScreen = () => {
   const inputDisabled = !threadId || isSending;
 
   const headerName = useMemo(
-    () => currentConversation?.name || "Chat",
-    [currentConversation?.name],
+    () => currentConversation?.name || t("chat"),
+    [currentConversation?.name, t],
   );
   const shouldShowSuggestions =
     String(headerName || "").toLowerCase() === "live support";
@@ -444,7 +446,7 @@ const SingleChatScreen = () => {
             />
           </View>
           <Text style={{ fontSize: 13, color: peerIsTyping ? "#17CBE8" : peerIsOnline ? "#22C55E" : "#5D6A7A", fontWeight: "600", marginTop: 1 }}>
-            {peerIsTyping ? "Typing..." : peerIsOnline ? "Online" : "Offline"}
+            {peerIsTyping ? t("typing") : peerIsOnline ? t("online") : t("offline")}
           </Text>
         </View>
 
@@ -469,7 +471,7 @@ const SingleChatScreen = () => {
           {isLoadingMessages ? (
             <View className="flex-1 items-center justify-center">
               <ActivityIndicator size="small" color="#71ABE0" />
-              <Text className="text-gray-500 mt-2">Loading chat...</Text>
+              <Text className="text-gray-500 mt-2">{t("loading_chat")}</Text>
             </View>
           ) : (
             <FlatList
@@ -513,7 +515,7 @@ const SingleChatScreen = () => {
             }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: "#17CBE8", fontSize: 12, fontWeight: "700", marginBottom: 2 }}>
-                  Replying to {replyToMessage.sender === "me" ? "yourself" : currentConversation.name}
+                  {t("replying_to")} {replyToMessage.sender === "me" ? t("yourself") : currentConversation.name}
                 </Text>
                 <Text style={{ color: "#8A9AB0", fontSize: 13 }} numberOfLines={1}>
                   {replyToMessage.text}
@@ -550,7 +552,7 @@ const SingleChatScreen = () => {
                   }}
                 >
                   <Text style={{ color: "#D5DEE9", fontSize: 13, fontWeight: "500", textAlign: "center" }}>
-                    {item}
+                    {t(item)}
                   </Text>
                 </Pressable>
               ))}
@@ -602,7 +604,7 @@ const SingleChatScreen = () => {
                   maxHeight: 100,
                   paddingVertical: 6,
                 }}
-                placeholder={threadId ? "Type a message..." : "Chat unavailable"}
+                placeholder={threadId ? t("type_message") : t("chat_unavailable")}
                 placeholderTextColor="#4A5568"
                 value={message}
                 onChangeText={handleTextChange}
@@ -648,7 +650,7 @@ const SingleChatScreen = () => {
                   fontWeight: "700",
                   fontSize: 15,
                 }}>
-                  Send
+                  {t("send")}
                 </Text>
               )}
             </Pressable>
@@ -679,7 +681,7 @@ const SingleChatScreen = () => {
             onPress={(e) => e.stopPropagation()}
           >
             <Text style={{ color: "#F8FAFC", fontSize: 17, fontWeight: "700", textAlign: "center", marginBottom: 14 }}>
-              Forward to...
+              {t("forward_to")}
             </Text>
             <FlatList
               data={allThreads.filter((t) => (t._id || t.id) !== threadId)}
@@ -703,12 +705,12 @@ const SingleChatScreen = () => {
                     </Text>
                   </View>
                   <Text style={{ color: "#E8EFF7", fontSize: 15, fontWeight: "600" }}>
-                    {item.directPeer?.fullName || item.name || "Unknown"}
+                    {item.directPeer?.fullName || item.name || t("unknown_user")}
                   </Text>
                 </Pressable>
               )}
               ListEmptyComponent={
-                <Text style={{ color: "#5D6A7A", textAlign: "center", paddingVertical: 24 }}>No other conversations</Text>
+                <Text style={{ color: "#5D6A7A", textAlign: "center", paddingVertical: 24 }}>{t("no_other_conversations")}</Text>
               }
             />
           </Pressable>

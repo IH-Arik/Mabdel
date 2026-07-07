@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -13,7 +14,7 @@ import {
   responsiveHeight,
   responsiveWidth,
 } from "react-native-responsive-dimensions";
-import { Search, ReceiptText } from "lucide-react-native";
+import { Search, ReceiptText, ChevronLeft } from "lucide-react-native";
 import { useForm, useWatch } from "react-hook-form";
 import ControllerTextInput from "../../components/ControllerTextInput";
 import { useMadbelListInvoicesQuery } from "../../redux/slices/madbelApiSlice";
@@ -28,14 +29,16 @@ const InvoiceListScreen = () => {
   const { control } = useForm({
     defaultValues: { search: "" },
   });
-  const search = useWatch({ control, name: "search" });
+  // const search = useWatch({ control, name: "search" });
+  const [query, setQuery] = useState("");
+
   const {
     data: invoicesResponse,
     isLoading,
     isFetching,
     error,
   } = useMadbelListInvoicesQuery({
-    search: search?.trim() || undefined,
+    search: query?.trim() || undefined,
   });
 
   const invoiceData = invoicesResponse?.data;
@@ -47,7 +50,9 @@ const InvoiceListScreen = () => {
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <View style={styles.titleWrap}>
-            <ReceiptText size={34} color="#14C9E7" strokeWidth={2.1} />
+            <Pressable onPress={() => navigation.goBack()}>
+              <ChevronLeft size={responsiveWidth(5)} color="#F8FAFC" />
+            </Pressable>
             <Text style={styles.title}>Invoices</Text>
           </View>
 
@@ -55,19 +60,20 @@ const InvoiceListScreen = () => {
             style={styles.newBtn}
             onPress={() => navigation.navigate("CreateInvoice")}
           >
-            <Text style={styles.newBtnText}>+ New Invoice</Text>
+            <Text style={styles.newBtnText}>+ New </Text>
           </Pressable>
         </View>
 
-        <ControllerTextInput
-          name="search"
-          control={control}
-          placeholder="Search client or invoice ID"
-          placeholderTextColor="#6D7B93"
-          leftIcon={<Search size={34} color="#14C9E7" />}
-          inputStyle={styles.searchInput}
-        />
-
+        <View style={styles.searchBox}>
+          <Search size={26} color="#11CDE8" />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search invoices"
+            placeholderTextColor="#626F86"
+            style={styles.searchInput}
+          />
+        </View>
         <View style={styles.outstandingCard}>
           <Text style={styles.outstandingLabel}>TOTAL OUTSTANDING</Text>
           <View style={styles.outstandingRow}>
@@ -86,57 +92,67 @@ const InvoiceListScreen = () => {
           </View>
         ) : error ? (
           <View style={styles.centerState}>
-            <Text style={styles.stateText}>Could not load invoices right now.</Text>
+            <Text style={styles.stateText}>
+              Could not load invoices right now.
+            </Text>
           </View>
         ) : (
-        <FlatList
-          data={invoices}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <View style={styles.centerState}>
-              <Text style={styles.stateText}>
-                {search?.trim() ? "No invoices matched that search." : "No invoices yet."}
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.invoiceCard}
-              onPress={() => navigation.navigate("InvoiceDetails", { invoice: item })}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.clientName}>{item.client_name}</Text>
-                <Text style={styles.invoiceId}>{item.invoice_number}</Text>
-                <Text style={styles.dueDate}>{`Due: ${formatInvoiceDate(item.due_date)}`}</Text>
-              </View>
-              <View style={styles.cardRight}>
-                <View
-                  style={[
-                    styles.statusPill,
-                    {
-                      backgroundColor: getInvoiceStatusMeta(item.status).backgroundColor,
-                      borderColor: getInvoiceStatusMeta(item.status).borderColor,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      { color: getInvoiceStatusMeta(item.status).color },
-                    ]}
-                  >
-                    {getInvoiceStatusMeta(item.status).label}
-                  </Text>
-                </View>
-                <Text style={styles.amount}>
-                  {formatCurrency(item.total_amount, item.currency)}
+          <FlatList
+            data={invoices}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <View style={styles.centerState}>
+                <Text style={styles.stateText}>
+                  {search?.trim()
+                    ? "No invoices matched that search."
+                    : "No invoices yet."}
                 </Text>
               </View>
-            </Pressable>
-          )}
-        />
+            }
+            renderItem={({ item }) => (
+              <Pressable
+                style={styles.invoiceCard}
+                onPress={() =>
+                  navigation.navigate("InvoiceDetails", { invoice: item })
+                }
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.clientName}>{item.client_name}</Text>
+                  <Text style={styles.invoiceId}>{item.invoice_number}</Text>
+                  <Text
+                    style={styles.dueDate}
+                  >{`Due: ${formatInvoiceDate(item.due_date)}`}</Text>
+                </View>
+                <View style={styles.cardRight}>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      {
+                        backgroundColor: getInvoiceStatusMeta(item.status)
+                          .backgroundColor,
+                        borderColor: getInvoiceStatusMeta(item.status)
+                          .borderColor,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: getInvoiceStatusMeta(item.status).color },
+                      ]}
+                    >
+                      {getInvoiceStatusMeta(item.status).label}
+                    </Text>
+                  </View>
+                  <Text style={styles.amount}>
+                    {formatCurrency(item.total_amount, item.currency)}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          />
         )}
 
         {isFetching && !isLoading ? (
@@ -172,6 +188,7 @@ const styles = StyleSheet.create({
     color: "#F2F7FD",
     fontSize: 30,
     fontWeight: "500",
+    fontSize: responsiveWidth(5),
   },
   newBtn: {
     minHeight: responsiveHeight(6),
@@ -191,17 +208,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
   },
-  searchInput: {
-    minHeight: responsiveHeight(7),
-    borderRadius: 18,
+  searchBox: {
+    // marginTop: responsiveHeight(1.8),
+    minHeight: responsiveHeight(6.7),
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#2B3142",
-    backgroundColor: "#23262E",
-    color: "#EAF0F6",
-    fontSize: 22,
-    paddingLeft: responsiveWidth(14),
-    paddingRight: responsiveWidth(4.5),
+    borderColor: "#2A303C",
+    backgroundColor: "#1A1D24",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: responsiveWidth(4),
+    gap: responsiveWidth(2.5),
   },
+  searchInput: { flex: 1, color: "#DCE5F2", fontSize: 20 },
+
+  // searchInput: {
+  //   minHeight: responsiveHeight(7),
+  //   borderRadius: 18,
+  //   borderWidth: 1,
+  //   borderColor: "#2B3142",
+  //   backgroundColor: "#23262E",
+  //   color: "#EAF0F6",
+  //   fontSize: 22,
+  //   paddingLeft: responsiveWidth(14),
+  //   paddingRight: responsiveWidth(4.5),
+  // },
   outstandingCard: {
     marginTop: responsiveHeight(1),
     borderRadius: 20,

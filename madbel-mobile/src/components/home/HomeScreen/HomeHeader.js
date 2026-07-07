@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { Bell, ChevronDown, Check } from "lucide-react-native";
-import { LANGUAGES, useLanguage } from "../../../context/LanguageContext";
+import { LANGUAGES, useAppLanguage } from "../../../context/LanguageContext";
 
 const rw = (value) => responsiveWidth(value);
 const rh = (value) => responsiveHeight(value);
 
 const HomeHeader = ({ greeting = "Good Morning", onNotificationPress }) => {
-  const { selectedLang, setSelectedLang, currentLang, t } = useLanguage();
+  const { appLanguage, setAppLanguage, currentAppLang, t } = useAppLanguage();
   const [showLangModal, setShowLangModal] = useState(false);
 
   return (
@@ -20,7 +20,7 @@ const HomeHeader = ({ greeting = "Good Morning", onNotificationPress }) => {
             style={styles.langPill}
             onPress={() => setShowLangModal(true)}
           >
-            <Text style={styles.langText}>{currentLang.label}</Text>
+            <Text style={styles.langText}>{currentAppLang.label}</Text>
             <ChevronDown size={14} color="#D8E4F3" />
           </Pressable>
           <Pressable style={styles.iconBtn} onPress={onNotificationPress}>
@@ -41,19 +41,17 @@ const HomeHeader = ({ greeting = "Good Morning", onNotificationPress }) => {
         >
           <Pressable style={styles.langSheet} onPress={() => {}}>
             <View style={styles.langHandle} />
-            <Text style={styles.langSheetTitle}>{t("ai_voice_language")}</Text>
-            <Text style={styles.langSheetSub}>
-              {t("ai_voice_language_subtitle")}
-            </Text>
+            <Text style={styles.langSheetTitle}>{t("app_language")}</Text>
+            <Text style={styles.langSheetSub}>{t("app_language_subtitle")}</Text>
             <ScrollView style={styles.langList} showsVerticalScrollIndicator={false}>
               {LANGUAGES.map((lang) => {
-                const active = lang.code === selectedLang;
+                const active = lang.code === appLanguage;
                 return (
                   <Pressable
                     key={lang.code}
                     style={[styles.langRow, active && styles.langRowActive]}
                     onPress={() => {
-                      setSelectedLang(lang.code);
+                      setAppLanguage(lang.code);
                       setShowLangModal(false);
                     }}
                   >

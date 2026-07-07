@@ -59,6 +59,7 @@ const LoginScreen = () => {
       }).unwrap();
       // No navigate() call — RootAppNavigator re-renders automatically
       // when setCredentials flips isAuthenticated to true
+      // navigation.navigate("BottomNavigator");
     } catch (error) {
       setError("root", {
         type: "login",

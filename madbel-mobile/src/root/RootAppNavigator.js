@@ -12,6 +12,7 @@ import ActiveCallScreen from "../screens/call/ActiveCallScreen";
 import AiCallScreen from "../screens/call/AiCallScreen";
 import * as Notifications from "expo-notifications";
 import { useMadbelRegisterPushTokenMutation } from "../redux/slices/madbelApiSlice";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Stack = createNativeStackNavigator();
 
@@ -74,24 +75,12 @@ const RootAppNavigator = () => {
     registerToken();
   }, [isAuthenticated]);
 
-<<<<<<< Updated upstream
-  return (
-    <Stack.Navigator
-      screenOptions={{ headerShown: false }}
-      initialRouteName={isAuthenticated ? "BottomNavigator" : "Begin"}
-    >
-      {isAuthenticated ? (
-        <>
-=======
-  // Block navigator mount for one tick until the subscription check useEffect fires.
-  // This ensures initialRouteName is correct before the auth stack first renders.
-  if (isAuthenticated && !trialChecked) {
-    return <View style={{ flex: 1, backgroundColor: "#02080B" }} />;
-  }
 
-  // const authInitialRoute = showTrial ? "SubscriptionTrial" : "BottomNavigator";
+
 
   return (
+    <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
       initialRouteName={isAuthenticated ? "BottomNavigator"
@@ -100,10 +89,7 @@ const RootAppNavigator = () => {
       {isAuthenticated ? (
         <>
           {/* <Stack.Screen name="SubscriptionTrial" component={SubscriptionTrialScreen} /> */}
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+
           <Stack.Screen name="BottomNavigator" component={BottomNavigator} />
           <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
           <Stack.Screen name="ActiveCall" component={ActiveCallScreen} />
@@ -120,6 +106,8 @@ const RootAppNavigator = () => {
         <Stack.Screen name="Notification" component={NotificationScreen} />
       )}
     </Stack.Navigator>
+    </SafeAreaView>
+
   );
 };
 

@@ -21,6 +21,7 @@ import {
   useMadbelAiWorkflowPrefillMutation,
 } from "../../redux/slices/madbelApiSlice";
 import { redirectFromVoiceResult } from "../../utils/voiceNavigation";
+import { useAppLanguage } from "../../context/LanguageContext";
 
 const getVoiceResultTranscript = (voiceResult) => {
   if (!voiceResult) return "";
@@ -42,11 +43,11 @@ const getVoiceResultAiResponse = (voiceResult) => {
   );
 };
 
-const buildVoiceMessages = (voiceResult) => {
+const buildVoiceMessages = (voiceResult, t) => {
   if (!voiceResult) return [];
 
-  const userText = getVoiceResultTranscript(voiceResult) || "Voice command";
-  const aiText = getVoiceResultAiResponse(voiceResult) || "I processed that request.";
+  const userText = getVoiceResultTranscript(voiceResult) || t("voice_command");
+  const aiText = getVoiceResultAiResponse(voiceResult) || t("i_processed_that_request");
   const msgId = voiceResult.history_id || voiceResult.id || Date.now();
 
   return [
@@ -68,6 +69,7 @@ const MicConversationScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const tabBarHeight = useBottomTabBarHeight();
+  const { t } = useAppLanguage();
   const {
     initialVoiceResult,
     autoRedirect = false,
@@ -85,7 +87,7 @@ const MicConversationScreen = () => {
 
   const [inputText, setInputText] = useState("");
   const [messages, setMessages] = useState(() =>
-    buildVoiceMessages(activeVoiceResult),
+    buildVoiceMessages(activeVoiceResult, t),
   );
   const [voiceChat, { isLoading }] = useMadbelAiVoiceChatMutation();
   const [workflowPrefill] = useMadbelAiWorkflowPrefillMutation();
@@ -139,7 +141,7 @@ const MicConversationScreen = () => {
       );
       if (alreadyAdded) return prev;
 
-      const newMsgs = buildVoiceMessages(activeVoiceResult);
+      const newMsgs = buildVoiceMessages(activeVoiceResult, t);
       if (prev.length === 0 || (prev.length === 1 && prev[0].id === "empty-ai")) {
         return newMsgs;
       }
@@ -152,7 +154,7 @@ const MicConversationScreen = () => {
     }, 900);
 
     return () => clearTimeout(timeout);
-  }, [autoRedirect, activeVoiceResult, redirectWithPrefill]);
+  }, [autoRedirect, activeVoiceResult, redirectWithPrefill, t]);
 
   const displayMessages = useMemo(() => {
     if (messages.length > 0) return messages;
@@ -161,10 +163,10 @@ const MicConversationScreen = () => {
       {
         id: "empty-ai",
         role: "assistant",
-        text: "Ask Mabdel AI to create invoices, schedule meetings, draft messages, manage contacts, or open a workflow.",
+        text: t("ask_mabdel_ai"),
       },
     ];
-  }, [messages]);
+  }, [messages, t]);
 
   const sendPrompt = async () => {
     const transcript = inputText.trim();
@@ -190,7 +192,7 @@ const MicConversationScreen = () => {
       const assistantMessage = {
         id: `ai-${voiceResult?.history_id || Date.now()}`,
         role: "assistant",
-        text: getVoiceResultAiResponse(voiceResult) || "Done.",
+        text: getVoiceResultAiResponse(voiceResult) || t("done"),
         voiceResult,
       };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -205,7 +207,7 @@ const MicConversationScreen = () => {
         {
           id: `error-${Date.now()}`,
           role: "assistant",
-          text: error?.data?.message || "I could not process that command.",
+          text: error?.data?.message || t("unable_to_process_command"),
         },
       ]);
     }
@@ -233,7 +235,7 @@ const MicConversationScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ArrowLeft size={backIconSize} color="#F4F8FF" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>Mabdel AI</Text>
+          <Text style={styles.title}>{t("mabdel_ai")}</Text>
           <View style={styles.rightSpacer} />
         </View>
 
@@ -251,7 +253,7 @@ const MicConversationScreen = () => {
                   <View style={styles.userBubble}>
                     <Text style={styles.userBubbleText}>{item.text}</Text>
                   </View>
-                  <Text style={styles.readAt}>SENT</Text>
+                  <Text style={styles.readAt}>{t("sent")}</Text>
                 </View>
               );
             }
@@ -263,8 +265,8 @@ const MicConversationScreen = () => {
                   <Text style={styles.assistantTag}>
                     {item.voiceResult?.navigation?.should_redirect
                       && !item.voiceResult?.navigation?.params?.chatbot_fallback
-                      ? "AI ASSISTANT - OPENING WORKFLOW"
-                      : "AI ASSISTANT"}
+                  ? t("ai_assistant_opening_workflow")
+                      : t("ai_assistant_label")}
                   </Text>
                 </View>
 
@@ -275,11 +277,11 @@ const MicConversationScreen = () => {
                 <View style={styles.actionRow}>
                   <Pressable style={styles.actionPill}>
                     <Reply size={metaIconSize} color="#E5EDF9" strokeWidth={2.2} />
-                    <Text style={styles.pillText}>Reply</Text>
+                    <Text style={styles.pillText}>{t("reply")}</Text>
                   </Pressable>
                   <Pressable style={styles.actionPill}>
                     <Forward size={metaIconSize} color="#E5EDF9" strokeWidth={2.2} />
-                    <Text style={styles.pillText}>Forward</Text>
+                    <Text style={styles.pillText}>{t("forward")}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -290,7 +292,7 @@ const MicConversationScreen = () => {
             <View style={styles.assistantRow}>
               <View style={[styles.assistantTagRow, { marginTop: responsiveHeight(1.4) }]}>
                 <Sparkles size={metaIconSize} color="#11D4F0" strokeWidth={2.3} />
-                <Text style={styles.assistantTag}>AI THINKING...</Text>
+                <Text style={styles.assistantTag}>{t("ai_thinking")}</Text>
               </View>
 
               <View style={styles.thinkingBubble}>
@@ -311,7 +313,7 @@ const MicConversationScreen = () => {
             <TextInput
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Type a message..."
+              placeholder={t("type_message")}
               placeholderTextColor="#92A0B7"
               style={styles.input}
             />
@@ -336,7 +338,7 @@ const MicConversationScreen = () => {
               {isLoading ? (
                 <ActivityIndicator color="#031218" size="small" />
               ) : (
-                <Text style={styles.sendText}>Send</Text>
+                <Text style={styles.sendText}>{t("send")}</Text>
               )}
             </Pressable>
           </View>

@@ -28,8 +28,9 @@ import {
   Linkedin,
 } from "lucide-react-native";
 import { useFetchConversationsQuery } from "../../redux/slices/chat/chatSlice";
+import { useAppLanguage } from "../../context/LanguageContext";
 
-const formatRelativeTime = (dateValue) => {
+const formatRelativeTime = (dateValue, t) => {
   if (!dateValue) return "";
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return "";
@@ -39,10 +40,10 @@ const formatRelativeTime = (dateValue) => {
   const minute = 60 * 1000;
   const hour = 60 * minute;
   const day = 24 * hour;
-  if (diffMs < hour) return `${Math.max(1, Math.floor(diffMs / minute))}m ago`;
-  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ago`;
-  if (diffMs < day * 2) return "Yesterday";
-  return `${Math.floor(diffMs / day)}d ago`;
+  if (diffMs < hour) return `${Math.max(1, Math.floor(diffMs / minute))}m ${t("ago")}`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ${t("ago")}`;
+  if (diffMs < day * 2) return t("yesterday");
+  return `${Math.floor(diffMs / day)}d ${t("ago")}`;
 };
 
 const normalizePlatform = (value) => {
@@ -58,22 +59,22 @@ const normalizePlatform = (value) => {
 };
 
 const PLATFORM_CONFIG = {
-  whatsapp: { Icon: MessageCircle, bg: "#25D366", color: "#fff", label: "WhatsApp" },
-  facebook: { Icon: Facebook, bg: "#1877F2", color: "#fff", label: "Facebook" },
-  instagram: { Icon: Instagram, bg: "#E1306C", color: "#fff", label: "Instagram" },
-  linkedin: { Icon: Linkedin, bg: "#0A66C2", color: "#fff", label: "LinkedIn" },
-  x: { Icon: Twitter, bg: "#000", color: "#fff", label: "X" },
-  email: { Icon: Mail, bg: "#4D9CFF", color: "#fff", label: "Email" },
-  sms: { Icon: MessageSquare, bg: "#6B7280", color: "#fff", label: "SMS" },
+  whatsapp: { Icon: MessageCircle, bg: "#25D366", color: "#fff", labelKey: "whatsapp" },
+  facebook: { Icon: Facebook, bg: "#1877F2", color: "#fff", labelKey: "facebook" },
+  instagram: { Icon: Instagram, bg: "#E1306C", color: "#fff", labelKey: "instagram" },
+  linkedin: { Icon: Linkedin, bg: "#0A66C2", color: "#fff", labelKey: "linkedin" },
+  x: { Icon: Twitter, bg: "#000", color: "#fff", labelKey: "x" },
+  email: { Icon: Mail, bg: "#4D9CFF", color: "#fff", labelKey: "email" },
+  sms: { Icon: MessageSquare, bg: "#6B7280", color: "#fff", labelKey: "sms" },
 };
 
 const FILTER_OPTIONS = [
-  { key: "all", label: "All" },
-  { key: "whatsapp", label: "WhatsApp" },
-  { key: "sms", label: "SMS" },
-  { key: "email", label: "Email" },
-  { key: "facebook", label: "Facebook" },
-  { key: "instagram", label: "Instagram" },
+  { key: "all", labelKey: "all" },
+  { key: "whatsapp", labelKey: "whatsapp" },
+  { key: "sms", labelKey: "sms" },
+  { key: "email", labelKey: "email" },
+  { key: "facebook", labelKey: "facebook" },
+  { key: "instagram", labelKey: "instagram" },
 ];
 
 const STATUS_ICONS = {
@@ -84,6 +85,7 @@ const STATUS_ICONS = {
 
 const UnifiedConversationsScreen = () => {
   const navigation = useNavigation();
+  const { t } = useAppLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
 
@@ -96,16 +98,16 @@ const UnifiedConversationsScreen = () => {
     if (!Array.isArray(threads)) return [];
     return threads.map((thread) => ({
       id: thread?._id || thread?.id,
-      name: thread?.directPeer?.fullName || thread?.directPeer?.name || "Unknown",
-      lastMessage: thread?.lastMessage?.text || "No messages yet",
-      time: formatRelativeTime(thread?.lastMessage?.createdAt || thread?.updatedAt),
+      name: thread?.directPeer?.fullName || thread?.directPeer?.name || t("unknown_user"),
+      lastMessage: thread?.lastMessage?.text || t("no_messages_yet"),
+      time: formatRelativeTime(thread?.lastMessage?.createdAt || thread?.updatedAt, t),
       unreadCount: Number(thread?.unreadCount || 0),
       avatar: thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
       platform: normalizePlatform(thread?.channel || thread?.source || thread?.platform || thread?.type),
       status: thread?.lastMessage?.status || null,
       isGroup: Boolean(thread?.is_group || thread?.isGroup),
     }));
-  }, [threads]);
+  }, [threads, t]);
 
   const totalUnread = useMemo(() => allData.reduce((s, i) => s + i.unreadCount, 0), [allData]);
 
@@ -185,9 +187,9 @@ const UnifiedConversationsScreen = () => {
           <ChevronLeft size={26} color="#F8FAFC" />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.title}>Unified Conversations</Text>
+          <Text style={styles.title}>{t("unified_conversations")}</Text>
           {totalUnread > 0 && (
-            <Text style={styles.subtitle}>{totalUnread} Unread Messages</Text>
+            <Text style={styles.subtitle}>{totalUnread} {t("unread_messages")}</Text>
           )}
         </View>
         <View style={{ width: 38 }} />
@@ -198,7 +200,7 @@ const UnifiedConversationsScreen = () => {
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search conversations..."
+          placeholder={t("search_conversations")}
           placeholderTextColor="#667A93"
           style={styles.searchInput}
         />
@@ -226,7 +228,7 @@ const UnifiedConversationsScreen = () => {
       {isLoading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="small" color="#1AD3EF" />
-          <Text style={styles.loadingText}>Loading conversations...</Text>
+          <Text style={styles.loadingText}>{t("loading_conversations")}</Text>
         </View>
       ) : (
         <FlatList
@@ -239,10 +241,10 @@ const UnifiedConversationsScreen = () => {
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyText}>
                 {searchQuery
-                  ? "No results found"
+                  ? t("no_results_found")
                   : activeFilter !== "all"
-                  ? `No ${PLATFORM_CONFIG[activeFilter]?.label || activeFilter} conversations`
-                  : "No conversations yet"}
+                  ? t("no_platform_conversations", { platform: t(PLATFORM_CONFIG[activeFilter]?.labelKey || activeFilter) })
+                  : t("no_conversations_yet")}
               </Text>
             </View>
           }

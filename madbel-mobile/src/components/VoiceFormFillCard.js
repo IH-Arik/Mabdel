@@ -19,7 +19,7 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
-import { LANGUAGES, useLanguage } from "../context/LanguageContext";
+import { useAiLanguage } from "../context/LanguageContext";
 let Speech = null;
 try {
   Speech = require("expo-speech");
@@ -272,7 +272,7 @@ const VoiceFormFillCard = ({
 }) => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { selectedLang, getPrompt, getQuestion } = useLanguage();
+  const { aiLanguage, currentAiLang, getPrompt, getQuestion } = useAiLanguage();
   const scrollRef = useRef(null);
   const phaseRef = useRef(PHASE.IDLE);
   const lastAutoStartedIdxRef = useRef(-1);
@@ -335,7 +335,7 @@ const VoiceFormFillCard = ({
 
     const fieldKey = missingFields[fieldIdx];
     // Email fields always use English STT — email addresses are Latin-only
-    const fieldLang = fieldKey?.includes("email") ? "en-US" : selectedLang;
+    const fieldLang = fieldKey?.includes("email") ? "en-US" : aiLanguage;
     const question =
       getQuestion(workflowIntent, fieldKey) ||
       `What is the ${FIELD_LABELS[fieldKey] ?? fieldKey}?`;
@@ -354,11 +354,11 @@ const VoiceFormFillCard = ({
       } catch { /* user can type manually */ }
     };
 
-    const spoken = speakText(question, { language: selectedLang, onDone: startListening });
+    const spoken = speakText(question, { language: aiLanguage, onDone: startListening });
     let fallback = null;
     if (!spoken) fallback = setTimeout(startListening, 700);
     return () => { if (fallback) clearTimeout(fallback); };
-  }, [phase, fieldIdx, missingFields, workflowIntent, selectedLang, getQuestion]);
+  }, [phase, fieldIdx, missingFields, workflowIntent, aiLanguage, getQuestion]);
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
   const startRecording = useCallback(async () => {
@@ -366,13 +366,13 @@ const VoiceFormFillCard = ({
       const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!granted) { setErrorText("Microphone permission denied."); return false; }
       ExpoSpeechRecognitionModule.start({
-        lang: selectedLang,
+        lang: aiLanguage,
         interimResults: true,
         maxAlternatives: 1,
       });
       return true;
     } catch { return false; }
-  }, [selectedLang]);
+  }, [aiLanguage]);
 
   const applyToScreen = useCallback(
     (prefill) => {
@@ -398,9 +398,9 @@ const VoiceFormFillCard = ({
     setPhase(PHASE.LISTENING);
     setModalVisible(true);
     const prompt = getPrompt(workflowIntent) || `Tell me about the ${label} in one sentence.`;
-    const spoken = speakText(prompt, { language: selectedLang, onDone: startRecording });
+    const spoken = speakText(prompt, { language: aiLanguage, onDone: startRecording });
     if (!spoken) setTimeout(startRecording, 600);
-  }, [label, workflowIntent, selectedLang, getPrompt, startRecording]);
+  }, [label, workflowIntent, aiLanguage, getPrompt, startRecording]);
 
   // Keep handleOpenRef pointing at the latest handleOpen
   useEffect(() => { handleOpenRef.current = handleOpen; }, [handleOpen]);
@@ -469,14 +469,14 @@ const VoiceFormFillCard = ({
     const text = buildConfirmationText(prefill, workflowIntent);
     setConfirmText(text);
     setPhase(PHASE.CONFIRMING);
-    speakText(text, { language: selectedLang });
-  }, [workflowIntent, selectedLang]);
+    speakText(text, { language: aiLanguage });
+  }, [workflowIntent, aiLanguage]);
 
   const handleConfirm = useCallback(() => {
-    speakText("All done! Filling in your form now.", { language: selectedLang });
+    speakText("All done! Filling in your form now.", { language: aiLanguage });
     applyToScreen(accPrefill);
     setTimeout(handleClose, 1800);
-  }, [accPrefill, selectedLang, applyToScreen, handleClose]);
+  }, [accPrefill, aiLanguage, applyToScreen, handleClose]);
 
   const handleEditFromConfirm = useCallback(() => {
     stopSpeech();
@@ -513,7 +513,7 @@ const VoiceFormFillCard = ({
     setErrorText(hint);
     setVoiceInput("");
     // Email fields always use English STT on retry too
-    const fieldLang = fieldKey?.includes("email") ? "en-US" : selectedLang;
+    const fieldLang = fieldKey?.includes("email") ? "en-US" : aiLanguage;
 
     const startListeningAgain = async () => {
       try {
@@ -529,9 +529,9 @@ const VoiceFormFillCard = ({
       } catch { /* user can type */ }
     };
 
-    const spoken = speakText(hint, { language: selectedLang, onDone: startListeningAgain });
+    const spoken = speakText(hint, { language: aiLanguage, onDone: startListeningAgain });
     if (!spoken) setTimeout(startListeningAgain, 1500);
-  }, [selectedLang]);
+  }, [aiLanguage]);
 
   // ─── Advance to next field or finish ────────────────────────────────────
   const advanceOrFinish = useCallback(
@@ -642,7 +642,7 @@ const VoiceFormFillCard = ({
             {/* Current language indicator (change in Settings → AI Voice Language) */}
             <View style={s.langIndicator}>
               <Text style={s.langIndicatorText}>
-                🌐 {LANGUAGES.find((l) => l.code === selectedLang)?.name ?? "English"}
+                🌐 {currentAiLang.name ?? "English"}
               </Text>
             </View>
 
@@ -724,7 +724,7 @@ const VoiceFormFillCard = ({
                     </Pressable>
                   </View>
 
-                  {isListening && <Text style={s.statusListening}>● Listening in {LANGUAGES.find((l) => l.code === selectedLang)?.name ?? "English"}...</Text>}
+                  {isListening && <Text style={s.statusListening}>● Listening in {currentAiLang.name ?? "English"}...</Text>}
                   {isProcessing && (
                     <View style={s.statusRow}>
                       <ActivityIndicator size="small" color="#19CDEB" />

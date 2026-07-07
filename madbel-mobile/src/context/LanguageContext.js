@@ -2,7 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { APP_TRANSLATIONS, LANGUAGE_OPTIONS } from "../i18n/appTranslations";
 
-const STORAGE_KEY = "@mabdel_voice_lang";
+const APP_LANGUAGE_STORAGE_KEY = "@mabdel_app_lang";
+const AI_LANGUAGE_STORAGE_KEY = "@mabdel_ai_lang";
 
 export const LANGUAGES = LANGUAGE_OPTIONS;
 
@@ -18,6 +19,9 @@ const getTranslation = (langCode, key, params) => {
     key;
   return interpolate(template, params);
 };
+
+const isSupportedLanguage = (code) =>
+  Boolean(code) && Boolean(LANGUAGES.find((lang) => lang.code === code));
 
 // ─── Translated initial prompts ───────────────────────────────────────────────
 export const INITIAL_PROMPTS_I18N = {
@@ -630,56 +634,95 @@ export const FIELD_QUESTIONS_I18N = {
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 const LanguageContext = createContext({
-  selectedLang: "en-US",
-  setSelectedLang: () => {},
-  currentLang: LANGUAGES[0],
+  appLanguage: "en-US",
+  setAppLanguage: () => {},
+  aiLanguage: "en-US",
+  setAiLanguage: () => {},
+  currentAppLang: LANGUAGES[0],
+  currentAiLang: LANGUAGES[0],
   t: () => "",
   getPrompt: () => "",
   getQuestion: () => "",
 });
 
 export const LanguageProvider = ({ children }) => {
-  const [selectedLang, setSelectedLangState] = useState("en-US");
+  const [appLanguage, setAppLanguageState] = useState("en-US");
+  const [aiLanguage, setAiLanguageState] = useState("en-US");
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((v) => {
-      if (v && LANGUAGES.find((l) => l.code === v)) setSelectedLangState(v);
+    Promise.all([
+      AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY),
+      AsyncStorage.getItem(AI_LANGUAGE_STORAGE_KEY),
+    ]).then(([storedAppLanguage, storedAiLanguage]) => {
+      if (isSupportedLanguage(storedAppLanguage)) {
+        setAppLanguageState(storedAppLanguage);
+      }
+      if (isSupportedLanguage(storedAiLanguage)) {
+        setAiLanguageState(storedAiLanguage);
+      }
+    }).catch((_err) => {
+      // language preferences could not be loaded — non-fatal
     });
   }, []);
 
-  const setSelectedLang = useCallback((code) => {
-    setSelectedLangState(code);
-    AsyncStorage.setItem(STORAGE_KEY, code).catch((_err) => {
+  const persistLanguage = useCallback((storageKey, code) => {
+    AsyncStorage.setItem(storageKey, code).catch((_err) => {
       // language preference could not be persisted — non-fatal
     });
   }, []);
 
-  const currentLang = LANGUAGES.find((l) => l.code === selectedLang) ?? LANGUAGES[0];
+  const setAppLanguage = useCallback((code) => {
+    if (!isSupportedLanguage(code)) return;
+    setAppLanguageState(code);
+    persistLanguage(APP_LANGUAGE_STORAGE_KEY, code);
+  }, [persistLanguage]);
+
+  const setAiLanguage = useCallback((code) => {
+    if (!isSupportedLanguage(code)) return;
+    setAiLanguageState(code);
+    persistLanguage(AI_LANGUAGE_STORAGE_KEY, code);
+  }, [persistLanguage]);
+
+  const currentAppLang = LANGUAGES.find((l) => l.code === appLanguage) ?? LANGUAGES[0];
+  const currentAiLang = LANGUAGES.find((l) => l.code === aiLanguage) ?? LANGUAGES[0];
 
   const getPrompt = useCallback(
     (intent) =>
-      INITIAL_PROMPTS_I18N[selectedLang]?.[intent] ??
+      INITIAL_PROMPTS_I18N[aiLanguage]?.[intent] ??
       INITIAL_PROMPTS_I18N["en-US"][intent] ??
       "",
-    [selectedLang],
+    [aiLanguage],
   );
 
   const getQuestion = useCallback(
     (intent, fieldKey) =>
-      FIELD_QUESTIONS_I18N[selectedLang]?.[intent]?.[fieldKey] ??
+      FIELD_QUESTIONS_I18N[aiLanguage]?.[intent]?.[fieldKey] ??
       FIELD_QUESTIONS_I18N["en-US"]?.[intent]?.[fieldKey] ??
       "",
-    [selectedLang],
+    [aiLanguage],
   );
 
   const t = useCallback(
-    (key, params) => getTranslation(selectedLang, key, params),
-    [selectedLang],
+    (key, params) => getTranslation(appLanguage, key, params),
+    [appLanguage],
   );
 
   return (
     <LanguageContext.Provider
-      value={{ selectedLang, setSelectedLang, currentLang, t, getPrompt, getQuestion }}
+      value={{
+        appLanguage,
+        setAppLanguage,
+        aiLanguage,
+        setAiLanguage,
+        selectedLang: appLanguage,
+        setSelectedLang: setAppLanguage,
+        currentAppLang,
+        currentAiLang,
+        currentLang: currentAppLang,
+        t,
+        getPrompt,
+        getQuestion,
+      }}
     >
       {children}
     </LanguageContext.Provider>
@@ -687,3 +730,41 @@ export const LanguageProvider = ({ children }) => {
 };
 
 export const useLanguage = () => useContext(LanguageContext);
+
+export const useAppLanguage = () => {
+  const {
+    appLanguage,
+    setAppLanguage,
+    currentAppLang,
+    t,
+    getPrompt,
+    getQuestion,
+  } = useContext(LanguageContext);
+
+  return {
+    appLanguage,
+    setAppLanguage,
+    currentAppLang,
+    t,
+    getPrompt,
+    getQuestion,
+  };
+};
+
+export const useAiLanguage = () => {
+  const {
+    aiLanguage,
+    setAiLanguage,
+    currentAiLang,
+    getPrompt,
+    getQuestion,
+  } = useContext(LanguageContext);
+
+  return {
+    aiLanguage,
+    setAiLanguage,
+    currentAiLang,
+    getPrompt,
+    getQuestion,
+  };
+};
