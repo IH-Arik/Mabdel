@@ -131,6 +131,7 @@ export const smartflowApi = {
   joinActivity: (id) => client.post(`/api/v1/activities/${id}/join`),
   listEvents: (params) => client.get('/api/v1/events', { params }),
   createEvent: (data) => client.post('/api/v1/events', data),
+  joinEvent: (id) => client.post(`/api/v1/events/${id}/join`),
 
   // Voice History (alias for AI history in settings)
   getVoiceHistory: () => client.get('/api/v1/smartflow/ai/history'),
@@ -192,6 +193,9 @@ export const smartflowApi = {
   connectWhatsAppManual: (data) => client.post('/api/v1/smartflow/integrations/whatsapp/manual-connect', data),
   connectTelegramManual: (data) => client.post('/api/v1/smartflow/integrations/telegram/manual-connect', data),
   getIntegrationStatus: () => client.get('/api/v1/smartflow/integrations/status'),
+  getIntegrationCatalog: () => client.get('/api/v1/smartflow/integrations/catalog'),
+  startIntegrationOAuth: (platform) => client.get(`/api/v1/smartflow/integrations/${platform}/oauth/start`),
+  disconnectIntegration: (platform) => client.delete(`/api/v1/smartflow/integrations/${platform}`),
 
   // ── Calendar extras ───────────────────────────────────────────────────────────
   shareCalendarEvent: (id, data) => client.post(`/api/v1/smartflow/calendar/events/${id}/share`, data),
@@ -200,6 +204,38 @@ export const smartflowApi = {
   // ── Bulk messaging extras ─────────────────────────────────────────────────────
   getBulkMessage: (id) => client.get(`/api/v1/smartflow/bulk-messages/${id}`),
   updateBulkMessage: (id, data) => client.patch(`/api/v1/smartflow/bulk-messages/${id}`, data),
+  listBulkMessages: (params) => client.get('/api/v1/smartflow/bulk-messages', { params }),
+  createBulkMessage: (data) => client.post('/api/v1/smartflow/bulk-messages', data),
+  sendBulkMessage: (id) => client.post(`/api/v1/smartflow/bulk-messages/${id}/send`),
+  cancelBulkMessage: (id) => client.post(`/api/v1/smartflow/bulk-messages/${id}/cancel`),
+  validateBulkRecipients: (data) => client.post('/api/v1/smartflow/bulk-messages/recipients/validate', data),
+
+  // ── Conversations & Messages ──────────────────────────────────────────────────
+  getConversations: (params) => client.get('/api/v1/smartflow/conversations', { params }),
+  getConversation: (id) => client.get(`/api/v1/smartflow/conversations/${id}`),
+  createConversation: (data) => client.post('/api/v1/smartflow/conversations', data),
+  archiveConversation: (id) => client.patch(`/api/v1/smartflow/conversations/${id}/archive`, { archived: true }),
+  markConversationRead: (id) => client.post(`/api/v1/smartflow/conversations/${id}/mark-read`),
+  getMessages: (id, params) => client.get(`/api/v1/smartflow/conversations/${id}/messages`, { params }),
+  sendMessage: (data) => client.post('/api/v1/smartflow/messages', data),
+
+  // ── AI & Voice ────────────────────────────────────────────────────────────────
+  aiChat: (text, context) => {
+    if (context?.workflow_intent) {
+      return client.post('/api/v1/smartflow/ai/workflow-prefill', {
+        intent: context.workflow_intent,
+        context: context.current_values,
+        user_prompt: text
+      });
+    }
+    return client.post('/api/v1/smartflow/ai/chat', { content: text, ...context });
+  },
+  voiceChat: (blob) => {
+    const fd = new FormData();
+    fd.append('audio_file', blob, 'voice.webm');
+    fd.append('response_mode', 'text');
+    return client.post('/api/v1/smartflow/ai/voice-chat-upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 
   // ── Reports ───────────────────────────────────────────────────────────────────
   getReportCategories: () => client.get('/api/v1/smartflow/reports/categories'),

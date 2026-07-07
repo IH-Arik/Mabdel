@@ -102,7 +102,7 @@ const SEED_CONTACTS = [
 ];
 
 export default function Contacts() {
-  const [contacts, setContacts] = useState(SEED_CONTACTS);
+  const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -154,18 +154,7 @@ export default function Contacts() {
         };
       });
 
-      if (backendItems.length > 0) {
-        setContacts(prev => {
-          const combined = [...backendItems, ...SEED_CONTACTS];
-          const seenIds = new Set();
-          return combined.filter(c => {
-            const uid = c.id || c._id;
-            if (seenIds.has(uid)) return false;
-            seenIds.add(uid);
-            return true;
-          });
-        });
-      }
+      setContacts(backendItems);
     } catch (error) {
       console.error('Error fetching contacts from backend:', error);
     } finally {

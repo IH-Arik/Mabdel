@@ -164,7 +164,7 @@ const MOCK_INVOICES = [
 ];
 
 export default function Invoices() {
-  const [invoices, setInvoices] = useState(MOCK_INVOICES);
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -217,18 +217,7 @@ export default function Invoices() {
       });
       // Merge backend results with mock data ensuring no duplicates
       const backendItems = response.data?.data?.items || [];
-      if (backendItems.length > 0) {
-        setInvoices(prev => {
-          const combined = [...backendItems, ...MOCK_INVOICES];
-          const seenIds = new Set();
-          return combined.filter(item => {
-            const uid = item.id || item.invoice_number;
-            if (seenIds.has(uid)) return false;
-            seenIds.add(uid);
-            return true;
-          });
-        });
-      }
+      setInvoices(backendItems);
     } catch (error) {
       console.error('Error fetching invoices from backend:', error);
     } finally {
