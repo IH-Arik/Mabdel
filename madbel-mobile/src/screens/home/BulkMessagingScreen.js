@@ -39,7 +39,6 @@ import {
 const palette = ["#18C6E3", "#6C70F0", "#31B47B", "#FF8A2A", "#D16BE8"];
 
 const getInitials = (value) => {
-  const { t } = useAppLanguage();
   if (!value) return "?";
   const local = String(value).split("@")[0] || "";
   const parts = local.split(/[._-]+/).filter(Boolean);
@@ -68,6 +67,7 @@ const toLocalDateTimeIso = (dateISO, timeValue) => {
 };
 
 const BulkMessagingScreen = () => {
+  const { t, currentAppLang } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const tabBarHeight = useBottomTabBarHeight();
@@ -130,12 +130,12 @@ const BulkMessagingScreen = () => {
 
   const dateLabel = useMemo(
     () =>
-      new Date(`${scheduleDate}T00:00:00`).toLocaleDateString("en-US", {
+      new Date(`${scheduleDate}T00:00:00`).toLocaleDateString(currentAppLang?.code || "en-US", {
         month: "short",
         day: "2-digit",
         year: "numeric",
       }),
-    [scheduleDate],
+    [currentAppLang?.code, scheduleDate],
   );
 
   const upsertBulk = async () => {
@@ -194,12 +194,12 @@ const BulkMessagingScreen = () => {
       if (!scheduleEnabled) {
         await sendBulkMessage({ bulk_message_id: id }).unwrap();
       }
-      Alert.alert("Success", scheduleEnabled ? "Bulk message scheduled." : "Bulk message sent.");
+      Alert.alert(t("success"), scheduleEnabled ? t("bulk_message_scheduled") : t("bulk_message_sent"));
       navigation.goBack();
     } catch (error) {
       Alert.alert(
-        "Send failed",
-        error?.data?.message || "Could not process bulk message.",
+        t("send_failed"),
+        error?.data?.message || t("could_not_process_bulk_message"),
       );
     }
   };
@@ -213,7 +213,7 @@ const BulkMessagingScreen = () => {
       await cancelBulkMessage({ bulk_message_id: bulkMessageId }).unwrap();
       Alert.alert(t("cancelled"), t("scheduled_bulk_message_has_been_cancelled"));
     } catch (error) {
-      Alert.alert("Cancel failed", error?.data?.message || "Could not cancel.");
+      Alert.alert(t("cancel_failed"), error?.data?.message || t("could_not_cancel"));
     }
   };
 
@@ -252,7 +252,7 @@ const BulkMessagingScreen = () => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.recipientHeaderRow}>
-            <Text style={styles.sectionLabel}>RECIPIENTS ({recipients.length})</Text>
+            <Text style={styles.sectionLabel}>{t("recipients")} ({recipients.length})</Text>
             <Pressable onPress={() => navigation.navigate("BulkEmailRecipients", { recipients })}>
               <Text style={styles.editAllText}>{t("edit_all")}</Text>
             </Pressable>
@@ -409,7 +409,7 @@ const BulkMessagingScreen = () => {
                 <>
                   <SendHorizontal size={responsiveWidth(7)} color="#DFF8FF" strokeWidth={2.3} />
                   <Text style={styles.sendBtnText}>
-                    {scheduleEnabled ? "Save & Schedule" : "Send Bulk Message"}
+                    {scheduleEnabled ? t("save_and_schedule") : t("send_bulk_message")}
                   </Text>
                 </>
               )}

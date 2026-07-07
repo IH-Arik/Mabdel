@@ -1,33 +1,44 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
 import { Star } from "lucide-react-native";
+import { useAppLanguage } from "../context/LanguageContext";
 
 const RatingCard = ({
   onSubmit,
   initialFeedback = [],
   initialComments = "",
   initialRating = 0,
-  title = "Rate",
-  question = "How was your workout experience?",
-  subtitle = "Quick feedback (optional)",
-  commentsLabel = "Additional comments (optional)",
-  commentsPlaceholder = "Share more details about your experience...",
-  submitButtonText = "Submit Rating",
+  title,
+  question,
+  subtitle,
+  commentsLabel,
+  commentsPlaceholder,
+  submitButtonText,
   submitButtonColor = "bg-blue-500",
   showStarRating = true,
-  starRatingLabel = "Rate your experience",
+  starRatingLabel,
 }) => {
+  const { t } = useAppLanguage();
   const [selectedFeedback, setSelectedFeedback] = useState(initialFeedback);
   const [comments, setComments] = useState(initialComments);
   const [rating, setRating] = useState(initialRating);
 
+  const resolvedTitle = title || t("rate");
+  const resolvedQuestion = question || t("how_was_your_workout_experience");
+  const resolvedSubtitle = subtitle || t("quick_feedback_optional");
+  const resolvedCommentsLabel = commentsLabel || t("additional_comments_optional");
+  const resolvedCommentsPlaceholder =
+    commentsPlaceholder || t("share_more_details_about_your_experience");
+  const resolvedSubmitButtonText = submitButtonText || t("submit_rating");
+  const resolvedStarRatingLabel = starRatingLabel || t("rate_your_experience");
+
   const feedbackOptions = [
-    "Friendly",
-    "On time",
-    "Motivating",
-    "Professional",
-    "Not punctual",
-    "Disrespectful",
+    t("friendly"),
+    t("on_time"),
+    t("motivating"),
+    t("professional"),
+    t("not_punctual"),
+    t("disrespectful"),
   ];
 
   const toggleFeedback = (option) => {
@@ -54,16 +65,16 @@ const RatingCard = ({
 
   return (
     <View className="mt-6 border-t border-gray-200 pt-6">
-      <Text className="text-lg font-semibold text-gray-900 mb-2">{title}</Text>
+      <Text className="text-lg font-semibold text-gray-900 mb-2">{resolvedTitle}</Text>
       <Text className="text-lg font-semibold text-gray-900 mb-2">
-        {question}
+        {resolvedQuestion}
       </Text>
 
       {/* Star Rating */}
       {showStarRating && (
         <View className="mb-6">
           <Text className="text-base text-gray-700 mb-3">
-            {starRatingLabel}
+            {resolvedStarRatingLabel}
           </Text>
           <View className="flex-row justify-center space-x-2">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -87,7 +98,7 @@ const RatingCard = ({
           )} */}
         </View>
       )}
-      <Text className="text-base text-gray-500 mb-4">{subtitle}</Text>
+      <Text className="text-base text-gray-500 mb-4">{resolvedSubtitle}</Text>
       {/* Feedback Options */}
       <View className="flex-row flex-wrap -mx-1 mb-6">
         {feedbackOptions.map((option, index) => (
@@ -114,10 +125,10 @@ const RatingCard = ({
       </View>
 
       {/* Additional Comments */}
-      <Text className="text-base text-gray-500 mb-3">{commentsLabel}</Text>
+      <Text className="text-base text-gray-500 mb-3">{resolvedCommentsLabel}</Text>
       <TextInput
         className="border border-gray-300 rounded-xl p-4 h-32 text-base text-gray-700 mb-6"
-        placeholder={commentsPlaceholder}
+        placeholder={resolvedCommentsPlaceholder}
         placeholderTextColor="#9CA3AF"
         multiline={true}
         textAlignVertical="top"
@@ -131,7 +142,7 @@ const RatingCard = ({
         onPress={handleSubmit}
       >
         <Text className="text-white text-center text-lg font-semibold">
-          {submitButtonText}
+          {resolvedSubmitButtonText}
         </Text>
       </Pressable>
     </View>

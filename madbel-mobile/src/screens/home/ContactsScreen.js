@@ -31,16 +31,19 @@ const ContactsScreen = () => {
 
   const handleCall = async (contact) => {
     if (!contact.phone) {
-      Alert.alert("No phone number", `${contact.name} has no phone number saved.`);
+      Alert.alert(t("no_phone_number"), `${contact.name} ${t("has_no_phone_number_saved")}`);
       return;
     }
     const contactId = contact.id || contact._id || contact.contact_id;
     setCallingId(contactId);
     try {
       await createOutboundCall({ contact_id: contactId }).unwrap();
-      Alert.alert("Call started", `Calling ${contact.name} (${contact.phone})...`);
+      Alert.alert(t("call_started"), t("calling_contact", { name: contact.name, phone: contact.phone }));
     } catch (e) {
-      Alert.alert("Call failed", e?.data?.message || "Could not start the call. Make sure your Twilio is set up in Account Settings.");
+      Alert.alert(
+        t("call_failed"),
+        e?.data?.message || t("could_not_start_the_call_make_sure_your_twilio_is_set_up_in_account_settings"),
+      );
     } finally {
       setCallingId(null);
     }
@@ -68,10 +71,10 @@ const ContactsScreen = () => {
     const onApp = contacts.filter((c) => c.is_app_user);
     const invite = contacts.filter((c) => !c.is_app_user);
     const result = [];
-    if (onApp.length > 0) result.push({ title: "On Mabdel", data: onApp });
-    if (invite.length > 0) result.push({ title: "Invite to Mabdel", data: invite });
+    if (onApp.length > 0) result.push({ title: t("on_mabdel"), data: onApp });
+    if (invite.length > 0) result.push({ title: t("invite_to_mabdel"), data: invite });
     return result;
-  }, [contacts]);
+  }, [contacts, t]);
 
   const goToContact = (contact) => {
     navigation.navigate("AddContact", { contact });
@@ -80,9 +83,9 @@ const ContactsScreen = () => {
   const handleInvite = (contact) => {
     const via = contact.phone || contact.email || "";
     Alert.alert(
-      "Invite to Mabdel",
-      `Send an invite to ${contact.name}${via ? ` (${via})` : ""}?`,
-      [{ text: "Cancel", style: "cancel" }, { text: "Invite", onPress: () => {} }],
+      t("invite_to_mabdel"),
+      t("send_an_invite_to_contact", { name: contact.name, via: via ? ` (${via})` : "" }),
+      [{ text: t("cancel"), style: "cancel" }, { text: t("invite"), onPress: () => {} }],
     );
   };
 
@@ -112,10 +115,10 @@ const ContactsScreen = () => {
             )}
           </View>
           <Text style={styles.contactSubtitle} numberOfLines={1}>
-            {item.phone || "No phone"}
+            {item.phone || t("no_phone")}
           </Text>
           <Text style={[styles.contactSubtitle, { opacity: item.email ? 1 : 0.45 }]} numberOfLines={1}>
-            {item.email || "No email"}
+            {item.email || t("no_email")}
           </Text>
         </View>
 
@@ -178,10 +181,10 @@ const ContactsScreen = () => {
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryText}>
-            Total: {summary?.total_contacts ?? contacts.length}
+            {t("total")}: {summary?.total_contacts ?? contacts.length}
           </Text>
           <Text style={styles.summaryText}>
-            Online: {summary?.online_contacts ?? 0}
+            {t("online")}: {summary?.online_contacts ?? 0}
           </Text>
         </View>
 
@@ -209,9 +212,7 @@ const ContactsScreen = () => {
             stickySectionHeadersEnabled={false}
             ListEmptyComponent={
               <View style={styles.centerState}>
-                <Text style={styles.stateText}>
-                  {query.trim() ? "No contacts match your search." : "No contacts yet."}
-                </Text>
+                <Text style={styles.stateText}>{query.trim() ? t("no_contacts_match_your_search") : t("no_contacts_yet")}</Text>
               </View>
             }
           />

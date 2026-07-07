@@ -12,15 +12,19 @@ import {
   responsiveHeight,
   responsiveWidth,
 } from "react-native-responsive-dimensions";
+import { useAppLanguage } from "../context/LanguageContext";
 
 const ConversationList = ({
   conversations = [],
   onConversationPress,
   onNewMessagePress,
   showSearchBar = true,
-  searchPlaceholder = "Search messages...",
-  emptyMessage = "No conversations yet",
+  searchPlaceholder,
+  emptyMessage,
 }) => {
+  const { t } = useAppLanguage();
+  const resolvedSearchPlaceholder = searchPlaceholder || t("search_messages");
+  const resolvedEmptyMessage = emptyMessage || t("no_conversations_yet");
   const renderConversationItem = ({ item }) => (
     <Pressable
       className="flex-row items-center  border border-border rounded-xl"
@@ -60,7 +64,7 @@ const ConversationList = ({
 
   const renderEmptyComponent = () => (
     <View className="flex-1 justify-center items-center ">
-      <Text className="text-gray-500 text-lg">{emptyMessage}</Text>
+      <Text className="text-gray-500 text-lg">{resolvedEmptyMessage}</Text>
     </View>
   );
 
@@ -78,7 +82,7 @@ const ConversationList = ({
             <Search size={20} color="#6B7280" />
             <TextInput
               className="flex-1 ml-2 text-gray-900 text-base"
-              placeholder={searchPlaceholder}
+              placeholder={resolvedSearchPlaceholder}
               placeholderTextColor="#9CA3AF"
             />
           </View>

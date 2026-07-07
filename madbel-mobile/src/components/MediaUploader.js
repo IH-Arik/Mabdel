@@ -13,8 +13,6 @@ import { ImagePlus, Trash2, Video } from "lucide-react-native";
 import { launchImageLibrary } from "react-native-image-picker";
 
 const isVideoAsset = (asset) => {
-  const { t } = useAppLanguage();
-
   const mimeType = asset?.type || "";
   if (mimeType.startsWith("video")) return true;
   const uri = asset?.uri || "";
@@ -36,6 +34,7 @@ const MediaUploaderView = ({
   mediaType,
   errorMessage,
 }) => {
+  const { t } = useAppLanguage();
   const mediaFiles = Array.isArray(value) ? value : [];
 
   const pickMedia = async () => {
@@ -43,7 +42,7 @@ const MediaUploaderView = ({
 
     const remaining = Math.max(0, maxFiles - mediaFiles.length);
     if (remaining <= 0) {
-      Alert.alert("Limit reached", `You can upload up to ${maxFiles} files.`);
+      Alert.alert(t("limit_reached"), t("you_can_upload_up_to_files", { maxFiles }));
       return;
     }
 
@@ -57,7 +56,7 @@ const MediaUploaderView = ({
     if (response?.didCancel) return;
 
     if (response?.errorCode) {
-      Alert.alert("Upload failed", response?.errorMessage || "Could not select media.");
+      Alert.alert(t("upload_failed"), response?.errorMessage || t("could_not_select_media"));
       return;
     }
 
@@ -87,7 +86,7 @@ const MediaUploaderView = ({
       >
         <ImagePlus size={24} color="#666" />
         <Text className="text-gray-600 mt-2">
-          Add image/video ({mediaFiles.length}/{maxFiles})
+          {t("add_image_video", { count: mediaFiles.length, maxFiles })}
         </Text>
       </Pressable>
 
@@ -135,7 +134,7 @@ const MediaUploaderView = ({
 };
 
 const MediaUploader = ({
-  label = "Upload Media",
+  label = undefined,
   control,
   name = "mediaFiles",
   rules,
@@ -146,6 +145,8 @@ const MediaUploader = ({
   mediaType = "mixed",
   errorMessage,
 }) => {
+  const { t } = useAppLanguage();
+  const resolvedLabel = label || t("upload_media");
   const useFormMode = Boolean(control && name && !onChange && value === undefined);
 
   if (useFormMode) {
@@ -157,7 +158,7 @@ const MediaUploader = ({
         defaultValue={[]}
         render={({ field, fieldState }) => (
           <MediaUploaderView
-            label={label}
+            label={resolvedLabel}
             value={field.value}
             onChange={field.onChange}
             disabled={disabled}
@@ -172,7 +173,7 @@ const MediaUploader = ({
 
   return (
     <MediaUploaderView
-      label={label}
+      label={resolvedLabel}
       value={value}
       onChange={onChange || (() => undefined)}
       disabled={disabled}

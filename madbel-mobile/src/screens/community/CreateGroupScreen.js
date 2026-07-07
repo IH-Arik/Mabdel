@@ -21,6 +21,10 @@ const DEBOUNCE_MS = 350;
 const CreateGroupScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
 
   const { control, handleSubmit, watch } = useForm({
     defaultValues: {
@@ -65,11 +69,11 @@ const CreateGroupScreen = () => {
   const onSubmit = async (data) => {
     const name = (data.groupName || "").trim();
     if (!name) {
-      Alert.alert(t("missing_name"), t("please_enter_a_group_name"));
+      Alert.alert(tr("missing_name", "Missing name"), tr("please_enter_a_group_name", "Please enter a group name."));
       return;
     }
     if (selectedMemberIds.length === 0) {
-      Alert.alert(t("no_members"), t("add_at_least_one_member_to_create_a_group"));
+      Alert.alert(tr("no_members", "No members"), tr("add_at_least_one_member_to_create_a_group", "Add at least one member to create a group."));
       return;
     }
     try {
@@ -82,7 +86,7 @@ const CreateGroupScreen = () => {
         },
       });
     } catch (error) {
-      Alert.alert("Save failed", error?.data?.message || "Could not create group.");
+      Alert.alert(tr("save_failed", "Save failed"), error?.data?.message || tr("could_not_create_group", "Could not create group."));
     }
   };
 
@@ -93,7 +97,7 @@ const CreateGroupScreen = () => {
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
             <ChevronLeft size={34} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.headerTitle}>{t("create_group")}</Text>
+          <Text style={styles.headerTitle}>{tr("create_group", "Create Group")}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -107,16 +111,18 @@ const CreateGroupScreen = () => {
             <ControllerTextInput
               name="groupName"
               control={control}
-              label={t("group_name")}
-              placeholder={t("enter_group_name")}
+              label={tr("group_name", "Group Name")}
+              placeholder={tr("enter_group_name", "Enter group name...")}
               placeholderTextColor="#6F7C95"
               labelStyle={styles.label}
               inputStyle={styles.input}
             />
 
             <View style={styles.membersHeader}>
-              <Text style={styles.label}>{t("members")}</Text>
-              <Text style={styles.selectedCount}>{selectedMemberIds.length} Selected</Text>
+              <Text style={styles.label}>{tr("members", "Members")}</Text>
+              <Text style={styles.selectedCount}>
+                {selectedMemberIds.length} {tr("selected", "Selected")}
+              </Text>
             </View>
 
             {selectedMembers.length > 0 && (
@@ -130,7 +136,7 @@ const CreateGroupScreen = () => {
                         <Text style={styles.selectedChipInitials}>{member.initials || "?"}</Text>
                       </View>
                     )}
-                    <Text style={styles.selectedChipName} numberOfLines={1}>{member.name || "User"}</Text>
+                    <Text style={styles.selectedChipName} numberOfLines={1}>{member.name || tr("user", "User")}</Text>
                     <X size={14} color="#9AA7BE" />
                   </Pressable>
                 ))}
@@ -140,7 +146,7 @@ const CreateGroupScreen = () => {
             <ControllerTextInput
               name="memberSearch"
               control={control}
-              placeholder={t("search_by_name_or_email")}
+              placeholder={tr("search_by_name_or_email", "Search by name or email...")}
               placeholderTextColor="#6F7C95"
               inputStyle={[styles.input, styles.searchInput]}
               leftIcon={<Search size={24} color="#9AA7BE" />}
@@ -151,7 +157,9 @@ const CreateGroupScreen = () => {
             <View style={styles.memberList}>
               {appUsers.length === 0 && !usersFetching ? (
                 <Text style={styles.emptyUsers}>
-                  {debouncedSearch.trim() ? "No app users found." : "Start typing to search users."}
+                  {debouncedSearch.trim()
+                    ? tr("no_app_users_found", "No app users found.")
+                    : tr("start_typing_to_search_users", "Start typing to search users.")}
                 </Text>
               ) : null}
               {appUsers.map((member) => {
@@ -166,15 +174,15 @@ const CreateGroupScreen = () => {
                       </View>
                     )}
                     <View style={styles.memberInfo}>
-                      <Text style={styles.memberName}>{member.name || "Unnamed"}</Text>
+                      <Text style={styles.memberName}>{member.name || tr("unnamed", "Unnamed")}</Text>
                       {member.email ? <Text style={styles.memberEmail} numberOfLines={1}>{member.email}</Text> : null}</View>
-                    {selected ? <X size={20} color="#14C9E7" /> : <Text style={styles.addText}>{t("add")}</Text>}
+                    {selected ? <X size={20} color="#14C9E7" /> : <Text style={styles.addText}>{tr("add", "Add")}</Text>}
                   </Pressable>
                 );
               })}
             </View>
             <VoiceFormFillCard
-              label={t("group")}
+              label={tr("group", "Group")}
               workflowIntent="group"
               sourceScreen="CreateGroup"
             />
@@ -186,7 +194,7 @@ const CreateGroupScreen = () => {
           {creating ? (
             <ActivityIndicator color="#EAF5FB" />
           ) : (
-            <Text style={styles.createText}>{t("create")}</Text>
+            <Text style={styles.createText}>{tr("create", "Create")}</Text>
           )}
         </Pressable>
       </View>

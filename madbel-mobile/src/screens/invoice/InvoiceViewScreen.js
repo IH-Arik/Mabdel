@@ -72,14 +72,14 @@ const InvoiceViewScreen = () => {
     try {
       setResolvingShareLink(true);
       const shareUrl = await ensureShareUrl();
-      if (!shareUrl) {
-        Alert.alert(t("share_unavailable"), t("could_not_generate_a_share_link"));
-        return;
-      }
+    if (!shareUrl) {
+      Alert.alert(t("share_unavailable"), t("could_not_generate_a_share_link"));
+      return;
+    }
 
       await shareInvoiceLink(shareUrl);
     } catch (error) {
-      Alert.alert("Share failed", error?.data?.message || "Could not share the invoice.");
+      Alert.alert(t("share_failed"), error?.data?.message || t("could_not_share_the_invoice"));
     } finally {
       setResolvingShareLink(false);
     }
@@ -104,7 +104,7 @@ const InvoiceViewScreen = () => {
 
       await Linking.openURL(pdfUrl);
     } catch (error) {
-      Alert.alert("Download failed", error?.data?.message || "Could not open the invoice PDF.");
+      Alert.alert(t("download_failed"), error?.data?.message || t("could_not_open_the_invoice_pdf"));
     } finally {
       setResolvingDownloadLink(false);
     }
@@ -137,7 +137,7 @@ const InvoiceViewScreen = () => {
                   {businessProfile?.logo_url ? (
                     <Image source={{ uri: businessProfile.logo_url }} style={styles.logoImage} />
                   ) : (
-                    <Text style={styles.logoBolt}>{t("")}</Text>
+                    <Text style={styles.logoBolt}>M</Text>
                   )}
                 </View>
                 <Text style={styles.brand}>
@@ -145,10 +145,10 @@ const InvoiceViewScreen = () => {
                 </Text>
               </View>
 
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.invoiceLabel}>{t("invoice")}</Text>
-                <Text style={styles.invoiceCode}>
-                  #{invoice?.invoice_number || invoice?.id || "INV"}
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={styles.invoiceLabel}>{t("invoice")}</Text>
+                  <Text style={styles.invoiceCode}>
+                    #{invoice?.invoice_number || invoice?.id || "INV"}
                 </Text>
                 <Text style={styles.invoiceDate}>
                   {formatInvoiceDate(invoice?.issue_date)}
@@ -159,7 +159,7 @@ const InvoiceViewScreen = () => {
             <View style={styles.billRow}>
               <View style={{ width: "52%" }}>
                 <Text style={styles.metaLabel}>{t("bill_to")}</Text>
-                <Text style={styles.metaMain}>{invoice?.client_name || "Client"}</Text>
+                <Text style={styles.metaMain}>{invoice?.client_name || t("client")}</Text>
                 {invoice?.billing_address ? (
                   <Text style={styles.metaSub}>{invoice.billing_address}</Text>
                 ) : null}
@@ -204,7 +204,7 @@ const InvoiceViewScreen = () => {
                   </Text>
                 </View>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalMeta}>Tax ({invoice?.tax_rate || 0}%)</Text>
+                  <Text style={styles.totalMeta}>{t("tax")} ({invoice?.tax_rate || 0}%)</Text>
                   <Text style={styles.totalMetaStrong}>
                     {formatCurrency(invoice?.tax_amount, invoice?.currency)}
                   </Text>
@@ -233,7 +233,7 @@ const InvoiceViewScreen = () => {
           >
             <Download size={26} color="#0B1320" />
             <Text style={styles.downloadText}>
-              {resolvingDownloadLink ? "Preparing..." : "Download PDF"}
+              {resolvingDownloadLink ? t("preparing") : t("download_pdf")}
             </Text>
           </Pressable>
 
@@ -244,7 +244,7 @@ const InvoiceViewScreen = () => {
           >
             <Share2 size={24} color="#14C9E7" />
             <Text style={styles.shareText}>
-              {sharingInvoice || resolvingShareLink ? "Sharing..." : "Share Invoice"}
+              {sharingInvoice || resolvingShareLink ? t("sharing") : t("share_invoice")}
             </Text>
           </Pressable>
         </View>

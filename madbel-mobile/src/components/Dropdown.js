@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { ChevronDown, Check, Search, X } from 'lucide-react-native';
 import { responsiveHeight } from 'react-native-responsive-dimensions';
+import { useAppLanguage } from "../context/LanguageContext";
 
 const Dropdown = ({
   data = [],
-  placeholder = 'Select an option',
+  placeholder,
   selectedValue,
   onValueChange,
   style,
@@ -25,10 +26,14 @@ const Dropdown = ({
   iconColor = '#6B7280',
   disabled = false,
   searchable = false,
-  searchPlaceholder = 'Search...',
-  emptySearchText = 'No options found',
+  searchPlaceholder,
+  emptySearchText,
   label,
 }) => {
+  const { t } = useAppLanguage();
+  const resolvedPlaceholder = placeholder || t("select_an_option");
+  const resolvedSearchPlaceholder = searchPlaceholder || t("search");
+  const resolvedEmptySearchText = emptySearchText || t("no_options_found");
   const [isVisible, setIsVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(selectedValue);
   const [searchQuery, setSearchQuery] = useState('');
@@ -98,7 +103,7 @@ const Dropdown = ({
 
   const getSelectedLabel = () => {
     const selected = data.find(item => item.value === selectedItem);
-    return selected ? selected.label : placeholder;
+    return selected ? selected.label : resolvedPlaceholder;
   };
 
   const rotateAnimation = animatedValue.interpolate({
@@ -126,7 +131,7 @@ const Dropdown = ({
           <TextInput
             ref={searchInputRef}
             className="flex-1 ml-2 text-base text-gray-800"
-            placeholder={searchPlaceholder}
+            placeholder={resolvedSearchPlaceholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#9CA3AF"
@@ -167,7 +172,7 @@ const Dropdown = ({
 
   const renderEmptyComponent = () => (
     <View className="py-8 items-center justify-center">
-      <Text className="text-gray-500 text-base">{emptySearchText}</Text>
+      <Text className="text-gray-500 text-base">{resolvedEmptySearchText}</Text>
     </View>
   );
 
