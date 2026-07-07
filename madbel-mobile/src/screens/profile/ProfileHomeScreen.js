@@ -22,7 +22,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { clearAuth } from "../../redux/reducers/authReducer";
 import ConfirmModal from "../../components/ConfirmModal";
-import { LANGUAGES, useLanguage } from "../../context/LanguageContext";
+import { LANGUAGES, useAiLanguage, useAppLanguage } from "../../context/LanguageContext";
 
 const SETTINGS_ITEMS = [
   { labelKey: "edit_profile", path: "ProfileEdit" },
@@ -38,9 +38,8 @@ const ProfileHomeScreen = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
-  const { selectedLang, setSelectedLang, t } = useLanguage();
-  const currentLangMeta =
-    LANGUAGES.find((l) => l.code === selectedLang) ?? LANGUAGES[0];
+  const { t } = useAppLanguage();
+  const { aiLanguage, setAiLanguage, currentAiLang } = useAiLanguage();
 
   const [isProfileImageError, setIsProfileImageError] = useState(false);
   const [logoutError, setLogoutError] = useState("");
@@ -130,8 +129,8 @@ const ProfileHomeScreen = () => {
           >
             <Globe size={14} color="#19CDEB" strokeWidth={2.2} />
             <Text style={styles.langBadgeText}>
-              {t("ai_voice_badge")}: {currentLangMeta.label} ·{" "}
-              {currentLangMeta.name}
+              {t("ai_voice_badge")}: {currentAiLang.label} ·{" "}
+              {currentAiLang.name}
             </Text>
             <ChevronRight size={14} color="#19CDEB" strokeWidth={2.5} />
           </Pressable>
@@ -195,13 +194,13 @@ const ProfileHomeScreen = () => {
               showsVerticalScrollIndicator={false}
             >
               {LANGUAGES.map((lang) => {
-                const active = lang.code === selectedLang;
+                const active = lang.code === aiLanguage;
                 return (
                   <Pressable
                     key={lang.code}
                     style={[styles.langRow, active && styles.langRowActive]}
                     onPress={() => {
-                      setSelectedLang(lang.code);
+                      setAiLanguage(lang.code);
                       setShowLangModal(false);
                     }}
                   >

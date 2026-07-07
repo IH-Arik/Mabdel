@@ -18,6 +18,7 @@ import CommunityStack from "./CommunityStack";
 import ProfileStack from "./ProfileStack";
 import MicStack from "./MicStack";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAppLanguage } from "../context/LanguageContext";
 
 const Tab = createBottomTabNavigator();
 
@@ -55,6 +56,8 @@ const MicTabIcon = ({ focused }) => (
 );
 
 const BottomNavigator = () => {
+  const { t } = useAppLanguage();
+
   return (
     // <SafeAreaView className="flex-1 bg-[#020406]">
 
@@ -68,9 +71,11 @@ const BottomNavigator = () => {
           tabBarLabelStyle: styles.tabLabel,
           tabBarActiveTintColor: "#17CBE8",
           tabBarInactiveTintColor: "#5D6A7A",
-          tabBarHideOnKeyboard: false,
+          tabBarHideOnKeyboard: true,
           animation: "shift",
           sceneStyle: styles.scene,
+          height: 100,
+          backgroundColor: "red",
         }}
       >
         <Tab.Screen
@@ -88,6 +93,7 @@ const BottomNavigator = () => {
               tabBarStyle: shouldHideTabBar
                 ? { display: "none" }
                 : styles.tabBar,
+              tabBarLabel: t("home"),
               tabBarIcon: ({ focused }) => (
                 <TabIcon icon={Home} focused={focused} />
               ),
@@ -99,7 +105,7 @@ const BottomNavigator = () => {
           name="Chat"
           component={ChatStack}
           options={{
-            tabBarLabel: "Message",
+            tabBarLabel: t("messages"),
             tabBarIcon: ({ focused }) => (
               <TabIcon icon={ MessageSquareMore } focused={focused} />
             ),
@@ -110,7 +116,7 @@ const BottomNavigator = () => {
           name="Shop"
           component={MicStack}
           options={{
-            tabBarLabel: "",
+            tabBarLabel: t("ai"),
             tabBarIcon: ({ focused }) => <MicTabIcon focused={focused} />,
           }}
         />
@@ -119,7 +125,7 @@ const BottomNavigator = () => {
           name="Community"
           component={CommunityStack}
           options={{
-            tabBarLabel: "Group",
+            tabBarLabel: t("groups"),
             tabBarIcon: ({ focused }) => (
               <TabIcon icon={UsersRound} focused={focused} />
             ),
@@ -134,7 +140,7 @@ const BottomNavigator = () => {
             const shouldHideTabBar = focusedRouteName !== "ProfileHome";
             return {
               tabBarStyle: shouldHideTabBar ? { display: "none" } : styles.tabBar,
-              tabBarLabel: "Settings",
+              tabBarLabel: t("settings"),
               tabBarIcon: ({ focused }) => (
                 <TabIcon icon={Settings} focused={focused} />
               ),

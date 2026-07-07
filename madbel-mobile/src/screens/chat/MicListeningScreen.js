@@ -2,6 +2,9 @@
 import {
   ActivityIndicator,
   Animated,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,12 +31,13 @@ import {
   useMadbelAiWorkflowPrefillMutation,
 } from "../../redux/slices/madbelApiSlice";
 import { redirectFromVoiceResult } from "../../utils/voiceNavigation";
+import { useAppLanguage } from "../../context/LanguageContext";
 
 const actionChips = [
-  "Create Invoice",
-  "Send Bulk Message",
-  "Schedule Meeting",
-  "New Agreement",
+  "create_invoice",
+  "send_bulk_message",
+  "schedule_meeting",
+  "new_agreement",
 ];
 
 const buildWorkflowPrefillBody = (transcript) => ({
@@ -76,15 +80,17 @@ const getGeneratedTextFromWorkflow = (responsePayload = {}) => {
 
 const MicListeningScreen = () => {
   const navigation = useNavigation();
+  const { t } = useAppLanguage();
   const pulse = useRef(new Animated.Value(0)).current;
   const redirectTimeoutRef = useRef(null);
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
   const [typedPrompt, setTypedPrompt] = useState("");
-  const [statusText, setStatusText] = useState("Preparing microphone...");
+  const [statusText, setStatusText] = useState(t("preparing_microphone"));
   const [errorText, setErrorText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [workflowJsonResponse, setWorkflowJsonResponse] = useState("");
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [workflowPrefill] = useMadbelAiWorkflowPrefillMutation();
   const [aiChat] = useMadbelAiChatMutation();
   const [aiVoiceChatUpload] = useMadbelAiVoiceChatUploadMutation();
@@ -130,6 +136,25 @@ const MicListeningScreen = () => {
     [],
   );
 
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event?.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [t]);
+
   const startRecording = useCallback(async () => {
     if (redirectTimeoutRef.current) {
       clearTimeout(redirectTimeoutRef.current);
@@ -144,7 +169,7 @@ const MicListeningScreen = () => {
       const { granted } =
         await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!granted) {
-        throw new Error("Speech recognition permissions not granted");
+        throw new Error(t("speech_recognition_permissions_not_granted"));
       }
 
       ExpoSpeechRecognitionModule.start({
@@ -154,10 +179,10 @@ const MicListeningScreen = () => {
       });
 
       setIsRecording(true);
-      setStatusText("Listening...");
+      setStatusText(t("listening"));
     } catch (error) {
-      setStatusText("Microphone unavailable");
-      setErrorText(error?.message || "Unable to start voice recording.");
+      setStatusText(t("microphone_unavailable"));
+      setErrorText(error?.message || t("unable_to_start_voice_recording"));
     }
   }, []);
 
@@ -182,7 +207,7 @@ const MicListeningScreen = () => {
         finalResult = workflowPayload;
 
         if (generatedText) {
-          setStatusText("Processing AI chat...");
+          setStatusText(t("processing_ai_chat"));
           const chatResponse = await aiChat({
             content: generatedText,
             response_mode: "text",
@@ -190,7 +215,7 @@ const MicListeningScreen = () => {
           }).unwrap();
           finalResult = chatResponse?.data || chatResponse || workflowPayload;
         } else {
-          setStatusText("No text found. Uploading voice...");
+          setStatusText(t("no_text_found_uploading_voice"));
           const uploadResponse = await aiVoiceChatUpload({
             transcript,
             audio_mime_type: "audio/wav",
@@ -204,7 +229,7 @@ const MicListeningScreen = () => {
         const errCode = err?.data?.error?.code || err?.data?.code;
         if (errCode === "AI_WORKFLOW_UNSUPPORTED") {
           // General chat (not a workflow command) → send to AI chatbot
-          setStatusText("Processing AI chat...");
+          setStatusText(t("processing_ai_chat"));
           const chatResponse = await aiChat({
             content: transcript,
             response_mode: "text",
@@ -217,7 +242,7 @@ const MicListeningScreen = () => {
       }
 
       setWorkflowJsonResponse(formatJson({ ai_result: finalResult }));
-      setStatusText("Workflow response received");
+      setStatusText(t("workflow_response_received"));
 
       if (finalResult?.navigation?.path || finalResult?.navigation?.screen) {
         redirectTimeoutRef.current = setTimeout(() => {
@@ -226,7 +251,7 @@ const MicListeningScreen = () => {
         }, 800);
       }
     },
-    [aiChat, aiVoiceChatUpload, navigation, workflowPrefill],
+    [aiChat, aiVoiceChatUpload, navigation, workflowPrefill, t],
   );
 
   const stopAndProcessRecording = useCallback(async () => {
@@ -240,7 +265,7 @@ const MicListeningScreen = () => {
         clearTimeout(redirectTimeoutRef.current);
         redirectTimeoutRef.current = null;
       }
-      setStatusText("Processing...");
+      setStatusText(t("processing"));
 
       if (isRecording) {
         ExpoSpeechRecognitionModule.stop();
@@ -252,9 +277,9 @@ const MicListeningScreen = () => {
     } catch (error) {
       setWorkflowJsonResponse(formatJson(error?.data || error));
       setErrorText(
-        error?.data?.message || "Voice command failed. Please try again.",
+        error?.data?.message || t("voice_command_failed_try_again"),
       );
-      setStatusText("Listening stopped");
+      setStatusText(t("listening_stopped"));
     } finally {
       setIsProcessing(false);
     }
@@ -264,6 +289,7 @@ const MicListeningScreen = () => {
     transcribedText,
     typedPrompt,
     submitWorkflowPrefill,
+    t,
   ]);
 
   const sendTypedPrompt = useCallback(
@@ -275,7 +301,7 @@ const MicListeningScreen = () => {
       if (!transcript || isProcessing) return;
 
       setIsProcessing(true);
-      setStatusText("Processing...");
+      setStatusText(t("processing"));
       setErrorText("");
       setWorkflowJsonResponse("");
       if (redirectTimeoutRef.current) {
@@ -293,13 +319,13 @@ const MicListeningScreen = () => {
         setTypedPrompt("");
       } catch (error) {
         setWorkflowJsonResponse(formatJson(error?.data || error));
-        setErrorText(error?.data?.message || "Unable to process that command.");
-        setStatusText("Listening stopped");
+        setErrorText(error?.data?.message || t("unable_to_process_command"));
+        setStatusText(t("listening_stopped"));
       } finally {
         setIsProcessing(false);
       }
     },
-    [isProcessing, isRecording, typedPrompt, submitWorkflowPrefill],
+    [isProcessing, isRecording, typedPrompt, submitWorkflowPrefill, t],
   );
 
   const ringOneScale = pulse.interpolate({
@@ -316,126 +342,144 @@ const MicListeningScreen = () => {
   const iconSize = responsiveWidth(7.7);
   const micCenterIcon = responsiveWidth(13.3);
   const composerIcon = responsiveWidth(5.3);
+  const bottomInset = Math.max(tabBarHeight, keyboardHeight) + responsiveHeight(1);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.screen}>
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ArrowLeft size={iconSize} color="#F4F8FF" strokeWidth={2.3} />
-          </Pressable>
-          <Text style={styles.title}>Mabdel AI</Text>
-          <View style={styles.rightSpacer} />
-        </View>
+      <KeyboardAvoidingView
+        style={styles.screen}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom:
+                bottomInset + responsiveHeight(2) + responsiveHeight(28),
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+              <ArrowLeft size={iconSize} color="#F4F8FF" strokeWidth={2.3} />
+            </Pressable>
+            <Text style={styles.title}>{t("mabdel_ai")}</Text>
+            <View style={styles.rightSpacer} />
+          </View>
 
-        <Text style={styles.listening}>{statusText}</Text>
+          <Text style={styles.listening}>{statusText}</Text>
+
+          <View
+            style={[
+              styles.orbArea,
+              workflowJsonResponse ? styles.orbAreaWithResponse : null,
+            ]}
+          >
+            <LinearGradient
+              colors={["rgba(18,199,228,0.34)", "rgba(18,199,228,0)"]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.orbGlow}
+            />
+
+            <Animated.View
+              style={[
+                styles.ring,
+                styles.outerRing,
+                {
+                  transform: [{ scale: ringTwoScale }],
+                  opacity: pulse.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.5, 0.9],
+                  }),
+                },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.ring,
+                styles.innerRing,
+                {
+                  transform: [{ scale: ringOneScale }],
+                  opacity: pulse.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.6, 1],
+                  }),
+                },
+              ]}
+            />
+
+            <Pressable
+              onPress={stopAndProcessRecording}
+              disabled={isProcessing}
+              style={styles.micButton}
+            >
+              <LinearGradient
+                colors={["#1CD3EF", "#16BCD9"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.micCore}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator color="#EAF9FF" size="large" />
+                ) : (
+                  <Mic color="#EAF9FF" size={micCenterIcon} strokeWidth={2.7} />
+                )}
+              </LinearGradient>
+            </Pressable>
+
+            <View style={[styles.floatDot, styles.dotOne]} />
+            <View style={[styles.floatDot, styles.dotTwo]} />
+            <View style={[styles.floatDot, styles.dotThree]} />
+          </View>
+
+          <Text style={styles.processing}>
+            {isProcessing
+              ? t("processing").toUpperCase()
+                : isRecording
+                ? t("tap_mic_to_finish")
+                : t("ready")}
+          </Text>
+          {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
+          {workflowJsonResponse ? (
+            <View style={styles.responseCard}>
+              <Text style={styles.responseTitle}>{t("json_response")}</Text>
+              <ScrollView
+                style={styles.responseScroll}
+                contentContainerStyle={styles.responseContent}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+              >
+                <Text selectable style={styles.responseJson}>
+                  {workflowJsonResponse}
+                </Text>
+              </ScrollView>
+            </View>
+          ) : null}
+
+        </ScrollView>
 
         <View
           style={[
-            styles.orbArea,
-            workflowJsonResponse ? styles.orbAreaWithResponse : null,
+            styles.bottomArea,
+            {
+              bottom: Math.max(tabBarHeight, keyboardHeight),
+              paddingBottom: responsiveHeight(1),
+            },
           ]}
         >
-          <LinearGradient
-            colors={["rgba(18,199,228,0.34)", "rgba(18,199,228,0)"]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.orbGlow}
-          />
-
-          <Animated.View
-            style={[
-              styles.ring,
-              styles.outerRing,
-              {
-                transform: [{ scale: ringTwoScale }],
-                opacity: pulse.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.5, 0.9],
-                }),
-              },
-            ]}
-          />
-          <Animated.View
-            style={[
-              styles.ring,
-              styles.innerRing,
-              {
-                transform: [{ scale: ringOneScale }],
-                opacity: pulse.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.6, 1],
-                }),
-              },
-            ]}
-          />
-
-          <Pressable
-            onPress={stopAndProcessRecording}
-            disabled={isProcessing}
-            style={styles.micButton}
-          >
-            <LinearGradient
-              colors={["#1CD3EF", "#16BCD9"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.micCore}
-            >
-              {isProcessing ? (
-                <ActivityIndicator color="#EAF9FF" size="large" />
-              ) : (
-                <Mic color="#EAF9FF" size={micCenterIcon} strokeWidth={2.7} />
-              )}
-            </LinearGradient>
-          </Pressable>
-
-          <View style={[styles.floatDot, styles.dotOne]} />
-          <View style={[styles.floatDot, styles.dotTwo]} />
-          <View style={[styles.floatDot, styles.dotThree]} />
-        </View>
-
-        <Text style={styles.processing}>
-          {isProcessing
-            ? "PROCESSING"
-            : isRecording
-              ? "TAP MIC TO FINISH"
-              : "READY"}
-        </Text>
-        {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
-        {workflowJsonResponse ? (
-          <View style={styles.responseCard}>
-            <Text style={styles.responseTitle}>JSON Response</Text>
-            <ScrollView
-              style={styles.responseScroll}
-              contentContainerStyle={styles.responseContent}
-              nestedScrollEnabled
-              showsVerticalScrollIndicator
-            >
-              <Text selectable style={styles.responseJson}>
-                {workflowJsonResponse}
-              </Text>
-            </ScrollView>
-          </View>
-        ) : null}
-
-        <View style={styles.bottomArea}>
-          <View
-            style={[
-              styles.inputRow,
-              {
-                marginBottom: Math.max(
-                  tabBarHeight - responsiveHeight(2.5),
-                  responsiveHeight(1.2),
-                ),
-              },
-            ]}
-          >
-            <View style={styles.avatar} />
+          <View style={styles.inputRow}>
+            {/* <View style={styles.avatar} /> */}
             <View style={styles.inputWrap}>
               <TextInput
                 value={typedPrompt}
                 onChangeText={setTypedPrompt}
-                placeholder="Type a message..."
+                placeholder={t("type_message")}
                 placeholderTextColor="#92A0B7"
                 style={styles.input}
               />
@@ -447,7 +491,7 @@ const MicListeningScreen = () => {
                 onPress={() => sendTypedPrompt()}
                 disabled={isProcessing || !typedPrompt.trim()}
               >
-                <Text style={styles.sendText}>Send</Text>
+                <Text style={styles.sendText}>{t("send")}</Text>
               </Pressable>
             </View>
           </View>
@@ -459,12 +503,12 @@ const MicListeningScreen = () => {
                 style={styles.chip}
                 onPress={() => sendTypedPrompt(chip)}
               >
-                <Text style={styles.chipText}>{chip}</Text>
+                <Text style={styles.chipText}>{t(chip)}</Text>
               </Pressable>
             ))}
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -472,6 +516,11 @@ const MicListeningScreen = () => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#010507" },
   screen: { flex: 1, backgroundColor: "#010507" },
+  scroll: { flex: 1 },
+  scrollContent: {
+    flexGrow: 1,
+    backgroundColor: "#010507",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -614,16 +663,19 @@ const styles = StyleSheet.create({
     lineHeight: responsiveWidth(3.5),
   },
   bottomArea: {
-    marginTop: "auto",
+    position: "absolute",
+    left: 0,
+    right: 0,
     paddingHorizontal: responsiveWidth(3.2),
+    paddingTop: responsiveHeight(1.2),
     borderTopWidth: 1,
     borderTopColor: "#122032",
     backgroundColor: "#05101B",
+    gap: responsiveHeight(1.2),
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: responsiveHeight(1.2),
   },
   avatar: {
     width: responsiveWidth(12.8),

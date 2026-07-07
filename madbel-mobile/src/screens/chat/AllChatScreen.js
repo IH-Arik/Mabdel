@@ -17,12 +17,13 @@ import {
 } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
 import { Bot, Search } from "lucide-react-native";
+import { useAppLanguage } from "../../context/LanguageContext";
 import {
   useFetchConversationsQuery,
   useArchiveConversationMutation,
 } from "../../redux/slices/chat/chatSlice";
 
-const formatRelativeTime = (dateValue) => {
+const formatRelativeTime = (dateValue, t) => {
   if (!dateValue) return "";
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return "";
@@ -32,19 +33,20 @@ const formatRelativeTime = (dateValue) => {
   const minute = 60 * 1000;
   const hour = 60 * minute;
   const day = 24 * hour;
-  if (diffMs < hour) return `${Math.max(1, Math.floor(diffMs / minute))}m ago`;
-  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ago`;
-  if (diffMs < day * 2) return "Yesterday";
-  return `${Math.floor(diffMs / day)}d ago`;
+  if (diffMs < hour) return `${Math.max(1, Math.floor(diffMs / minute))}m ${t("ago")}`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ${t("ago")}`;
+  if (diffMs < day * 2) return t("yesterday");
+  return `${Math.floor(diffMs / day)}d ${t("ago")}`;
 };
 
 const FILTER_OPTIONS = [
-  { key: "all", label: "All" },
-  { key: "unread", label: "Unread" },
+  { key: "all", labelKey: "all" },
+  { key: "unread", labelKey: "unread" },
 ];
 
 const AllChatScreen = () => {
   const navigation = useNavigation();
+  const { t } = useAppLanguage();
   const { data: threads = [], isLoading } = useFetchConversationsQuery();
   const [archiveConversation] = useArchiveConversationMutation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -54,26 +56,34 @@ const AllChatScreen = () => {
     if (!Array.isArray(threads) || !threads.length) return [];
     return threads.map((thread) => ({
       id: thread?._id || thread?.id,
-      name: thread?.directPeer?.fullName || thread?.directPeer?.name || "Unknown User",
-      lastMessage: thread?.lastMessage?.text || "No messages yet",
-      time: formatRelativeTime(thread?.lastMessage?.createdAt || thread?.updatedAt),
+      name:
+        thread?.directPeer?.fullName ||
+        thread?.directPeer?.name ||
+        t("unknown_user"),
+      lastMessage: thread?.lastMessage?.text || t("no_messages_yet"),
+      time: formatRelativeTime(
+        thread?.lastMessage?.createdAt || thread?.updatedAt,
+        t,
+      ),
       unreadCount: Number(thread?.unreadCount || 0),
-      avatar: thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
+      avatar:
+        thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
       isOnline: Boolean(thread?.directPeer?.isOnline),
       isGroup: Boolean(thread?.is_group || thread?.isGroup),
     }));
-  }, [threads]);
+  }, [threads, t]);
 
   const handleConversationLongPress = (item) => {
     Alert.alert(
       item.name,
-      "What would you like to do?",
+      t("what_would_you_like_to_do"),
       [
         {
-          text: "Archive",
-          onPress: () => archiveConversation({ threadId: item.id, archived: true }),
+          text: t("archive"),
+          onPress: () =>
+            archiveConversation({ threadId: item.id, archived: true }),
         },
-        { text: "Cancel", style: "cancel" },
+        { text: t("cancel"), style: "cancel" },
       ],
       { cancelable: true },
     );
@@ -82,10 +92,18 @@ const AllChatScreen = () => {
   const handleConversationPress = (item) => {
     if (item?.isGroup) {
       navigation.navigate("GroupChat", {
-        group: { id: item.id, name: item.name, avatar_url: item.avatar, conversation_id: item.id },
+        group: {
+          id: item.id,
+          name: item.name,
+          avatar_url: item.avatar,
+          conversation_id: item.id,
+        },
       });
     } else {
-      navigation.navigate("SingleChat", { threadId: item.id, conversation: item });
+      navigation.navigate("SingleChat", {
+        threadId: item.id,
+        conversation: item,
+      });
     }
   };
 
@@ -125,18 +143,28 @@ const AllChatScreen = () => {
 
         <View style={styles.cardBody}>
           <View style={styles.cardTopRow}>
-            <Text style={[styles.name, hasUnread && styles.nameUnread]} numberOfLines={1}>
+            <Text
+              style={[styles.name, hasUnread && styles.nameUnread]}
+              numberOfLines={1}
+            >
               {item.name}
             </Text>
-            <Text style={[styles.time, hasUnread && styles.timeUnread]}>{item.time}</Text>
+            <Text style={[styles.time, hasUnread && styles.timeUnread]}>
+              {item.time}
+            </Text>
           </View>
           <View style={styles.cardBottomRow}>
-            <Text style={[styles.preview, hasUnread && styles.previewUnread]} numberOfLines={1}>
+            <Text
+              style={[styles.preview, hasUnread && styles.previewUnread]}
+              numberOfLines={1}
+            >
               {item.lastMessage}
             </Text>
             {hasUnread ? (
               <View style={styles.unreadBadge}>
-                <Text style={styles.unreadText}>{Math.min(item.unreadCount, 99)}</Text>
+                <Text style={styles.unreadText}>
+                  {Math.min(item.unreadCount, 99)}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -148,9 +176,11 @@ const AllChatScreen = () => {
   return (
     <SafeAreaView edges={["top"]} style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
+        <Text style={styles.title}>{t("messages")}</Text>
         {formattedConversations.length > 0 && (
-          <Text style={styles.subtitle}>{formattedConversations.length} Conversations</Text>
+          <Text style={styles.subtitle}>
+            {formattedConversations.length} {t("conversations")}
+          </Text>
         )}
       </View>
 
@@ -159,7 +189,7 @@ const AllChatScreen = () => {
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search messages..."
+          placeholder={t("search_messages")}
           placeholderTextColor="#667A93"
           style={styles.searchInput}
         />
@@ -169,41 +199,32 @@ const AllChatScreen = () => {
         {FILTER_OPTIONS.map((opt) => (
           <Pressable
             key={opt.key}
-            style={[styles.filterChip, activeFilter === opt.key && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              activeFilter === opt.key && styles.filterChipActive,
+            ]}
             onPress={() => setActiveFilter(opt.key)}
           >
-            <Text style={[styles.filterText, activeFilter === opt.key && styles.filterTextActive]}>
-              {opt.label}
+            <Text
+              style={[
+                styles.filterText,
+                activeFilter === opt.key && styles.filterTextActive,
+              ]}
+            >
+              {t(opt.labelKey)}
             </Text>
           </Pressable>
         ))}
       </View>
 
       {/* Pinned AI Assistant */}
-      <Pressable style={styles.aiCard} onPress={() => navigation.navigate("MicConversation")}>
-        <View style={styles.aiAvatarWrap}>
-          <View style={styles.aiAvatar}>
-            <Bot size={22} color="#17CBE8" />
-          </View>
-          <View style={styles.aiOnlineDot} />
-        </View>
-        <View style={styles.cardBody}>
-          <View style={styles.cardTopRow}>
-            <Text style={styles.aiName}>Mabdel AI Assistant</Text>
-            <Text style={styles.aiOnlineText}>Online</Text>
-          </View>
-          <Text style={styles.aiPreview} numberOfLines={1}>
-            Ask me anything about your business...
-          </Text>
-        </View>
-      </Pressable>
 
       {isLoading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="small" color="#1AD3EF" />
-          <Text style={styles.loadingText}>Loading chats...</Text>
+          <Text style={styles.loadingText}>{t("loading_chats")}</Text>
         </View>
-      ) : (
+        ) : (
         <FlatList
           data={filtered}
           renderItem={renderItem}
@@ -213,9 +234,31 @@ const AllChatScreen = () => {
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyText}>
-                {searchQuery ? "No results found" : "No conversations yet"}
+                {searchQuery ? t("no_results_found") : t("no_conversations_yet")}
               </Text>
             </View>
+          }
+          ListHeaderComponent={
+            <Pressable
+              style={styles.aiCard}
+              onPress={() => navigation.navigate("MicConversation")}
+            >
+              <View style={styles.aiAvatarWrap}>
+                <View style={styles.aiAvatar}>
+                  <Bot size={22} color="#17CBE8" />
+                </View>
+                <View style={styles.aiOnlineDot} />
+              </View>
+              <View style={styles.cardBody}>
+                <View style={styles.cardTopRow}>
+                  <Text style={styles.aiName}>{t("ai_assistant")}</Text>
+                  <Text style={styles.aiOnlineText}>{t("online")}</Text>
+                </View>
+                <Text style={styles.aiPreview} numberOfLines={1}>
+                  {t("ask_me_anything_about_your_business")}
+                </Text>
+              </View>
+            </Pressable>
           }
         />
       )}

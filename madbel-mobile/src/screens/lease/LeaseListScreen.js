@@ -65,13 +65,13 @@ const LeaseListScreen = () => {
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Pressable onPress={() => navigation.goBack()}>
-              <ChevronLeft size={34} color="#F5FAFF" />
+              <ChevronLeft size={responsiveWidth(5)} color="#F5FAFF" />
             </Pressable>
             <Text style={styles.title}>Lease</Text>
           </View>
           <Pressable style={styles.newBtn} onPress={() => navigation.navigate("NewLease")}>
             <Plus size={22} color="#EAF9FF" />
-            <Text style={styles.newBtnText}>New Lease</Text>
+            <Text style={styles.newBtnText}>New</Text>
           </Pressable>
         </View>
 
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: responsiveWidth(4) },
   headerRow: { marginTop: responsiveHeight(0.8), flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
-  title: { color: "#F4F8FF", fontSize: 48 / 2, fontWeight: "700" },
+  title: { color: "#F4F8FF", fontSize: responsiveWidth(5), fontWeight: "700" },
   newBtn: {
     minHeight: responsiveHeight(5.2),
     borderRadius: 18,
