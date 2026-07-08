@@ -711,6 +711,73 @@ class ConversationService(SmartFlowBase):
                 return identity.get("external_id")
         return None
 
+    async def ensure_global_chat(self, organization_id: str, business_name: str, owner_id: str) -> dict:
+        """Ensure a global chat exists for the organization."""
+        group = await self.db.groups.find_one({"owner_user_id": organization_id, "is_global_chat": True})
+        if group:
+            return group
+
+        now = utc_now()
+        conversation = await self.create_conversation(
+            owner_id,
+            {
+                "title": f"{business_name} Global Chat",
+                "member_ids": [owner_id],
+                "type": "group",
+                "platform": "ai",
+                "contact_id": None,
+            },
+        )
+        group_doc = {
+            "user_id": owner_id,
+            "owner_user_id": organization_id,
+            "name": f"{business_name} Global Chat",
+            "avatar_url": None,
+            "description": f"Global chat for {business_name}",
+            "member_ids": [owner_id],
+            "admin_ids": [owner_id],
+            "pending_invites": [],
+            "is_active": True,
+            "is_global_chat": True,
+            "conversation_id": conversation["id"],
+            "created_at": now,
+            "updated_at": now,
+        }
+        result = await self.db.groups.insert_one(group_doc)
+        group_doc["_id"] = result.inserted_id
+        return group_doc
+
+    async def add_user_to_global_chat(self, organization_id: str, user_id: str) -> dict | None:
+        """Add a user to the organization's global chat."""
+        group = await self.db.groups.find_one({"owner_user_id": organization_id, "is_global_chat": True})
+        if not group:
+            return None
+            
+        member_ids = list(set([*group.get("member_ids", []), user_id]))
+        updated = await self.db.groups.find_one_and_update(
+            {"_id": group["_id"]},
+            {"$set": {"member_ids": member_ids, "updated_at": utc_now()}},
+            return_document=ReturnDocument.AFTER,
+        )
+        await self._sync_group_conversation(updated)
+        return updated
+
+    async def remove_user_from_global_chat(self, organization_id: str, user_id: str) -> dict | None:
+        """Remove a user from the organization's global chat."""
+        group = await self.db.groups.find_one({"owner_user_id": organization_id, "is_global_chat": True})
+        if not group:
+            return None
+
+        member_ids = [m for m in group.get("member_ids", []) if m != user_id]
+        admin_ids = [m for m in group.get("admin_ids", []) if m != user_id]
+        updated = await self.db.groups.find_one_and_update(
+            {"_id": group["_id"]},
+            {"$set": {"member_ids": member_ids, "admin_ids": admin_ids, "updated_at": utc_now()}},
+            return_document=ReturnDocument.AFTER,
+        )
+        await self._sync_group_conversation(updated)
+        return updated
+
     async def delete_group(self, user_id: str, group_id: str) -> None:
         group = await self._get_active_owned_group(user_id, group_id)
         await self.db.groups.delete_one({"_id": group["_id"]})

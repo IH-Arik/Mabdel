@@ -46,7 +46,11 @@ class OwnerListItem(BaseModel):
     full_name: str
     login_email: str
     original_email: str
-    organization_name: str | None = None
+    business_name: str | None = None
+    business_address: str | None = None
+    owner_dob: str | None = None
+    phone_no: str | None = None
+    business_type: str | None = None
     created_at: datetime | None = None
     status: str = "active"
     plan: str | None = None
@@ -88,7 +92,11 @@ class AdminCreateRequest(BaseModel):
 class OwnerCreateRequest(BaseModel):
     full_name: str
     original_email: EmailStr
-    organization_name: str
+    business_name: str
+    business_address: str | None = None
+    owner_dob: str | None = None
+    phone_no: str | None = None
+    business_type: str | None = None
     plan: str | None = None
 
 

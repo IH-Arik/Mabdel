@@ -138,7 +138,7 @@ async def subscription_signup(
     from app.services.dashboard.credential_generator import generate_login_email, generate_secure_password
     
     while True:
-        generated_login_email = generate_login_email(payload.full_name, "owner")
+        generated_login_email = generate_login_email(payload.business_name, "owner")
         existing = await db.users.find_one({"email": generated_login_email})
         if not existing:
             break
@@ -164,7 +164,11 @@ async def subscription_signup(
         "full_name": payload.full_name,
         "created_by": "system",
         "is_subordinate_account": False,
-        "organization_name": payload.organization_name,
+        "business_name": payload.business_name,
+        "business_address": payload.business_address,
+        "owner_dob": payload.owner_dob,
+        "phone_no": payload.phone_no,
+        "business_type": payload.business_type,
         "role": "owner",
         "primary_role": "owner",
         "roles": ["owner"],
@@ -192,6 +196,15 @@ async def subscription_signup(
             organization_id=None,
         )
 
+    # Create Global Chat for the new organization (the owner is the organization)
+    from app.services.smartflow.smartflow_orchestrator import SmartFlowService
+    smartflow = SmartFlowService(db)
+    await smartflow.ensure_global_chat(
+        organization_id=new_user_id,
+        business_name=payload.business_name,
+        owner_id=new_user_id
+    )
+
     # Send credentials
     from app.services.email_service import EmailService
     await EmailService().send_subordinate_credentials_email(
@@ -200,6 +213,13 @@ async def subscription_signup(
         password=generated_password,
         role="owner"
     )
+
+    # Print credentials to console for local development testing
+    print(f"\n=== [LOCAL DEV] NEW OWNER CREDENTIALS ===")
+    print(f"Original Email: {payload.original_email}")
+    print(f"Login Email: {generated_login_email}")
+    print(f"Password: {generated_password}")
+    print(f"=========================================\n")
 
     return success_response(data={"message": "Subscription request received. Credentials have been emailed."}, message="Success")
 
