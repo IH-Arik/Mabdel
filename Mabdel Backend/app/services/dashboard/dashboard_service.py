@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 
@@ -163,7 +163,21 @@ class DashboardService:
         )
 
     async def toggle_user_status(self, user_id: str, status: str) -> bool:
-        return await self.repository.update_user_status(user_id, status)
+        success = await self.repository.update_user_status(user_id, status)
+        if success:
+            try:
+                user = await self.repository.db.users.find_one({"_id": _object_id(user_id)})
+                if user and user.get("organization_id"):
+                    from app.services.smartflow.smartflow_orchestrator import SmartFlowService
+                    smartflow = SmartFlowService(self.repository.db)
+                    if status == "active":
+                        await smartflow.add_user_to_global_chat(user["organization_id"], user_id)
+                    else:
+                        await smartflow.remove_user_from_global_chat(user["organization_id"], user_id)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error("Failed to sync user status with global chat: %s", e)
+        return success
 
     async def get_earnings_summary(self, organization_id: str | None = None) -> EarningsSummary:
         stats = await self.repository.get_earnings_stats(organization_id)
