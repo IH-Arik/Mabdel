@@ -32,6 +32,7 @@ const leaseDuration = (lease) => {
 };
 
 const LeaseListScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const [query, setQuery] = useState("");
   const { data, isLoading, isFetching, error } = useMadbelListLeasesQuery({

@@ -163,7 +163,8 @@ const PlatformIcon = ({ platform }) => {
 
 const SocialIntegrationsScreen = () => {
   const navigation = useNavigation();
-
+  const { t } = useAppLanguage();
+  
   const {
     data: catalogResponse,
     isLoading: isCatalogLoading,

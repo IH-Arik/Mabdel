@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  "http://10.10.28.76:8000";
+  "https://energize-dyslexic-frisbee.ngrok-free.dev";
 
 const isPlainObject = (value) =>
   value !== null &&

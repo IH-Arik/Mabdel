@@ -50,6 +50,7 @@ const normalizePrefillItems = (items = []) =>
 
 
 const CreateInvoiceScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const prefill = route?.params?.prefill || {};

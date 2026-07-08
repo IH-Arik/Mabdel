@@ -1,6 +1,6 @@
 ﻿import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Switch, Alert, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Switch, Alert, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
@@ -13,6 +13,8 @@ import {
   useMadbelReviewAgreementDraftMutation,
 } from "../../redux/slices/madbelApiSlice";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
+
+const SIGNING_PROVIDER = "docusign";
 
 const normalizeReview = (review = []) =>
   review.map((item) => ({
@@ -33,6 +35,7 @@ const normalizeDate = (value) => {
 };
 
 const AgreementCreateScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const [voiceTrigger, setVoiceTrigger] = useState(0);
@@ -125,6 +128,7 @@ const AgreementCreateScreen = () => {
         start_date: normalizeDate(date),
         content,
         ai_review: aiReview,
+        signing_provider: signatureEnabled ? SIGNING_PROVIDER : undefined,
       },
     });
   };
@@ -145,7 +149,7 @@ const AgreementCreateScreen = () => {
       return;
     }
     try {
-      const response = await createAgreement({
+      const payload = {
         title: title.trim(),
         client_name: clientName.trim(),
         client_email: clientEmail.trim() || undefined,
@@ -154,8 +158,23 @@ const AgreementCreateScreen = () => {
         start_date: normalizeDate(date),
         content: content.trim(),
         status: signatureEnabled ? "pending_signature" : "draft",
-      }).unwrap();
-      navigation.replace("AgreementPreview", { agreementId: response?.data?.id, agreement: response?.data });
+        signing_provider: signatureEnabled ? SIGNING_PROVIDER : undefined,
+      };
+
+      const response = await createAgreement(payload).unwrap();
+      const createdAgreement = response?.data || response;
+      const agreementId = createdAgreement?.id || createdAgreement?.agreement_id;
+      const signingUrl =
+        createdAgreement?.signing_url ||
+        createdAgreement?.data?.signing_url ||
+        response?.signing_url ||
+        response?.data?.signing_url;
+
+      navigation.replace("AgreementPreview", { agreementId, agreement: createdAgreement });
+
+      if (signatureEnabled && signingUrl) {
+        await Linking.openURL(signingUrl);
+      }
     } catch (error) {
 
       
