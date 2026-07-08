@@ -62,6 +62,7 @@ const MeetingDetailsScreen = () => {
   const [cachedShareUrl, setCachedShareUrl] = React.useState(null);
 
   const event = eventResponse?.data || route?.params?.event || null;
+  const googleCalendarEvent = route?.params?.googleCalendarEvent || null;
 
   const dateTimeLabel = React.useMemo(() => {
     if (!event?.starts_at || !event?.ends_at) return "-";
@@ -210,6 +211,16 @@ const MeetingDetailsScreen = () => {
           value={event?.description || "No description provided."}
         />
 
+        {googleCalendarEvent?.htmlLink ? (
+          <View style={styles.googleCard}>
+            <Text style={styles.googleLabel}>Google Calendar</Text>
+            <Text style={styles.googleValue}>Synced successfully</Text>
+            <Text style={styles.googleLink} numberOfLines={2}>
+              {googleCalendarEvent.htmlLink}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.divider} />
 
         <View style={styles.actionsRow}>
@@ -279,6 +290,19 @@ const styles = StyleSheet.create({
   detailTitle: { color: "#F2F9FF", fontSize: 29 / 1.6, fontWeight: "700", marginBottom: 4 },
   detailValue: { color: "#95A4B9", fontSize: 27 / 1.6, lineHeight: 45 / 1.6 },
   divider: { borderTopWidth: 1, borderTopColor: "#1D2A37", marginTop: 10, marginBottom: 22 },
+  googleCard: {
+    marginTop: 10,
+    marginBottom: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#2A3442",
+    backgroundColor: "#111921",
+    padding: 14,
+    gap: 6,
+  },
+  googleLabel: { color: "#7DDCFF", fontSize: 12, fontWeight: "700" },
+  googleValue: { color: "#F2F8FF", fontSize: 15, fontWeight: "700" },
+  googleLink: { color: "#95A4B9", fontSize: 12, lineHeight: 18 },
   actionsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   actionBtn: {
     flex: 1,

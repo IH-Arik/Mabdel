@@ -28,6 +28,7 @@ try {
   // TTS not available in this build — visual-only mode
 }
 import { useMadbelAiWorkflowPrefillMutation } from "../redux/slices/madbelApiSlice";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ─── Phase state machine ──────────────────────────────────────────────────────
 const PHASE = {
@@ -276,6 +277,7 @@ const VoiceFormFillCard = ({
   const navigation = useNavigation();
   const route = useRoute();
   const { aiLanguage, currentAiLang, getPrompt, getQuestion } = useAiLanguage();
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
   const phaseRef = useRef(PHASE.IDLE);
   const lastAutoStartedIdxRef = useRef(-1);
@@ -617,14 +619,22 @@ const VoiceFormFillCard = ({
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
+    <SafeAreaView className="flex-1">
     <View style={s.wrap}>
       <Pressable onPress={handleOpen} style={s.micCircle}>
         <Mic color="#EAF9FF" size={32} strokeWidth={2.4} />
       </Pressable>
       <Text style={s.labelText}>Tap mic to fill {label} with AI</Text>
 
-      <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={handleClose}>
-        <View style={s.backdrop}>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={modalVisible}
+        onRequestClose={handleClose}
+        statusBarTranslucent
+      >
+        <View style={[s.backdrop, { paddingTop: insets.top + responsiveHeight(1), paddingBottom: insets.bottom + responsiveHeight(1.5) }]}>
           <View style={s.card}>
 
             {/* Header */}
@@ -792,7 +802,10 @@ const VoiceFormFillCard = ({
           </View>
         </View>
       </Modal>
+
+
     </View>
+    </SafeAreaView>
   );
 };
 

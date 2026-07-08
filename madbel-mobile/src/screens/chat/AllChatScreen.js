@@ -52,6 +52,8 @@ const AllChatScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
 
+  console.log("AllChatScreen threads:", threads);
+
   const formattedConversations = useMemo(() => {
     if (!Array.isArray(threads) || !threads.length) return [];
     return threads.map((thread) => ({

@@ -81,6 +81,8 @@ export default function OnboardingScreen() {
     contacts: true,
   });
 
+  const { t } = useAppLanguage();
+
   // Load device_id on mount
   useEffect(() => {
     const initDeviceId = async () => {

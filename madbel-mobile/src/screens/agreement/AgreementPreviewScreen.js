@@ -32,6 +32,7 @@ const AgreementPreviewScreen = () => {
     { skip: !agreementId },
   );
   const agreement = agreementResponse?.data || routeAgreement;
+  const signingProvider = agreement?.signing_provider || routeAgreement?.signing_provider;
   const tone = STATUS_TONE_MAP[String(agreement?.status || "pending_signature").toLowerCase()] || STATUS_TONE_MAP.pending_signature;
 
   const [showModal, setShowModal] = useState(false);
@@ -55,6 +56,7 @@ const AgreementPreviewScreen = () => {
         recipient_name: name.trim() || undefined,
         recipient_email: email.trim() || undefined,
         channel: email.trim() ? "email" : "link",
+        signing_provider: signingProvider || undefined,
       };
       await sendForSignature(payload).unwrap();
       setShowModal(false);
