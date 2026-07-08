@@ -251,6 +251,14 @@ async def create_organization_admin(
     except Exception:
         pass  # RBAC assignment is best-effort; user is still created
 
+    try:
+        from app.services.smartflow.smartflow_orchestrator import SmartFlowService
+        smartflow = SmartFlowService(db)
+        await smartflow.add_user_to_global_chat(request.organization_id, new_user_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Failed to add user to global chat: %s", e)
+
     return BaseResponse(data=new_user_id, message=f"New '{target_role}' created successfully.")
 
 
@@ -1112,7 +1120,7 @@ async def list_owners(
             {"full_name": {"$regex": search, "$options": "i"}},
             {"email": {"$regex": search, "$options": "i"}},
             {"original_email": {"$regex": search, "$options": "i"}},
-            {"organization_name": {"$regex": search, "$options": "i"}}
+            {"business_name": {"$regex": search, "$options": "i"}}
         ]
         
     total = await db.users.count_documents(query_filter)
@@ -1157,7 +1165,11 @@ async def list_owners(
             full_name=user.get("full_name") or "Unknown",
             login_email=user.get("email", ""),
             original_email=user.get("original_email", ""),
-            organization_name=user.get("organization_name"),
+            business_name=user.get("business_name"),
+            business_address=user.get("business_address"),
+            owner_dob=user.get("owner_dob"),
+            phone_no=user.get("phone_no"),
+            business_type=user.get("business_type"),
             created_at=user.get("created_at"),
             status="active" if user.get("is_active", True) else "blocked",
             plan=user.get("subscription_plan") or "7-Day Trial",
@@ -1185,7 +1197,7 @@ async def create_owner_account(
     from app.services.dashboard.credential_generator import generate_login_email, generate_secure_password
     
     while True:
-        generated_login_email = generate_login_email(body.full_name, "owner")
+        generated_login_email = generate_login_email(body.business_name, "owner")
         existing = await db.users.find_one({"email": generated_login_email})
         if not existing:
             break
@@ -1201,7 +1213,11 @@ async def create_owner_account(
         "full_name": body.full_name,
         "created_by": creator_id,
         "is_subordinate_account": False,
-        "organization_name": body.organization_name,
+        "business_name": body.business_name,
+        "business_address": body.business_address,
+        "owner_dob": body.owner_dob,
+        "phone_no": body.phone_no,
+        "business_type": body.business_type,
         "role": "owner",
         "primary_role": "owner",
         "roles": ["owner"],

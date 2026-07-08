@@ -22,7 +22,15 @@ const ClientManagement = () => {
 
   // Add member state
   const [showSearch, setShowSearch] = useState(false);
-  const [newOwnerForm, setNewOwnerForm] = useState({ fullName: "", email: "", organizationName: "" });
+  const [newOwnerForm, setNewOwnerForm] = useState({ 
+    fullName: "", 
+    email: "", 
+    businessName: "",
+    businessAddress: "",
+    ownerDob: "",
+    phoneNo: "",
+    businessType: ""
+  });
   const [creatingOwner, setCreatingOwner] = useState(false);
 
   const loadOwners = useCallback(async () => {
@@ -42,8 +50,8 @@ const ClientManagement = () => {
   useEffect(() => { loadOwners(); }, [loadOwners]);
 
   const handleCreateOwner = async () => {
-    if (!newOwnerForm.fullName || !newOwnerForm.email || !newOwnerForm.organizationName) {
-      message.error("Name, Email, and Organization are required.");
+    if (!newOwnerForm.fullName || !newOwnerForm.email || !newOwnerForm.businessName) {
+      message.error("Name, Email, and Business Name are required.");
       return;
     }
     setCreatingOwner(true);
@@ -51,12 +59,18 @@ const ClientManagement = () => {
       await createOwner({
         full_name: newOwnerForm.fullName,
         original_email: newOwnerForm.email,
-        organization_name: newOwnerForm.organizationName,
+        business_name: newOwnerForm.businessName,
+        business_address: newOwnerForm.businessAddress,
+        owner_dob: newOwnerForm.ownerDob,
+        phone_no: newOwnerForm.phoneNo,
+        business_type: newOwnerForm.businessType,
       });
       
       message.success(`Owner account created. Login credentials have been emailed to ${newOwnerForm.email}.`);
       setShowSearch(false);
-      setNewOwnerForm({ fullName: "", email: "", organizationName: "" });
+      setNewOwnerForm({ 
+        fullName: "", email: "", businessName: "", businessAddress: "", ownerDob: "", phoneNo: "", businessType: "" 
+      });
       await loadOwners();
 
     } catch (err) {
@@ -95,7 +109,7 @@ const ClientManagement = () => {
               <Search className="w-5 h-5 rotate-45" /> {/* Just an X visually if using rotate or we can use regular close */}
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-slate-700">Full Name</label>
               <input
@@ -117,13 +131,52 @@ const ClientManagement = () => {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Organization Name</label>
+              <label className="text-sm font-semibold text-slate-700">Business Name</label>
               <input
                 type="text"
                 placeholder="e.g. Acme Corp"
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                value={newOwnerForm.organizationName}
-                onChange={(e) => setNewOwnerForm({ ...newOwnerForm, organizationName: e.target.value })}
+                value={newOwnerForm.businessName}
+                onChange={(e) => setNewOwnerForm({ ...newOwnerForm, businessName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Business Address</label>
+              <input
+                type="text"
+                placeholder="e.g. 123 Street"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                value={newOwnerForm.businessAddress}
+                onChange={(e) => setNewOwnerForm({ ...newOwnerForm, businessAddress: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Owner DOB</label>
+              <input
+                type="date"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                value={newOwnerForm.ownerDob}
+                onChange={(e) => setNewOwnerForm({ ...newOwnerForm, ownerDob: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Phone</label>
+              <input
+                type="tel"
+                placeholder="e.g. +123456789"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                value={newOwnerForm.phoneNo}
+                onChange={(e) => setNewOwnerForm({ ...newOwnerForm, phoneNo: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Business Type</label>
+              <input
+                type="text"
+                placeholder="e.g. Retail"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                value={newOwnerForm.businessType}
+                onChange={(e) => setNewOwnerForm({ ...newOwnerForm, businessType: e.target.value })}
               />
             </div>
             <button
@@ -178,7 +231,7 @@ const ClientManagement = () => {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
                   <th className="py-4 px-6 text-xs font-semibold tracking-wider text-slate-500 uppercase">Owner</th>
-                  <th className="py-4 px-6 text-xs font-semibold tracking-wider text-slate-500 uppercase">Organization</th>
+                  <th className="py-4 px-6 text-xs font-semibold tracking-wider text-slate-500 uppercase">Business Details</th>
                   <th className="py-4 px-6 text-xs font-semibold tracking-wider text-slate-500 uppercase">Login Email</th>
                   <th className="py-4 px-6 text-xs font-semibold tracking-wider text-slate-500 uppercase">Status</th>
                 </tr>
@@ -209,7 +262,11 @@ const ClientManagement = () => {
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <p className="text-slate-700 font-medium">{owner.organization_name || "-"}</p>
+                        <p className="text-slate-700 font-medium">{owner.business_name || "-"}</p>
+                        <div className="text-xs text-slate-500 mt-1 flex flex-col gap-0.5">
+                          {owner.business_type && <span>{owner.business_type}</span>}
+                          {owner.phone_no && <span>{owner.phone_no}</span>}
+                        </div>
                         {hasSubordinates && (
                           <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md w-fit">
                             <Users className="w-3.5 h-3.5" />
