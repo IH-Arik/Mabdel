@@ -54,23 +54,28 @@ const AllChatScreen = () => {
 
   const formattedConversations = useMemo(() => {
     if (!Array.isArray(threads) || !threads.length) return [];
-    return threads.map((thread) => ({
-      id: thread?._id || thread?.id,
-      name:
-        thread?.directPeer?.fullName ||
-        thread?.directPeer?.name ||
-        t("unknown_user"),
-      lastMessage: thread?.lastMessage?.text || t("no_messages_yet"),
-      time: formatRelativeTime(
-        thread?.lastMessage?.createdAt || thread?.updatedAt,
-        t,
-      ),
-      unreadCount: Number(thread?.unreadCount || 0),
-      avatar:
-        thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
-      isOnline: Boolean(thread?.directPeer?.isOnline),
-      isGroup: Boolean(thread?.is_group || thread?.isGroup),
-    }));
+    return threads.map((thread) => {
+      const isGroup = Boolean(thread?.type === "group" || thread?.is_group || thread?.isGroup);
+      return {
+        id: thread?._id || thread?.id,
+        name:
+          thread?.title ||
+          thread?.group?.name ||
+          thread?.directPeer?.fullName ||
+          thread?.directPeer?.name ||
+          t(isGroup ? "group_chat" : "unknown_user"),
+        lastMessage: thread?.lastMessage?.text || t("no_messages_yet"),
+        time: formatRelativeTime(
+          thread?.lastMessage?.createdAt || thread?.updatedAt,
+          t,
+        ),
+        unreadCount: Number(thread?.unreadCount || 0),
+        avatar:
+          thread?.avatar_url || thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
+        isOnline: Boolean(thread?.directPeer?.isOnline),
+        isGroup,
+      };
+    });
   }, [threads, t]);
 
   const handleConversationLongPress = (item) => {
@@ -91,13 +96,16 @@ const AllChatScreen = () => {
 
   const handleConversationPress = (item) => {
     if (item?.isGroup) {
-      navigation.navigate("GroupChat", {
-        group: {
-          id: item.id,
-          name: item.name,
-          avatar_url: item.avatar,
-          conversation_id: item.id,
-        },
+      navigation.navigate("Community", {
+        screen: "GroupChat",
+        params: {
+          group: {
+            id: item.id,
+            name: item.name,
+            avatar_url: item.avatar,
+            conversation_id: item.id,
+          },
+        }
       });
     } else {
       navigation.navigate("SingleChat", {

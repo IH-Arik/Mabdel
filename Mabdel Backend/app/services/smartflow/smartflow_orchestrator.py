@@ -221,6 +221,15 @@ class SmartFlowService(SmartFlowBase):
     async def get_unread_message_summary(self, user_id, platform):
         return await self.conversation_service.get_unread_message_summary(user_id, platform)
 
+    async def ensure_global_chat(self, organization_id, business_name, owner_id):
+        return await self.conversation_service.ensure_global_chat(organization_id, business_name, owner_id)
+
+    async def add_user_to_global_chat(self, organization_id, user_id):
+        return await self.conversation_service.add_user_to_global_chat(organization_id, user_id)
+
+    async def remove_user_from_global_chat(self, organization_id, user_id):
+        return await self.conversation_service.remove_user_from_global_chat(organization_id, user_id)
+
     # ==================================================================
     # AI history / voice / workflow prefill (delegated)
     # ==================================================================

@@ -12,7 +12,11 @@ export default function Subscription() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    organizationName: ''
+    businessName: '',
+    businessAddress: '',
+    ownerDob: '',
+    phoneNo: '',
+    businessType: ''
   });
 
   const handleOpenModal = (plan) => {
@@ -26,7 +30,7 @@ export default function Subscription() {
     setTimeout(() => {
       setSelectedPlan(null);
       setIsSubmitted(false);
-      setFormData({ fullName: '', email: '', organizationName: '' });
+      setFormData({ fullName: '', email: '', businessName: '', businessAddress: '', ownerDob: '', phoneNo: '', businessType: '' });
     }, 300);
   };
 
@@ -39,7 +43,11 @@ export default function Subscription() {
         body: JSON.stringify({
           full_name: formData.fullName,
           original_email: formData.email,
-          organization_name: formData.organizationName,
+          business_name: formData.businessName,
+          business_address: formData.businessAddress,
+          owner_dob: formData.ownerDob,
+          phone_no: formData.phoneNo,
+          business_type: formData.businessType,
           plan: selectedPlan
         }),
       });
@@ -77,45 +85,53 @@ export default function Subscription() {
         <p className="text-lg text-gray-400">Select a plan to elevate your business with AI intelligence.</p>
       </motion.div>
 
-      <div className="flex flex-col md:flex-row gap-8 w-full max-w-5xl relative z-10 justify-center">
+      <div className="flex flex-col lg:flex-row gap-8 w-full max-w-7xl relative z-10 justify-center">
         
-        {/* Subscribe Card */}
+        {/* Starter Card */}
         <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="flex-1 bg-gray-900/40 backdrop-blur-md border border-gray-800 rounded-3xl p-8 flex flex-col hover:border-cyan-500/30 transition-all group"
         >
-          <div className="mb-6">
-            <h3 className="text-2xl font-bold mb-2">Pro Access</h3>
-            <p className="text-gray-400 text-sm">Full power of SmartFlow AI for growing businesses.</p>
+          <div className="mb-6 mt-2">
+            <h3 className="text-2xl font-bold mb-2">Starter</h3>
+            <p className="text-gray-400 text-sm">Best for Solo Business Owners</p>
           </div>
           <div className="mb-8">
-            <span className="text-4xl font-extrabold">$49</span>
+            <span className="text-4xl font-extrabold">$299</span>
             <span className="text-gray-400">/month</span>
           </div>
           <ul className="space-y-4 mb-10 flex-1">
-            {['Unlimited AI workflows', 'Custom integrations', 'Priority 24/7 support', 'Advanced analytics'].map((item, i) => (
+            {['AI Receptionist', 'CRM', 'Calendar Booking', 'Missed Call Text Back', 'SMS & Email Automation', '3 Users', 'Mobile App'].map((item, i) => (
               <li key={i} className="flex items-start gap-3 text-gray-300">
                 <CheckCircle className="text-cyan-400 shrink-0 mt-0.5" size={18} />
-                <span>{item}</span>
+                <span className="text-sm">{item}</span>
               </li>
             ))}
           </ul>
-          <button 
-            onClick={() => handleOpenModal('subscribe')}
-            className="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] hover:shadow-lg hover:shadow-cyan-500/20 active:scale-[0.98] transition-all"
-          >
-            Subscribe Now
-          </button>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => handleOpenModal('subscribe')}
+              className="w-full py-4 rounded-xl font-bold bg-gray-800 text-white hover:bg-gray-700 border border-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              Subscribe Now
+            </button>
+            <button 
+              onClick={() => handleOpenModal('trial')}
+              className="w-full py-3 rounded-xl font-bold bg-transparent border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              Start Free Trial <ArrowRight size={18} />
+            </button>
+          </div>
         </motion.div>
 
-        {/* Free Trial Card */}
+        {/* Growth Card */}
         <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex-1 bg-gradient-to-b from-gray-800/80 to-gray-900/40 backdrop-blur-md border border-cyan-500/30 rounded-3xl p-8 flex flex-col relative overflow-hidden"
+          className="flex-1 bg-gradient-to-b from-gray-800/80 to-gray-900/40 backdrop-blur-md border border-cyan-500/50 rounded-3xl p-8 flex flex-col relative overflow-hidden transform lg:-translate-y-4 shadow-xl shadow-cyan-500/10"
         >
           {/* Highlight Badge */}
           <div className="absolute top-0 right-0 bg-cyan-500 text-[#070a13] text-xs font-bold px-4 py-1.5 rounded-bl-xl tracking-wider uppercase">
@@ -124,29 +140,75 @@ export default function Subscription() {
           
           <div className="mb-6 mt-2">
             <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
-              <Sparkles className="text-cyan-400" size={24} /> 7-Day Free Trial
+              <Sparkles className="text-cyan-400" size={24} /> Growth
             </h3>
-            <p className="text-gray-400 text-sm">Experience the magic before you commit.</p>
+            <p className="text-gray-400 text-sm">Best for Small Businesses</p>
           </div>
           <div className="mb-8">
-            <span className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">$0</span>
-            <span className="text-gray-400"> for 7 days</span>
+            <span className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">$699</span>
+            <span className="text-gray-400">/month</span>
           </div>
           <ul className="space-y-4 mb-10 flex-1">
-            {['Full access to all Pro features', 'No credit card required*', 'Cancel anytime', 'Guided onboarding'].map((item, i) => (
+            {['Everything in Starter', 'Unlimited Users', 'Contracts & E-Signatures', 'Invoices', 'Facebook & Instagram Integration', 'Bulk SMS Campaigns', 'Bulk Email Campaigns', 'AI Content Creation', 'Team Chat Rooms'].map((item, i) => (
               <li key={i} className="flex items-start gap-3 text-gray-300">
                 <CheckCircle className="text-teal-400 shrink-0 mt-0.5" size={18} />
-                <span>{item}</span>
+                <span className="text-sm">{item}</span>
               </li>
             ))}
           </ul>
-          <button 
-            onClick={() => handleOpenModal('trial')}
-            className="w-full py-4 rounded-xl font-bold bg-gray-800 text-white hover:bg-gray-700 border border-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-          >
-            Start Free Trial <ArrowRight size={18} />
-          </button>
-          <p className="text-center text-xs text-gray-500 mt-4">*No payment info required upfront.</p>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => handleOpenModal('subscribe')}
+              className="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] hover:shadow-lg hover:shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              Subscribe Now
+            </button>
+            <button 
+              onClick={() => handleOpenModal('trial')}
+              className="w-full py-3 rounded-xl font-bold bg-gray-800/50 text-white hover:bg-gray-700 border border-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              Start Free Trial <ArrowRight size={18} />
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Pro Card */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="flex-1 bg-gray-900/40 backdrop-blur-md border border-gray-800 rounded-3xl p-8 flex flex-col hover:border-cyan-500/30 transition-all group"
+        >
+          <div className="mb-6 mt-2">
+            <h3 className="text-2xl font-bold mb-2">Pro</h3>
+            <p className="text-gray-400 text-sm">Best for Growing Companies</p>
+          </div>
+          <div className="mb-8">
+            <span className="text-4xl font-extrabold">$999</span>
+            <span className="text-gray-400">/month</span>
+          </div>
+          <ul className="space-y-4 mb-10 flex-1">
+            {['Everything in Growth', 'Advanced Permissions', 'Multiple Departments', 'Executive Dashboard', 'Priority Support', 'Advanced Analytics'].map((item, i) => (
+              <li key={i} className="flex items-start gap-3 text-gray-300">
+                <CheckCircle className="text-cyan-400 shrink-0 mt-0.5" size={18} />
+                <span className="text-sm">{item}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => handleOpenModal('subscribe')}
+              className="w-full py-4 rounded-xl font-bold bg-gray-800 text-white hover:bg-gray-700 border border-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              Subscribe Now
+            </button>
+            <button 
+              onClick={() => handleOpenModal('trial')}
+              className="w-full py-3 rounded-xl font-bold bg-transparent border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              Start Free Trial <ArrowRight size={18} />
+            </button>
+          </div>
         </motion.div>
 
       </div>
@@ -193,7 +255,7 @@ export default function Subscription() {
                 ) : (
                   <>
                     <h3 className="text-2xl font-bold mb-2">
-                      {selectedPlan === 'trial' ? 'Start Free Trial' : 'Subscribe to Pro'}
+                      {selectedPlan === 'trial' ? 'Start Free Trial' : 'Subscribe'}
                     </h3>
                     <p className="text-gray-400 text-sm mb-6">
                       Please provide your details below. Our team will set up your workspace.
@@ -231,16 +293,68 @@ export default function Subscription() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1.5">Organization Name</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1.5">Business Name</label>
                         <div className="relative">
                           <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                           <input 
                             type="text" 
                             required
-                            value={formData.organizationName}
-                            onChange={(e) => setFormData({...formData, organizationName: e.target.value})}
+                            value={formData.businessName}
+                            onChange={(e) => setFormData({...formData, businessName: e.target.value})}
                             className="w-full bg-gray-950 border border-gray-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
                             placeholder="Acme Corp"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1.5">Business Address</label>
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            required
+                            value={formData.businessAddress}
+                            onChange={(e) => setFormData({...formData, businessAddress: e.target.value})}
+                            className="w-full bg-gray-950 border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                            placeholder="123 Business St, City, Country"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1.5">Phone Number</label>
+                          <input 
+                            type="tel" 
+                            required
+                            value={formData.phoneNo}
+                            onChange={(e) => setFormData({...formData, phoneNo: e.target.value})}
+                            className="w-full bg-gray-950 border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                            placeholder="+1 234 567 8900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1.5">Owner Date of Birth</label>
+                          <input 
+                            type="date" 
+                            required
+                            value={formData.ownerDob}
+                            onChange={(e) => setFormData({...formData, ownerDob: e.target.value})}
+                            className="w-full bg-gray-950 border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all [color-scheme:dark]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1.5">Business Type / Industry</label>
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            required
+                            value={formData.businessType}
+                            onChange={(e) => setFormData({...formData, businessType: e.target.value})}
+                            className="w-full bg-gray-950 border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                            placeholder="e.g. Real Estate, E-commerce, Marketing"
                           />
                         </div>
                       </div>
