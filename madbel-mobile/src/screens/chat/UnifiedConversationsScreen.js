@@ -98,14 +98,26 @@ const UnifiedConversationsScreen = () => {
     if (!Array.isArray(threads)) return [];
     return threads.map((thread) => ({
       id: thread?._id || thread?.id,
-      name: thread?.directPeer?.fullName || thread?.directPeer?.name || t("unknown_user"),
+      name:
+        thread?.title ||
+        thread?.group?.name ||
+        thread?.directPeer?.fullName ||
+        thread?.directPeer?.name ||
+        t(thread?.type === "group" ? "group_chat" : "unknown_user"),
       lastMessage: thread?.lastMessage?.text || t("no_messages_yet"),
       time: formatRelativeTime(thread?.lastMessage?.createdAt || thread?.updatedAt, t),
       unreadCount: Number(thread?.unreadCount || 0),
-      avatar: thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
+      avatar:
+        thread?.avatar_url ||
+        thread?.group?.avatar_url ||
+        thread?.group?.avatar ||
+        thread?.directPeer?.profileImage ||
+        thread?.directPeer?.avatar ||
+        "",
       platform: normalizePlatform(thread?.channel || thread?.source || thread?.platform || thread?.type),
       status: thread?.lastMessage?.status || null,
-      isGroup: Boolean(thread?.is_group || thread?.isGroup),
+      isGroup: Boolean(thread?.type === "group" || thread?.is_group || thread?.isGroup),
+      raw: thread,
     }));
   }, [threads, t]);
 
@@ -123,10 +135,26 @@ const UnifiedConversationsScreen = () => {
   }, [searchQuery, allData]);
 
   const handlePress = (item) => {
-    navigation.navigate("SingleChat", {
-      threadId: item.id,
-      conversation: item,
-    });
+    if (item?.isGroup) {
+      navigation.navigate("GroupChat", {
+        group: {
+          ...(item.raw || {}),
+          id: item.id,
+          name: item.name,
+          avatar_url: item.avatar,
+          conversation_id: item.id,
+          threadId: item.id,
+          type: "group",
+          is_group: true,
+          isGroup: true,
+        },
+      });
+    } else {
+      navigation.navigate("SingleChat", {
+        threadId: item.id,
+        conversation: item,
+      });
+    }
   };
 
   const renderItem = ({ item }) => {
@@ -219,7 +247,7 @@ const UnifiedConversationsScreen = () => {
             onPress={() => setActiveFilter(opt.key)}
           >
             <Text style={[styles.filterText, activeFilter === opt.key && styles.filterTextActive]}>
-              {opt.label}
+              {opt.labelKey}
             </Text>
           </Pressable>
         ))}

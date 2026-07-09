@@ -2787,7 +2787,7 @@ const SingleChatScreen = () => {
             }}
           >
             {/* User avatar */}
-            <View
+            {/* <View
               style={{
                 width: 36,
                 height: 36,
@@ -2812,7 +2812,7 @@ const SingleChatScreen = () => {
                   )[0].toUpperCase()}
                 </Text>
               )}
-            </View>
+            </View> */}
 
             {recordedUri ? (
               // --- Review recorded voice note: discard / play / send ---
@@ -2974,7 +2974,7 @@ const SingleChatScreen = () => {
                     />
                   )}
 
-                  <Pressable
+                  {/* <Pressable
                     onPress={handleRecordButtonPress}
                     disabled={inputDisabled}
                     style={{ paddingVertical: 4 }}
@@ -2984,7 +2984,7 @@ const SingleChatScreen = () => {
                     ) : (
                       <Mic size={20} color="#5D6A7A" />
                     )}
-                  </Pressable>
+                  </Pressable> */}
                 </View>
 
                 {/* Send button (typed text) */}

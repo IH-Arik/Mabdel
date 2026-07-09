@@ -2765,7 +2765,7 @@ export const APP_TRANSLATIONS = {
     are_you_sure_you_want_to_delete_this_contact: "Are you sure you want to delete this contact?",
     type_email: "Type email...",
     write_email_subject: "Write email subject",
-    type_your_message_or_use_ai_voice_to_text: "Type your message or use AI voice-to-text...",
+    type_your_message_or_use_ai_voice_to_text: "Type your message or use AI voice-to-text to draft faster...",
     attachment_label: "Attachment label",
     https_image_jpg: "https://...image.jpg",
     "10_00_am": "10:00 AM",

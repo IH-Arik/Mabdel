@@ -1,6 +1,8 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,8 +11,9 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -43,6 +46,7 @@ const AddContactScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const contact = route.params?.contact;
   const getContactId = (value) =>
     value?.id || value?._id || value?.contact_id || null;
@@ -78,6 +82,7 @@ const AddContactScreen = () => {
   const [avatarUrl, setAvatarUrl] = useState(defaults.avatarUrl);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [voiceTrigger, setVoiceTrigger] = useState(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     const p = route?.params?.prefill;
@@ -90,6 +95,23 @@ const AddContactScreen = () => {
     if (p.date_of_birth) setDob(p.date_of_birth);
     navigation.setParams?.({ prefill: undefined });
   }, [route?.params?.prefill]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event?.endCoordinates?.height || 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const [createContact, { isLoading: creatingContact }] =
     useMadbelCreateContactMutation();
@@ -203,43 +225,44 @@ const AddContactScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ChevronLeft size={36} color="#F4F9FF" />
-          </Pressable>
-          <Text style={styles.title}>{isEditMode ? t("edit_contact") : t("add_contact")}</Text>
-          <View style={styles.headerActions}>
-            {isEditMode ? (
-              <Pressable onPress={handleDelete} style={styles.deleteIconBtn}>
-                <Trash2 size={20} color="#FF4F5F" />
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.avatarArea}>
-            <View style={styles.avatarCircle}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-              ) : (
-                <UserRound size={57 / 1.7} color="#14D2ED" strokeWidth={2.2} />
-              )}
-            </View>
-            <Pressable style={styles.cameraBadge} onPress={handleAvatarPick}>
-              {uploadingAvatar ? (
-                <ActivityIndicator color="#EEFFFF" size="small" />
-              ) : (
-                <Camera size={17} color="#EEFFFF" />
-              )}
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+              <ChevronLeft size={36} color="#F4F9FF" />
             </Pressable>
+            <Text style={styles.title}>{isEditMode ? t("edit_contact") : t("add_contact")}</Text>
+            <View style={styles.headerActions}>
+              {isEditMode ? (
+                <Pressable onPress={handleDelete} style={styles.deleteIconBtn}>
+                  <Trash2 size={20} color="#FF4F5F" />
+                </Pressable>
+              ) : null}
+            </View>
           </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.avatarArea}>
+              <View style={styles.avatarCircle}>
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+                ) : (
+                  <UserRound size={57 / 1.7} color="#14D2ED" strokeWidth={2.2} />
+                )}
+              </View>
+              <Pressable style={styles.cameraBadge} onPress={handleAvatarPick}>
+                {uploadingAvatar ? (
+                  <ActivityIndicator color="#EEFFFF" size="small" />
+                ) : (
+                  <Camera size={17} color="#EEFFFF" />
+                )}
+              </Pressable>
+            </View>
 
           <ControllerTextInput
             name="firstName"
@@ -249,8 +272,8 @@ const AddContactScreen = () => {
             leftIcon={<User size={23} color="#A3AFBC" strokeWidth={2} />}
             labelStyle={styles.fieldLabel}
             containerStyle={styles.fieldGroup}
-            inputStyle={styles.input}
-            inputWrapperStyle={styles.inputWrap}
+            // inputStyle={styles.input}
+            // inputWrapperStyle={styles.inputWrap}
             placeholderTextColor="#7C8796"
           />
           <ControllerTextInput
@@ -261,8 +284,8 @@ const AddContactScreen = () => {
             leftIcon={<User size={23} color="#A3AFBC" strokeWidth={2} />}
             labelStyle={styles.fieldLabel}
             containerStyle={styles.fieldGroup}
-            inputStyle={styles.input}
-            inputWrapperStyle={styles.inputWrap}
+            // inputStyle={styles.input}
+            // inputWrapperStyle={styles.inputWrap}
             placeholderTextColor="#7C8796"
           />
           <ControllerTextInput
@@ -274,8 +297,8 @@ const AddContactScreen = () => {
             leftIcon={<Phone size={23} color="#A3AFBC" strokeWidth={2} />}
             labelStyle={styles.fieldLabel}
             containerStyle={styles.fieldGroup}
-            inputStyle={styles.input}
-            inputWrapperStyle={styles.inputWrap}
+            // inputStyle={styles.input}
+            // inputWrapperStyle={styles.inputWrap}
             placeholderTextColor="#7C8796"
           />
           <ControllerTextInput
@@ -287,8 +310,8 @@ const AddContactScreen = () => {
             leftIcon={<Mail size={23} color="#A3AFBC" strokeWidth={2} />}
             labelStyle={styles.fieldLabel}
             containerStyle={styles.fieldGroup}
-            inputStyle={styles.input}
-            inputWrapperStyle={styles.inputWrap}
+            // inputStyle={styles.input}
+            // inputWrapperStyle={styles.inputWrap}
             placeholderTextColor="#7C8796"
           />
           <View style={styles.fieldGroup}>
@@ -308,7 +331,7 @@ const AddContactScreen = () => {
             labelStyle={styles.fieldLabel}
             containerStyle={styles.fieldGroup}
             inputStyle={[styles.input, styles.inputMultiline]}
-            inputWrapperStyle={[styles.inputWrap, styles.inputWrapMultiline]}
+            // inputWrapperStyle={[styles.inputWrap, styles.inputWrapMultiline]}
             placeholderTextColor="#7C8796"
           />
           <VoiceFormFillCard
@@ -326,7 +349,17 @@ const AddContactScreen = () => {
             }}
           />
 
-          <View style={styles.saveWrap}>
+          </ScrollView>
+
+          <View
+            style={[
+              styles.footerWrap,
+              {
+                bottom: Math.max(insets.bottom, 12) + keyboardHeight,
+              },
+            ]}
+            pointerEvents="box-none"
+          >
             <Pressable
               style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
               onPress={saveContact}
@@ -339,23 +372,27 @@ const AddContactScreen = () => {
               )}
             </Pressable>
           </View>
-        </ScrollView>
 
-        <SystemCalendarModal
-          visible={calendarVisible}
-          onClose={() => setCalendarVisible(false)}
-          selectedDate={dob || undefined}
-          onSelectDate={(selectedDate) => {
-            setDob(selectedDate);
-            setCalendarVisible(false);
-          }}
-        />
-      </View>
-    </SafeAreaView>
+          <SystemCalendarModal
+            visible={calendarVisible}
+            onClose={() => setCalendarVisible(false)}
+            selectedDate={dob || undefined}
+            onSelectDate={(selectedDate) => {
+              setDob(selectedDate);
+              setCalendarVisible(false);
+            }}
+          />
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+    backgroundColor: "#020406",
+  },
   safeArea: {
     flex: 1,
     backgroundColor: "#020406",
@@ -396,7 +433,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2A1115",
   },
   scrollContent: {
-    paddingBottom: responsiveHeight(12),
+    paddingBottom: responsiveHeight(28),
   },
   avatarArea: {
     alignItems: "center",
@@ -470,6 +507,11 @@ const styles = StyleSheet.create({
   },
   saveWrap: {
     marginTop: responsiveHeight(7),
+  },
+  footerWrap: {
+    position: "absolute",
+    left: responsiveWidth(4.5),
+    right: responsiveWidth(4.5),
   },
   saveBtn: {
     height: 74,

@@ -19,7 +19,8 @@ import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 const DEBOUNCE_MS = 350;
 
 const CreateGroupScreen = () => {
-  const { t } = useAppLanguage();
+  const appLanguage = useAppLanguage();
+  const t = appLanguage?.t || ((key) => key);
   const navigation = useNavigation();
   const tr = (key, fallback) => {
     const value = t(key);
@@ -162,7 +163,7 @@ const CreateGroupScreen = () => {
                     : tr("start_typing_to_search_users", "Start typing to search users.")}
                 </Text>
               ) : null}
-              {appUsers.map((member) => {
+              {/* {appUsers.map((member) => {
                 const selected = selectedMemberIds.includes(member.id);
                 return (
                   <Pressable key={member.id} style={[styles.memberChip, selected && styles.memberChipSelected]} onPress={() => toggleMember(member.id)}>
@@ -179,7 +180,7 @@ const CreateGroupScreen = () => {
                     {selected ? <X size={20} color="#14C9E7" /> : <Text style={styles.addText}>{tr("add", "Add")}</Text>}
                   </Pressable>
                 );
-              })}
+              })} */}
             </View>
             <VoiceFormFillCard
               label={tr("group", "Group")}

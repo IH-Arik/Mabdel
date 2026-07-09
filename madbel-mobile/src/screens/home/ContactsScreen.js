@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -122,7 +123,7 @@ const ContactsScreen = () => {
           </Text>
         </View>
 
-        <View style={styles.actionCol}>
+        {/* <View style={styles.actionCol}>
           {!item.is_app_user && (
             <Pressable style={styles.inviteBtn} onPress={() => handleInvite(item)} hitSlop={8}>
               <Text style={styles.inviteBtnText}>{t("invite")}</Text>
@@ -145,7 +146,7 @@ const ContactsScreen = () => {
           {item.phone && (
             <Text style={styles.callNumText} numberOfLines={1}>{item.phone}</Text>
           )}
-        </View>
+        </View> */}
 
         <ChevronRight size={22} color="#93DBEA" />
       </Pressable>
@@ -201,12 +202,15 @@ const ContactsScreen = () => {
             sections={sections}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => renderContact({ item })}
-            renderSectionHeader={({ section }) => (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{section.title}</Text>
-                <Text style={styles.sectionCount}>{section.data.length}</Text>
-              </View>
-            )}
+            refreshControl={
+              <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor="#12D0ED" />
+            }
+            // renderSectionHeader={({ section }) => (
+            //   <View style={styles.sectionHeader}>
+            //     <Text style={styles.sectionTitle}>{section.title}</Text>
+            //     <Text style={styles.sectionCount}>{section.data.length}</Text>
+            //   </View>
+            // )}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
             stickySectionHeadersEnabled={false}

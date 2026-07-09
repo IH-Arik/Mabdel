@@ -57,7 +57,9 @@ const AllChatScreen = () => {
   const formattedConversations = useMemo(() => {
     if (!Array.isArray(threads) || !threads.length) return [];
     return threads.map((thread) => {
-      const isGroup = Boolean(thread?.type === "group" || thread?.is_group || thread?.isGroup);
+      const isGroup = Boolean(
+        thread?.type === "group" || thread?.is_group || thread?.isGroup,
+      );
       return {
         id: thread?._id || thread?.id,
         name:
@@ -73,9 +75,15 @@ const AllChatScreen = () => {
         ),
         unreadCount: Number(thread?.unreadCount || 0),
         avatar:
-          thread?.avatar_url || thread?.directPeer?.profileImage || thread?.directPeer?.avatar || "",
+          thread?.avatar_url ||
+          thread?.group?.avatar_url ||
+          thread?.group?.avatar ||
+          thread?.directPeer?.profileImage ||
+          thread?.directPeer?.avatar ||
+          "",
         isOnline: Boolean(thread?.directPeer?.isOnline),
         isGroup,
+        raw: thread,
       };
     });
   }, [threads, t]);
@@ -98,16 +106,18 @@ const AllChatScreen = () => {
 
   const handleConversationPress = (item) => {
     if (item?.isGroup) {
-      navigation.navigate("Community", {
-        screen: "GroupChat",
-        params: {
-          group: {
-            id: item.id,
-            name: item.name,
-            avatar_url: item.avatar,
-            conversation_id: item.id,
-          },
-        }
+      navigation.navigate("GroupChat", {
+        group: {
+          ...(item.raw || {}),
+          id: item.id,
+          name: item.name,
+          avatar_url: item.avatar,
+          conversation_id: item.id,
+          threadId: item.id,
+          type: "group",
+          is_group: true,
+          isGroup: true,
+        },
       });
     } else {
       navigation.navigate("SingleChat", {

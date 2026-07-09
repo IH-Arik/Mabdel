@@ -1,8 +1,9 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Keyboard,
   Pressable,
-
   ScrollView,
   StyleSheet,
   Switch,
@@ -12,6 +13,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
 } from "react-native";
 import {
   CalendarDays,
@@ -34,7 +36,7 @@ import {
   useMadbelListContactsQuery,
 } from "../../redux/slices/madbelApiSlice";
 import { MEETING_REMINDERS } from "../../../assets/data/meetingMockData";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import TimeSlotInput from "../../components/TimeSlotInput";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 import {
@@ -43,7 +45,7 @@ import {
   disconnectGoogleCalendar,
   restoreGoogleCalendarConnection,
 } from "../../utils/googleCalendarAuth";
-
+import { parseServerDateTime } from "../../utils/formatDateTime";
 const REMINDER_TO_MINUTES = {
   "10 min": 10,
   "30 min": 30,
@@ -52,20 +54,25 @@ const REMINDER_TO_MINUTES = {
   "1 day": 1440,
 };
 
-const mergeDateAndTime = (dateISO, timeValue) => {
+const mergeDateAndTime = (dateISO, timeValue, useUTC = false) => {
   if (!(timeValue instanceof Date)) return null;
   const date = new Date(dateISO);
   if (Number.isNaN(date.getTime())) return null;
-  date.setHours(timeValue.getHours(), timeValue.getMinutes(), 0, 0);
+  if (useUTC) {
+    date.setUTCHours(timeValue.getUTCHours(), timeValue.getUTCMinutes(), 0, 0);
+  } else {
+    date.setHours(timeValue.getHours(), timeValue.getMinutes(), 0, 0);
+  }
   return date;
 };
 
 const CreateMeetingScheduleScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const prefill = route?.params?.prefill || {};
   const selectedDateFromRoute = route?.params?.selectedDate;
-  const startsAt = prefill?.starts_at ? new Date(prefill.starts_at) : null;
+  const startsAt = prefill?.starts_at ? parseServerDateTime(prefill.starts_at) : null;
   const hasValidStart = startsAt && !Number.isNaN(startsAt.getTime());
   const {t} = useAppLanguage();
 
@@ -75,6 +82,7 @@ const CreateMeetingScheduleScreen = () => {
   const [googleCalendarAccessToken, setGoogleCalendarAccessToken] = useState("");
   const [googleCalendarSyncStatus, setGoogleCalendarSyncStatus] = useState("idle");
   const [googleCalendarSyncMessage, setGoogleCalendarSyncMessage] = useState("");
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const [createCalendarEvent, { isLoading: creatingMeeting }] =
     useMadbelCreateCalendarEventMutation();
@@ -89,15 +97,15 @@ const CreateMeetingScheduleScreen = () => {
     if (p.title) setMeetingTitle(p.title);
     if (p.description) setMeetingDescription(p.description);
     if (p.starts_at) {
-      const d = new Date(p.starts_at);
-      if (!Number.isNaN(d.getTime())) {
+      const d = parseServerDateTime(p.starts_at);
+      if (d) {
         setDateISO(d.toISOString().slice(0, 10));
         setStartTimeSlot(d);
       }
     }
     if (p.ends_at) {
-      const d = new Date(p.ends_at);
-      if (!Number.isNaN(d.getTime())) setEndTimeSlot(d);
+      const d = parseServerDateTime(p.ends_at);
+      if (d) setEndTimeSlot(d);
     }
     if (p.location) setLocation(p.location);
     if (p.meeting_mode) setMeetingMode(p.meeting_mode);
@@ -133,6 +141,23 @@ const CreateMeetingScheduleScreen = () => {
     restoreGoogleCalendar();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event?.endCoordinates?.height || 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
     };
   }, []);
 
@@ -227,13 +252,13 @@ const CreateMeetingScheduleScreen = () => {
   };
 
   const sendMeeting = async () => {
-    const startsAtDate = mergeDateAndTime(dateISO, startTimeSlot);
+    const startsAtDate = mergeDateAndTime(dateISO, startTimeSlot, true);
     if (!startsAtDate) {
       Alert.alert(t("invalid_time"), t("use_a_valid_time_like_10_00_am"));
       return;
     }
 
-    const endsAtDate = mergeDateAndTime(dateISO, endTimeSlot);
+    const endsAtDate = mergeDateAndTime(dateISO, endTimeSlot, true);
     if (!endsAtDate) {
       Alert.alert(t("invalid_time"), t("use_a_valid_time_like_10_00_am"));
       return;
@@ -257,11 +282,11 @@ const CreateMeetingScheduleScreen = () => {
         meeting_mode: meetingMode,
         location: meetingMode === "offline" ? location.trim() || undefined : undefined,
         meeting_link: meetingMode === "online" ? meetingLink.trim() || undefined : undefined,
-        notify_via_push: notifyPush,
-        notify_via_email: notifyEmail,
-        notify_via_sms: notifySMS,
+        // notify_via_push: notifyPush,
+        // notify_via_email: notifyEmail,
+        // notify_via_sms: notifySMS,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        reminder_minutes: REMINDER_TO_MINUTES[activeReminder] || 10,
+        // reminder_minutes: REMINDER_TO_MINUTES[activeReminder] || 10,
       };
 
       console.log("Creating meeting schedule with payload:", payload);
@@ -318,17 +343,19 @@ const CreateMeetingScheduleScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
-            <ChevronLeft size={30} color="#11CDE8" />
-          </Pressable>
-          <Text style={styles.title}>{t("create_meeting_schedule")}</Text>
-        </View>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
+              <ChevronLeft size={30} color="#11CDE8" />
+            </Pressable>
+            <Text style={styles.title}>{t("create_meeting_schedule")}</Text>
+          </View>
 
         <Text style={styles.sectionLabel}>{t("meeting_title")}</Text>
         <View style={styles.inputWrap}>
@@ -367,8 +394,8 @@ const CreateMeetingScheduleScreen = () => {
           currentValues={{
             title: meetingTitle,
             description: meetingDescription,
-            starts_at: mergeDateAndTime(dateISO, startTimeSlot)?.toISOString() ?? "",
-            ends_at: mergeDateAndTime(dateISO, endTimeSlot)?.toISOString() ?? "",
+            starts_at: mergeDateAndTime(dateISO, startTimeSlot, true)?.toISOString() ?? "",
+            ends_at: mergeDateAndTime(dateISO, endTimeSlot, true)?.toISOString() ?? "",
             location,
             meeting_mode: meetingMode,
             meeting_link: meetingLink,
@@ -577,35 +604,48 @@ const CreateMeetingScheduleScreen = () => {
           </View>
         </View>
 
-        <Pressable
-          style={[styles.submitBtn, creatingMeeting && styles.submitBtnDisabled]}
-          onPress={sendMeeting}
-          disabled={creatingMeeting}
-        >
-          {creatingMeeting ? (
-            <ActivityIndicator color="#EAFDFF" />
-          ) : (
-            <Text style={styles.submitText}>{t("send_schedule_meeting")}</Text>
-          )}
-        </Pressable>
-      </ScrollView>
+        </ScrollView>
 
-      <SystemCalendarModal
-        visible={calendarVisible}
-        onClose={() => setCalendarVisible(false)}
-        selectedDate={dateISO}
-        onSelectDate={setDateISO}
-      />
-    </SafeAreaView>
+        <SystemCalendarModal
+          visible={calendarVisible}
+          onClose={() => setCalendarVisible(false)}
+          selectedDate={dateISO}
+          onSelectDate={setDateISO}
+        />
+
+        <View
+          style={[
+            styles.footerWrap,
+            {
+              bottom: Math.max(insets.bottom, 12) + keyboardHeight,
+            },
+          ]}
+          pointerEvents="box-none"
+        >
+          <Pressable
+            style={[styles.submitBtn, creatingMeeting && styles.submitBtnDisabled]}
+            onPress={sendMeeting}
+            disabled={creatingMeeting}
+          >
+            {creatingMeeting ? (
+              <ActivityIndicator color="#EAFDFF" />
+            ) : (
+              <Text style={styles.submitText}>{t("send_schedule_meeting")}</Text>
+            )}
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: "#020406" },
   safeArea: { flex: 1, backgroundColor: "#020406" },
   content: {
     paddingHorizontal: responsiveWidth(4.5),
     paddingTop: responsiveHeight(1),
-    paddingBottom: responsiveHeight(12),
+    paddingBottom: responsiveHeight(28),
   },
   header: {
     flexDirection: "row",
@@ -825,6 +865,11 @@ const styles = StyleSheet.create({
     color: "#FFB7C0",
     fontSize: 15,
     fontWeight: "700",
+  },
+  footerWrap: {
+    position: "absolute",
+    left: responsiveWidth(4.5),
+    right: responsiveWidth(4.5),
   },
   reminderGrid: {
     flexDirection: "row",

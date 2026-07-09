@@ -27,7 +27,10 @@ import {
   responsiveHeight,
   responsiveWidth,
 } from "react-native-responsive-dimensions";
+import { launchImageLibrary } from "react-native-image-picker";
 import SystemCalendarModal from "../../components/SystemCalendarModal";
+import ImagePickerModal from "../../components/ImagePickerModal";
+import TimePickerComponent from "../../components/TimePickerComponent";
 import {
   useMadbelCancelBulkMessageMutation,
   useMadbelCreateBulkMessageMutation,
@@ -66,11 +69,39 @@ const toLocalDateTimeIso = (dateISO, timeValue) => {
   return dt.toISOString();
 };
 
+const parseTimeString = (timeValue) => {
+  const match = String(timeValue || "")
+    .trim()
+    .toUpperCase()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (!match) return new Date();
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridiem = match[3];
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return new Date();
+  if (meridiem === "PM" && hours < 12) hours += 12;
+  if (meridiem === "AM" && hours === 12) hours = 0;
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+};
+
+const formatTimeString = (date) =>
+  new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+
 const BulkMessagingScreen = () => {
   const { t, currentAppLang } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const tabBarHeight = useBottomTabBarHeight();
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value === key ? fallback : value;
+  };
 
   const initialRecipients = useMemo(() => {
     const list =
@@ -106,9 +137,9 @@ const BulkMessagingScreen = () => {
   );
   const [scheduleTime, setScheduleTime] = useState("10:00 AM");
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [imagePickerVisible, setImagePickerVisible] = useState(false);
   const [attachments, setAttachments] = useState(initialAttachments);
-  const [attachmentLabel, setAttachmentLabel] = useState("");
-  const [attachmentUrl, setAttachmentUrl] = useState("");
   const [bulkMessageId, setBulkMessageId] = useState(route?.params?.prefill?.id || null);
 
   const [validateRecipients, { isLoading: validatingRecipients }] =
@@ -140,11 +171,11 @@ const BulkMessagingScreen = () => {
 
   const upsertBulk = async () => {
     if (!message.trim()) {
-      Alert.alert(t("missing_message"), t("please_enter_your_bulk_message"));
+      Alert.alert(tr("missing_message", "Missing message"), tr("please_enter_your_bulk_message", "Please enter your bulk message."));
       return null;
     }
     if (!subject.trim()) {
-      Alert.alert(t("missing_subject"), t("email_bulk_messages_require_a_subject"));
+      Alert.alert(tr("missing_subject", "Missing subject"), tr("email_bulk_messages_require_a_subject", "Email bulk messages require a subject."));
       return null;
     }
 
@@ -156,7 +187,7 @@ const BulkMessagingScreen = () => {
       .map((item) => item?.email)
       .filter(Boolean);
     if (!validRecipients.length) {
-      Alert.alert(t("no_recipients"), t("please_add_at_least_one_valid_recipient"));
+      Alert.alert(tr("no_recipients", "No recipients"), tr("please_add_at_least_one_valid_recipient", "Please add at least one valid recipient."));
       return null;
     }
 
@@ -164,7 +195,7 @@ const BulkMessagingScreen = () => {
       ? toLocalDateTimeIso(scheduleDate, scheduleTime)
       : null;
     if (scheduleEnabled && !scheduledAt) {
-      Alert.alert(t("invalid_schedule"), t("use_time_format_like_10_00_am"));
+      Alert.alert(tr("invalid_schedule", "Invalid schedule"), tr("use_time_format_like_10_00_am", "Use a time format like 10:00 AM."));
       return null;
     }
 
@@ -178,6 +209,7 @@ const BulkMessagingScreen = () => {
       scheduled_at: scheduledAt,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     };
+    console.log("upsertBulk payload:", payload);
 
     const response = bulkMessageId
       ? await updateBulkMessage({ bulk_message_id: bulkMessageId, ...payload }).unwrap()
@@ -194,39 +226,58 @@ const BulkMessagingScreen = () => {
       if (!scheduleEnabled) {
         await sendBulkMessage({ bulk_message_id: id }).unwrap();
       }
-      Alert.alert(t("success"), scheduleEnabled ? t("bulk_message_scheduled") : t("bulk_message_sent"));
+      Alert.alert(tr("success", "Success"), scheduleEnabled ? tr("bulk_message_scheduled", "Bulk message scheduled.") : tr("bulk_message_sent", "Bulk message sent."));
       navigation.goBack();
     } catch (error) {
       Alert.alert(
-        t("send_failed"),
-        error?.data?.message || t("could_not_process_bulk_message"),
+        tr("send_failed", "Send failed"),
+        error?.data?.message || tr("could_not_process_bulk_message", "Could not process bulk message."),
       );
     }
   };
 
   const handleCancelScheduled = async () => {
     if (!bulkMessageId) {
-      Alert.alert(t("unavailable"), t("save_the_draft_before_canceling"));
+      Alert.alert(tr("unavailable", "Unavailable"), tr("save_the_draft_before_canceling", "Save the draft before canceling."));
       return;
     }
     try {
       await cancelBulkMessage({ bulk_message_id: bulkMessageId }).unwrap();
-      Alert.alert(t("cancelled"), t("scheduled_bulk_message_has_been_cancelled"));
+      Alert.alert(tr("cancelled", "Cancelled"), tr("scheduled_bulk_message_has_been_cancelled", "Scheduled bulk message has been cancelled."));
     } catch (error) {
-      Alert.alert(t("cancel_failed"), error?.data?.message || t("could_not_cancel"));
+      Alert.alert(tr("cancel_failed", "Cancel failed"), error?.data?.message || tr("could_not_cancel", "Could not cancel."));
     }
   };
 
-  const addAttachment = () => {
-    const label = attachmentLabel.trim();
-    const url = attachmentUrl.trim();
-    if (!label || !url) {
-      Alert.alert(t("attachment_required"), t("please_provide_attachment_label_and_url"));
+  const handlePickAttachmentImage = async () => {
+    const response = await launchImageLibrary({
+      mediaType: "photo",
+      selectionLimit: 1,
+      quality: 0.8,
+    });
+
+    if (response?.didCancel) return;
+
+    if (response?.errorCode) {
+      Alert.alert(
+        tr("avatar_failed", "Image selection failed"),
+        response?.errorMessage || tr("could_not_pick_image", "Could not pick image."),
+      );
       return;
     }
-    setAttachments((prev) => [...prev, { label, url }]);
-    setAttachmentLabel("");
-    setAttachmentUrl("");
+
+    const asset = response?.assets?.[0];
+    if (!asset?.uri) return;
+
+    setAttachments((prev) => [
+      ...prev,
+      {
+        label: asset?.fileName || tr("upload_photo", "Upload Photo"),
+        url: asset.uri,
+        type: asset?.type || "image/jpeg",
+      },
+    ]);
+    setImagePickerVisible(false);
   };
 
   return (
@@ -236,7 +287,7 @@ const BulkMessagingScreen = () => {
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ArrowLeft size={responsiveWidth(7.2)} color="#F4F8FF" strokeWidth={2.3} />
           </Pressable>
-          <Text style={styles.title}>{t("bulk_messaging")}</Text>
+          <Text style={styles.title}>{tr("bulk_messaging", "Bulk Messaging")}</Text>
           <Pressable
             style={styles.userPlusWrap}
             onPress={() => navigation.navigate("BulkEmailRecipients", { recipients })}
@@ -252,9 +303,9 @@ const BulkMessagingScreen = () => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.recipientHeaderRow}>
-            <Text style={styles.sectionLabel}>{t("recipients")} ({recipients.length})</Text>
+            <Text style={styles.sectionLabel}>{tr("recipients", "Recipients")} ({recipients.length})</Text>
             <Pressable onPress={() => navigation.navigate("BulkEmailRecipients", { recipients })}>
-              <Text style={styles.editAllText}>{t("edit_all")}</Text>
+              <Text style={styles.editAllText}>{tr("edit_all", "Edit All")}</Text>
             </Pressable>
           </View>
 
@@ -284,32 +335,32 @@ const BulkMessagingScreen = () => {
             </View>
           </ScrollView>
 
-          <Text style={styles.sectionLabel}>{t("subject")}</Text>
+          <Text style={styles.sectionLabel}>{tr("subject", "Subject")}</Text>
           <TextInput
             value={subject}
             onChangeText={setSubject}
-            placeholder={t("write_email_subject")}
+            placeholder={tr("write_email_subject", "Write email subject")}
             placeholderTextColor="#4D5770"
             style={styles.subjectInput}
           />
 
           <View style={styles.messageHeaderRow}>
-            <Text style={styles.sectionLabel}>{t("message")}</Text>
+            <Text style={styles.sectionLabel}>{tr("message", "Message")}</Text>
             <Text style={styles.counterText}>{message.length} / 5000</Text>
           </View>
 
           <View style={styles.messageCard}>
-            <View style={styles.toolbarRow}>
-              <Text style={styles.toolbarGlyph}>{t("b")}</Text>
-              <Text style={styles.toolbarGlyph}>{t("i")}</Text>
+            {/* <View style={styles.toolbarRow}>
+              <Text style={styles.toolbarGlyph}>{tr("b", "B")}</Text>
+              <Text style={styles.toolbarGlyph}>{tr("i", "I")}</Text>
               <Paperclip size={responsiveWidth(6)} color="#A8B4CC" strokeWidth={2.2} />
               <ClipboardList size={responsiveWidth(6)} color="#A8B4CC" strokeWidth={2.2} />
-            </View>
+            </View> */}
 
             <TextInput
               value={message}
               onChangeText={(value) => setMessage(value.slice(0, 5000))}
-              placeholder={t("type_your_message_or_use_ai_voice_to_text")}
+              placeholder={tr("type_your_message_or_use_ai_voice_to_text", "Type your message or use AI voice-to-text...")}
               placeholderTextColor="#4D5770"
               multiline
               style={styles.messageInput}
@@ -322,24 +373,9 @@ const BulkMessagingScreen = () => {
           </View>
 
           <View style={styles.attachCard}>
-            <Text style={styles.sectionLabel}>{t("attachment_urls_image_api")}</Text>
-            <TextInput
-              value={attachmentLabel}
-              onChangeText={setAttachmentLabel}
-              placeholder={t("attachment_label")}
-              placeholderTextColor="#66748D"
-              style={styles.attachInput}
-            />
-            <TextInput
-              value={attachmentUrl}
-              onChangeText={setAttachmentUrl}
-              placeholder={t("https_image_jpg")}
-              placeholderTextColor="#66748D"
-              style={styles.attachInput}
-              autoCapitalize="none"
-            />
-            <Pressable onPress={addAttachment} style={styles.attachBtn}>
-              <Text style={styles.attachBtnText}>{t("add_attachment")}</Text>
+            <Text style={styles.sectionLabel}>{tr("attachment_urls_image_api", "ATTACHMENT URLS (IMAGE API)")}</Text>
+            <Pressable onPress={() => setImagePickerVisible(true)} style={styles.attachBtn}>
+              <Text style={styles.attachBtnText}>{tr("upload_photo", "Upload Photo")}</Text>
             </Pressable>
             {attachments.map((item, idx) => (
               <View key={`${item.url}-${idx}`} style={styles.attachRow}>
@@ -356,8 +392,8 @@ const BulkMessagingScreen = () => {
           <View style={styles.scheduleCard}>
             <View style={styles.scheduleTopRow}>
               <View style={styles.scheduleTextCol}>
-                <Text style={styles.scheduleTitle}>{t("schedule_send")}</Text>
-                <Text style={styles.scheduleSubtitle}>{t("pick_a_later_date_and_time")}</Text>
+                <Text style={styles.scheduleTitle}>{tr("schedule_send", "Schedule Send")}</Text>
+                <Text style={styles.scheduleSubtitle}>{tr("pick_a_later_date_and_time", "Pick a later date and time")}</Text>
               </View>
               <Switch
                 value={scheduleEnabled}
@@ -369,39 +405,33 @@ const BulkMessagingScreen = () => {
 
             <View style={styles.dateTimeRow}>
               <Pressable style={styles.dateTimeCol} onPress={() => setCalendarVisible(true)}>
-                <Text style={styles.dateTimeLabel}>{t("date")}</Text>
+                <Text style={styles.dateTimeLabel}>{tr("date", "Date")}</Text>
                 <Text style={styles.dateTimeValue}>{dateLabel}</Text>
               </Pressable>
 
               <View style={styles.divider} />
 
-              <View style={styles.dateTimeCol}>
-                <Text style={styles.dateTimeLabel}>{t("time")}</Text>
-                <TextInput
-                  value={scheduleTime}
-                  onChangeText={setScheduleTime}
-                  style={styles.dateTimeInput}
-                  placeholder={t("10_00_am")}
-                  placeholderTextColor="#90A0B8"
-                />
-              </View>
+              <Pressable style={styles.dateTimeCol} onPress={() => setTimePickerVisible(true)}>
+                <Text style={styles.dateTimeLabel}>{tr("time", "Time")}</Text>
+                <Text style={styles.dateTimeValue}>{scheduleTime || tr("10_00_am", "10:00 AM")}</Text>
+              </Pressable>
             </View>
           </View>
         </ScrollView>
 
         <View style={[styles.bottomCtaWrap, { bottom: tabBarHeight + responsiveHeight(1.2) }]}>
           <View style={styles.bottomRow}>
-            <Pressable
-              style={[styles.cancelBtn, (!bulkMessageId || isBusy) && styles.disabledBtn]}
-              onPress={handleCancelScheduled}
-              disabled={!bulkMessageId || isBusy}
-            >
+              {/* <Pressable
+                style={[styles.cancelBtn, (!bulkMessageId || isBusy) && styles.disabledBtn]}
+                onPress={handleCancelScheduled}
+                disabled={!bulkMessageId || isBusy}
+              >
               {cancellingBulk ? (
                 <ActivityIndicator color="#DFF8FF" />
               ) : (
-                <Text style={styles.cancelBtnText}>{t("cancel")}</Text>
+                <Text style={styles.cancelBtnText}>{tr("cancel", "Cancel")}</Text>
               )}
-            </Pressable>
+            </Pressable> */}
             <Pressable style={[styles.sendBtn, isBusy && styles.disabledBtn]} onPress={handleSend} disabled={isBusy}>
               {isBusy ? (
                 <ActivityIndicator color="#DFF8FF" />
@@ -409,7 +439,7 @@ const BulkMessagingScreen = () => {
                 <>
                   <SendHorizontal size={responsiveWidth(7)} color="#DFF8FF" strokeWidth={2.3} />
                   <Text style={styles.sendBtnText}>
-                    {scheduleEnabled ? t("save_and_schedule") : t("send_bulk_message")}
+                    {scheduleEnabled ? tr("save_and_schedule", "Save & Schedule") : tr("send_bulk_message", "Send Bulk Message")}
                   </Text>
                 </>
               )}
@@ -422,6 +452,21 @@ const BulkMessagingScreen = () => {
         onClose={() => setCalendarVisible(false)}
         selectedDate={scheduleDate}
         onSelectDate={setScheduleDate}
+      />
+      <TimePickerComponent
+        visible={timePickerVisible}
+        selectedTime={parseTimeString(scheduleTime)}
+        onCancel={() => setTimePickerVisible(false)}
+        onConfirm={(time) => {
+          setScheduleTime(formatTimeString(time));
+          setTimePickerVisible(false);
+        }}
+        title={tr("time", "Time")}
+      />
+      <ImagePickerModal
+        visible={imagePickerVisible}
+        onClose={() => setImagePickerVisible(false)}
+        onPickGallery={handlePickAttachmentImage}
       />
     </SafeAreaView>
   );
