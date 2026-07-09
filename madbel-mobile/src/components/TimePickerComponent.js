@@ -5,6 +5,23 @@ import DatePicker from "react-native-date-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { responsiveHeight } from "react-native-responsive-dimensions";
 
+const isValidDate = (value) => value instanceof Date && !Number.isNaN(value.getTime());
+
+const normalizeSelectedTime = (selectedTime) => {
+  if (!selectedTime) return new Date();
+  const source = selectedTime instanceof Date ? selectedTime : new Date(selectedTime);
+  if (!isValidDate(source)) return new Date();
+  return new Date(
+    source.getFullYear(),
+    source.getMonth(),
+    source.getDate(),
+    source.getHours(),
+    source.getMinutes(),
+    0,
+    0,
+  );
+};
+
 const PICKER_WIDTH = Dimensions.get("window").width - 40;
 
 const TimePickerComponent = ({
@@ -15,14 +32,13 @@ const TimePickerComponent = ({
   title = "Select Time",
 }) => {
   const { t } = useAppLanguage();
-    const insets = useSafeAreaInsets();
-  
+  const insets = useSafeAreaInsets();
 
-  const [time, setTime] = useState(selectedTime || new Date());
+  const [time, setTime] = useState(() => normalizeSelectedTime(selectedTime));
 
   useEffect(() => {
     if (visible) {
-      setTime(selectedTime || new Date());
+      setTime(normalizeSelectedTime(selectedTime));
     }
   }, [visible, selectedTime]);
 
@@ -48,8 +64,15 @@ const TimePickerComponent = ({
               <Text style={styles.cancelText}>{t("cancel")}</Text>
             </TouchableOpacity>
           </View>
-          <View style={[styles.pickerWrap, { paddingTop: insets.top + responsiveHeight(1), paddingBottom: insets.bottom + responsiveHeight(1) }]}
->
+          <View
+            style={[
+              styles.pickerWrap,
+              {
+                paddingTop: insets.top + responsiveHeight(1),
+                paddingBottom: insets.bottom + responsiveHeight(1),
+              },
+            ]}
+          >
             <DatePicker
               date={time}
               onDateChange={setTime}
@@ -59,16 +82,14 @@ const TimePickerComponent = ({
               fadeToColor="#0B1118"
               style={styles.picker}
             />
-               <TouchableOpacity
-            onPress={handleConfirm}
-            style={styles.confirmBtn}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.confirmText}>{t("confirm")}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleConfirm}
+              style={styles.confirmBtn}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.confirmText}>{t("confirm")}</Text>
+            </TouchableOpacity>
           </View>
-
-       
         </View>
       </View>
     </Modal>
