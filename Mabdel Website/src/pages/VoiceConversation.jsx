@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Mic, MicOff, Phone, Settings, Activity } from 'lucide-react';
 import { smartflowApi } from '../api/services';
+import { useLocation } from 'react-router-dom';
 
 export default function VoiceConversation() {
+  const location = useLocation();
   const [isCallActive, setIsCallActive] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState([]);
@@ -19,9 +21,31 @@ export default function VoiceConversation() {
     }
   }, [transcript]);
 
-  const handleStartCall = () => {
+  useEffect(() => {
+    if (location.state?.initialVoiceResult && !isCallActive) {
+       handleStartCall(location.state.initialVoiceResult);
+    }
+  }, [location.state]);
+
+  const handleStartCall = async (initialPrompt = null) => {
     setIsCallActive(true);
-    setTranscript([{ speaker: 'ai', text: 'Hello, I am ready to listen. Click the microphone to start speaking.' }]);
+    if (typeof initialPrompt === 'string') {
+        setTranscript([
+            { speaker: 'user', text: initialPrompt },
+        ]);
+        setLoadingAI(true);
+        try {
+            const res = await smartflowApi.aiChat(initialPrompt);
+            const aiResponse = res.data?.data?.response || res.data?.response || 'I processed your text.';
+            setTranscript(prev => [...prev, { speaker: 'ai', text: aiResponse }]);
+        } catch (err) {
+            setTranscript(prev => [...prev, { speaker: 'ai', text: 'Sorry, I encountered an error.' }]);
+        } finally {
+            setLoadingAI(false);
+        }
+    } else {
+        setTranscript([{ speaker: 'ai', text: 'Hello, I am ready to listen. Click the microphone to start speaking.' }]);
+    }
   };
 
   const handleEndCall = () => {

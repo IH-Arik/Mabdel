@@ -3,7 +3,7 @@ import { smartflowApi } from '../api/services';
 import {
   AlertTriangle, Archive, Bot, CheckCheck, Filter,
   Info, Loader2, MessageSquare, Mic, MicOff, MoreVertical,
-  Paperclip, Phone, Search, Send, Sparkles, Video, X,
+  Paperclip, Phone, Search, Send, Sparkles, Video, X, Reply, Forward
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -90,19 +90,27 @@ function ConvItem({ conv, selected, onClick }) {
 }
 
 // ── Message Bubble ────────────────────────────────────────────────────────────
-function MsgBubble({ msg }) {
+function MsgBubble({ msg, onReply, onForward }) {
   const out = msg.direction === 'outbound';
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      className={`flex ${out ? 'justify-end' : 'justify-start'}`}
+      className={`flex group ${out ? 'justify-end' : 'justify-start'}`}
     >
       {!out && (
         <div className="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center text-[10px] font-bold text-[#11C7E5] mr-2 shrink-0 self-end">
           {msg.contact_name?.[0] || 'C'}
         </div>
       )}
+      
+      {out && (
+        <div className="flex items-center gap-2 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => onReply(msg)} className="text-slate-500 hover:text-[#11C7E5]"><Reply size={14}/></button>
+          <button onClick={() => onForward(msg)} className="text-slate-500 hover:text-[#11C7E5]"><Forward size={14}/></button>
+        </div>
+      )}
+
       <div className={`max-w-[72%] p-3.5 rounded-2xl text-xs leading-relaxed font-semibold shadow-md ${
         out ? 'bg-[#11C7E5]/90 text-[#070a13] rounded-tr-none' : 'bg-[#121625]/60 border border-slate-900 text-slate-200 rounded-tl-none'
       }`}>
@@ -114,6 +122,13 @@ function MsgBubble({ msg }) {
           {out && <CheckCheck size={10}/>}
         </div>
       </div>
+
+      {!out && (
+        <div className="flex items-center gap-2 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => onReply(msg)} className="text-slate-500 hover:text-[#11C7E5]"><Reply size={14}/></button>
+          <button onClick={() => onForward(msg)} className="text-slate-500 hover:text-[#11C7E5]"><Forward size={14}/></button>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -178,6 +193,9 @@ export default function Conversations() {
   const [search, setSearch] = useState('');
   const [filterPlatform, setFilterPlatform] = useState('');
   const [archiving, setArchiving] = useState(false);
+  const [replyToMessage, setReplyToMessage] = useState(null);
+  const [forwardMessage, setForwardMessage] = useState(null);
+  const [forwardModalVisible, setForwardModalVisible] = useState(false);
   const bottomRef = useRef(null);
 
   const { recording, loading: voiceLoading, start: startRec, stop: stopRec } = useVoiceRecorder(text => {
@@ -187,10 +205,12 @@ export default function Conversations() {
   const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
+      setError('');
       const res = await smartflowApi.getConversations();
       setConversations(res.data?.data?.items || res.data?.data || []);
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not load conversations.');
+      console.error('Could not load conversations.', err);
+      setConversations([]);
     } finally { setLoading(false); }
   }, []);
 
@@ -203,24 +223,52 @@ export default function Conversations() {
   }, []);
 
   useEffect(() => { fetchConversations(); }, [fetchConversations]);
-  useEffect(() => { if (selectedId) { fetchMessages(selectedId); } }, [fetchMessages, selectedId]);
+  useEffect(() => { 
+    if (selectedId) { 
+      fetchMessages(selectedId); 
+      smartflowApi.markConversationRead(selectedId).catch(() => {});
+      setConversations(prev => prev.map(c => c.id === selectedId ? { ...c, unread_count: 0 } : c));
+    } 
+  }, [fetchMessages, selectedId]);
 
   async function handleSend(e) {
     e?.preventDefault();
     if (!newMessage.trim() || !selectedId) return;
     setSending(true);
     try {
-      await smartflowApi.sendMessage({
-        conversation_id: selectedId,
-        content: newMessage,
-        platform: selectedConv?.platform || 'whatsapp',
-        direction: 'outbound',
-      });
+      if (replyToMessage) {
+        await smartflowApi.replyToMessage(replyToMessage.id, {
+          content: newMessage,
+          platform: selectedConv?.platform || 'whatsapp'
+        });
+      } else {
+        await smartflowApi.sendMessage({
+          conversation_id: selectedId,
+          content: newMessage,
+          platform: selectedConv?.platform || 'whatsapp',
+          direction: 'outbound',
+        });
+      }
       setNewMessage('');
+      setReplyToMessage(null);
       fetchMessages(selectedId);
     } catch (err) {
       setError(err.response?.data?.message || 'Send failed.');
     } finally { setSending(false); }
+  }
+
+  async function handleForwardTarget(targetId) {
+    if (!forwardMessage || !targetId) return;
+    setForwardModalVisible(false);
+    try {
+      await smartflowApi.forwardMessage(forwardMessage.id, {
+        conversation_id: targetId,
+        platform: 'ai'
+      });
+      setForwardMessage(null);
+    } catch (err) {
+      setError('Forward failed.');
+    }
   }
 
   async function handleArchive() {
@@ -241,6 +289,10 @@ export default function Conversations() {
     (!search || c.contact_name?.toLowerCase().includes(search.toLowerCase()) || c.last_message_preview?.toLowerCase().includes(search.toLowerCase())) &&
     (!filterPlatform || c.platform === filterPlatform)
   );
+
+  const headerName = selectedConv?.contact_name || 'Conversation';
+  const shouldShowSuggestions = headerName.toLowerCase() === 'live support';
+  const ADMIN_SUPPORT_SUGGESTIONS = ["billing_issue", "technical_help", "account_problem"];
 
   return (
     <div className="flex h-[calc(100vh-10rem)] bg-[#0c101b] border border-[#243041]/60 rounded-3xl overflow-hidden shadow-xl">
@@ -309,7 +361,7 @@ export default function Conversations() {
                   {selectedConv?.contact_name?.[0] || 'C'}
                 </div>
                 <div className="text-left">
-                  <h3 className="font-extrabold text-white text-sm">{selectedConv?.contact_name || 'Conversation'}</h3>
+                  <h3 className="font-extrabold text-white text-sm">{headerName}</h3>
                   <PLATFORM_BADGE platform={selectedConv?.platform}/>
                 </div>
               </div>
@@ -329,7 +381,7 @@ export default function Conversations() {
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <AnimatePresence initial={false}>
                 {messages.length
-                  ? messages.map(m => <MsgBubble key={m.id} msg={m}/>)
+                  ? messages.map(m => <MsgBubble key={m.id} msg={m} onReply={(msg) => setReplyToMessage(msg)} onForward={(msg) => { setForwardMessage(msg); setForwardModalVisible(true); }}/>)
                   : (
                     <div className="h-full flex flex-col items-center justify-center text-slate-500 py-16">
                       <MessageSquare size={36} className="opacity-30 mb-2"/>
@@ -344,31 +396,56 @@ export default function Conversations() {
             {/* AI Suggestions */}
             <AISuggestion convId={selectedId} onUse={text => setNewMessage(text)}/>
 
+            {/* Live Support Chips */}
+            {shouldShowSuggestions && (
+              <div className="px-4 pb-2 flex flex-wrap gap-2">
+                {ADMIN_SUPPORT_SUGGESTIONS.map((item) => (
+                  <button key={item} onClick={() => setNewMessage(item)}
+                    className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer capitalize">
+                    {item.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Input */}
-            <form onSubmit={handleSend} className="p-4 bg-[#0c101b]/60 border-t border-[#243041]/40 flex gap-2 items-end">
-              <button type="button" className="p-3 bg-slate-950 border border-slate-900 text-slate-500 hover:text-white rounded-xl transition-all cursor-pointer shrink-0" title="Attach">
-                <Paperclip size={15}/>
-              </button>
-              <input
-                type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)}
-                placeholder="Type a message…"
-                className="flex-1 px-4 py-3 bg-slate-950 border border-slate-900 focus:border-[#11C7E5]/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder-slate-600"
-              />
-              {/* Voice mic button */}
-              <button
-                type="button"
-                onMouseDown={startRec} onMouseUp={stopRec} onTouchStart={startRec} onTouchEnd={stopRec}
-                disabled={voiceLoading}
-                title={recording ? 'Release to send voice' : 'Hold to record voice'}
-                className={`p-3 rounded-xl shrink-0 transition-all cursor-pointer ${recording ? 'bg-rose-500 text-white scale-110 shadow-lg shadow-rose-500/30' : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-[#11C7E5]'} disabled:opacity-60`}>
-                {voiceLoading ? <Loader2 size={15} className="animate-spin"/> : recording ? <MicOff size={15}/> : <Mic size={15}/>}
-              </button>
-              <button
-                type="submit" disabled={sending || !newMessage.trim()}
-                className="bg-[#11C7E5] text-[#070a13] p-3 rounded-xl hover:bg-[#0fd0f0] transition-all shadow-lg shadow-cyan-400/10 active:scale-95 flex items-center justify-center shrink-0 disabled:opacity-60 cursor-pointer">
-                {sending ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>}
-              </button>
-            </form>
+            <div className="p-4 bg-[#0c101b]/60 border-t border-[#243041]/40 flex flex-col gap-2">
+              {replyToMessage && (
+                <div className="flex items-center justify-between bg-slate-900 border-l-2 border-[#11C7E5] rounded-lg px-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[#11C7E5] text-[10px] font-bold mb-0.5">Replying to {replyToMessage.direction === 'outbound' ? 'yourself' : (selectedConv?.contact_name || 'them')}</p>
+                    <p className="text-slate-400 text-xs truncate">{replyToMessage.content}</p>
+                  </div>
+                  <button onClick={() => setReplyToMessage(null)} className="text-slate-500 hover:text-white p-1 cursor-pointer"><X size={14}/></button>
+                </div>
+              )}
+              
+              <form onSubmit={handleSend} className="flex gap-2 items-end">
+                <button type="button" className="p-3 bg-slate-950 border border-slate-900 text-slate-500 hover:text-white rounded-xl transition-all cursor-pointer shrink-0" title="Attach">
+                  <Paperclip size={15}/>
+                </button>
+                <input
+                  type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)}
+                  placeholder="Type a message…"
+                  className="flex-1 px-4 py-3 bg-slate-950 border border-slate-900 focus:border-[#11C7E5]/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder-slate-600"
+                />
+                {/* Voice mic button */}
+                <button
+                  type="button"
+                  onMouseDown={startRec} onMouseUp={stopRec} onTouchStart={startRec} onTouchEnd={stopRec}
+                  disabled={voiceLoading}
+                  title={recording ? 'Release to send voice' : 'Hold to record voice'}
+                  className={`p-3 rounded-xl shrink-0 transition-all cursor-pointer ${recording ? 'bg-rose-500 text-white scale-110 shadow-lg shadow-rose-500/30' : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-[#11C7E5]'} disabled:opacity-60`}>
+                  {voiceLoading ? <Loader2 size={15} className="animate-spin"/> : recording ? <MicOff size={15}/> : <Mic size={15}/>}
+                </button>
+                <button
+                  type="submit" disabled={sending || !newMessage.trim()}
+                  className="bg-[#11C7E5] text-[#070a13] p-3 rounded-xl hover:bg-[#0fd0f0] transition-all shadow-lg shadow-cyan-400/10 active:scale-95 flex items-center justify-center shrink-0 disabled:opacity-60 cursor-pointer">
+                  {sending ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>}
+                </button>
+              </form>
+            </div>
+
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
@@ -382,6 +459,38 @@ export default function Conversations() {
           </div>
         )}
       </div>
+
+      {/* Forward Modal */}
+      {forwardModalVisible && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0c101b] border border-[#243041] rounded-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh] shadow-2xl">
+            <div className="p-4 border-b border-[#243041] flex items-center justify-between">
+              <h3 className="font-bold text-white text-sm">Forward to...</h3>
+              <button onClick={() => setForwardModalVisible(false)} className="text-slate-500 hover:text-white cursor-pointer"><X size={16}/></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {conversations.filter(c => c.id !== selectedId).map(c => (
+                <button key={c.id} onClick={() => handleForwardTarget(c.id)}
+                  className="w-full text-left px-4 py-3 hover:bg-slate-900/50 rounded-xl flex items-center gap-3 transition-colors cursor-pointer">
+                  <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-[#11C7E5] font-black text-xs shrink-0">
+                    {c.contact_name?.[0] || 'C'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-200 text-xs truncate">{c.contact_name}</p>
+                    <p className="text-[10px] text-slate-500 capitalize">{c.platform}</p>
+                  </div>
+                </button>
+              ))}
+              {conversations.filter(c => c.id !== selectedId).length === 0 && (
+                <div className="p-6 text-center text-slate-500 text-xs">
+                  No other conversations to forward to.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

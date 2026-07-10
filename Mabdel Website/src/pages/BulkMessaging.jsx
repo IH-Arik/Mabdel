@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertTriangle, CalendarClock, CheckCircle, CheckCircle2, Clock, FileText,
@@ -289,6 +290,9 @@ function BroadcastHistory() {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function BulkMessaging() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [step, setStep] = useState(1);
   const [contacts, setContacts] = useState([]);
   const [chips, setChips] = useState([]);
@@ -299,6 +303,24 @@ export default function BulkMessaging() {
   const [scheduleDate, setScheduleDate] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (location.state?.prefill) {
+      const prefill = location.state.prefill;
+      if (prefill.message || prefill.content || prefill.body) {
+        setMessage(prefill.message || prefill.content || prefill.body);
+        setStep(2); // Jump to compose step if we have a message body
+      }
+      if (prefill.subject) setSubject(prefill.subject);
+      if (prefill.channel) setChannel(prefill.channel);
+      if (prefill.recipients && Array.isArray(prefill.recipients)) {
+         setChips(prefill.recipients);
+      }
+      
+      // Clear state so it doesn't trigger on every re-render
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   useEffect(() => {
     smartflowApi.getContacts()

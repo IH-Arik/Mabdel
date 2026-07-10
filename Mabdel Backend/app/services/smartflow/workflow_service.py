@@ -66,13 +66,24 @@ class WorkflowService(SmartFlowBase):
         transcript = transcription["transcript"]
         workflow_state = run_assistant_workflow(transcript)
         intent = payload.get("workflow_intent") or workflow_state.intent
-        if intent not in {"invoice", "bulk_message", "calendar", "lease", "agreement", "contact"}:
-            raise AppException(
-                status_code=400,
-                code="AI_WORKFLOW_UNSUPPORTED",
-                message="This voice command does not map to a supported creation workflow.",
-                details={"intent": intent, "supported_intents": ["invoice", "bulk_message", "calendar", "lease", "agreement", "contact"]},
-            )
+        if intent not in {"invoice", "bulk_message", "calendar", "lease", "agreement", "contact", "email", "group", "call"}:
+            return {
+                "state": transcription["state"],
+                "transcript": transcript,
+                "workflow": {
+                    "engine": workflow_state.output.get("workflow_engine"),
+                    "intent": "unknown",
+                    "summary": "Unknown or unsupported intent.",
+                },
+                "navigation": {"path": "/voice-conversation", "params": {}},
+                "prefill": {},
+                "missing_fields": [],
+                "ready_to_create": False,
+                "create_endpoint": "",
+                "create_method": "POST",
+                "submit_label": "Submit",
+                "next_action": "review_form",
+            }
         current_values = payload.get("current_values") or {}
         prefill = await self._build_workflow_prefill(
             intent=intent,

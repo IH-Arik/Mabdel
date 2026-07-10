@@ -82,6 +82,18 @@ async def get_public_signing_agreement(
     data = await service.get_public_signing_agreement(signature_token)
     return success_response(data=data, message="Signing agreement fetched successfully.")
 
+@router.get("/agreements/signing/{signature_token}/pdf")
+async def get_public_signing_agreement_pdf(
+    signature_token: str,
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> Response:
+    pdf_bytes = await service.generate_public_agreement_pdf(signature_token)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="agreement.pdf"'}
+    )
+
 
 @router.post("/agreements/signing/{signature_token}")
 async def sign_public_agreement(

@@ -123,10 +123,64 @@ export default function Integrations() {
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await smartflowApi.getIntegrationCatalog();
-      setItems(res.data?.data || []);
+      setError('');
+
+      const [catalogRes, statusRes] = await Promise.allSettled([
+        smartflowApi.getIntegrationCatalog(),
+        smartflowApi.getIntegrationStatus(),
+      ]);
+
+      const catalogItems = catalogRes.status === 'fulfilled'
+        ? (catalogRes.value.data?.data || [])
+        : [];
+      const statusItems = statusRes.status === 'fulfilled'
+        ? (statusRes.value.data?.data?.items || statusRes.value.data?.data || [])
+        : [];
+
+      if (catalogItems.length > 0) {
+        setItems(catalogItems);
+        return;
+      }
+
+      if (statusItems.length > 0) {
+        const normalized = statusItems.map((item) => ({
+          platform: item.platform,
+          platform_label: PLATFORM_META[item.platform]?.label || item.platform_label || item.platform,
+          connected: Boolean(item.connected),
+          auth_mode: item.auth_mode || (item.platform === 'whatsapp' ? 'manual' : 'oauth'),
+          is_available: item.is_available ?? true,
+          cta_label: item.connected ? 'Connected' : 'Connect',
+        }));
+        setItems(normalized);
+        return;
+      }
+
+      const localFallback = Object.entries(PLATFORM_META).map(([platform, meta]) => ({
+        platform,
+        platform_label: meta.label,
+        connected: false,
+        auth_mode: platform === 'whatsapp' ? 'manual' : 'oauth',
+        is_available: true,
+        cta_label: 'Connect',
+      }));
+      setItems(localFallback);
+
+      if (catalogRes.status === 'rejected' && statusRes.status === 'rejected') {
+        console.error('Integrations page requests failed.', {
+          catalog: catalogRes.reason,
+          status: statusRes.reason,
+        });
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load platforms.');
+      console.error('Failed to load integrations page.', err);
+      setItems(Object.entries(PLATFORM_META).map(([platform, meta]) => ({
+        platform,
+        platform_label: meta.label,
+        connected: false,
+        auth_mode: platform === 'whatsapp' ? 'manual' : 'oauth',
+        is_available: true,
+        cta_label: 'Connect',
+      })));
     } finally { setLoading(false); }
   }, []);
 
@@ -171,14 +225,6 @@ export default function Integrations() {
             <Loader2 size={32} className="text-[#16CDE9] animate-spin" />
             <p className="text-[#9BA7BB] text-[15px]">Loading platforms...</p>
           </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3.5">
-            <AlertCircle size={40} className="text-[#FF6B6B]" />
-            <p className="text-[#9BA7BB] text-[15px]">Failed to load platforms.</p>
-            <button onClick={fetchAll} className="px-6 py-2.5 rounded-xl bg-[#16CDE9] text-[#03141E] text-[15px] font-semibold hover:bg-[#12b0c9]">
-              Retry
-            </button>
-          </div>
         ) : (
           <div className="flex flex-col gap-3">
             {items.map(item => (
@@ -200,3 +246,5 @@ export default function Integrations() {
     </div>
   );
 }
+
+

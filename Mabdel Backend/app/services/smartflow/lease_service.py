@@ -368,3 +368,10 @@ class LeaseService(SmartFlowBase):
             preview_payload={"format": "pdf"},
         )
         return self._generate_agreement_pdf_bytes(lease)
+
+    async def generate_public_lease_pdf(self, signature_token: str) -> bytes:
+        signature_request = await self._get_signature_request(signature_token)
+        lease = await self.db.agreements.find_one({"_id": ObjectId(signature_request["agreement_id"]), "agreement_type": "lease"})
+        if not lease:
+            raise AppException(status_code=404, code="LEASE_NOT_FOUND", message="Requested lease was not found.")
+        return self._generate_agreement_pdf_bytes(lease)

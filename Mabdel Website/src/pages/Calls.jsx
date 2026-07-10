@@ -5,6 +5,7 @@ import {
   PhoneOutgoing, Play, RefreshCw, ScrollText, Sparkles, Volume2, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 
 // ── Call Summary Stats ─────────────────────────────────────────────────────────
@@ -192,8 +193,8 @@ function CallRow({ item, onAnalyze }) {
 }
 
 // ── Make Call Modal ───────────────────────────────────────────────────────────
-function MakeCallModal({ onClose, onSuccess }) {
-  const [phone, setPhone] = useState('');
+function MakeCallModal({ onClose, onSuccess, initialPhone = '' }) {
+  const [phone, setPhone] = useState(initialPhone);
   const [calling, setCalling] = useState(false);
   const [error, setError] = useState('');
 
@@ -244,6 +245,9 @@ export default function Calls() {
   const [success, setSuccess] = useState('');
   const [analyzingId, setAnalyzingId] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
+  const [initialPhone, setInitialPhone] = useState('');
+
+  const location = useLocation();
 
   const fetchAll = useCallback(async () => {
     try {
@@ -260,6 +264,19 @@ export default function Calls() {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  useEffect(() => {
+    if (location.state?.prefill) {
+      const p = location.state.prefill;
+      if (p.phone || p.phone_number || p.client_phone) {
+        setInitialPhone(p.phone || p.phone_number || p.client_phone || '');
+        setShowCallModal(true);
+      }
+      
+      // Clear state so it doesn't re-trigger
+      window.history.replaceState({}, '');
+    }
+  }, [location.state]);
 
   return (
     <div className="space-y-6">
@@ -317,7 +334,7 @@ export default function Calls() {
 
       {/* Modals */}
       <AnimatePresence>
-        {showCallModal && <MakeCallModal onClose={()=>setShowCallModal(false)} onSuccess={(msg)=>{setSuccess(msg); setTimeout(()=>setSuccess(''),3000); fetchAll();}}/>}
+        {showCallModal && <MakeCallModal initialPhone={initialPhone} onClose={()=>setShowCallModal(false)} onSuccess={(msg)=>{setSuccess(msg); setTimeout(()=>setSuccess(''),3000); fetchAll();}}/>}
       </AnimatePresence>
     </div>
   );

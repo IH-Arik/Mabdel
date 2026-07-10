@@ -66,6 +66,18 @@ async def get_public_signing_lease(
     data = await service.get_public_signing_lease(signature_token)
     return success_response(data=data, message="Signing lease fetched successfully.")
 
+@router.get("/leases/signing/{signature_token}/pdf")
+async def get_public_signing_lease_pdf(
+    signature_token: str,
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> Response:
+    pdf_bytes = await service.generate_public_lease_pdf(signature_token)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="lease.pdf"'}
+    )
+
 
 @router.post("/leases/signing/{signature_token}")
 async def sign_public_lease(

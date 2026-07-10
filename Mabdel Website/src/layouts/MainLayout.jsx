@@ -56,6 +56,7 @@ export default function MainLayout() {
       case '/integrations': return 'Social Integrations';
       case '/notifications': return 'System Notifications';
       case '/bulk-messaging': return 'Bulk Messaging';
+      case '/create-post': return 'Create Social Post';
       case '/admin': return 'System Administration';
       default: return 'Back to Home';
     }
@@ -192,3 +193,4 @@ export default function MainLayout() {
     </div>
   );
 }
+

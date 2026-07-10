@@ -373,6 +373,9 @@ class SmartFlowService(SmartFlowBase):
     async def generate_agreement_pdf(self, user_id, agreement_id):
         return await self.agreement_service.generate_agreement_pdf(user_id, agreement_id)
 
+    async def generate_public_agreement_pdf(self, signature_token):
+        return await self.agreement_service.generate_public_agreement_pdf(signature_token)
+
     def agreement_metadata(self):
         return self.agreement_service.agreement_metadata()
 

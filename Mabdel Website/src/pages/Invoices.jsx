@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   FileText, Download, Plus, Search, Filter, 
   CheckCircle, Clock, AlertCircle, MoreVertical, 
@@ -164,6 +165,9 @@ const MOCK_INVOICES = [
 ];
 
 export default function Invoices() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -186,6 +190,24 @@ export default function Invoices() {
   const [lineItems, setLineItems] = useState([
     { description: '', quantity: 1, unit_price: 0 }
   ]);
+
+  useEffect(() => {
+    if (location.state?.prefill) {
+      const prefill = location.state.prefill;
+      setViewMode('create');
+      if (prefill.client_name) setClientName(prefill.client_name);
+      if (prefill.client_email) setClientEmail(prefill.client_email);
+      if (prefill.amount) {
+        setLineItems([{ description: prefill.description || 'Services', quantity: 1, unit_price: Number(prefill.amount) }]);
+      } else if (prefill.items && Array.isArray(prefill.items)) {
+         setLineItems(prefill.items);
+      }
+      
+      // Clear state so it doesn't trigger on every re-render
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
+
 
   // AI Voice simulator state
   const [aiVoiceActive, setAiVoiceActive] = useState(false);
