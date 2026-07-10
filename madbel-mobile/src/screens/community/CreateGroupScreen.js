@@ -119,11 +119,11 @@ const CreateGroupScreen = () => {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-            <View style={styles.avatarWrap}>
+            {/* <View style={styles.avatarWrap}>
               <View style={styles.groupAvatar}>
                 <UserPlus size={45} color="#149CC0" />
               </View>
-            </View>
+            </View> */}
 
             <ControllerTextInput
               name="groupName"

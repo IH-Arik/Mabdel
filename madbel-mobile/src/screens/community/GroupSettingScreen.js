@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Image, Alert, ActivityIndicator, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useSelector } from "react-redux";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -13,7 +14,6 @@ import {
   useMadbelAddGroupMembersMutation,
   useMadbelDeleteGroupMutation,
   useMadbelGetGroupQuery,
-  useMadbelInviteGroupMemberMutation,
   useMadbelLeaveGroupMutation,
   useMadbelListContactsQuery,
   useMadbelRemoveGroupMemberMutation,
@@ -25,6 +25,16 @@ const GroupSettingScreen = () => {
   const route = useRoute();
   const routeGroup = route?.params?.group;
   const groupId = routeGroup?.id;
+  const authUser =
+    useSelector((state) => state?.auth?.user) ||
+    route?.params?.currentUser ||
+    routeGroup?.currentUser;
+  const loggedInUserId =
+    authUser?._id ||
+    authUser?.id ||
+    authUser?.userId ||
+    authUser?.user_id ||
+    null;
   const [contactSearch, setContactSearch] = useState("");
   const [showAddSection, setShowAddSection] = useState(false);
   const [addingContactId, setAddingContactId] = useState(null);
@@ -51,10 +61,32 @@ const GroupSettingScreen = () => {
   const group = groupResponse?.data || routeGroup;
   const members = group?.members || [];
   const contacts = contactsResponse?.data?.items || [];
+  const creatorId = useMemo(() => {
+    const fromGroup = group?.creator_id || group?.created_by || group?.owner_id || group?.createdBy || group?.ownerId;
+    if (fromGroup) return String(fromGroup);
+
+    const creatorMember = members.find((member) => {
+      const role = String(member?.role || member?.member_role || member?.type || "").toLowerCase();
+      return role === "creator" || role === "owner";
+    });
+
+    return String(
+      creatorMember?.user_id ||
+        creatorMember?.member_id ||
+        creatorMember?.id ||
+        creatorMember?.contact_id ||
+        "",
+    );
+  }, [group, members]);
+  const isCurrentUserCreator = Boolean(
+    creatorId &&
+      loggedInUserId &&
+      String(creatorId) === String(loggedInUserId),
+  );
 
   const [deleteGroup, { isLoading: deleting }] = useMadbelDeleteGroupMutation();
   const [leaveGroup, { isLoading: leaving }] = useMadbelLeaveGroupMutation();
-  const [removeMember, { isLoading: removing }] = useMadbelRemoveGroupMemberMutation();
+  const [removeMember] = useMadbelRemoveGroupMemberMutation();
   const [addMembers] = useMadbelAddGroupMembersMutation();
 
   const initials = useMemo(() => (group?.name || "GR").slice(0, 2).toUpperCase(), [group?.name]);
@@ -66,6 +98,37 @@ const GroupSettingScreen = () => {
     const getId = (item) => String(item?.contact_id || item?.id || item?._id || "");
     return contacts.filter((contact) => !memberIdsSet.has(getId(contact)));
   }, [contacts, memberIdsSet]);
+
+  const isProtectedMember = (member) => {
+    const role = String(member?.role || member?.member_role || member?.type || "").toLowerCase();
+    return role === "creator" || role === "owner" || role === "admin";
+  };
+
+  const getMemberRoleLabel = (member) => {
+    const role = String(member?.role || member?.member_role || member?.type || "").toLowerCase();
+    const memberId = String(member?.id || member?.member_id || member?.user_id || member?.contact_id || "");
+    const creatorMemberId = String(creatorId || "");
+
+    if (creatorMemberId && memberId && memberId === creatorMemberId) return "CREATOR";
+    if (role === "creator" || role === "owner") return "CREATOR";
+    if (role === "admin") return "ADMIN";
+    return "MEMBER";
+  };
+
+  const canRemoveMember = (member) => {
+    if (!isCurrentUserCreator) return false;
+
+    const memberId = String(member?.id || member?.member_id || member?.user_id || member?.contact_id || "");
+    const normalizedCreatorId = String(creatorId || "");
+    const normalizedLoggedInId = String(loggedInUserId || "");
+
+    if (!memberId) return false;
+    if (normalizedLoggedInId && memberId === normalizedLoggedInId) return false;
+    if (normalizedCreatorId && memberId === normalizedCreatorId) return false;
+    if (isProtectedMember(member)) return false;
+
+    return true;
+  };
 
   const handleDelete = () => {
     if (!groupId) return;
@@ -101,9 +164,16 @@ const GroupSettingScreen = () => {
     try {
       setRemovingMemberId(memberId);
       await removeMember({ group_id: groupId, member_id: memberId }).unwrap();
-      await refetchGroup?.();
+      await Promise.all([refetchGroup?.(), refetchContacts?.()]);
     } catch (error) {
-      Alert.alert("Remove failed", error?.data?.message || "Could not remove member.");
+      Alert.alert(
+        t("remove_failed", "Remove failed"),
+        error?.data?.message ||
+          t(
+            "could_not_remove_member",
+            "Could not remove member from the group.",
+          ),
+      );
     } finally {
       setRemovingMemberId(null);
     }
@@ -126,6 +196,35 @@ const GroupSettingScreen = () => {
     } finally {
       setAddingContactId(null);
     }
+  };
+
+  const openRemoveConfirm = (member) => {
+    if (!canRemoveMember(member)) {
+      Alert.alert(
+        t("not_allowed", "Not allowed"),
+        t(
+          "only_the_group_creator_can_remove_eligible_members",
+          "Only the group creator can remove eligible members.",
+        ),
+      );
+      return;
+    }
+
+    Alert.alert(
+      t("remove_member", "Remove Member"),
+      t(
+        "remove_member_confirmation_message",
+        "Are you sure you want to remove this member from the group? They will lose access to the group and its conversations.",
+      ),
+      [
+        { text: t("cancel", "Cancel"), style: "cancel" },
+        {
+          text: t("remove", "Remove"),
+          style: "destructive",
+          onPress: () => handleRemoveMember(member?.id || member?.member_id || member?.user_id || member?.contact_id),
+        },
+      ],
+    );
   };
 
   if (isLoading && !group) {
@@ -185,26 +284,13 @@ const GroupSettingScreen = () => {
 
           {members.map((member, index) => {
             const isOnline = member.is_online;
-            const role = member.role || "MEMBER";
             const isPending = member.is_pending || member.email === "Pending Invite";
             const mInitials = member.initials || (member.name || "?").slice(0, 2).toUpperCase();
             const memberKey = String(member?.id || member?.member_id || member?.contact_id || "");
             const isRemovingThisMember = removingMemberId === memberKey;
-
-            const handlePressOptions = () => {
-              Alert.alert(
-                "Remove Member",
-                `Are you sure you want to remove ${member.name} from the group?`,
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Remove",
-                    style: "destructive",
-                    onPress: () => handleRemoveMember(memberKey || member.id),
-                  },
-                ]
-              );
-            };
+            const removable = canRemoveMember(member);
+            const roleLabel = getMemberRoleLabel(member);
+            const isProtected = roleLabel === "CREATOR" || roleLabel === "ADMIN";
 
             return (
               <View key={memberKey || index} style={styles.memberCard}>
@@ -223,19 +309,79 @@ const GroupSettingScreen = () => {
                   <Text style={[styles.memberEmail, isPending && styles.pendingEmail]}>
                     {isPending ? "Pending Invite" : (member.email || member.phone || "No contact")}
                   </Text>
-                  <View style={[styles.roleBadge, role.toUpperCase() === "ADMIN" ? styles.adminBadge : styles.memberBadge]}>
-                    <Text style={[styles.roleBadgeText, role.toUpperCase() === "ADMIN" ? styles.adminBadgeText : styles.memberBadgeText]}>
-                      {role.toUpperCase()}
-                    </Text>
+                  <View style={styles.memberMetaRow}>
+                    <View
+                      style={[
+                        styles.roleBadge,
+                        roleLabel === "ADMIN"
+                          ? styles.adminBadge
+                          : roleLabel === "CREATOR"
+                            ? styles.creatorBadge
+                            : styles.memberBadge,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.roleBadgeText,
+                          roleLabel === "ADMIN"
+                            ? styles.adminBadgeText
+                            : roleLabel === "CREATOR"
+                              ? styles.creatorBadgeText
+                              : styles.memberBadgeText,
+                        ]}
+                      >
+                        {roleLabel}
+                      </Text>
+                    </View>
+                    {roleLabel === "CREATOR" ? (
+                      <View style={styles.protectedBadge}>
+                        <Text style={styles.protectedBadgeText}>
+                          {t("group_creator", "Group Creator")}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {isProtected && roleLabel !== "CREATOR" ? (
+                      <View style={styles.protectedBadge}>
+                        <Text style={styles.protectedBadgeText}>
+                          {t("protected", "Protected")}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {!removable && !isProtected ? (
+                      <View style={styles.protectedBadge}>
+                        <Text style={styles.protectedBadgeText}>
+                          {t("cannot_remove", "Cannot remove")}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
-                <Pressable onPress={handlePressOptions} style={styles.moreBtn} disabled={isRemovingThisMember}>
-                  {isRemovingThisMember ? (
-                    <ActivityIndicator size="small" color="#8E9AA0" />
-                  ) : (
-                    <MoreVertical size={20} color="#8E9AA0" />
-                  )}
-                </Pressable>
+                {removable ? (
+                  <View style={styles.memberActions}>
+                    <Pressable
+                      onPress={() => openRemoveConfirm(member)}
+                      style={styles.removeMemberBtn}
+                      disabled={isRemovingThisMember}
+                    >
+                      {isRemovingThisMember ? (
+                        <ActivityIndicator size="small" color="#FFB7BF" />
+                      ) : (
+                        <Text style={styles.removeMemberText}>{t("remove_member", "Remove Member")}</Text>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      onPress={() => openRemoveConfirm(member)}
+                      style={styles.moreBtn}
+                      disabled={isRemovingThisMember}
+                    >
+                      {isRemovingThisMember ? (
+                        <ActivityIndicator size="small" color="#8E9AA0" />
+                      ) : (
+                        <MoreVertical size={20} color="#8E9AA0" />
+                      )}
+                    </Pressable>
+                  </View>
+                ) : null}
               </View>
             );
           })}
@@ -484,8 +630,18 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
   },
+  memberMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: responsiveWidth(1.2),
+    marginTop: responsiveHeight(0.4),
+  },
   adminBadge: {
     backgroundColor: "#002D3C",
+  },
+  creatorBadge: {
+    backgroundColor: "#2E2406",
   },
   memberBadge: {
     backgroundColor: "#1F2937",
@@ -497,8 +653,48 @@ const styles = StyleSheet.create({
   adminBadgeText: {
     color: "#00D2FF",
   },
+  creatorBadgeText: {
+    color: "#F5D728",
+  },
   memberBadgeText: {
     color: "#9CA3AF",
+  },
+  protectedBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: "#2A1F16",
+    borderWidth: 1,
+    borderColor: "#5B4122",
+  },
+  protectedBadgeText: {
+    color: "#E9C88A",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  memberActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(1.8),
+    marginLeft: responsiveWidth(2),
+  },
+  removeMemberBtn: {
+    minHeight: responsiveHeight(3.8),
+    paddingHorizontal: responsiveWidth(3),
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#7A2D36",
+    backgroundColor: "#2A161B",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeMemberText: {
+    color: "#FFB7BF",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   moreBtn: {
     padding: 4,
