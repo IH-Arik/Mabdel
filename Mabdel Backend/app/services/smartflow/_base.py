@@ -920,7 +920,9 @@ class SmartFlowBase:
                 raise AppException(status_code=400, code="GROUP_MEMBER_INVALID", message="One or more group members are invalid.")
             contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": user_id})
             if not contact:
-                raise AppException(status_code=404, code="GROUP_MEMBER_NOT_FOUND", message="One or more group members were not found.")
+                user = await self.db.users.find_one({"_id": ObjectId(member_id)})
+                if not user:
+                    raise AppException(status_code=404, code="GROUP_MEMBER_NOT_FOUND", message="One or more group members were not found.")
             normalized.append(member_id)
         return normalized
 
