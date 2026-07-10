@@ -14,7 +14,7 @@ import {
   useMadbelListContactsQuery,
   useMadbelSearchAppUsersQuery,
 } from "../../redux/slices/madbelApiSlice";
-import { useCreateGroupMessagesMutation } from "../../redux/slices/chat/chatSlice";
+import { useMadbelCreateGroupSmartFlowMutation } from "../../redux/slices/madbelSmartflowSlice";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 
 const DEBOUNCE_MS = 350;
@@ -35,7 +35,7 @@ const CreateGroupScreen = () => {
     },
   });
 
-  const [createGroup, { isLoading: creating }] = useCreateGroupMessagesMutation();
+  const [createGroup, { isLoading: creating }] = useMadbelCreateGroupSmartFlowMutation();
 
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
   const selectedUsersCache = useRef({});
@@ -94,12 +94,12 @@ const CreateGroupScreen = () => {
       return;
     }
     try {
-      const response = await createGroup({ title: name, member_ids: selectedMemberIds }).unwrap();
+      const response = await createGroup({ name: name, member_ids: selectedMemberIds }).unwrap();
       navigation.replace("GroupChat", {
         group: {
           ...response,
-          name: response.title || response.directPeer?.fullName || name,
-          conversation_id: response.id,
+          name: response.name || response.title || response.directPeer?.fullName || name,
+          conversation_id: response.conversation_id,
         },
       });
     } catch (error) {
