@@ -891,6 +891,28 @@ class SmartFlowBase:
             raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
         return group
 
+    async def _get_active_group_for_admin(self, user_id: str, group_id: str) -> dict:
+        if not ObjectId.is_valid(group_id):
+            raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
+        group = await self.db.groups.find_one({
+            "_id": ObjectId(group_id),
+            "$or": [{"owner_user_id": user_id}, {"admin_ids": user_id}, {"user_id": user_id}]
+        })
+        if not group or group.get("is_active", True) is False:
+            raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
+        return group
+
+    async def _get_active_group_for_member(self, user_id: str, group_id: str) -> dict:
+        if not ObjectId.is_valid(group_id):
+            raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
+        group = await self.db.groups.find_one({
+            "_id": ObjectId(group_id),
+            "$or": [{"owner_user_id": user_id}, {"member_ids": user_id}, {"user_id": user_id}]
+        })
+        if not group or group.get("is_active", True) is False:
+            raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
+        return group
+
     async def _normalize_group_member_ids(self, user_id: str, member_ids: list[str]) -> list[str]:
         normalized: list[str] = []
         for member_id in list(dict.fromkeys(member_ids or [])):
@@ -2163,7 +2185,7 @@ class SmartFlowBase:
 
     @staticmethod
     def _lease_signature_url(token: str) -> str:
-        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}/api/v1/smartflow/leases/signing/{token}"
+        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}/api/v1/smartflow/leases/signing/{token}/pdf"
 
     @staticmethod
     def _infer_lease_title(details: dict) -> str:
@@ -2522,7 +2544,7 @@ class SmartFlowBase:
 
     @staticmethod
     def _agreement_signature_url(token: str) -> str:
-        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}/api/v1/smartflow/agreements/signing/{token}"
+        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}/api/v1/smartflow/agreements/signing/{token}/pdf"
 
     @staticmethod
     def _infer_agreement_title(prompt: str, agreement_type: str) -> str:
@@ -3055,6 +3077,25 @@ class SmartFlowBase:
                     "notes": "any notes about the contact if stated",
                 }
             },
+            "email": {
+                "fields": {
+                    "recipient_email": "email address of the recipient",
+                    "subject": "email subject if stated",
+                    "content": "message body the user wants sent",
+                }
+            },
+            "group": {
+                "fields": {
+                    "title": "group name",
+                    "description": "group description",
+                }
+            },
+            "call": {
+                "fields": {
+                    "phone_number": "phone number to call",
+                    "purpose": "reason for calling",
+                }
+            },
         }
         payload = {
             "intent": intent,
@@ -3092,6 +3133,9 @@ class SmartFlowBase:
                 "start_date", "end_date",
             },
             "contact": {"first_name", "last_name", "phone", "email", "date_of_birth", "notes"},
+            "email": {"recipient_email", "subject", "content"},
+            "group": {"title", "description", "member_ids"},
+            "call": {"phone_number", "purpose"},
         }.get(intent, set())
         clean: dict = {}
         for key, value in raw.items():
@@ -3165,6 +3209,9 @@ class SmartFlowBase:
             "lease": ["prompt"],
             "agreement": ["prompt", "client_name"],
             "contact": ["first_name"],
+            "email": ["recipient_email", "content"],
+            "group": ["title"],
+            "call": ["phone_number"],
         }.get(intent, [])
         missing = [field for field in required if prefill.get(field) in (None, "", [])]
         if intent == "bulk_message" and not prefill.get("recipient_emails") and not prefill.get("contact_ids") and not prefill.get("group_ids"):
@@ -3180,12 +3227,15 @@ class SmartFlowBase:
             "lease": {"endpoint": "/api/v1/smartflow/leases/generate", "submit_label": "Generate Lease"},
             "agreement": {"endpoint": "/api/v1/smartflow/agreements/generate", "submit_label": "Generate Agreement"},
             "contact": {"endpoint": "/api/v1/smartflow/contacts", "submit_label": "Save Contact"},
+            "email": {"endpoint": "/api/v1/smartflow/messages", "submit_label": "Send Email"},
+            "group": {"endpoint": "/api/v1/smartflow/groups", "submit_label": "Create Group"},
+            "call": {"endpoint": "/api/v1/smartflow/calls/outbound", "submit_label": "Initiate Call"},
         }
         return configs[intent]
 
     @staticmethod
     def _workflow_label(intent: str) -> str:
-        return {"invoice": "Invoice", "bulk_message": "Bulk message", "calendar": "Calendar", "lease": "Lease", "agreement": "Agreement", "contact": "Contact"}.get(intent, "AI")
+        return {"invoice": "Invoice", "bulk_message": "Bulk message", "calendar": "Calendar", "lease": "Lease", "agreement": "Agreement", "contact": "Contact", "email": "Email", "group": "Group", "call": "Call"}.get(intent, "AI")
 
     @staticmethod
     def _extract_qty_and_price(text: str, default_amount: float | None = None) -> tuple[int, float]:

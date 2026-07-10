@@ -11,7 +11,7 @@ def parse_intent(state: WorkflowState) -> WorkflowState:
     intent = call_llm(prompt).lower()
     
     # Validation against allowed intents
-    allowed = ["invoice", "email", "bulk_message", "calendar", "lease", "agreement", "group", "call"]
+    allowed = ["invoice", "email", "bulk_message", "calendar", "lease", "agreement", "group", "call", "contact"]
     if intent in allowed:
         state.intent = intent
     else:

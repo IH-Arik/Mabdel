@@ -460,7 +460,7 @@ class ConversationService(SmartFlowBase):
         return await self._serialize_group(group)
 
     async def get_group(self, user_id: str, group_id: str) -> dict:
-        group = await self._get_active_owned_group(user_id, group_id)
+        group = await self._get_active_group_for_member(user_id, group_id)
         return await self._serialize_group(group)
 
     async def list_groups(self, user_id: str, page: int, page_size: int, search: str | None) -> dict:
@@ -482,7 +482,7 @@ class ConversationService(SmartFlowBase):
         }
 
     async def update_group(self, user_id: str, group_id: str, updates: dict) -> dict:
-        group = await self._get_active_owned_group(user_id, group_id)
+        group = await self._get_active_group_for_admin(user_id, group_id)
         clean_updates = {key: value for key, value in updates.items() if value is not None}
         if "member_ids" in clean_updates:
             clean_updates["member_ids"] = await self._normalize_group_member_ids(user_id, clean_updates["member_ids"])
@@ -502,7 +502,7 @@ class ConversationService(SmartFlowBase):
         return await self._serialize_group(updated)
 
     async def add_group_members(self, user_id: str, group_id: str, payload: dict) -> dict:
-        group = await self._get_active_owned_group(user_id, group_id)
+        group = await self._get_active_group_for_admin(user_id, group_id)
         member_ids = await self._normalize_group_member_ids(
             user_id,
             [*group.get("member_ids", []), *payload.get("member_ids", [])],
@@ -520,7 +520,7 @@ class ConversationService(SmartFlowBase):
         return await self._serialize_group(updated)
 
     async def update_group_member_role(self, user_id: str, group_id: str, member_id: str, role: str) -> dict:
-        group = await self._get_active_owned_group(user_id, group_id)
+        group = await self._get_active_group_for_admin(user_id, group_id)
         if member_id not in group.get("member_ids", []):
             raise AppException(status_code=404, code="GROUP_MEMBER_NOT_FOUND", message="Group member was not found.")
         admin_ids = set(group.get("admin_ids", []))
@@ -536,7 +536,7 @@ class ConversationService(SmartFlowBase):
         return await self._serialize_group(updated)
 
     async def remove_group_member(self, user_id: str, group_id: str, member_id: str) -> dict:
-        group = await self._get_active_owned_group(user_id, group_id)
+        group = await self._get_active_group_for_admin(user_id, group_id)
         if member_id not in group.get("member_ids", []):
             raise AppException(status_code=404, code="GROUP_MEMBER_NOT_FOUND", message="Group member was not found.")
         member_ids = [item for item in group.get("member_ids", []) if item != member_id]
@@ -550,7 +550,7 @@ class ConversationService(SmartFlowBase):
         return await self._serialize_group(updated)
 
     async def invite_group_member(self, user_id: str, group_id: str, payload: dict) -> dict:
-        group = await self._get_active_owned_group(user_id, group_id)
+        group = await self._get_active_group_for_admin(user_id, group_id)
         pending_invites = list(group.get("pending_invites", []))
         for invite in pending_invites:
             same_email = payload.get("email") and invite.get("email") == payload.get("email")
@@ -576,7 +576,7 @@ class ConversationService(SmartFlowBase):
         return await self._serialize_group(updated)
 
     async def cancel_group_invite(self, user_id: str, group_id: str, invite_id: str) -> dict:
-        group = await self._get_active_owned_group(user_id, group_id)
+        group = await self._get_active_group_for_admin(user_id, group_id)
         pending_invites = [invite for invite in group.get("pending_invites", []) if invite.get("id") != invite_id]
         if len(pending_invites) == len(group.get("pending_invites", [])):
             raise AppException(status_code=404, code="GROUP_INVITE_NOT_FOUND", message="Group invite was not found.")
@@ -588,11 +588,19 @@ class ConversationService(SmartFlowBase):
         return await self._serialize_group(updated)
 
     async def leave_group(self, user_id: str, group_id: str) -> dict:
-        group = await self._get_active_owned_group(user_id, group_id)
+        group = await self._get_active_group_for_member(user_id, group_id)
+        member_ids = [m for m in group.get("member_ids", []) if m != user_id]
+        admin_ids = [m for m in group.get("admin_ids", []) if m != user_id]
         now = utc_now()
+        
+        updates = {"member_ids": member_ids, "admin_ids": admin_ids, "updated_at": now}
+        if not member_ids:
+            updates["is_active"] = False
+            updates["left_at"] = now
+            
         updated = await self.db.groups.find_one_and_update(
             {"_id": group["_id"]},
-            {"$set": {"is_active": False, "left_at": now, "updated_at": now}},
+            {"$set": updates},
             return_document=ReturnDocument.AFTER,
         )
         if group.get("conversation_id") and ObjectId.is_valid(group["conversation_id"]):
@@ -779,7 +787,7 @@ class ConversationService(SmartFlowBase):
         return updated
 
     async def delete_group(self, user_id: str, group_id: str) -> None:
-        group = await self._get_active_owned_group(user_id, group_id)
+        group = await self._get_active_group_for_admin(user_id, group_id)
         await self.db.groups.delete_one({"_id": group["_id"]})
         conversation_id = group.get("conversation_id")
         if conversation_id and ObjectId.is_valid(conversation_id):

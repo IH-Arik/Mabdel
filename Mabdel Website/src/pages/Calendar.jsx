@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, Bell, Building2, Calendar as CalIcon, CalendarDays,
   CheckCircle2, ChevronDown, ChevronUp, Clock, Link2, Loader2, Mail,
@@ -18,16 +19,16 @@ function Field({ label, children }) {
 }
 
 // ── Meeting Creator ─────────────────────────────────────────────────────────────
-function MeetingCreator({ contacts, onCreated, onClose }) {
+function MeetingCreator({ contacts, onCreated, onClose, prefill }) {
   const now = new Date();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [date, setDate] = useState(now.toISOString().slice(0, 10));
-  const [startTime, setStartTime] = useState('10:00');
-  const [endTime, setEndTime] = useState('11:00');
-  const [mode, setMode] = useState('online');
-  const [location, setLocation] = useState('');
-  const [link, setLink] = useState('');
+  const [title, setTitle] = useState(prefill?.title || '');
+  const [description, setDescription] = useState(prefill?.description || prefill?.notes || '');
+  const [date, setDate] = useState(prefill?.date || now.toISOString().slice(0, 10));
+  const [startTime, setStartTime] = useState(prefill?.startTime || prefill?.time || '10:00');
+  const [endTime, setEndTime] = useState(prefill?.endTime || '11:00');
+  const [mode, setMode] = useState(prefill?.mode || 'online');
+  const [location, setLocation] = useState(prefill?.location || '');
+  const [link, setLink] = useState(prefill?.link || '');
   const [reminder, setReminder] = useState('10 min');
   const [notifyPush, setNotifyPush] = useState(true);
   const [notifyEmail, setNotifyEmail] = useState(false);
@@ -262,11 +263,24 @@ function CalendarStats({ events }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Calendar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [events, setEvents] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [prefillData, setPrefillData] = useState(null);
+
+  useEffect(() => {
+    if (location.state?.prefill) {
+      setPrefillData(location.state.prefill);
+      setShowCreate(true);
+      // Clear state so it doesn't trigger on every re-render
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -344,7 +358,7 @@ export default function Calendar() {
                 <h2 className="font-bold text-white flex items-center gap-2"><Sparkles size={16} className="text-[#11C7E5]"/>New Meeting</h2>
                 <button type="button" onClick={()=>setShowCreate(false)} className="text-[#A4B0B7] hover:text-white p-1"><X size={16}/></button>
               </div>
-              <MeetingCreator contacts={contacts} onCreated={fetchAll} onClose={()=>setShowCreate(false)}/>
+              <MeetingCreator contacts={contacts} onCreated={fetchAll} onClose={()=>setShowCreate(false)} prefill={prefillData}/>
             </motion.div>
           )}
         </AnimatePresence>

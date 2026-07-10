@@ -23,6 +23,7 @@ import {
   Loader2,
   Pencil
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 // Seeding contact directory
 const CONTACTS_DIRECTORY = [
@@ -115,6 +116,9 @@ const INITIAL_GROUPS = [
 
 export default function Groups() {
   const [groups, setGroups] = useState(INITIAL_GROUPS);
+  
+  const location = useLocation();
+
   const [selectedGroupId, setSelectedGroupId] = useState('grp-3'); // Investors selected by default in Screenshot 4
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -150,6 +154,18 @@ export default function Groups() {
       chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [activeGroup?.chatHistory, isTyping, viewMode]);
+
+  useEffect(() => {
+    if (location.state?.prefill) {
+      const p = location.state.prefill;
+      setNewGroupName(p.group_name || p.groupName || p.name || p.title || '');
+      setNewGroupType(p.group_type || p.groupType || p.type || 'Team');
+      setViewMode('create');
+      
+      // Clear state so it doesn't re-trigger
+      window.history.replaceState({}, '');
+    }
+  }, [location.state]);
 
   // Handle message dispatch
   const handleSendMessage = (e) => {

@@ -12,6 +12,7 @@ export const smartflowApi = {
   uploadContactAvatar: (id, formData) => client.post(`/api/v1/smartflow/contacts/${id}/avatar`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  createOutboundCall: (data) => client.post('/api/v1/smartflow/calls/outbound', data),
 
   // Conversations
   getConversations: () => client.get('/api/v1/smartflow/conversations'),
@@ -76,7 +77,7 @@ export const smartflowApi = {
   deleteCalendarEvent: (id) => client.delete(`/api/v1/smartflow/calendar/events/${id}`),
   
   // Calls
-  getCalls: () => client.get('/api/v1/smartflow/calls'),
+  getCalls: (params) => client.get('/api/v1/smartflow/calls', { params }),
   createCall: (data) => client.post('/api/v1/smartflow/calls', data),
   createOutboundCall: (data) => client.post('/api/v1/smartflow/calls/outbound', data),
   getCallRecording: (id) => client.get(`/api/v1/smartflow/calls/${id}/recording`, { responseType: 'blob' }),
@@ -87,6 +88,7 @@ export const smartflowApi = {
   syncIntegration: (platform) => client.post(`/api/v1/smartflow/integrations/${platform}/sync`),
   disconnectIntegration: (platform) => client.delete(`/api/v1/smartflow/integrations/${platform}`),
   startIntegrationOAuth: (platform) => client.get(`/api/v1/smartflow/integrations/${platform}/oauth/start`),
+
 
   // Notifications
   getNotifications: (params) => client.get('/api/v1/smartflow/notifications', { params }),
@@ -195,6 +197,9 @@ export const smartflowApi = {
   getIntegrationStatus: () => client.get('/api/v1/smartflow/integrations/status'),
   getIntegrationCatalog: () => client.get('/api/v1/smartflow/integrations/catalog'),
   startIntegrationOAuth: (platform) => client.get(`/api/v1/smartflow/integrations/${platform}/oauth/start`),
+  createSocialPost: (data) => client.post('/api/v1/smartflow/social-posts', data),
+  listSocialPosts: (params) => client.get('/api/v1/smartflow/social-posts', { params }),
+  getSocialPost: (id) => client.get(`/api/v1/smartflow/social-posts/${id}`),
   disconnectIntegration: (platform) => client.delete(`/api/v1/smartflow/integrations/${platform}`),
 
   // ── Calendar extras ───────────────────────────────────────────────────────────
@@ -277,3 +282,7 @@ export const adminApi = {
   getSubscriptions: () => client.get('/api/v1/dashboard/admin/subscriptions'),
   getChats: () => client.get('/api/v1/dashboard/admin/chats'),
 };
+
+
+
+

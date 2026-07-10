@@ -158,7 +158,7 @@ class AuthRepository:
         page_size: int = 20,
     ) -> dict:
         filter_: dict = {}
-        if organization_id:
+        if organization_id and not query.strip():
             filter_["organization_id"] = organization_id
         if exclude_user_id and ObjectId.is_valid(exclude_user_id):
             filter_["_id"] = {"$ne": ObjectId(exclude_user_id)}

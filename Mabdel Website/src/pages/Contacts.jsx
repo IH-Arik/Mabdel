@@ -6,111 +6,27 @@ import {
   ChevronRight, Plus, ShieldCheck, Sparkles, MessageSquare, 
   PhoneCall, Pencil, Grid, List, Activity, FileText
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 
-const SEED_CONTACTS = [
-  {
-    id: 'c-1',
-    name: 'Sarah Jenkins',
-    phone: '+1 (555) 012-3456',
-    email: 'sarah.j@creativehub.com',
-    billing_address: '123 Broadway, Apt 4B, New York, NY 10001',
-    company: 'Creative Hub',
-    location: 'New York, NY',
-    last_interaction: '2 hours ago',
-    status: 'active',
-    dob: '1988-11-12',
-    notes: 'Leading visual campaigns for Creative Hub. Prefers Slack or email contact. Highly active client.',
-    last_contact_days: 'Today',
-    total_calls: 24,
-    avatarText: 'SJ',
-    online: true,
-    activity_chart: [6, 4, 10, 15, 8]
-  },
-  {
-    id: 'c-2',
-    name: 'James Wilson',
-    phone: '+1 (555) 987-6543',
-    email: 'james.w@stark.com',
-    billing_address: '10880 Malibu Point, Los Angeles, CA 90265',
-    company: 'Stark Industries',
-    location: 'Los Angeles, CA',
-    last_interaction: 'Yesterday',
-    status: 'pending',
-    dob: '1970-05-29',
-    notes: 'Awaiting contract sign-off for Stark Industries bulk migration. Keep warm and follow up weekly.',
-    last_contact_days: 'Yesterday',
-    total_calls: 5,
-    avatarText: 'JW',
-    online: false,
-    activity_chart: [2, 1, 3, 2, 4]
-  },
-  {
-    id: 'c-3',
-    name: 'Elena Rodriguez',
-    phone: '+1 (555) 234-5678',
-    email: 'elena@creativehub.io',
-    billing_address: '701 Brazos St, Austin, TX 78701',
-    company: 'Creative Hub',
-    location: 'Austin, TX',
-    last_interaction: '3 days ago',
-    status: 'active',
-    dob: '1992-04-18',
-    notes: 'Tech lead on creative pipeline automation. Very interested in scheduling calls via conversational AI.',
-    last_contact_days: '3 days ago',
-    total_calls: 16,
-    avatarText: 'ER',
-    online: true,
-    activity_chart: [3, 5, 2, 8, 4]
-  },
-  {
-    id: 'c-4',
-    name: 'Leslie Alexander',
-    phone: '+1 (555) 345-6789',
-    email: 'leslie.alex@company.com',
-    billing_address: '1201 3rd Ave, Seattle, WA 98101',
-    company: 'Design Co',
-    location: 'Seattle, WA',
-    last_interaction: '2 weeks ago',
-    status: 'inactive',
-    dob: '1995-09-02',
-    notes: 'Currently inactive. Scheduled check-in email next month for Q3 planning needs.',
-    last_contact_days: '14 days ago',
-    total_calls: 2,
-    avatarText: 'LA',
-    online: false,
-    activity_chart: [1, 0, 0, 1, 0]
-  },
-  {
-    id: 'c-5',
-    name: 'John Doe',
-    phone: '+1 234 567 890',
-    email: 'john@email.com',
-    billing_address: '1 Juniper Dr, Delmar, NY 12054',
-    company: 'Mabdel AI Corp',
-    location: 'Delmar, NY',
-    last_interaction: 'Yesterday',
-    status: 'active',
-    dob: '1999-04-12',
-    notes: 'Interested in long-term lease renewal for the downtown commercial hub. Prefers communication via AI assistant for scheduling. Follow up scheduled for next Tuesday regarding the mezzanine floor expansion proposal.',
-    last_contact_days: 'Yesterday',
-    total_calls: 12,
-    avatarText: 'JD',
-    online: true,
-    activity_chart: [4, 2, 8, 12, 5]
-  }
-];
+// Removed SEED_CONTACTS
 
 export default function Contacts() {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
+  const location = useLocation();
+  
   // viewMode: 'dashboard', 'detail', 'create'
   const [viewMode, setViewMode] = useState('dashboard');
-  const [selectedContactId, setSelectedContactId] = useState('c-5'); // John Doe selected default
+  const [selectedContactId, setSelectedContactId] = useState(null);
+  
+  // Tab State
+  const [activeTab, setActiveTab] = useState('on_mabdel'); // 'on_mabdel' or 'invite'
 
-  // Create Contact form state
+  // Edit/Create Contact form state
+  const [editId, setEditId] = useState(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -120,6 +36,8 @@ export default function Contacts() {
   const [leadStatus, setLeadStatus] = useState('New Prospect');
   const [notes, setNotes] = useState('');
   const [workflowSequence, setWorkflowSequence] = useState(true);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
 
   // Layout view config
   const [layoutMode, setLayoutMode] = useState('list'); // 'grid' or 'list'
@@ -166,68 +84,111 @@ export default function Contacts() {
     fetchContacts();
   }, [fetchContacts]);
 
+  useEffect(() => {
+    if (location.state?.prefill) {
+      const p = location.state.prefill;
+      setFirstName(p.first_name || p.firstName || (p.name ? p.name.split(' ')[0] : ''));
+      setLastName(p.last_name || p.lastName || (p.name ? p.name.split(' ').slice(1).join(' ') : ''));
+      setPhone(p.phone || p.client_phone || p.clientPhone || '');
+      setEmail(p.email || p.client_email || p.clientEmail || '');
+      setAddress(p.address || p.location || '');
+      setDob(p.dob || '');
+      setNotes(p.notes || '');
+      setViewMode('create');
+      
+      // Clear state so it doesn't re-trigger
+      window.history.replaceState({}, '');
+    }
+  }, [location.state]);
+
   // Selected Contact
   const activeContact = contacts.find(c => c.id === selectedContactId) || contacts[0];
 
-  // Save Contact trigger
+  // Save Contact trigger (Create / Update)
   const handleSaveContact = async (e) => {
     e.preventDefault();
     if (!firstName.trim()) return;
 
     const fullName = `${firstName} ${lastName}`.trim();
     const payload = {
+      first_name: firstName,
+      last_name: lastName,
       name: fullName,
       phone: phone || undefined,
       email: email || undefined,
-      billing_address: address || undefined,
+      address: address || undefined,
       status: leadStatus === 'New Prospect' ? 'pending' : 'active',
-      notes: notes || undefined
+      notes: notes || undefined,
+      dob: dob || undefined
     };
 
     try {
       setLoading(true);
-      const res = await smartflowApi.createContact(payload);
-      if (res.data?.data) {
-        const created = res.data.data;
-        setContacts(prev => [
-          {
-            ...created,
-            avatarText: firstName[0] + (lastName[0] || ''),
-            last_interaction: 'Just now',
-            last_contact_days: 'Today',
-            total_calls: 0,
-            activity_chart: [0, 0, 0, 0, 0]
-          },
-          ...prev
-        ]);
-        setSelectedContactId(created.id);
+      let res;
+      if (editId) {
+        res = await smartflowApi.updateContact(editId, payload);
+      } else {
+        res = await smartflowApi.createContact(payload);
       }
+      
+      const savedContactId = editId || res.data?.data?.id;
+
+      if (savedContactId && avatarFile) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        await smartflowApi.uploadContactAvatar(savedContactId, formData);
+      }
+
+      await fetchContacts();
+      setEditId(null);
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      setViewMode('dashboard');
     } catch (err) {
-      console.error('Failed to create in backend, running fallback local prefill:', err);
-      const localContact = {
-        id: `c-${Date.now()}`,
-        name: fullName,
-        phone,
-        email,
-        billing_address: address,
-        company: 'Individual',
-        location: address ? address.split(',').slice(-2).join(',').trim() : 'Remote',
-        last_interaction: 'Just now',
-        status: leadStatus === 'New Prospect' ? 'pending' : 'active',
-        dob,
-        notes,
-        last_contact_days: 'Today',
-        total_calls: 0,
-        avatarText: (firstName[0] || '') + (lastName[0] || '').toUpperCase(),
-        online: true,
-        activity_chart: [0, 0, 0, 0, 0]
-      };
-      setContacts(prev => [localContact, ...prev]);
-      setSelectedContactId(localContact.id);
+      console.error('Failed to save contact:', err);
     } finally {
       setLoading(false);
-      setViewMode('dashboard');
     }
+  };
+
+  const handleAvatarSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleCallContact = async (contact) => {
+    if (!contact?.phone) return alert('No phone number for this contact');
+    try {
+      setLoading(true);
+      await smartflowApi.createOutboundCall({
+        to_number: contact.phone,
+        contact_id: contact.id
+      });
+      alert(`Call initiated to ${contact.name}`);
+    } catch (err) {
+      console.error('Failed to initiate call:', err);
+      alert('Failed to initiate call');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEdit = (contact) => {
+    setEditId(contact.id);
+    setFirstName(contact.first_name || (contact.name ? contact.name.split(' ')[0] : ''));
+    setLastName(contact.last_name || (contact.name ? contact.name.split(' ').slice(1).join(' ') : ''));
+    setPhone(contact.phone || '');
+    setEmail(contact.email || '');
+    setAddress(contact.address || contact.location || '');
+    setDob(contact.dob || '');
+    setNotes(contact.notes || '');
+    setLeadStatus(contact.status === 'pending' ? 'New Prospect' : 'Active Partner');
+    setAvatarPreview(contact.avatar_url || null);
+    setAvatarFile(null);
+    setViewMode('create');
   };
 
   // Delete Contact trigger
@@ -259,10 +220,13 @@ export default function Contacts() {
   };
 
   // Filters search list
-  const filteredContacts = contacts.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.phone?.includes(searchTerm)
+  const tabFilteredContacts = contacts.filter(c => 
+    activeTab === 'on_mabdel' ? c.is_app_user === true : !c.is_app_user
+  );
+  const filteredContacts = tabFilteredContacts.filter(c => 
+    (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.phone || '').includes(searchTerm)
   );
 
   return (
@@ -278,8 +242,31 @@ export default function Contacts() {
             <div className="text-left">
               <h1 className="text-3xl font-extrabold text-white tracking-tight">Contacts</h1>
               <p className="text-slate-400 text-sm mt-1">
-                You have {contacts.length} active relationship connections.
+                You have {contacts.length} total contacts.
               </p>
+            </div>
+            
+            <div className="flex bg-slate-900/50 p-1 rounded-xl">
+              <button
+                onClick={() => setActiveTab('on_mabdel')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                  activeTab === 'on_mabdel' 
+                    ? 'bg-cyan-500/20 text-cyan-400 shadow-sm' 
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                On Mabdel
+              </button>
+              <button
+                onClick={() => setActiveTab('invite')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                  activeTab === 'invite' 
+                    ? 'bg-cyan-500/20 text-cyan-400 shadow-sm' 
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Invite to Mabdel
+              </button>
             </div>
             
             <div className="flex items-center gap-3">
@@ -291,6 +278,7 @@ export default function Contacts() {
               </button>
               <button 
                 onClick={() => {
+                  setEditId(null);
                   setFirstName('');
                   setLastName('');
                   setPhone('');
@@ -298,6 +286,8 @@ export default function Contacts() {
                   setAddress('');
                   setDob('');
                   setNotes('');
+                  setAvatarFile(null);
+                  setAvatarPreview(null);
                   setViewMode('create');
                 }}
                 className="px-4 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] hover:shadow-cyan-400/10 rounded-xl text-xs font-extrabold shadow-lg shadow-cyan-500/5 active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer"
@@ -329,8 +319,12 @@ export default function Contacts() {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative">
-                        <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-extrabold text-cyan-400">
-                          {item.avatarText}
+                        <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-extrabold text-cyan-400 overflow-hidden">
+                          {item.avatar_url ? (
+                            <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
+                          ) : (
+                            item.avatarText
+                          )}
                         </div>
                         {item.online && (
                           <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-[#070a13] rounded-full" />
@@ -445,8 +439,12 @@ export default function Contacts() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="relative">
-                              <div className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-850 flex items-center justify-center text-xs font-bold text-slate-400">
-                                {item.avatarText}
+                              <div className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-850 flex items-center justify-center text-xs font-bold text-slate-400 overflow-hidden">
+                                {item.avatar_url ? (
+                                  <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  item.avatarText
+                                )}
                               </div>
                               {item.online && (
                                 <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 border border-[#070a13] rounded-full" />
@@ -469,16 +467,28 @@ export default function Contacts() {
                         <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
                             <button 
-                              onClick={() => {
-                                setSelectedContactId(item.id);
-                                setViewMode('detail');
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(item);
                               }}
                               className="p-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all"
                             >
                               <Pencil size={12} />
                             </button>
                             <button 
-                              onClick={() => handleDeleteContact(item.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCallContact(item);
+                              }}
+                              className="p-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-emerald-400 rounded-xl transition-all"
+                            >
+                              <Phone size={12} />
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteContact(item.id);
+                              }}
                               className="p-2 bg-slate-950 border border-slate-900 hover:border-red-950/20 text-slate-400 hover:text-red-400 rounded-xl transition-all"
                             >
                               <Trash2 size={12} />
@@ -505,8 +515,12 @@ export default function Contacts() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div className="relative">
-                          <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-xs font-bold text-slate-400">
-                            {item.avatarText}
+                          <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-xs font-bold text-slate-400 overflow-hidden">
+                            {item.avatar_url ? (
+                                <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
+                              ) : (
+                                item.avatarText
+                            )}
                           </div>
                           {item.online && (
                             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border border-[#070a13] rounded-full" />
@@ -580,9 +594,13 @@ export default function Contacts() {
           <div className="bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 text-left">
             <div className="flex items-center gap-5">
               <div className="relative flex-shrink-0">
-                <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-cyan-500/40 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/5">
-                  <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-3xl font-extrabold text-cyan-400">
-                    {activeContact.avatarText}
+                <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-cyan-500/40 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/5 overflow-hidden">
+                  <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-3xl font-extrabold text-cyan-400 overflow-hidden">
+                    {activeContact.avatar_url ? (
+                        <img src={activeContact.avatar_url} alt={activeContact.name} className="w-full h-full object-cover" />
+                      ) : (
+                        activeContact.avatarText
+                    )}
                   </div>
                 </div>
                 {activeContact.online && (
@@ -602,7 +620,7 @@ export default function Contacts() {
 
             {/* Quick Actions call / msg / edit triggers */}
             <div className="flex items-center gap-3">
-              <button className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all">
+              <button onClick={() => handleCallContact(activeContact)} className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer">
                 <PhoneCall size={16} className="text-cyan-400 mb-1" />
                 <span>Call</span>
               </button>
@@ -613,7 +631,7 @@ export default function Contacts() {
                 <MessageSquare size={16} className="text-cyan-400 mb-1" />
                 <span>Message</span>
               </button>
-              <button className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all">
+              <button onClick={() => openEdit(activeContact)} className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer">
                 <Pencil size={16} className="text-cyan-400 mb-1" />
                 <span>Edit</span>
               </button>
@@ -687,7 +705,7 @@ export default function Contacts() {
                   </div>
                   <div>
                     <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Address</span>
-                    <span className="text-white mt-0.5 block truncate">{activeContact.billing_address || 'No Address Listed'}</span>
+                    <span className="text-white mt-0.5 block truncate">{activeContact.address || activeContact.billing_address || 'No Address Listed'}</span>
                   </div>
                 </div>
 
@@ -753,7 +771,7 @@ export default function Contacts() {
               <span>Back to Directory</span>
             </button>
             <span className="px-2.5 py-0.5 bg-cyan-950/80 border border-cyan-500/20 text-cyan-400 text-[9px] font-bold rounded-full uppercase tracking-wider">
-              Creating Draft
+              {editId ? 'Editing Contact' : 'Creating Draft'}
             </span>
           </div>
 
@@ -762,14 +780,25 @@ export default function Contacts() {
             
             {/* profile upload block */}
             <div className="flex flex-col items-center justify-center space-y-2 pb-2">
-              <div className="relative cursor-pointer group">
-                <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-dashed border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:bg-slate-900 transition-colors">
-                  <User size={32} />
+              <label htmlFor="avatar-upload" className="relative cursor-pointer group">
+                <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-dashed border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:bg-slate-900 transition-colors overflow-hidden">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={32} />
+                  )}
                 </div>
                 <span className="absolute bottom-0 right-0 w-6 h-6 bg-cyan-400 rounded-full flex items-center justify-center text-[#070a13] font-bold text-xs shadow-md">
                   +
                 </span>
-              </div>
+                <input 
+                  type="file" 
+                  id="avatar-upload" 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleAvatarSelect}
+                />
+              </label>
               <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Upload Profile Picture</span>
             </div>
 

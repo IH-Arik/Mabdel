@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronUp,
   CircleAlert, Download, FileCheck2, FileText, House, Loader2, Mail, Mic, PenLine,
@@ -73,13 +74,17 @@ function AIReviewPanel({ review }) {
 }
 
 // ── Agreement Creator ──────────────────────────────────────────────────────────
-function AgreementCreator({ onCreated }) {
+function AgreementCreator({ onCreated, prefill }) {
   const [form, setForm] = useState({
-    title: '', client_name: '', client_email: '', client_phone: '',
-    agreement_type: 'contract', start_date: '',
+    title: prefill?.title || '', 
+    client_name: prefill?.client_name || prefill?.clientName || prefill?.name || '', 
+    client_email: prefill?.client_email || prefill?.clientEmail || '', 
+    client_phone: prefill?.client_phone || prefill?.clientPhone || '',
+    agreement_type: prefill?.agreement_type || prefill?.agreementType || 'contract', 
+    start_date: prefill?.start_date || prefill?.startDate || '',
   });
-  const [prompt, setPrompt]         = useState('');
-  const [content, setContent]       = useState('');
+  const [prompt, setPrompt]         = useState(prefill?.prompt || '');
+  const [content, setContent]       = useState(prefill?.content || prefill?.body || '');
   const [aiReview, setAiReview]     = useState([]);
   const [signatureEnabled, setSig]  = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -252,19 +257,19 @@ function AgreementCreator({ onCreated }) {
 }
 
 // ── Lease Creator ──────────────────────────────────────────────────────────────
-function LeaseCreator({ onCreated }) {
-  const [prompt, setPrompt]       = useState('');
-  const [address, setAddress]     = useState('');
-  const [propType, setPropType]   = useState('apartment');
-  const [landlord, setLandlord]   = useState('');
-  const [tenant, setTenant]       = useState('');
-  const [tenantEmail, setTenantEmail] = useState('');
-  const [tenantPhone, setTenantPhone] = useState('');
-  const [rent, setRent]           = useState('');
-  const [deposit, setDeposit]     = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate]     = useState('');
-  const [terms, setTerms]         = useState('');
+function LeaseCreator({ onCreated, prefill }) {
+  const [prompt, setPrompt]       = useState(prefill?.prompt || '');
+  const [address, setAddress]     = useState(prefill?.address || prefill?.property_address || '');
+  const [propType, setPropType]   = useState(prefill?.propType || prefill?.property_type || 'apartment');
+  const [landlord, setLandlord]   = useState(prefill?.landlord || prefill?.landlord_name || '');
+  const [tenant, setTenant]       = useState(prefill?.tenant || prefill?.tenant_name || prefill?.name || '');
+  const [tenantEmail, setTenantEmail] = useState(prefill?.tenantEmail || prefill?.tenant_email || '');
+  const [tenantPhone, setTenantPhone] = useState(prefill?.tenantPhone || prefill?.tenant_phone || '');
+  const [rent, setRent]           = useState(prefill?.rent || prefill?.monthly_rent || '');
+  const [deposit, setDeposit]     = useState(prefill?.deposit || prefill?.security_deposit || '');
+  const [startDate, setStartDate] = useState(prefill?.startDate || prefill?.start_date || '');
+  const [endDate, setEndDate]     = useState(prefill?.endDate || prefill?.end_date || '');
+  const [terms, setTerms]         = useState(prefill?.terms || prefill?.custom_terms || '');
   const [tenantSig, setTenantSig]     = useState(true);
   const [landlordSig, setLandlordSig] = useState(true);
   const [generating, setGenerating]   = useState(false);
@@ -566,6 +571,9 @@ function RecordRow({ item, type, onDelete, onRefresh }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function Documents() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [active, setActive]         = useState('documents');
   const [documents, setDocuments]   = useState([]);
   const [leases, setLeases]         = useState([]);
@@ -573,20 +581,62 @@ export default function Documents() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [prefillData, setPrefillData] = useState(null);
+
+  useEffect(() => {
+    if (location.state?.tab && tabs.some(tab => tab.id === location.state.tab)) {
+      setActive(location.state.tab);
+    }
+
+    if (location.state?.prefill || location.state?.tab) {
+      const prefill = location.state.prefill;
+      setPrefillData(prefill || null);
+      if (prefill?.type === 'lease' || location.state.action === 'new_lease') {
+        setActive('leases');
+      } else if (prefill?.type === 'agreement' || location.state.action === 'new_agreement') {
+        setActive('agreements');
+      }
+      if (location.state?.prefill || location.state?.action?.startsWith('new_')) {
+        setShowCreate(true);
+      }
+      // Clear state so it doesn't trigger on every re-render
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      const [docs, leaseList, agreementList] = await Promise.all([
+      setError('');
+      const [docs, leaseList, agreementList] = await Promise.allSettled([
         smartflowApi.getDocuments(),
         smartflowApi.getLeases(),
         smartflowApi.getAgreements(),
       ]);
-      setDocuments(docs.data?.data?.items || docs.data?.data || []);
-      setLeases(leaseList.data?.data?.items || leaseList.data?.data || []);
-      setAgreements(agreementList.data?.data?.items || agreementList.data?.data || []);
+
+      const docItems = docs.status === 'fulfilled'
+        ? (docs.value.data?.data?.items || docs.value.data?.data || [])
+        : [];
+      const leaseItems = leaseList.status === 'fulfilled'
+        ? (leaseList.value.data?.data?.items || leaseList.value.data?.data || [])
+        : [];
+      const agreementItems = agreementList.status === 'fulfilled'
+        ? (agreementList.value.data?.data?.items || agreementList.value.data?.data || [])
+        : [];
+
+      setDocuments(docItems);
+      setLeases(leaseItems);
+      setAgreements(agreementItems);
+
+      if (docs.status === 'rejected' && leaseList.status === 'rejected' && agreementList.status === 'rejected') {
+        console.error('Documents page data requests failed.', {
+          documents: docs.reason,
+          leases: leaseList.reason,
+          agreements: agreementList.reason,
+        });
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Documents could not be loaded.');
+      console.error('Documents page fetch crashed.', err);
     } finally { setLoading(false); }
   }, []);
 
@@ -694,8 +744,8 @@ export default function Documents() {
               transition={{ duration: 0.25 }}
               className="order-1 xl:order-2 max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-[#243041]"
             >
-              {active === 'agreements' && <AgreementCreator onCreated={() => { fetchAll(); setShowCreate(false); }} />}
-              {active === 'leases' && <LeaseCreator onCreated={() => { fetchAll(); setShowCreate(false); }} />}
+              {active === 'agreements' && <AgreementCreator onCreated={() => { fetchAll(); setShowCreate(false); }} prefill={prefillData} />}
+              {active === 'leases' && <LeaseCreator onCreated={() => { fetchAll(); setShowCreate(false); }} prefill={prefillData} />}
               {active === 'documents' && (
                 <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-6 text-center space-y-4">
                   <Upload size={32} className="text-[#11C7E5] mx-auto" />
@@ -713,3 +763,6 @@ export default function Documents() {
     </div>
   );
 }
+
+
+
