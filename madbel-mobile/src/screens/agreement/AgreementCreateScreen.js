@@ -25,7 +25,6 @@ const normalizeReview = (review = []) =>
   }));
 
 const normalizeDate = (value) => {
-  const { t } = useAppLanguage();
   const trimmed = String(value || "").trim();
   if (!trimmed) return undefined;
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
@@ -33,6 +32,34 @@ const normalizeDate = (value) => {
   if (Number.isNaN(parsed.getTime())) return undefined;
   return parsed.toISOString().slice(0, 10);
 };
+
+const resolveSigningUrl = (response, createdAgreement) =>
+  response?.signing_url ||
+  response?.data?.signing_url ||
+  response?.data?.data?.signing_url ||
+  createdAgreement?.signing_url ||
+  createdAgreement?.data?.signing_url ||
+  createdAgreement?.data?.data?.signing_url ||
+  null;
+
+const resolveSigningToken = (response, createdAgreement) =>
+  response?.signature_token ||
+  response?.signatureToken ||
+  response?.signing_token ||
+  response?.signingToken ||
+  response?.data?.signature_token ||
+  response?.data?.signatureToken ||
+  response?.data?.signing_token ||
+  response?.data?.signingToken ||
+  response?.data?.data?.signature_token ||
+  response?.data?.data?.signatureToken ||
+  response?.data?.data?.signing_token ||
+  response?.data?.data?.signingToken ||
+  createdAgreement?.signature_token ||
+  createdAgreement?.signatureToken ||
+  createdAgreement?.signing_token ||
+  createdAgreement?.signingToken ||
+  null;
 
 const AgreementCreateScreen = () => {
   const { t } = useAppLanguage();
@@ -164,20 +191,23 @@ const AgreementCreateScreen = () => {
       const response = await createAgreement(payload).unwrap();
       const createdAgreement = response?.data || response;
       const agreementId = createdAgreement?.id || createdAgreement?.agreement_id;
-      const signingUrl =
-        createdAgreement?.signing_url ||
-        createdAgreement?.data?.signing_url ||
-        response?.signing_url ||
-        response?.data?.signing_url;
+      const signingUrl = resolveSigningUrl(response, createdAgreement);
+      const signingToken = resolveSigningToken(response, createdAgreement);
 
       navigation.replace("AgreementPreview", { agreementId, agreement: createdAgreement });
 
       if (signatureEnabled && signingUrl) {
-        await Linking.openURL(signingUrl);
+        const canOpen = await Linking.canOpenURL(signingUrl);
+        if (canOpen) {
+          await Linking.openURL(signingUrl);
+        }
+      } else if (signatureEnabled && signingToken) {
+        navigation.navigate("PublicSigning", {
+          documentType: "agreement",
+          signatureToken: signingToken,
+        });
       }
     } catch (error) {
-
-      
       if (error?.status === 401 || error?.originalStatus === 401 || error?.data?.message === "Not authenticated") {
         Alert.alert(t("session_expired"), t("please_login_again_to_continue"), [
           {
@@ -326,7 +356,7 @@ const AgreementCreateScreen = () => {
           </View>
 
           <VoiceFormFillCard
-            label={t("agreement")}
+            label="agreement"
             workflowIntent="agreement"
             sourceScreen="AgreementCreate"
             triggerOpen={voiceTrigger}

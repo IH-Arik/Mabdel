@@ -62,6 +62,9 @@ const ContactsScreen = () => {
     search: query.trim() || undefined,
   });
 
+  console.log('LINE AT 65' , contactsResponse);
+  
+
 
 
   const contactsData = contactsResponse?.data;
@@ -158,14 +161,14 @@ const ContactsScreen = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ChevronLeft size={34} color="#F3F9FF" />
+            <ChevronLeft size={responsiveWidth(5)} color="#F3F9FF" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("contacts")}</Text>
           <Pressable
             onPress={() => setImportModalVisible(true)}
             style={styles.importIconBtn}
           >
-            <UserRoundPlus size={24} color="#12D0ED" />
+            <UserRoundPlus size={responsiveWidth(5)} color="#12D0ED" />
           </Pressable>
         </View>
 
@@ -265,14 +268,18 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: "#F4FAFF",
-    fontSize: responsiveWidth(8.5),
+    fontSize: responsiveWidth(5),
     fontWeight: "700",
   },
   importIconBtn: {
-    width: 38,
-    height: 38,
+    width: responsiveWidth(10),
+    height: responsiveWidth(10),
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#0C2E39",
+    borderRadius: 19,
+    // borderWidth: 1,
+    borderColor: "#12D0ED33",
   },
   sectionHeader: {
     flexDirection: "row",

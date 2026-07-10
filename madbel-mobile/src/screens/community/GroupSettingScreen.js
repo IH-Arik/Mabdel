@@ -25,15 +25,25 @@ const GroupSettingScreen = () => {
   const route = useRoute();
   const routeGroup = route?.params?.group;
   const groupId = routeGroup?.id;
-  const [inviteEmail, setInviteEmail] = useState("");
   const [contactSearch, setContactSearch] = useState("");
   const [showAddSection, setShowAddSection] = useState(false);
+  const [addingContactId, setAddingContactId] = useState(null);
+  const [removingMemberId, setRemovingMemberId] = useState(null);
 
-  const { data: groupResponse, isLoading, isFetching } = useMadbelGetGroupQuery(
+  const {
+    data: groupResponse,
+    isLoading,
+    isFetching,
+    refetch: refetchGroup,
+  } = useMadbelGetGroupQuery(
     { group_id: groupId },
     { skip: !groupId },
   );
-  const { data: contactsResponse, isFetching: contactsFetching } = useMadbelListContactsQuery({
+  const {
+    data: contactsResponse,
+    isFetching: contactsFetching,
+    refetch: refetchContacts,
+  } = useMadbelListContactsQuery({
     page: 1,
     page_size: 100,
     search: contactSearch.trim() || undefined,
@@ -45,8 +55,7 @@ const GroupSettingScreen = () => {
   const [deleteGroup, { isLoading: deleting }] = useMadbelDeleteGroupMutation();
   const [leaveGroup, { isLoading: leaving }] = useMadbelLeaveGroupMutation();
   const [removeMember, { isLoading: removing }] = useMadbelRemoveGroupMemberMutation();
-  const [addMembers, { isLoading: addingMembers }] = useMadbelAddGroupMembersMutation();
-  const [inviteMember, { isLoading: inviting }] = useMadbelInviteGroupMemberMutation();
+  const [addMembers] = useMadbelAddGroupMembersMutation();
 
   const initials = useMemo(() => (group?.name || "GR").slice(0, 2).toUpperCase(), [group?.name]);
   const memberIdsSet = useMemo(() => {
@@ -90,9 +99,13 @@ const GroupSettingScreen = () => {
   const handleRemoveMember = async (memberId) => {
     if (!groupId || !memberId) return;
     try {
+      setRemovingMemberId(memberId);
       await removeMember({ group_id: groupId, member_id: memberId }).unwrap();
+      await refetchGroup?.();
     } catch (error) {
       Alert.alert("Remove failed", error?.data?.message || "Could not remove member.");
+    } finally {
+      setRemovingMemberId(null);
     }
   };
 
@@ -104,26 +117,14 @@ const GroupSettingScreen = () => {
       return;
     }
     try {
+      setAddingContactId(contactId);
       await addMembers({ group_id: groupId, member_ids: [contactId] }).unwrap();
       Alert.alert("Member added", `${contact?.name || "Contact"} has been added to the group.`);
+      await Promise.all([refetchGroup?.(), refetchContacts?.()]);
     } catch (error) {
       Alert.alert("Add failed", error?.data?.message || "Could not add member.");
-    }
-  };
-
-  const handleInvite = async () => {
-    const email = inviteEmail.trim().toLowerCase();
-    if (!groupId || !email) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert(t("invalid_email"), t("please_enter_a_valid_email_address"));
-      return;
-    }
-    try {
-      await inviteMember({ group_id: groupId, email, role: "member" }).unwrap();
-      setInviteEmail("");
-      Alert.alert("Invitation sent", `Invitation sent to ${email}.`);
-    } catch (error) {
-      Alert.alert("Invite failed", error?.data?.message || "Could not invite member.");
+    } finally {
+      setAddingContactId(null);
     }
   };
 
@@ -187,6 +188,8 @@ const GroupSettingScreen = () => {
             const role = member.role || "MEMBER";
             const isPending = member.is_pending || member.email === "Pending Invite";
             const mInitials = member.initials || (member.name || "?").slice(0, 2).toUpperCase();
+            const memberKey = String(member?.id || member?.member_id || member?.contact_id || "");
+            const isRemovingThisMember = removingMemberId === memberKey;
 
             const handlePressOptions = () => {
               Alert.alert(
@@ -197,14 +200,14 @@ const GroupSettingScreen = () => {
                   {
                     text: "Remove",
                     style: "destructive",
-                    onPress: () => handleRemoveMember(member.id),
+                    onPress: () => handleRemoveMember(memberKey || member.id),
                   },
                 ]
               );
             };
 
             return (
-              <View key={member.id} style={styles.memberCard}>
+              <View key={memberKey || index} style={styles.memberCard}>
                 <View style={styles.memberAvatarWrap}>
                   {member.avatar_url ? (
                     <Image source={{ uri: member.avatar_url }} style={styles.memberAvatar} />
@@ -226,8 +229,12 @@ const GroupSettingScreen = () => {
                     </Text>
                   </View>
                 </View>
-                <Pressable onPress={handlePressOptions} style={styles.moreBtn}>
-                  <MoreVertical size={20} color="#8E9AA0" />
+                <Pressable onPress={handlePressOptions} style={styles.moreBtn} disabled={isRemovingThisMember}>
+                  {isRemovingThisMember ? (
+                    <ActivityIndicator size="small" color="#8E9AA0" />
+                  ) : (
+                    <MoreVertical size={20} color="#8E9AA0" />
+                  )}
                 </Pressable>
               </View>
             );
@@ -254,6 +261,7 @@ const GroupSettingScreen = () => {
                 const contactId = String(contact?.contact_id || contact?.id || contact?._id || "");
                 const contactName = contact?.name || contact?.full_name || "Unnamed";
                 const contactMeta = contact?.email || contact?.phone || "No contact";
+                const isAddingThisContact = addingContactId === contactId;
                 return (
                   <View key={contactId} style={styles.memberCard}>
                     {contact?.avatar_url ? (
@@ -267,8 +275,16 @@ const GroupSettingScreen = () => {
                       <Text style={styles.memberName}>{contactName}</Text>
                       <Text style={styles.memberEmail}>{contactMeta}</Text>
                     </View>
-                    <Pressable style={styles.smallBtn} onPress={() => handleAddMember(contact)} disabled={addingMembers}>
-                      {addingMembers ? <ActivityIndicator color="#EAF5FB" size="small" /> : <Text style={styles.smallBtnText}>{t("add")}</Text>}
+                    <Pressable
+                      style={styles.smallBtn}
+                      onPress={() => handleAddMember(contact)}
+                      disabled={Boolean(addingContactId)}
+                    >
+                      {isAddingThisContact ? (
+                        <ActivityIndicator color="#EAF5FB" size="small" />
+                      ) : (
+                        <Text style={styles.smallBtnText}>{t("add")}</Text>
+                      )}
                     </Pressable>
                   </View>
                 );

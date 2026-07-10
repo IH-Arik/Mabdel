@@ -19,6 +19,15 @@ Notifications.setNotificationHandler({
   }),
 });
 
+const linking = {
+  prefixes: ["madbel://"],
+  config: {
+    screens: {
+      PublicSigning: "sign/:documentType/:signatureToken",
+    },
+  },
+};
+
 export default function App() {
   const navigationRef = useRef(null);
   const notificationResponseListener = useRef(null);
@@ -62,7 +71,7 @@ export default function App() {
       <Provider store={store}>
         <PersistGate loading={null} persistor={persistor}>
           <LanguageProvider>
-            <NavigationContainer ref={navigationRef}>
+            <NavigationContainer ref={navigationRef} linking={linking}>
               <RootAppNavigator />
             </NavigationContainer>
           </LanguageProvider>

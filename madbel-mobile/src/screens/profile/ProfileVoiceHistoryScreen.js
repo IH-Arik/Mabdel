@@ -11,7 +11,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useMadbelListAiHistoryQuery } from "../../redux/slices/madbelSmartflowSlice";
 
 const formatTime = (dateValue) => {
-  const { t } = useAppLanguage();
+  // const { t } = useAppLanguage();
   if (!dateValue) return "";
   try {
     return new Date(dateValue).toLocaleString([], {
@@ -25,17 +25,49 @@ const formatTime = (dateValue) => {
   }
 };
 
+const normalizeHistoryItems = (data) => {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+
+  const candidateLists = [
+    data?.items,
+    data?.data,
+    data?.results,
+    data?.records,
+    data?.history,
+    data?.histories,
+  ];
+
+  for (const candidate of candidateLists) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+
+  if (data?.command_text || data?.id || data?._id) {
+    return [data];
+  }
+
+  return [];
+};
+
 const ProfileVoiceHistoryScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const { data, isLoading, isError } = useMadbelListAiHistoryQuery({ page: 1, page_size: 50 });
 
-  const calls = data?.items || data?.data || [];
+  const calls = normalizeHistoryItems(data);
+  console.log("ProfileVoiceHistoryScreen calls:", calls , data?.data?.items);
 
   const renderItem = ({ item }) => {
-    const label = item?.command_text || "Voice command";
-    const typeLabel = item?.command_type_label || item?.command_type || "";
+    
+    const label = item?.command_text || item?.title || "Voice command";
+    const typeLabel = item?.command_type_label || item?.command_type || item?.related_resource?.type || "";
     const statusLabel = item?.status_label || item?.status || "";
     const time = formatTime(item?.timestamp || item?.created_at);
+    const previewTitle =
+      item?.preview_payload?.title ||
+      item?.related_resource?.agreement_number ||
+      item?.related_resource?.id ||
+      "";
 
     return (
       <View style={styles.card}>
@@ -44,6 +76,7 @@ const ProfileVoiceHistoryScreen = () => {
           {!!statusLabel && <Text style={styles.status}>{statusLabel}</Text>}
         </View>
         <Text style={styles.text}>{label}</Text>
+        {!!previewTitle && <Text style={styles.preview}>{previewTitle}</Text>}
         {!!time && <Text style={styles.time}>{time}</Text>}
       </View>
     );
@@ -62,11 +95,11 @@ const ProfileVoiceHistoryScreen = () => {
 
         {isLoading ? (
           <ActivityIndicator color="#17b4c9" style={{ marginTop: responsiveHeight(10) }} />
-        ) : isError || calls.length === 0 ? (
+        ) : isError || data?.data?.items.length === 0 ? (
           <Text style={styles.empty}>{t("no_voice_history_found")}</Text>
         ) : (
           <FlatList
-            data={calls}
+            data={data?.data?.items }
             keyExtractor={(item, i) => String(item?._id || item?.id || i)}
             renderItem={renderItem}
             showsVerticalScrollIndicator={false}
@@ -144,6 +177,11 @@ const styles = StyleSheet.create({
     color: "#F2F4F7",
     fontSize: 44 / 2,
     lineHeight: 32,
+  },
+  preview: {
+    marginTop: responsiveHeight(0.7),
+    color: "#7C8A9A",
+    fontSize: 14,
   },
   time: {
     marginTop: responsiveHeight(1),

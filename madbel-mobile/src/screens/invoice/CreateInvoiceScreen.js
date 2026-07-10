@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -231,11 +232,13 @@ const CreateInvoiceScreen = () => {
   };
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
-            <ChevronLeft size={34} color="#F8FAFC" strokeWidth={2.3} />
+            <ChevronLeft size={responsiveWidth(5)} color="#F8FAFC" strokeWidth={2.3} />
           </Pressable>
           <Text style={styles.headerTitle}>
             {editingInvoice ? t("edit_invoice") : t("create_invoice")}
@@ -254,7 +257,7 @@ const CreateInvoiceScreen = () => {
             placeholder={t("enter_name")}
             placeholderTextColor="#6D7B93"
             labelStyle={styles.label}
-            inputStyle={styles.input}
+            // inputStyle={styles.input}
           />
 
           <View>
@@ -267,7 +270,7 @@ const CreateInvoiceScreen = () => {
                   setItemModalVisible(true);
                 }}
               >
-                <PlusCircle size={22} color="#14C9E7" />
+                <PlusCircle size={responsiveWidth(5)} color="#14C9E7" />
                 <Text style={styles.addItemText}>{t("add_item")}</Text>
               </Pressable>
             </View>
@@ -347,7 +350,7 @@ const CreateInvoiceScreen = () => {
             control={control}
             label={t("client_email")}
             placeholder={t("client_example_com")}
-            inputStyle={styles.input}
+            // inputStyle={styles.input}
             placeholderTextColor="#6D7B93"
           />
 
@@ -398,7 +401,7 @@ const CreateInvoiceScreen = () => {
                   onChangeText={(text) =>
                     setNewItem((prev) => ({ ...prev, description: text }))
                   }
-                  inputStyle={styles.input}
+                  // inputStyle={styles.input}
                   placeholder={t("item_description")}
                   placeholderTextColor="#6D7B93"
                 />
@@ -413,7 +416,7 @@ const CreateInvoiceScreen = () => {
                   onChangeText={(text) =>
                     setNewItem((prev) => ({ ...prev, details: text }))
                   }
-                  inputStyle={styles.input}
+                  // inputStyle={styles.input}
                   placeholder={t("extra_details")}
                   placeholderTextColor="#6D7B93"
                 />
@@ -429,7 +432,7 @@ const CreateInvoiceScreen = () => {
                     onChangeText={(text) =>
                       setNewItem((prev) => ({ ...prev, quantity: text }))
                     }
-                    inputStyle={styles.input}
+                    // inputStyle={styles.input}
                     placeholderTextColor="#6D7B93"
                   />
                 </View>
@@ -442,7 +445,7 @@ const CreateInvoiceScreen = () => {
                     onChangeText={(text) =>
                       setNewItem((prev) => ({ ...prev, unit_price: text }))
                     }
-                    inputStyle={styles.input}
+                    // inputStyle={styles.input}
                     placeholderTextColor="#6D7B93"
                   />
                 </View>
@@ -477,6 +480,8 @@ const CreateInvoiceScreen = () => {
         </Pressable>
       </View>
     </SafeAreaView>
+    </KeyboardAvoidingView>
+
   );
 };
 
@@ -495,10 +500,10 @@ const styles = StyleSheet.create({
     marginBottom: responsiveHeight(1.6),
   },
   iconWrap: { width: responsiveWidth(8) },
-  headerTitle: { color: "#F2F7FD", fontSize: 32, fontWeight: "700" },
+  headerTitle: { color: "#F2F7FD", fontSize: responsiveWidth(5), fontWeight: "700" },
   headerSpacer: { width: responsiveWidth(8) },
   content: { gap: responsiveHeight(1.2), paddingBottom: responsiveHeight(2) },
-  label: { color: "#B7C2D3", fontSize: 22, marginBottom: responsiveHeight(1.5) },
+  label: { color: "#B7C2D3", fontSize: responsiveWidth(4), marginBottom: responsiveHeight(1.5) },
   smallLabel: { color: "#8090A8", fontSize: 14, marginBottom: responsiveHeight(0.5) },
   input: {
     minHeight: responsiveHeight(7),
@@ -529,7 +534,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveHeight(0.4),
   },
   addItemRow: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(1.2) },
-  addItemText: { color: "#14C9E7", fontSize: 18, fontWeight: "500" },
+  addItemText: { color: "#14C9E7", fontSize: responsiveWidth(4), fontWeight: "500" },
   itemCard: {
     borderRadius: 18,
     borderWidth: 1,
@@ -593,14 +598,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#273246",
   },
-  totalLabel: { color: "#8E9CB2", fontSize: 20, letterSpacing: 1.2 },
+  totalLabel: { color: "#8E9CB2", fontSize: responsiveWidth(4), letterSpacing: 1.2 },
   totalRow: {
     marginTop: responsiveHeight(0.8),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
   },
-  totalAmount: { color: "#14C9E7", fontSize: 30, fontWeight: "700" },
+  totalAmount: { color: "#14C9E7", fontSize: responsiveWidth(7), fontWeight: "700" },
   autoCalculated: { color: "#8795AD", fontSize: 16 },
   createBtn: {
     minHeight: responsiveHeight(8.2),
@@ -613,9 +618,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 14,
     elevation: 7,
-    marginBottom: responsiveHeight(9),
+    marginBottom: responsiveHeight(4),
   },
-  createText: { color: "#EAF8FF", fontSize: 24, fontWeight: "600" },
+  createText: { color: "#EAF8FF", fontSize: 19, fontWeight: "600" },
   createBtnDisabled: {
     opacity: 0.8,
   },

@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   listContent: {
-    paddingBottom: responsiveHeight(12),
+    paddingBottom: responsiveHeight(20),
   },
   loadingWrap: {
     flex: 1,

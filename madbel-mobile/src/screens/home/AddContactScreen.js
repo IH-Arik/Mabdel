@@ -145,8 +145,10 @@ const AddContactScreen = () => {
     }
 
     const asset = response?.assets?.[0];
-    setAvatarUrl(asset?.uri || null);
+    console.log("LINE AT 174" , asset);
+    setAvatarUrl(asset?.uri);
   };
+console.log('LINE AT 151' , avatarUrl);
 
 
   const saveContact = async () => {
@@ -171,8 +173,11 @@ const AddContactScreen = () => {
       email: email.trim() || undefined,
       date_of_birth: dob || undefined,
       notes: notes.trim() || undefined,
-      avatar_url: !currentContactId && avatarUrl ? avatarUrl : undefined,
+      avatar_url: avatarUrl || undefined,
     };
+
+console.log("LINE AT 177" , payload);
+
 
     try {
       if (currentContactId) {
@@ -230,13 +235,13 @@ const AddContactScreen = () => {
         <View style={styles.container}>
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <ChevronLeft size={36} color="#F4F9FF" />
+              <ChevronLeft size={responsiveWidth(5)} color="#F4F9FF" />
             </Pressable>
             <Text style={styles.title}>{isEditMode ? t("edit_contact") : t("add_contact")}</Text>
             <View style={styles.headerActions}>
               {isEditMode ? (
                 <Pressable onPress={handleDelete} style={styles.deleteIconBtn}>
-                  <Trash2 size={20} color="#FF4F5F" />
+                  <Trash2 size={responsiveWidth(5)} color="#FF4F5F" />
                 </Pressable>
               ) : null}
             </View>
@@ -354,9 +359,7 @@ const AddContactScreen = () => {
           <View
             style={[
               styles.footerWrap,
-              {
-                bottom: Math.max(insets.bottom, 12) + keyboardHeight,
-              },
+             
             ]}
             pointerEvents="box-none"
           >
@@ -417,7 +420,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#F5FAFF",
-    fontSize: responsiveWidth(7),
+    fontSize: responsiveWidth(5),
     fontWeight: "700",
   },
   headerActions: {
@@ -509,9 +512,8 @@ const styles = StyleSheet.create({
     marginTop: responsiveHeight(7),
   },
   footerWrap: {
-    position: "absolute",
-    left: responsiveWidth(4.5),
-    right: responsiveWidth(4.5),
+
+    paddingBottom: responsiveHeight(5),
   },
   saveBtn: {
     height: 74,

@@ -357,7 +357,7 @@ const HomeScreen = () => {
             onPress={openContacts}
           >
             <View style={styles.iconSquare}>
-              <Users size={24} color="#12D2ED" />
+              <Users size={responsiveWidth(6)} color="#12D2ED" />
             </View>
             <Text style={styles.cardTitle}>{t("contacts")}</Text>
             <View style={styles.contactsStackWrap}>
@@ -647,9 +647,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   iconSquare: {
-    width: rw(18),
-    height: rw(18),
-    borderRadius: rw(5.2),
+    width: rw(responsiveWidth(3)),
+    height: rw(responsiveWidth(3)),
+    borderRadius: rw(4), 
     backgroundColor: "#103B49",
     alignItems: "center",
     justifyContent: "center",

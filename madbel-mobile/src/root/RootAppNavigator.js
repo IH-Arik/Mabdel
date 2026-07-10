@@ -13,6 +13,7 @@ import AiCallScreen from "../screens/call/AiCallScreen";
 import * as Notifications from "expo-notifications";
 import { useMadbelRegisterPushTokenMutation } from "../redux/slices/madbelApiSlice";
 import { SafeAreaView } from "react-native-safe-area-context";
+import PublicSigningScreen from "../screens/signing/PublicSigningScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -86,6 +87,7 @@ const RootAppNavigator = () => {
       initialRouteName={isAuthenticated ? "BottomNavigator"
         : "Begin"}
     >
+      <Stack.Screen name="PublicSigning" component={PublicSigningScreen} />
       {isAuthenticated ? (
         <>
           {/* <Stack.Screen name="SubscriptionTrial" component={SubscriptionTrialScreen} /> */}
