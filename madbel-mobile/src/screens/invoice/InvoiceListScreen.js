@@ -15,7 +15,7 @@ import {
   responsiveHeight,
   responsiveWidth,
 } from "react-native-responsive-dimensions";
-import { Search, ReceiptText, ChevronLeft } from "lucide-react-native";
+import { Search, ReceiptText, ChevronLeft, Plus } from "lucide-react-native";
 import { useForm, useWatch } from "react-hook-form";
 import ControllerTextInput from "../../components/ControllerTextInput";
 import { useMadbelListInvoicesQuery } from "../../redux/slices/madbelApiSlice";
@@ -62,6 +62,8 @@ const InvoiceListScreen = () => {
             style={styles.newBtn}
             onPress={() => navigation.navigate("CreateInvoice")}
           >
+            <Plus size={20} color="#EAF9FF" />
+
             <Text style={styles.newBtnText}>{t("new")}</Text>
           </Pressable>
         </View>
@@ -189,10 +191,12 @@ const styles = StyleSheet.create({
     fontSize: responsiveWidth(5),
   },
   newBtn: {
-    minHeight: responsiveHeight(6),
+    flexDirection: "row",
+    gap: responsiveWidth(1.5),
+    minHeight: responsiveHeight(5),
     borderRadius: 22,
     backgroundColor: "#14C9E7",
-    paddingHorizontal: responsiveWidth(5),
+    paddingHorizontal: responsiveWidth(3),
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#14C9E7",
@@ -203,7 +207,7 @@ const styles = StyleSheet.create({
   },
   newBtnText: {
     color: "#EAF8FF",
-    fontSize: 18,
+    fontSize: responsiveWidth(4.2),
     fontWeight: "600",
   },
   searchBox: {

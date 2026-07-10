@@ -2,13 +2,13 @@ import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import {
   Pressable,
-
   StyleSheet,
   Text,
   View,
   Alert,
   ActivityIndicator,
   Share,
+  ScrollView,
 } from "react-native";
 import {
   CalendarDays,
@@ -19,7 +19,10 @@ import {
   Share2,
   Trash2,
 } from "lucide-react-native";
-import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
+import {
+  responsiveHeight,
+  responsiveWidth,
+} from "react-native-responsive-dimensions";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   useMadbelDeleteCalendarEventMutation,
@@ -28,11 +31,12 @@ import {
 } from "../../redux/slices/madbelApiSlice";
 import { API_BASE_URL } from "../../redux/apiUtils";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { formatMeetingDateTime } from "../../utils/formatDateTime";
 
 const DetailRow = ({ icon: Icon, title, value }) => (
   <View style={styles.detailRow}>
     <View style={styles.detailIcon}>
-      <Icon size={26} color="#12CFEA" />
+      <Icon size={20} color="#12CFEA" />
     </View>
     <View style={styles.detailContent}>
       <Text style={styles.detailTitle}>{title}</Text>
@@ -62,20 +66,10 @@ const MeetingDetailsScreen = () => {
   const [cachedShareUrl, setCachedShareUrl] = React.useState(null);
 
   const event = eventResponse?.data || route?.params?.event || null;
+  const googleCalendarEvent = route?.params?.googleCalendarEvent || null;
 
   const dateTimeLabel = React.useMemo(() => {
-    if (!event?.starts_at || !event?.ends_at) return "-";
-    const start = new Date(event.starts_at);
-    const end = new Date(event.ends_at);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "-";
-    const datePart = start.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    });
-    const startPart = start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const endPart = end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    return `${datePart} • ${startPart} - ${endPart}`;
+    return formatMeetingDateTime(event?.starts_at, event?.ends_at);
   }, [event?.starts_at, event?.ends_at]);
 
   const normalizeShareUrl = (rawUrl) => {
@@ -115,7 +109,10 @@ const MeetingDetailsScreen = () => {
       setResolvingShare(true);
       const shareUrl = await ensureShareUrl();
       if (!shareUrl) {
-        Alert.alert(t("share_unavailable"), t("could_not_generate_a_share_link"));
+        Alert.alert(
+          t("share_unavailable"),
+          t("could_not_generate_a_share_link"),
+        );
         return;
       }
 
@@ -135,7 +132,10 @@ const MeetingDetailsScreen = () => {
         title: event?.title || "Meeting Invite",
       });
     } catch (error) {
-      Alert.alert("Share failed", error?.data?.message || "Could not share this meeting.");
+      Alert.alert(
+        "Share failed",
+        error?.data?.message || "Could not share this meeting.",
+      );
     } finally {
       setResolvingShare(false);
     }
@@ -168,7 +168,10 @@ const MeetingDetailsScreen = () => {
   };
 
   const handleEdit = () => {
-    navigation.navigate("CreateMeetingSchedule", { prefill: event, event_id: eventId });
+    navigation.navigate("CreateMeetingSchedule", {
+      prefill: event,
+      event_id: eventId,
+    });
   };
 
   return (
@@ -176,7 +179,7 @@ const MeetingDetailsScreen = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ChevronLeft size={34} color="#F2F8FF" />
+            <ChevronLeft size={responsiveWidth(5)} color="#F2F8FF" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("meeting_details")}</Text>
           <View style={styles.backBtn} />
@@ -187,55 +190,76 @@ const MeetingDetailsScreen = () => {
             <ActivityIndicator size="large" color="#12CFEA" />
           </View>
         ) : (
-          <>
-        <Text style={styles.meetingTitle}>{event?.title || "Meeting"}</Text>
-
-        <DetailRow
-          icon={CalendarDays}
-          title={t("date_time")}
-          value={dateTimeLabel}
-        />
-        <DetailRow
-          icon={MapPin}
-          title={event?.meeting_mode === "online" ? "Meeting Link" : "Location"}
-          value={
-            event?.meeting_mode === "online"
-              ? event?.meeting_link || "Online"
-              : event?.location || "Not provided"
-          }
-        />
-        <DetailRow
-          icon={List}
-          title={t("description")}
-          value={event?.description || "No description provided."}
-        />
-
-        <View style={styles.divider} />
-
-        <View style={styles.actionsRow}>
-          <Pressable style={[styles.actionBtn, styles.actionBtnBlue]} onPress={handleEdit}>
-            <Pencil size={30} color="#12CFEA" />
-            <Text style={[styles.actionText, styles.actionTextBlue]}>{t("edit")}</Text>
-          </Pressable>
-          <Pressable
-            style={styles.actionBtn}
-            onPress={handleShare}
-            disabled={sharingEvent || resolvingShare}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
           >
-            <Share2 size={30} color="#EAF5FF" />
-            <Text style={styles.actionText}>
-              {sharingEvent || resolvingShare ? "Sharing..." : "Share"}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={styles.deleteBtn}
-            onPress={handleDelete}
-            disabled={deletingEvent}
-          >
-            <Trash2 size={32} color="#FF4F5F" />
-          </Pressable>
-        </View>
-          </>
+            <Text style={styles.meetingTitle}>{event?.title || "Meeting"}</Text>
+
+
+            <DetailRow
+              icon={CalendarDays}
+              title={t("date_time")}
+              value={dateTimeLabel}
+            />
+            <DetailRow
+              icon={MapPin}
+              title={
+                event?.meeting_mode === "online" ? "Meeting Link" : "Location"
+              }
+              value={
+                event?.meeting_mode === "online"
+                  ? event?.meeting_link || "Online"
+                  : event?.location || "Not provided"
+              }
+            />
+            <DetailRow
+              icon={List}
+              title={t("description")}
+              value={event?.description || "No description provided."}
+            />
+
+            {googleCalendarEvent?.htmlLink ? (
+              <View style={styles.googleCard}>
+                <Text style={styles.googleLabel}>Google Calendar</Text>
+                <Text style={styles.googleValue}>Synced successfully</Text>
+                <Text style={styles.googleLink} numberOfLines={2}>
+                  {googleCalendarEvent.htmlLink}
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={styles.divider} />
+
+            <View style={styles.actionsRow}>
+              <Pressable
+                style={[styles.actionBtn, styles.actionBtnBlue]}
+                onPress={handleEdit}
+              >
+                <Pencil size={20} color="#12CFEA" />
+                <Text style={[styles.actionText, styles.actionTextBlue]}>
+                  {t("edit")}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.actionBtn}
+                onPress={handleShare}
+                disabled={sharingEvent || resolvingShare}
+              >
+                <Share2 size={20} color="#EAF5FF" />
+                <Text style={styles.actionText}>
+                  {sharingEvent || resolvingShare ? "Sharing..." : "Share"}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.deleteBtn}
+                onPress={handleDelete}
+                disabled={deletingEvent}
+              >
+                <Trash2 size={20} color="#FF4F5F" />
+              </Pressable>
+            </View>
+          </ScrollView>
         )}
       </View>
     </SafeAreaView>
@@ -256,19 +280,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: responsiveHeight(2),
   },
-  backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  headerTitle: { color: "#F2F8FF", fontSize: 33 / 1.6, fontWeight: "700" },
+  backBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: { color: "#F2F8FF", fontSize: responsiveWidth(5), fontWeight: "700" },
   meetingTitle: {
     color: "#F4F9FF",
-    fontSize: 62 / 1.6,
+    fontSize: responsiveWidth(6),
     lineHeight: 70 / 1.6,
     fontWeight: "700",
     marginBottom: responsiveHeight(2.5),
   },
-  detailRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: responsiveHeight(2) },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: responsiveHeight(2),
+  },
   detailIcon: {
-    width: 84 / 1.2,
-    height: 84 / 1.2,
+    width: responsiveWidth(15),
+    height: responsiveWidth(15),
     borderRadius: 20,
     backgroundColor: "#0E3542",
     alignItems: "center",
@@ -276,13 +309,42 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   detailContent: { flex: 1 },
-  detailTitle: { color: "#F2F9FF", fontSize: 29 / 1.6, fontWeight: "700", marginBottom: 4 },
+  detailTitle: {
+    color: "#F2F9FF",
+    fontSize: 29 / 1.6,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
   detailValue: { color: "#95A4B9", fontSize: 27 / 1.6, lineHeight: 45 / 1.6 },
-  divider: { borderTopWidth: 1, borderTopColor: "#1D2A37", marginTop: 10, marginBottom: 22 },
-  actionsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  divider: {
+    borderTopWidth: 1,
+    borderTopColor: "#1D2A37",
+    marginTop: 10,
+    marginBottom: 22,
+  },
+  googleCard: {
+    marginTop: 10,
+    marginBottom: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#2A3442",
+    backgroundColor: "#111921",
+    padding: 14,
+    gap: 6,
+  },
+  googleLabel: { color: "#7DDCFF", fontSize: 12, fontWeight: "700" },
+  googleValue: { color: "#F2F8FF", fontSize: 15, fontWeight: "700" },
+  googleLink: { color: "#95A4B9", fontSize: 12, lineHeight: 18 },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingBottom: responsiveHeight(12),
+  },
   actionBtn: {
     flex: 1,
-    height: 84 / 1.2,
+    height: responsiveHeight(8),
     borderRadius: 22,
     backgroundColor: "#171C22",
     alignItems: "center",
@@ -295,11 +357,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#0E5D70",
   },
-  actionText: { color: "#F2F8FF", fontSize: 32 / 1.6, fontWeight: "700" },
+  actionText: { color: "#F2F8FF", fontSize: responsiveWidth(4), fontWeight: "700" },
   actionTextBlue: { color: "#12CFEA" },
   deleteBtn: {
-    width: 84 / 1.2,
-    height: 84 / 1.2,
+    width: responsiveWidth(15),
+    height: responsiveHeight(8),
     borderRadius: 22,
     backgroundColor: "#2A1115",
     borderWidth: 1,

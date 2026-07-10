@@ -28,7 +28,7 @@ import {
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeRecipients = (values) => {
-  const { t } = useAppLanguage();
+  // const { t } = useAppLanguage();
   if (!Array.isArray(values)) return [];
   return values
     .map((item) => (typeof item === "string" ? item.trim() : ""))
@@ -36,6 +36,7 @@ const normalizeRecipients = (values) => {
 };
 
 const BulkEmailRecipientsScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const tabBarHeight = useBottomTabBarHeight();

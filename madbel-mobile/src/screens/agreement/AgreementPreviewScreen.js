@@ -20,6 +20,30 @@ const STATUS_TONE_MAP = {
   expired: { text: "EXPIRED", color: "#FF5E74", border: "#703341", bg: "#3A1920" },
 };
 
+const resolveSigningUrl = (response) =>
+  response?.signing_url ||
+  response?.data?.signing_url ||
+  response?.data?.data?.signing_url ||
+  response?.sign_url ||
+  response?.data?.sign_url ||
+  response?.data?.data?.sign_url ||
+  null;
+
+const resolveSigningToken = (response) =>
+  response?.signature_token ||
+  response?.signatureToken ||
+  response?.signing_token ||
+  response?.signingToken ||
+  response?.data?.signature_token ||
+  response?.data?.signatureToken ||
+  response?.data?.signing_token ||
+  response?.data?.signingToken ||
+  response?.data?.data?.signature_token ||
+  response?.data?.data?.signatureToken ||
+  response?.data?.data?.signing_token ||
+  response?.data?.data?.signingToken ||
+  null;
+
 const AgreementPreviewScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
@@ -32,6 +56,7 @@ const AgreementPreviewScreen = () => {
     { skip: !agreementId },
   );
   const agreement = agreementResponse?.data || routeAgreement;
+  const signingProvider = agreement?.signing_provider || routeAgreement?.signing_provider;
   const tone = STATUS_TONE_MAP[String(agreement?.status || "pending_signature").toLowerCase()] || STATUS_TONE_MAP.pending_signature;
 
   const [showModal, setShowModal] = useState(false);
@@ -54,11 +79,26 @@ const AgreementPreviewScreen = () => {
         agreement_id: agreementId,
         recipient_name: name.trim() || undefined,
         recipient_email: email.trim() || undefined,
+        recipient_phone: phone.trim() || undefined,
         channel: email.trim() ? "email" : "link",
+        signing_provider: signingProvider || undefined,
       };
-      await sendForSignature(payload).unwrap();
+      const response = await sendForSignature(payload).unwrap();
+      const signingUrl = resolveSigningUrl(response);
+      const signingToken = resolveSigningToken(response);
       setShowModal(false);
       Alert.alert(t("sent"), t("agreement_sent_for_signature"));
+      if (signingUrl) {
+        const canOpen = await Linking.canOpenURL(signingUrl);
+        if (canOpen) {
+          await Linking.openURL(signingUrl);
+        }
+      } else if (signingToken) {
+        navigation.navigate("PublicSigning", {
+          documentType: "agreement",
+          signatureToken: signingToken,
+        });
+      }
     } catch (error) {
       Alert.alert("Send failed", error?.data?.message || "Could not send agreement.");
     }

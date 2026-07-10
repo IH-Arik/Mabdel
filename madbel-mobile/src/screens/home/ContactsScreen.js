@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -60,6 +61,9 @@ const ContactsScreen = () => {
     page_size: 100,
     search: query.trim() || undefined,
   });
+
+  console.log('LINE AT 65' , contactsResponse);
+  
 
 
 
@@ -122,7 +126,7 @@ const ContactsScreen = () => {
           </Text>
         </View>
 
-        <View style={styles.actionCol}>
+        {/* <View style={styles.actionCol}>
           {!item.is_app_user && (
             <Pressable style={styles.inviteBtn} onPress={() => handleInvite(item)} hitSlop={8}>
               <Text style={styles.inviteBtnText}>{t("invite")}</Text>
@@ -145,7 +149,7 @@ const ContactsScreen = () => {
           {item.phone && (
             <Text style={styles.callNumText} numberOfLines={1}>{item.phone}</Text>
           )}
-        </View>
+        </View> */}
 
         <ChevronRight size={22} color="#93DBEA" />
       </Pressable>
@@ -157,14 +161,14 @@ const ContactsScreen = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ChevronLeft size={34} color="#F3F9FF" />
+            <ChevronLeft size={responsiveWidth(5)} color="#F3F9FF" />
           </Pressable>
           <Text style={styles.headerTitle}>{t("contacts")}</Text>
           <Pressable
             onPress={() => setImportModalVisible(true)}
             style={styles.importIconBtn}
           >
-            <UserRoundPlus size={24} color="#12D0ED" />
+            <UserRoundPlus size={responsiveWidth(5)} color="#12D0ED" />
           </Pressable>
         </View>
 
@@ -201,12 +205,15 @@ const ContactsScreen = () => {
             sections={sections}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => renderContact({ item })}
-            renderSectionHeader={({ section }) => (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{section.title}</Text>
-                <Text style={styles.sectionCount}>{section.data.length}</Text>
-              </View>
-            )}
+            refreshControl={
+              <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor="#12D0ED" />
+            }
+            // renderSectionHeader={({ section }) => (
+            //   <View style={styles.sectionHeader}>
+            //     <Text style={styles.sectionTitle}>{section.title}</Text>
+            //     <Text style={styles.sectionCount}>{section.data.length}</Text>
+            //   </View>
+            // )}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
             stickySectionHeadersEnabled={false}
@@ -261,14 +268,18 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: "#F4FAFF",
-    fontSize: responsiveWidth(8.5),
+    fontSize: responsiveWidth(5),
     fontWeight: "700",
   },
   importIconBtn: {
-    width: 38,
-    height: 38,
+    width: responsiveWidth(10),
+    height: responsiveWidth(10),
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#0C2E39",
+    borderRadius: 19,
+    // borderWidth: 1,
+    borderColor: "#12D0ED33",
   },
   sectionHeader: {
     flexDirection: "row",

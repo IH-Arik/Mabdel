@@ -13,6 +13,7 @@ import {
   useMadbelSendLeaseForSignatureMutation,
   useMadbelSignLeaseMutation,
 } from "../../redux/slices/madbelApiSlice";
+import { API_BASE_URL } from "../../redux/apiUtils";
 
 const STATUS_TONE_MAP = {
   pending_signature: { text: "PENDING SIGNATURE", color: "#F4D52B", border: "#7A6B06", bg: "#302C13" },
@@ -21,8 +22,9 @@ const STATUS_TONE_MAP = {
   expired: { text: "EXPIRED", color: "#FF5E74", border: "#703341", bg: "#3A1920" },
 };
 
+const SIGNING_PROVIDER = "docusign";
+
 const formatDate = (value) => {
-  const { t } = useAppLanguage();
   if (!value) return "--";
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) return "--";
@@ -36,7 +38,63 @@ const formatMoney = (value) => {
   return `$${numeric.toLocaleString()}`;
 };
 
+const resolvePdfUrl = (payload) => {
+  if (!payload) return null;
+  if (typeof payload === "string") return payload;
+
+  return (
+    payload?.pdf_url ||
+    payload?.pdfUrl ||
+    payload?.url ||
+    payload?.data?.pdf_url ||
+    payload?.data?.pdfUrl ||
+    payload?.data?.url ||
+    null
+  );
+};
+
+const getPublicLeasePdfUrl = (shareUrl) => {
+  if (!shareUrl) return null;
+
+  if (/^https?:\/\//i.test(shareUrl)) {
+    try {
+      const parsed = new URL(shareUrl);
+      const pathWithQuery = `${parsed.pathname || ""}${parsed.search || ""}`;
+      return `${API_BASE_URL}${pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`}`;
+    } catch {
+      return shareUrl;
+    }
+  }
+
+  return `${API_BASE_URL}${shareUrl.startsWith("/") ? shareUrl : `/${shareUrl}`}`;
+};
+
+const resolveSigningUrl = (response) =>
+  response?.signing_url ||
+  response?.data?.signing_url ||
+  response?.data?.data?.signing_url ||
+  response?.sign_url ||
+  response?.data?.sign_url ||
+  response?.data?.data?.sign_url ||
+  null;
+
+const resolveSigningToken = (response) =>
+  response?.signature_token ||
+  response?.signatureToken ||
+  response?.signing_token ||
+  response?.signingToken ||
+  response?.data?.signature_token ||
+  response?.data?.signatureToken ||
+  response?.data?.signing_token ||
+  response?.data?.signingToken ||
+  response?.data?.data?.signature_token ||
+  response?.data?.data?.signatureToken ||
+  response?.data?.data?.signing_token ||
+  response?.data?.data?.signingToken ||
+  null;
+
 const LeasePreviewScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
   const routeLease = route?.params?.lease || {};
@@ -46,6 +104,7 @@ const LeasePreviewScreen = () => {
     { skip: !leaseId },
   );
   const lease = leaseResponse?.data || routeLease;
+
   const statusTone = STATUS_TONE_MAP[String(lease?.status || "pending_signature").toLowerCase()] || STATUS_TONE_MAP.pending_signature;
 
   const [showSendModal, setShowSendModal] = useState(false);
@@ -63,6 +122,30 @@ const LeasePreviewScreen = () => {
   const [sendForSignature, { isLoading: sendingForSignature }] = useMadbelSendLeaseForSignatureMutation();
   const [signLease, { isLoading: signingLease }] = useMadbelSignLeaseMutation();
   const [downloadLeasePdf, { isFetching: downloadingPdf }] = useLazyMadbelDownloadLeasePdfQuery();
+  const [cachedDownloadUrl, setCachedDownloadUrl] = useState(null);
+  const [resolvingDownloadLink, setResolvingDownloadLink] = useState(false);
+
+  const ensureDownloadUrl = async () => {
+    if (cachedDownloadUrl) return cachedDownloadUrl;
+    if (lease?.pdf_url) {
+      const normalizedLeaseUrl = getPublicLeasePdfUrl(lease.pdf_url);
+      setCachedDownloadUrl(normalizedLeaseUrl);
+      return normalizedLeaseUrl;
+    }
+    if (!leaseId) return null;
+
+    const response = await downloadLeasePdf({ lease_id: leaseId }).unwrap();
+    const resolvedUrl =
+      getPublicLeasePdfUrl(resolvePdfUrl(response)) ||
+      getPublicLeasePdfUrl(resolvePdfUrl(lease)) ||
+      null;
+
+    if (resolvedUrl) {
+      setCachedDownloadUrl(resolvedUrl);
+    }
+
+    return resolvedUrl;
+  };
 
   const handleDirectSign = async () => {
     if (!leaseId) {
@@ -114,10 +197,24 @@ const LeasePreviewScreen = () => {
         recipient_email: recipientEmail.trim() || undefined,
         recipient_phone: recipientPhone.trim() || undefined,
         channel: recipientEmail.trim() ? "email" : "link",
+        signing_provider: lease?.signing_provider || SIGNING_PROVIDER,
       };
-      await sendForSignature(payload).unwrap();
+      const response = await sendForSignature(payload).unwrap();
+      const signingUrl = resolveSigningUrl(response);
+      const signingToken = resolveSigningToken(response);
       setShowSendModal(false);
       Alert.alert(t("sent"), t("lease_sent_for_signature"));
+      if (signingUrl) {
+        const canOpen = await Linking.canOpenURL(signingUrl);
+        if (canOpen) {
+          await Linking.openURL(signingUrl);
+        }
+      } else if (signingToken) {
+        navigation.navigate("PublicSigning", {
+          documentType: "lease",
+          signatureToken: signingToken,
+        });
+      }
     } catch (error) {
       Alert.alert("Send failed", error?.data?.message || "Could not send lease for signature.");
     }
@@ -129,16 +226,38 @@ const LeasePreviewScreen = () => {
       return;
     }
     try {
-      const response = await downloadLeasePdf({ lease_id: leaseId });
-      const pdfUrl = response?.data?.data?.pdf_url || lease?.pdf_url;
+      setResolvingDownloadLink(true);
+      const pdfUrl = await ensureDownloadUrl();
       if (!pdfUrl) {
         Alert.alert(t("pdf_unavailable"), t("could_not_generate_pdf_link"));
         return;
       }
+
+      const canOpen = await Linking.canOpenURL(pdfUrl);
+      if (!canOpen) {
+        Alert.alert(t("open_failed"), t("this_device_cannot_open_the_pdf_link"));
+        return;
+      }
+
       await Linking.openURL(pdfUrl);
     } catch (error) {
-      Alert.alert("Download failed", error?.data?.message || "Could not open lease PDF.");
+      Alert.alert(t("download_failed"), error?.data?.message || t("could_not_open_the_lease_pdf"));
+    } finally {
+      setResolvingDownloadLink(false);
     }
+  };
+
+  const handleEditLease = () => {
+    if (!leaseId && !lease?.id) {
+      Alert.alert(t("unavailable"), t("lease_id_is_missing"));
+      return;
+    }
+
+    navigation.navigate("NewLease", {
+      mode: "edit",
+      leaseId: leaseId || lease?.id,
+      lease,
+    });
   };
 
   if (loadingLease && !lease?.id) {
@@ -161,9 +280,14 @@ const LeasePreviewScreen = () => {
             </Pressable>
             <Text style={styles.headerTitle}>{t("lease_preview")}</Text>
           </View>
-          <Pressable onPress={handleDownloadPdf} disabled={downloadingPdf}>
-            {downloadingPdf ? <ActivityIndicator color="#D7E8FF" /> : <Download size={24} color="#D7E8FF" />}
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable style={styles.editBtn} onPress={handleEditLease}>
+              <Text style={styles.editBtnText}>{t("edit_lease", "Edit Lease")}</Text>
+            </Pressable>
+            <Pressable onPress={handleDownloadPdf} disabled={downloadingPdf || resolvingDownloadLink}>
+              {downloadingPdf || resolvingDownloadLink ? <ActivityIndicator color="#D7E8FF" /> : <Download size={24} color="#D7E8FF" />}
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -175,32 +299,32 @@ const LeasePreviewScreen = () => {
           <View style={styles.docCard}>
             <Text style={styles.docTitle}>Residential Lease{"\n"}Agreement</Text>
             <View style={styles.docDivider} />
-            <Text style={styles.docText}>{t("this_residential_lease_agreement_agreement_is_made")}</Text>
-            <View style={styles.partyBox}>
+            <Text style={styles.docText}>{lease?.content}</Text>
+            {/* <View style={styles.partyBox}>
               <Text style={styles.partyLabel}>{t("landlord")}</Text>
               <Text style={styles.partyName}>{lease.landlord_name || "SmartFlow Properties"}</Text>
-            </View>
-            <View style={styles.partyBox}>
+            </View> */}
+            {/* <View style={styles.partyBox}>
               <Text style={styles.partyLabel}>{t("tenant")}</Text>
               <Text style={styles.partyName}>{lease.tenant_name || "John Doe"}</Text>
-            </View>
+            </View> */}
 
-            <Text style={styles.section}>{t("1_property_address")}</Text>
+            {/* <Text style={styles.section}>{t("1_property_address")}</Text>
             <Text style={styles.docText}>{lease.property_address || "221B Baker Street, London, NW1 6XE"}</Text>
             <Text style={styles.section}>{t("2_rent_payment")}</Text>
-            <Text style={styles.docText}>{formatMoney(lease.monthly_rent)}/month rent is due on the first day of each calendar month.</Text>
-            <Text style={styles.section}>{t("3_term_of_lease")}</Text>
-            <Text style={styles.docText}>
+            <Text style={styles.docText}>{formatMoney(lease.rent.monthly_rent_label)} rent is due on the first day of each calendar month.</Text>
+            <Text style={styles.section}>{t("3_term_of_lease")}</Text> */}
+            {/* <Text style={styles.docText}>
               The term of this lease begins on {formatDate(lease.start_date)} and terminates on {formatDate(lease.end_date)}.
-            </Text>
-            {lease.custom_terms ? (
+            </Text> */}
+            {/* {lease.custom_terms ? (
               <>
                 <Text style={styles.section}>{t("4_lease_terms")}</Text>
                 <Text style={styles.docText}>{lease.custom_terms}</Text>
               </>
-            ) : null}
+            ) : null} */}
 
-            {lease.status === "active" || lease.status === "signed" ? (
+            {/* {lease.status === "active" || lease.status === "signed" ? (
               <View style={styles.signedBlock}>
                 <Text style={styles.signedText}>Signed by {lease?.signature?.signer_name || "John Doe"}</Text>
                 <Text style={styles.signedSubText}>Date: {formatDate(lease?.signature?.signed_at || lease?.signed_at)}</Text>
@@ -216,10 +340,10 @@ const LeasePreviewScreen = () => {
                   <Text style={styles.signTag}>{t("landlord_signature_required")}</Text>
                 </Pressable>
               </>
-            )}
+            )} */}
           </View>
 
-          <View style={styles.reviewCard}>
+          {/* <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <Sparkles size={20} color="#10CDE9" />
               <Text style={styles.reviewTitle}>{t("ai_lease_review")}</Text>
@@ -245,16 +369,14 @@ const LeasePreviewScreen = () => {
                 <Text style={styles.reviewItemSub}>{t("no_review_findings_yet_tap_refresh_to_run_lease_re")}</Text>
               </View>
             )}
-          </View>
+          </View> */}
 
           {lease.status !== "active" && lease.status !== "signed" ? (
             <View style={styles.btnRow}>
               <Pressable style={[styles.sendBtn, { flex: 1 }]} onPress={() => setShowSendModal(true)}>
                 <Text style={styles.sendText}>{t("send_for_signature")}</Text>
               </Pressable>
-              <Pressable style={styles.signBtn} onPress={() => setShowSignModal(true)}>
-                <Text style={styles.signBtnText}>{t("sign_document")}</Text>
-              </Pressable>
+          
             </View>
           ) : (
             <Pressable style={styles.sendBtn} onPress={handleDownloadPdf} disabled={downloadingPdf}>
@@ -297,7 +419,7 @@ const LeasePreviewScreen = () => {
         </View>
       </Modal>
 
-      <Modal visible={showSignModal} transparent animationType="fade" onRequestClose={() => setShowSignModal(false)}>
+      {/* <Modal visible={showSignModal} transparent animationType="fade" onRequestClose={() => setShowSignModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -324,7 +446,7 @@ const LeasePreviewScreen = () => {
             </View>
           </View>
         </View>
-      </Modal>
+      </Modal> */}
     </SafeAreaView>
   );
 };
@@ -335,7 +457,10 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { marginTop: responsiveHeight(0.8), flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
   headerTitle: { color: "#F4F8FF", fontSize: 46 / 2, fontWeight: "700" },
+  editBtn: { minHeight: responsiveHeight(4.2), paddingHorizontal: responsiveWidth(3.2), borderRadius: 12, borderWidth: 1, borderColor: "#11CDE8", alignItems: "center", justifyContent: "center" },
+  editBtnText: { color: "#11CDE8", fontSize: 14, fontWeight: "700" },
   content: { paddingTop: responsiveHeight(1.4), paddingBottom: responsiveHeight(8), gap: responsiveHeight(1.4) },
   statusPill: { alignSelf: "center", borderRadius: 16, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: responsiveWidth(1.6), paddingHorizontal: responsiveWidth(3.5), paddingVertical: responsiveHeight(0.6) },
   statusText: { fontSize: 14, fontWeight: "700", letterSpacing: 1 },
@@ -353,7 +478,7 @@ const styles = StyleSheet.create({
   signedBlock: { marginTop: responsiveHeight(1.1), minHeight: responsiveHeight(7), borderRadius: 10, borderWidth: 1, borderColor: "#1B6F4D", alignItems: "center", justifyContent: "center", backgroundColor: "#EAFBF3" },
   signedText: { color: "#1B6F4D", fontSize: 18, fontWeight: "700" },
   signedSubText: { color: "#278961", fontSize: 14 },
-  btnRow: { flexDirection: "row", gap: responsiveWidth(3), width: "100%" },
+  btnRow: { flexDirection: "row", gap: responsiveWidth(3), width: "100%" , marginBottom: responsiveHeight(5)},
   signBtn: { flex: 1, minHeight: responsiveHeight(6.4), borderRadius: 14, borderWidth: 1, borderColor: "#11CDE8", backgroundColor: "transparent", alignItems: "center", justifyContent: "center" },
   signBtnText: { color: "#11CDE8", fontSize: 20 / 2, fontWeight: "700" },
   reviewCard: { borderRadius: 18, borderWidth: 1, borderColor: "#283245", backgroundColor: "#1B1E24", overflow: "hidden" },

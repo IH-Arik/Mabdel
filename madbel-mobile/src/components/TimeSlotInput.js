@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Clock } from 'lucide-react-native';
 import TimePickerComponent from './TimePickerComponent';
 
@@ -23,20 +23,24 @@ const TimeSlotInput = ({ label, value, onChange }) => {
   };
 
   return (
-    <View className="mb-4">
+    <View className="mb-4 w-full">
       {label && (
-        <Text className="text-base font-medium text-black mb-2">{label}</Text>
+        <Text style={{ marginBottom: 4, fontSize: 12, fontWeight: '500', color: '#677181' }}>
+          {label}
+        </Text>
       )}
 
-      <TouchableOpacity
+      <Pressable
         onPress={() => setShowPicker(true)}
-        className="flex-row items-center bg-white border border-border rounded-xl px-4 py-3"
+        activeOpacity={0.85}
+        // className="w-full flex-row items-center rounded-[18px] border-2 border-red-500 bg-[#1D1D21] px-4"
+        style={{ minHeight: 56 , backgroundColor: '#1D1D21', borderRadius: 18, borderWidth: 1, borderColor: '#2A3442', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}
       >
-        <Clock size={20} color="#6B7280" />
-        <Text className="text-base text-gray-900 ml-3 flex-1">
+        <Clock size={16} color="#677181" />
+        <Text style={{ marginLeft: 12, flex: 1, fontSize: 15, fontWeight: '500', color: '#677181' }}>
           {formatTime(value)}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
 
       <TimePickerComponent
         visible={showPicker}
