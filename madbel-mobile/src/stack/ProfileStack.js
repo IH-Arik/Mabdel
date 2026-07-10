@@ -15,6 +15,7 @@ import ProfileBusinessScreen from "../screens/profile/ProfileBusinessScreen";
 import ProfileBusinessEditScreen from "../screens/profile/ProfileBusinessEditScreen";
 import ProfileSupportScreen from "../screens/profile/ProfileSupportScreen";
 import ProfileVoiceHistoryScreen from "../screens/profile/ProfileVoiceHistoryScreen";
+import SingleChatScreen from "../screens/chat/SingleChatScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +57,8 @@ const HomeStack = () => {
           },
         }}
       />
+      {/* <Stack.Screen name="SingleChat" component={SingleChatScreen} /> */}
+
       <Stack.Screen
         name="ProfileVoiceHistory"
         component={ProfileVoiceHistoryScreen}

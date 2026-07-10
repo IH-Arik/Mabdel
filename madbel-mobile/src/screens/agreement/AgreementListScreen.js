@@ -19,6 +19,8 @@ const STATUS_MAP = {
   cancelled: { label: "CANCELLED", bg: "#372A2F", border: "#635059", color: "#E5B9C7" },
 };
 
+const SIGNING_PROVIDER = "docusign";
+
 const iconForType = (type) => {
   const typeStr = String(type || "").toLowerCase();
   if (typeStr.includes("lease")) return Building2;
@@ -79,6 +81,7 @@ const AgreementListScreen = () => {
         recipient_name: agreement.client_name,
         recipient_email: agreement.client_email,
         channel: "email",
+        signing_provider: agreement.signing_provider || SIGNING_PROVIDER,
       }).unwrap();
       Alert.alert(t("sent"), t("agreement_sent_for_signature"));
     } catch (err) {

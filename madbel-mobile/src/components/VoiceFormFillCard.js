@@ -79,7 +79,7 @@ const RETRY_HINTS = {
 
 // ─── TTS ─────────────────────────────────────────────────────────────────────
 const speakText = (text, options = {}) => {
-  const { t } = useAppLanguage();
+  // const { t } = useAppLanguage();
 
   try {
     if (!Speech) return false;

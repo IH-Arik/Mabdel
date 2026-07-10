@@ -11,6 +11,7 @@ import { ChevronLeft, Search, X, UserPlus } from "lucide-react-native";
 import { useForm } from "react-hook-form";
 import ControllerTextInput from "../../components/ControllerTextInput";
 import {
+  useMadbelListContactsQuery,
   useMadbelSearchAppUsersQuery,
 } from "../../redux/slices/madbelApiSlice";
 import { useCreateGroupMessagesMutation } from "../../redux/slices/chat/chatSlice";
@@ -46,10 +47,25 @@ const CreateGroupScreen = () => {
     return () => clearTimeout(t);
   }, [memberSearch]);
 
+    const {
+      data: contactsResponse,
+      isLoading,
+      isFetching,
+      error,
+      refetch,
+    } = useMadbelListContactsQuery({
+      page: 1,
+      page_size: 100,
+      search: debouncedSearch.trim() || undefined,
+    });
+
   const { data: usersResponse, isFetching: usersFetching } = useMadbelSearchAppUsersQuery(
     { q: debouncedSearch, page: 1, page_size: 50 },
   );
-  const appUsers = usersResponse?.data?.items || [];
+  const appUsers = usersResponse?.data?.items || contactsResponse?.data?.items;
+
+  console.log('LINE AT 54' , usersResponse , contactsResponse , appUsers);
+  
 
   // Keep cache up to date as search results arrive
   useEffect(() => {
@@ -156,14 +172,14 @@ const CreateGroupScreen = () => {
             {usersFetching ? <ActivityIndicator color="#14C9E7" style={{ marginVertical: 6 }} /> : null}
 
             <View style={styles.memberList}>
-              {appUsers.length === 0 && !usersFetching ? (
+              {/* {appUsers.length === 0 && !usersFetching ? (
                 <Text style={styles.emptyUsers}>
                   {debouncedSearch.trim()
                     ? tr("no_app_users_found", "No app users found.")
                     : tr("start_typing_to_search_users", "Start typing to search users.")}
                 </Text>
-              ) : null}
-              {/* {appUsers.map((member) => {
+              ) : null} */}
+              {contactsResponse?.data?.items.map((member) => {
                 const selected = selectedMemberIds.includes(member.id);
                 return (
                   <Pressable key={member.id} style={[styles.memberChip, selected && styles.memberChipSelected]} onPress={() => toggleMember(member.id)}>
@@ -180,7 +196,7 @@ const CreateGroupScreen = () => {
                     {selected ? <X size={20} color="#14C9E7" /> : <Text style={styles.addText}>{tr("add", "Add")}</Text>}
                   </Pressable>
                 );
-              })} */}
+              })}
             </View>
             <VoiceFormFillCard
               label={tr("group", "Group")}
