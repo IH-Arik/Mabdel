@@ -39,6 +39,10 @@ import {
   useMadbelUpdateSettingsMutation,
   useMadbelUploadProfileAvatarMutation,
 } from "../../redux/slices/madbelApiSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { setCredentials } from "../../redux/reducers/authReducer";
+import { baseApi } from "../../redux/baseApi";
+import { getApiData } from "../../redux/apiUtils";
 
 const avatarSize = responsiveWidth(40);
 
@@ -53,6 +57,8 @@ const ProfileEditScreen = () => {
   } = useFormContext();
 
   const navigation = useNavigation();
+  const dispatch = useDispatch();
+  const authUser = useSelector((state) => state?.auth?.user || {});
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -65,6 +71,100 @@ const ProfileEditScreen = () => {
     useMadbelUpdateSettingsMutation();
   const [uploadProfileAvatar, { isLoading: avatarUploading }] =
     useMadbelUploadProfileAvatarMutation();
+
+  const syncProfileState = (response, fallback = {}) => {
+    const profile = getApiData(response) || response || {};
+    const fullName =
+      profile?.full_name ||
+      profile?.fullName ||
+      profile?.name ||
+      fallback?.full_name ||
+      fallback?.fullName ||
+      fallback?.name ||
+      authUser?.full_name ||
+      authUser?.fullName ||
+      authUser?.name ||
+      "";
+    const avatarUrl =
+      profile?.avatar_url ||
+      profile?.profileImage ||
+      profile?.avatar ||
+      fallback?.avatar_url ||
+      fallback?.profileImage ||
+      fallback?.avatar ||
+      authUser?.avatar_url ||
+      authUser?.profileImage ||
+      authUser?.avatar ||
+      "";
+    const email =
+      profile?.email ||
+      fallback?.email ||
+      authUser?.email ||
+      "";
+    const country =
+      profile?.country ||
+      fallback?.country ||
+      authUser?.country ||
+      "";
+    const dateOfBirth =
+      profile?.date_of_birth ||
+      profile?.dob ||
+      profile?.dateOfBirth ||
+      fallback?.date_of_birth ||
+      fallback?.dob ||
+      fallback?.dateOfBirth ||
+      authUser?.date_of_birth ||
+      authUser?.dob ||
+      authUser?.dateOfBirth ||
+      "";
+
+    const mergedProfile = {
+      ...authUser,
+      ...fallback,
+      ...profile,
+      full_name: fullName,
+      fullName,
+      name: fullName,
+      avatar_url: avatarUrl,
+      profileImage: avatarUrl,
+      avatar: avatarUrl,
+      email,
+      country,
+      date_of_birth: dateOfBirth,
+      dob: dateOfBirth,
+      dateOfBirth,
+    };
+
+    dispatch(
+      setCredentials({
+        accessToken: undefined,
+        refreshToken: undefined,
+        user: mergedProfile,
+      }),
+    );
+
+    dispatch(
+      baseApi.util.updateQueryData("getProfile", undefined, (draft) => {
+        if (!draft) return;
+        if (draft.data && typeof draft.data === "object") {
+          draft.data = {
+            ...draft.data,
+            ...mergedProfile,
+          };
+        } else {
+          draft.data = {
+            ...mergedProfile,
+          };
+        }
+      }),
+    );
+
+    dispatch(
+      baseApi.util.invalidateTags([{ type: "UserProfile", id: "ME" }]),
+    );
+
+    return mergedProfile;
+  };
 
   useEffect(() => {
     const profile = userData?.data;
@@ -101,7 +201,15 @@ const ProfileEditScreen = () => {
         ),
       );
 
-      await editProfile(sanitizedPayload).unwrap();
+      const response = await editProfile(sanitizedPayload).unwrap();
+      const updatedProfile = syncProfileState(response, sanitizedPayload);
+      reset({
+        profileImage: updatedProfile?.avatar_url || updatedProfile?.profileImage || updatedProfile?.avatar || "",
+        profileFullName: updatedProfile?.full_name || updatedProfile?.fullName || updatedProfile?.name || "",
+        email: updatedProfile?.email || "",
+        country: updatedProfile?.country || "",
+      });
+      setSelectedDate(updatedProfile?.date_of_birth || updatedProfile?.dob || updatedProfile?.dateOfBirth || null);
       setShowSuccessModal(true);
     } catch (error) {
       setError("root", {
@@ -130,16 +238,24 @@ const ProfileEditScreen = () => {
     const asset = response?.assets?.[0];
     if (!asset?.uri) return;
 
-    try {
-      const uploadResponse = await uploadProfileAvatar({
-        avatar_file: {
-          uri: asset.uri,
-          type: asset.type || "image/jpeg",
+      try {
+        const uploadResponse = await uploadProfileAvatar({
+          avatar_file: {
+            uri: asset.uri,
+            type: asset.type || "image/jpeg",
           name: asset.fileName || `profile-avatar-${Date.now()}.jpg`,
         },
-      }).unwrap();
+        }).unwrap();
 
-      onChange(uploadResponse?.data?.avatar_url || "");
+      const avatarUrl = getApiData(uploadResponse)?.avatar_url || uploadResponse?.data?.avatar_url || "";
+      onChange(avatarUrl);
+      const updatedProfile = syncProfileState(uploadResponse, { avatar_url: avatarUrl });
+      reset({
+        profileImage: updatedProfile?.avatar_url || updatedProfile?.profileImage || updatedProfile?.avatar || "",
+        profileFullName: updatedProfile?.full_name || updatedProfile?.fullName || updatedProfile?.name || "",
+        email: updatedProfile?.email || "",
+        country: updatedProfile?.country || "",
+      });
       setImageModalVisible(false);
     } catch (error) {
       setAvatarUploadError(error?.data?.message || "Could not upload the image.");
@@ -216,8 +332,8 @@ const ProfileEditScreen = () => {
                 label={t("name")}
                 placeholder={t("name")}
                 placeholderTextColor="#8493A8"
-                inputStyle={styles.input}
-                labelStyle={styles.label}
+                // inputStyle={styles.input}
+                // labelStyle={styles.label}
                 errorTextStyle={styles.errorText}
               />
 
@@ -231,8 +347,8 @@ const ProfileEditScreen = () => {
                 type="email-address"
                 autoCapitalize="none"
                 placeholderTextColor="#8493A8"
-                inputStyle={[styles.input, styles.inputWithIcon]}
-                labelStyle={styles.label}
+                // inputStyle={[styles.input, styles.inputWithIcon]}
+                // labelStyle={styles.label}
                 errorTextStyle={styles.errorText}
                 rightIcon={<Mail size={22} color="#D5E5EF" />}
               />
@@ -240,9 +356,9 @@ const ProfileEditScreen = () => {
               <View>
                 <Text style={styles.label}>{t("date_of_birth")}</Text>
                 <Pressable style={styles.inputIconWrap} onPress={() => setModalVisible(true)}>
-                  <View style={styles.inputStaticTextWrap}>
+                  {/* <View style={styles.inputStaticTextWrap}> */}
                     <Text style={styles.inputStaticText}>{formatSelectedDate(selectedDate)}</Text>
-                  </View>
+                  {/* </View> */}
                   <CalendarDays size={22} color="#D5E5EF" />
                 </Pressable>
               </View>
@@ -253,8 +369,8 @@ const ProfileEditScreen = () => {
                 label={t("country")}
                 placeholder={t("country")}
                 placeholderTextColor="#8493A8"
-                inputStyle={[styles.input, styles.inputWithIcon]}
-                labelStyle={styles.label}
+                // inputStyle={[styles.input, styles.inputWithIcon]}
+                // labelStyle={styles.label}
                 rightIcon={<ChevronDown size={28} color="#D5E5EF" />}
               />
               <VoiceFormFillCard
@@ -385,12 +501,12 @@ const styles = StyleSheet.create({
   },
   inputIconWrap: {
     minHeight: responsiveHeight(6),
-    borderWidth: 2,
-    borderColor: "#12C9EB",
-    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "gray",
+    borderRadius: 9,
     paddingLeft: responsiveWidth(2),
     paddingRight: responsiveWidth(6),
-    backgroundColor: "#020406",
+    backgroundColor: "#1D1F24",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

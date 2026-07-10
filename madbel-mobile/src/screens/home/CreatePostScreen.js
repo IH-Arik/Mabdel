@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   backBtn: { width: responsiveWidth(10), alignItems: "flex-start" },
   headerSpace: { width: responsiveWidth(10) },
   title: { color: "#FFFFFF", fontSize: responsiveWidth(5.2), fontWeight: "700" },
-  scrollContent: { gap: responsiveHeight(1.8), paddingBottom: responsiveHeight(18) },
+  scrollContent: { gap: responsiveHeight(1.8), paddingBottom: responsiveHeight(28) },
   card: {
     borderRadius: 18,
     borderWidth: 1,
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: responsiveWidth(4.5),
     right: responsiveWidth(4.5),
-    bottom: responsiveHeight(2),
+    bottom: responsiveHeight(10),
     gap: responsiveHeight(1.2),
   },
   footerRow: {

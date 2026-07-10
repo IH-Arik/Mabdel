@@ -367,9 +367,9 @@ const BulkMessagingScreen = () => {
               textAlignVertical="top"
             />
 
-            <Pressable style={styles.micButton}>
+            {/* <Pressable style={styles.micButton}>
               <Mic size={responsiveWidth(8)} color="#EAF9FF" strokeWidth={2.5} />
-            </Pressable>
+            </Pressable> */}
           </View>
 
           <View style={styles.attachCard}>

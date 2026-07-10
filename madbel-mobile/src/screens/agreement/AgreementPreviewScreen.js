@@ -69,6 +69,19 @@ const AgreementPreviewScreen = () => {
 
   const review = useMemo(() => agreement?.ai_review || [], [agreement?.ai_review]);
 
+  const handleEditAgreement = () => {
+    if (!agreementId && !agreement?.id) {
+      Alert.alert(t("unavailable"), t("agreement_not_found"));
+      return;
+    }
+
+    navigation.navigate("AgreementCreate", {
+      mode: "edit",
+      agreementId: agreementId || agreement?.id,
+      agreement,
+    });
+  };
+
   const handleSend = async () => {
     if (!agreementId) {
       Alert.alert(t("unavailable"), t("agreement_not_found"));
@@ -137,9 +150,14 @@ const AgreementPreviewScreen = () => {
             </Pressable>
             <Text style={styles.headerTitle}>{t("agreement_preview")}</Text>
           </View>
-          <Pressable onPress={openPdf} disabled={downloadingPdf}>
-            {downloadingPdf ? <ActivityIndicator color="#D7E8FF" /> : <Download size={24} color="#D7E8FF" />}
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable style={styles.editBtn} onPress={handleEditAgreement}>
+              <Text style={styles.editBtnText}>{t("edit_agreement", "Edit Agreement")}</Text>
+            </Pressable>
+            <Pressable onPress={openPdf} disabled={downloadingPdf}>
+              {downloadingPdf ? <ActivityIndicator color="#D7E8FF" /> : <Download size={24} color="#D7E8FF" />}
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -238,7 +256,10 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { marginTop: responsiveHeight(0.7), flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
   headerTitle: { color: "#F4F8FF", fontSize: 46 / 2, fontWeight: "700" },
+  editBtn: { minHeight: responsiveHeight(4.2), paddingHorizontal: responsiveWidth(3.2), borderRadius: 12, borderWidth: 1, borderColor: "#11CDE8", alignItems: "center", justifyContent: "center" },
+  editBtnText: { color: "#11CDE8", fontSize: 14, fontWeight: "700" },
   content: { paddingTop: responsiveHeight(1.4), paddingBottom: responsiveHeight(9), gap: responsiveHeight(1.6) },
   statusPill: { alignSelf: "center", borderRadius: 18, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: responsiveWidth(1.8), paddingHorizontal: responsiveWidth(4), paddingVertical: responsiveHeight(0.7) },
   statusText: { fontWeight: "700", fontSize: 17 },
