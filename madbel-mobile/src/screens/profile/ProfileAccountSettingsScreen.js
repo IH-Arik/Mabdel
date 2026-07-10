@@ -206,6 +206,7 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
 };
 
 const TwilioSetupCard = () => {
+  const { t } = useAppLanguage();
   const { data, isLoading: statusLoading, refetch } = useMadbelGetTwilioStatusQuery();
   const [provisionTwilio, { isLoading: provisioning }] = useMadbelProvisionTwilioMutation();
   const [removeCustom] = useMadbelRemoveCustomTwilioMutation();
@@ -336,6 +337,7 @@ const TwilioSetupCard = () => {
 };
 
 const ProfileAccountSettingsScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const [deleteAccount, { isLoading: deleting }] = useMadbelDeleteAccountMutation();

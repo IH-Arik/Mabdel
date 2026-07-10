@@ -1,8 +1,9 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Keyboard,
   Pressable,
-
   ScrollView,
   StyleSheet,
   Switch,
@@ -12,11 +13,11 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
 } from "react-native";
 import {
   CalendarDays,
   ChevronLeft,
-  Clock3,
   Mail,
   MapPin,
   Mic,
@@ -35,10 +36,16 @@ import {
   useMadbelListContactsQuery,
 } from "../../redux/slices/madbelApiSlice";
 import { MEETING_REMINDERS } from "../../../assets/data/meetingMockData";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import TimeSlotInput from "../../components/TimeSlotInput";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
-
+import {
+  connectGoogleCalendar as connectGoogleCalendarAuth,
+  createGoogleCalendarEvent,
+  disconnectGoogleCalendar,
+  restoreGoogleCalendarConnection,
+} from "../../utils/googleCalendarAuth";
+import { parseServerDateTime } from "../../utils/formatDateTime";
 const REMINDER_TO_MINUTES = {
   "10 min": 10,
   "30 min": 30,
@@ -47,47 +54,35 @@ const REMINDER_TO_MINUTES = {
   "1 day": 1440,
 };
 
-const formatTimeForInput = (date) =>
-  date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-const parseTimeInput = (timeValue) => {
-  const { t } = useAppLanguage();
-  const cleaned = String(timeValue || "").trim().toUpperCase();
-  const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/);
-  if (!match) return null;
-
-  let hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  const meridiem = match[3];
-  if (Number.isNaN(hours) || Number.isNaN(minutes) || minutes > 59 || hours < 1 || hours > 12) {
-    return null;
-  }
-
-  if (meridiem === "PM" && hours < 12) hours += 12;
-  if (meridiem === "AM" && hours === 12) hours = 0;
-  if (!meridiem && hours === 12) hours = 12;
-
-  return { hours, minutes };
-};
-
-const combineDateTime = (dateISO, timeInput) => {
-  const parsed = parseTimeInput(timeInput);
-  if (!parsed) return null;
+const mergeDateAndTime = (dateISO, timeValue, useUTC = false) => {
+  if (!(timeValue instanceof Date)) return null;
   const date = new Date(dateISO);
   if (Number.isNaN(date.getTime())) return null;
-  date.setHours(parsed.hours, parsed.minutes, 0, 0);
+  if (useUTC) {
+    date.setUTCHours(timeValue.getUTCHours(), timeValue.getUTCMinutes(), 0, 0);
+  } else {
+    date.setHours(timeValue.getHours(), timeValue.getMinutes(), 0, 0);
+  }
   return date;
 };
 
 const CreateMeetingScheduleScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const prefill = route?.params?.prefill || {};
   const selectedDateFromRoute = route?.params?.selectedDate;
-  const startsAt = prefill?.starts_at ? new Date(prefill.starts_at) : null;
+  const startsAt = prefill?.starts_at ? parseServerDateTime(prefill.starts_at) : null;
   const hasValidStart = startsAt && !Number.isNaN(startsAt.getTime());
+  const {t} = useAppLanguage();
 
   const [voiceTrigger, setVoiceTrigger] = useState(0);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
+  const [googleCalendarAccessToken, setGoogleCalendarAccessToken] = useState("");
+  const [googleCalendarSyncStatus, setGoogleCalendarSyncStatus] = useState("idle");
+  const [googleCalendarSyncMessage, setGoogleCalendarSyncMessage] = useState("");
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const [createCalendarEvent, { isLoading: creatingMeeting }] =
     useMadbelCreateCalendarEventMutation();
@@ -102,15 +97,15 @@ const CreateMeetingScheduleScreen = () => {
     if (p.title) setMeetingTitle(p.title);
     if (p.description) setMeetingDescription(p.description);
     if (p.starts_at) {
-      const d = new Date(p.starts_at);
-      if (!Number.isNaN(d.getTime())) {
+      const d = parseServerDateTime(p.starts_at);
+      if (d) {
         setDateISO(d.toISOString().slice(0, 10));
-        setTime(formatTimeForInput(d));
+        setStartTimeSlot(d);
       }
     }
     if (p.ends_at) {
-      const d = new Date(p.ends_at);
-      if (!Number.isNaN(d.getTime())) setEndTimeSlot(d);
+      const d = parseServerDateTime(p.ends_at);
+      if (d) setEndTimeSlot(d);
     }
     if (p.location) setLocation(p.location);
     if (p.meeting_mode) setMeetingMode(p.meeting_mode);
@@ -126,6 +121,46 @@ const CreateMeetingScheduleScreen = () => {
     }
   }, [route?.params?.prefill]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const restoreGoogleCalendar = async () => {
+      try {
+        const restored = await restoreGoogleCalendarConnection();
+        const accessToken = restored?.accessToken;
+        if (!cancelled && accessToken) {
+          setGoogleCalendarAccessToken(accessToken);
+          setGoogleCalendarConnected(true);
+          setGoogleCalendarSyncStatus("connected");
+          setGoogleCalendarSyncMessage("Google Calendar is connected on this device.");
+        }
+      } catch {
+        // No saved Google session yet; user can connect from this screen.
+      }
+    };
+
+    restoreGoogleCalendar();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event?.endCoordinates?.height || 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
 
   const [meetingTitle, setMeetingTitle] = useState(
     prefill?.title || "Project Sync with Design Team",
@@ -140,8 +175,8 @@ const CreateMeetingScheduleScreen = () => {
       ? startsAt.toISOString().slice(0, 10)
       : selectedDateFromRoute || new Date().toISOString().slice(0, 10),
   );
-  const [time, setTime] = useState(
-    hasValidStart ? formatTimeForInput(startsAt) : "10:00 AM",
+  const [startTimeSlot, setStartTimeSlot] = useState(
+    hasValidStart ? startsAt : new Date(),
   );
   const [endTimeSlot, setEndTimeSlot] = useState(() => {
     const base = hasValidStart && startsAt ? startsAt : new Date();
@@ -177,20 +212,57 @@ const CreateMeetingScheduleScreen = () => {
     );
   };
 
+  const handleGoogleCalendarConnect = async () => {
+    setGoogleLoading(true);
+    try {
+      const { accessToken } = await connectGoogleCalendarAuth();
+      setGoogleCalendarAccessToken(accessToken);
+      setGoogleCalendarConnected(true);
+      setGoogleCalendarSyncStatus("connected");
+      setGoogleCalendarSyncMessage("Google Calendar is connected on this device.");
+      Alert.alert(t("success"), "Google Calendar connected successfully.");
+    } catch (error) {
+      if (error?.code === "SIGN_IN_CANCELLED") return;
+      Alert.alert(
+        t("error"),
+        error?.data?.message || error?.message || t("google_sign_in_failed"),
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleCalendarDisconnect = async () => {
+    setGoogleLoading(true);
+    try {
+      await disconnectGoogleCalendar();
+      setGoogleCalendarAccessToken("");
+      setGoogleCalendarConnected(false);
+      setGoogleCalendarSyncStatus("idle");
+      setGoogleCalendarSyncMessage("Google Calendar disconnected.");
+      Alert.alert(t("success"), "Google Calendar disconnected successfully.");
+    } catch (error) {
+      Alert.alert(
+        t("error"),
+        error?.message || "Could not disconnect Google Calendar.",
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const sendMeeting = async () => {
-    const startsAtDate = combineDateTime(dateISO, time);
+    const startsAtDate = mergeDateAndTime(dateISO, startTimeSlot, true);
     if (!startsAtDate) {
       Alert.alert(t("invalid_time"), t("use_a_valid_time_like_10_00_am"));
       return;
     }
 
-    const endsAtDate = new Date(dateISO);
-    endsAtDate.setHours(
-      endTimeSlot.getHours(),
-      endTimeSlot.getMinutes(),
-      0,
-      0,
-    );
+    const endsAtDate = mergeDateAndTime(dateISO, endTimeSlot, true);
+    if (!endsAtDate) {
+      Alert.alert(t("invalid_time"), t("use_a_valid_time_like_10_00_am"));
+      return;
+    }
     if (endsAtDate <= startsAtDate) {
       Alert.alert(t("invalid_time_range"), t("end_time_must_be_later_than_start_time"));
       return;
@@ -210,16 +282,59 @@ const CreateMeetingScheduleScreen = () => {
         meeting_mode: meetingMode,
         location: meetingMode === "offline" ? location.trim() || undefined : undefined,
         meeting_link: meetingMode === "online" ? meetingLink.trim() || undefined : undefined,
-        notify_via_push: notifyPush,
-        notify_via_email: notifyEmail,
-        notify_via_sms: notifySMS,
+        // notify_via_push: notifyPush,
+        // notify_via_email: notifyEmail,
+        // notify_via_sms: notifySMS,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        reminder_minutes: REMINDER_TO_MINUTES[activeReminder] || 10,
+        // reminder_minutes: REMINDER_TO_MINUTES[activeReminder] || 10,
       };
 
+      console.log("Creating meeting schedule with payload:", payload);
+
       const response = await createCalendarEvent(payload).unwrap();
-      navigation.navigate("MeetingDetails", { event: response?.data });
+      let createdGoogleEvent = null;
+
+      if (googleCalendarConnected && googleCalendarAccessToken) {
+        try {
+          setGoogleCalendarSyncStatus("syncing");
+          setGoogleCalendarSyncMessage("Syncing this meeting to Google Calendar...");
+          createdGoogleEvent = await createGoogleCalendarEvent(googleCalendarAccessToken, {
+            summary: payload.title,
+            description: payload.description || "",
+            location: payload.location || payload.meeting_link || "",
+            start: {
+              dateTime: payload.starts_at,
+              timeZone: payload.timezone,
+            },
+            end: {
+              dateTime: payload.ends_at,
+              timeZone: payload.timezone,
+            },
+          });
+          setGoogleCalendarSyncStatus("synced");
+          setGoogleCalendarSyncMessage(
+            createdGoogleEvent?.htmlLink
+              ? "Meeting synced to Google Calendar."
+              : "Meeting synced to Google Calendar, but no event link was returned.",
+          );
+        } catch (googleError) {
+          setGoogleCalendarSyncStatus("failed");
+          setGoogleCalendarSyncMessage(
+            googleError?.message || "Google Calendar sync failed.",
+          );
+          console.log("Google Calendar sync failed:", googleError);
+        }
+      } else {
+        setGoogleCalendarSyncStatus("idle");
+        setGoogleCalendarSyncMessage("");
+      }
+
+      navigation.navigate("MeetingDetails", {
+        event: response?.data || response,
+        googleCalendarEvent: createdGoogleEvent,
+      });
     } catch (error) {
+      console.log("Error creating meeting schedule:", error);
       Alert.alert(
         "Schedule failed",
         error?.data?.message || "Could not create the meeting schedule.",
@@ -228,17 +343,19 @@ const CreateMeetingScheduleScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
-            <ChevronLeft size={30} color="#11CDE8" />
-          </Pressable>
-          <Text style={styles.title}>{t("create_meeting_schedule")}</Text>
-        </View>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
+              <ChevronLeft size={30} color="#11CDE8" />
+            </Pressable>
+            <Text style={styles.title}>{t("create_meeting_schedule")}</Text>
+          </View>
 
         <Text style={styles.sectionLabel}>{t("meeting_title")}</Text>
         <View style={styles.inputWrap}>
@@ -277,44 +394,23 @@ const CreateMeetingScheduleScreen = () => {
           currentValues={{
             title: meetingTitle,
             description: meetingDescription,
-            starts_at: combineDateTime(dateISO, time)?.toISOString() ?? "",
-            ends_at: endTimeSlot?.toISOString() ?? "",
+            starts_at: mergeDateAndTime(dateISO, startTimeSlot, true)?.toISOString() ?? "",
+            ends_at: mergeDateAndTime(dateISO, endTimeSlot, true)?.toISOString() ?? "",
             location,
             meeting_mode: meetingMode,
             meeting_link: meetingLink,
           }}
         />
 
-        <View style={styles.twoCol}>
-          <View style={styles.colItem}>
-            <Text style={styles.sectionLabel}>{t("date")}</Text>
-            <Pressable style={styles.inputWrap} onPress={() => setCalendarVisible(true)}>
-              <CalendarDays size={20} color="#798498" />
-              <Text style={styles.input}>{dateLabel}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.colItem}>
-            <Text style={styles.sectionLabel}>{t("time")}</Text>
-            <View style={styles.inputWrap}>
-              <Clock3 size={20} color="#798498" />
-              <TextInput
-                value={time}
-                onChangeText={setTime}
-                style={styles.input}
-                placeholder={t("10_00_am")}
-                placeholderTextColor="#697588"
-              />
-            </View>
-          </View>
-        </View>
+        <Text style={styles.sectionLabel}>{t("date")}</Text>
+        <Pressable style={styles.inputWrap} onPress={() => setCalendarVisible(true)}>
+          <CalendarDays size={20} color="#798498" />
+          <Text style={styles.input}>{dateLabel}</Text>
+        </Pressable>
 
-        <Text style={styles.sectionLabel}>{t("end_time")}</Text>
-        <View style={styles.slotWrap}>
-          <TimeSlotInput
-            value={endTimeSlot}
-            onChange={setEndTimeSlot}
-          />
-        </View>
+        <TimeSlotInput label={t("time")} value={startTimeSlot} onChange={setStartTimeSlot} />
+
+        <TimeSlotInput label={t("end_time")} value={endTimeSlot} onChange={setEndTimeSlot} />
 
         <View style={styles.twoCol}>
           <Pressable
@@ -401,7 +497,7 @@ const CreateMeetingScheduleScreen = () => {
           })}
         </ScrollView>
 
-        <Text style={styles.sectionLabel}>{t("notify_via")}</Text>
+        {/* <Text style={styles.sectionLabel}>{t("notify_via")}</Text>
         <View style={styles.notifyCard}>
           <View style={styles.notifyRow}>
             <View style={styles.notifyLeft}>
@@ -430,9 +526,9 @@ const CreateMeetingScheduleScreen = () => {
             </View>
             <Switch value={notifySMS} onValueChange={setNotifySMS} />
           </View>
-        </View>
+        </View> */}
 
-        <Text style={styles.helperText}>{t("your_ai_assistant_mabdel_will_prioritize_push_noti")}</Text>
+        {/* <Text style={styles.helperText}>{t("your_ai_assistant_mabdel_will_prioritize_push_noti")}</Text>
 
         <Text style={styles.sectionLabel}>{t("reminder_time")}</Text>
         <View style={styles.reminderGrid}>
@@ -455,37 +551,101 @@ const CreateMeetingScheduleScreen = () => {
               </Text>
             </Pressable>
           ))}
+        </View> */}
+
+        <View style={styles.googleCard}>
+          <View style={styles.googleTextWrap}>
+            <Text style={styles.googleTitle}>Google Calendar</Text>
+            <Text style={styles.googleSubTitle}>
+              {googleCalendarConnected
+                ? "Google Calendar connected."
+                : "Connect your Google account to sync this meeting to Google Calendar."}
+            </Text>
+            {googleCalendarSyncMessage ? (
+              <Text
+                style={[
+                  styles.googleSyncStatus,
+                  googleCalendarSyncStatus === "synced" && styles.googleSyncStatusSuccess,
+                  googleCalendarSyncStatus === "failed" && styles.googleSyncStatusFailed,
+                  googleCalendarSyncStatus === "syncing" && styles.googleSyncStatusInfo,
+                ]}
+              >
+                {googleCalendarSyncMessage}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.googleActions}>
+            <Pressable
+              style={[styles.googleBtn, googleLoading && styles.googleBtnDisabled]}
+              onPress={handleGoogleCalendarConnect}
+              disabled={googleLoading}
+            >
+              {googleLoading && !googleCalendarConnected ? (
+                <ActivityIndicator color="#03141E" />
+              ) : (
+                <Text style={styles.googleBtnText}>
+                  {googleCalendarConnected ? t("connected") : t("connect")}
+                </Text>
+              )}
+            </Pressable>
+            {googleCalendarConnected ? (
+              <Pressable
+                style={[styles.googleDisconnectBtn, googleLoading && styles.googleBtnDisabled]}
+                onPress={handleGoogleCalendarDisconnect}
+                disabled={googleLoading}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color="#EAFDFF" />
+                ) : (
+                  <Text style={styles.googleDisconnectBtnText}>Disconnect</Text>
+                )}
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
-        <Pressable
-          style={[styles.submitBtn, creatingMeeting && styles.submitBtnDisabled]}
-          onPress={sendMeeting}
-          disabled={creatingMeeting}
-        >
-          {creatingMeeting ? (
-            <ActivityIndicator color="#EAFDFF" />
-          ) : (
-            <Text style={styles.submitText}>{t("send_schedule_meeting")}</Text>
-          )}
-        </Pressable>
-      </ScrollView>
+        </ScrollView>
 
-      <SystemCalendarModal
-        visible={calendarVisible}
-        onClose={() => setCalendarVisible(false)}
-        selectedDate={dateISO}
-        onSelectDate={setDateISO}
-      />
-    </SafeAreaView>
+        <SystemCalendarModal
+          visible={calendarVisible}
+          onClose={() => setCalendarVisible(false)}
+          selectedDate={dateISO}
+          onSelectDate={setDateISO}
+        />
+
+        <View
+          style={[
+            styles.footerWrap,
+            {
+              bottom: Math.max(insets.bottom, 12) + keyboardHeight,
+            },
+          ]}
+          pointerEvents="box-none"
+        >
+          <Pressable
+            style={[styles.submitBtn, creatingMeeting && styles.submitBtnDisabled]}
+            onPress={sendMeeting}
+            disabled={creatingMeeting}
+          >
+            {creatingMeeting ? (
+              <ActivityIndicator color="#EAFDFF" />
+            ) : (
+              <Text style={styles.submitText}>{t("send_schedule_meeting")}</Text>
+            )}
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: "#020406" },
   safeArea: { flex: 1, backgroundColor: "#020406" },
   content: {
     paddingHorizontal: responsiveWidth(4.5),
     paddingTop: responsiveHeight(1),
-    paddingBottom: responsiveHeight(12),
+    paddingBottom: responsiveHeight(28),
   },
   header: {
     flexDirection: "row",
@@ -508,7 +668,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: "#808B9E",
-    fontSize: 18 / 1.6,
+    fontSize: 12,
     fontWeight: "600",
     marginBottom: 8,
     marginTop: 8,
@@ -550,10 +710,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   twoCol: { flexDirection: "row", gap: 12, marginTop: 2 },
-  colItem: { flex: 1 },
-  slotWrap: {
-    marginTop: 2,
-  },
   modeBtn: {
     flex: 1,
     marginTop: 12,
@@ -637,6 +793,83 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 10,
     marginBottom: 4,
+  },
+  googleCard: {
+    marginTop: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#2A3442",
+    backgroundColor: "#1D1D21",
+    padding: 14,
+    gap: 12,
+  },
+  googleTextWrap: {
+    gap: 4,
+  },
+  googleTitle: {
+    color: "#F3F9FF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  googleSubTitle: {
+    color: "#808B9E",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  googleSyncStatus: {
+    marginTop: 6,
+    color: "#9BA8BE",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  googleSyncStatusSuccess: {
+    color: "#62F4C1",
+  },
+  googleSyncStatusFailed: {
+    color: "#FF8A8A",
+  },
+  googleSyncStatusInfo: {
+    color: "#7DDCFF",
+  },
+  googleBtn: {
+    minHeight: 48,
+    flex: 1,
+    borderRadius: 14,
+    backgroundColor: "#12CDEA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  googleActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  googleDisconnectBtn: {
+    minHeight: 48,
+    flex: 1,
+    borderRadius: 14,
+    backgroundColor: "#2A1115",
+    borderWidth: 1,
+    borderColor: "#5E222A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  googleBtnDisabled: {
+    opacity: 0.6,
+  },
+  googleBtnText: {
+    color: "#03141E",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  googleDisconnectBtnText: {
+    color: "#FFB7C0",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  footerWrap: {
+    position: "absolute",
+    left: responsiveWidth(4.5),
+    right: responsiveWidth(4.5),
   },
   reminderGrid: {
     flexDirection: "row",

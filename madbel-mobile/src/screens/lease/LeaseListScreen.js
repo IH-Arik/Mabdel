@@ -8,7 +8,7 @@ import { ChevronLeft, Plus, Search, CalendarDays, Eye, Trash2 } from "lucide-rea
 import { useMadbelDeleteLeaseMutation, useMadbelListLeasesQuery } from "../../redux/slices/madbelApiSlice";
 
 const formatRent = (lease) => {
-  const { t } = useAppLanguage();
+  // const { t } = useAppLanguage();
   const value = lease?.monthly_rent ?? lease?.rent_amount ?? lease?.monthly_rent_amount;
   if (value === undefined || value === null) return "--";
   const numeric = Number(value);
@@ -32,6 +32,7 @@ const leaseDuration = (lease) => {
 };
 
 const LeaseListScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const [query, setQuery] = useState("");
   const { data, isLoading, isFetching, error } = useMadbelListLeasesQuery({
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     gap: responsiveWidth(2),
   },
   searchInput: { flex: 1, color: "#DCE5F2", fontSize: 18 },
-  list: { paddingTop: responsiveHeight(1.6), paddingBottom: responsiveHeight(8), gap: responsiveHeight(1.5) },
+  list: { paddingTop: responsiveHeight(1.6), paddingBottom: responsiveHeight(14), gap: responsiveHeight(1.5) },
   card: {
     borderRadius: 20,
     borderWidth: 1,

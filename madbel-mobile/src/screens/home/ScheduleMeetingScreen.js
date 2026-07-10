@@ -8,6 +8,7 @@ import {
   View,
   Image,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { Calendar, Timeline } from "react-native-calendars";
 import { ChevronLeft, Plus, Video } from "lucide-react-native";
@@ -18,6 +19,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { useMadbelListCalendarEventsQuery } from "../../redux/slices/madbelApiSlice";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { formatMeetingTime } from "../../utils/formatDateTime";
 
 const INITIAL_DATE = new Date().toISOString().slice(0, 10);
 
@@ -33,6 +35,7 @@ const ScheduleMeetingScreen = () => {
       date_to: selectedDate,
     });
 
+    console.log("Calendar Response:", calendarResponse);
 
 
   const apiEvents = calendarResponse?.data?.items || [];
@@ -54,13 +57,7 @@ const ScheduleMeetingScreen = () => {
         title: event.title,
         start: event.starts_at,
         end: event.ends_at,
-        summary: `${new Date(event.starts_at).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })} - ${new Date(event.ends_at).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`,
+        summary: `${formatMeetingTime(event.starts_at)} - ${formatMeetingTime(event.ends_at)}`,
         raw: event,
       })),
     [allEventsByDate, selectedDate],
@@ -100,7 +97,7 @@ const ScheduleMeetingScreen = () => {
       <Pressable style={styles.eventCard} onPress={() => handleEventPress(event)}>
         <Text style={styles.eventTitle}>{event.title}</Text>
         <Text style={styles.eventTime}>{event.summary}</Text>
-        {showJoinCall ? (
+        {/* {showJoinCall ? (
           <View style={styles.joinBtn}>
             <Video size={15} color="#11CDE9" />
             <Text style={styles.joinText}>{t("join_call")}</Text>
@@ -126,14 +123,14 @@ const ScheduleMeetingScreen = () => {
               </View>
             )}
           </View>
-        )}
+        )} */}
       </Pressable>
     );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
+      <ScrollView style={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
             <ChevronLeft size={30} color="#11CDE8" />
@@ -202,7 +199,7 @@ const ScheduleMeetingScreen = () => {
             <Text style={styles.refreshText}>{t("refreshing_schedule")}</Text>
           ) : null}
         </View>
-      </View>
+      </ScrollView>
 
       <Pressable
         style={styles.fab}
@@ -300,7 +297,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: responsiveWidth(7),
-    bottom: responsiveHeight(12),
+    bottom: responsiveHeight(15),
     width: 56,
     height: 56,
     borderRadius: 28,

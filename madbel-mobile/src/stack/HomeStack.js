@@ -26,6 +26,8 @@ import CallHistoryScreen from "../screens/call/CallHistoryScreen";
 import CallAnalysisScreen from "../screens/call/CallAnalysisScreen";
 import UnifiedConversationsScreen from "../screens/chat/UnifiedConversationsScreen";
 import SingleChatScreen from "../screens/chat/SingleChatScreen";
+import GroupChatScreen from "../screens/community/GroupChatScreen";
+import GroupSettingScreen from "../screens/community/GroupSettingScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -67,6 +69,10 @@ const HomeStack = () => {
       <Stack.Screen name="CallAnalysis" component={CallAnalysisScreen} />
       <Stack.Screen name="UnifiedConversations" component={UnifiedConversationsScreen} />
       <Stack.Screen name="SingleChat" component={SingleChatScreen} />
+      <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="GroupSetting" component={GroupSettingScreen} />
+
+
     </Stack.Navigator>
   );
 };

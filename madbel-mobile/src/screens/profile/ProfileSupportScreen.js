@@ -22,12 +22,12 @@ const FAQ_ITEMS = [
     answer:
       "Go to the Calls tab, tap the dial icon, and select 'AI Call'. The AI agent will handle the conversation on your behalf using your configured settings.",
   },
-  {
-    id: "2",
-    question: "How do I create a group or event?",
-    answer:
-      "From the Home screen, tap 'Create Activity' or 'Create Event'. Fill in the details and invite participants. You can manage your hosted events from Profile > Hosted Events.",
-  },
+  // {
+  //   id: "2",
+  //   question: "How do I create a group or event?",
+  //   answer:
+  //     "From the Home screen, tap 'Create Activity' or 'Create Event'. Fill in the details and invite participants. You can manage your hosted events from Profile > Hosted Events.",
+  // },
   {
     id: "3",
     question: "How do I connect my social accounts?",
@@ -63,6 +63,7 @@ const FaqItem = ({ item }) => {
 };
 
 const ProfileSupportScreen = () => {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const [message, setMessage] = useState("");
 
@@ -105,13 +106,13 @@ const ProfileSupportScreen = () => {
               <Phone size={22} color="#17b4c9" />
               <Text style={styles.contactLabel}>{t("call_us")}</Text>
             </Pressable>
-            <Pressable
+            {/* <Pressable
               style={styles.contactCard}
-              onPress={() => navigation.navigate("AllChat")}
+              onPress={() => navigation.navigate("SingleChat")}
             >
               <MessageCircle size={22} color="#17b4c9" />
               <Text style={styles.contactLabel}>{t("live_chat")}</Text>
-            </Pressable>
+            </Pressable> */}
           </View>
 
           <Text style={styles.sectionTitle}>{t("send_a_message")}</Text>

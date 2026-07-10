@@ -26,12 +26,12 @@ import { LANGUAGES, useAiLanguage, useAppLanguage } from "../../context/Language
 
 const SETTINGS_ITEMS = [
   { labelKey: "edit_profile", path: "ProfileEdit" },
-  { labelKey: "subscription_plans", path: "ProfileSubscription" },
-  { labelKey: "notifications", path: "ProfileNotification" },
+  // { labelKey: "subscription_plans", path: "ProfileSubscription" },
+  // { labelKey: "notifications", path: "ProfileNotification" },
   { labelKey: "ai_voice_history", path: "ProfileVoiceHistory" },
   { labelKey: "account_settings", path: "ProfileAccountSettings" },
   { labelKey: "help_support", path: "ProfileSupport" },
-  { labelKey: "business_profile", path: "ProfileBusiness" },
+  // { labelKey: "business_profile", path: "ProfileBusiness" },
 ];
 
 const ProfileHomeScreen = () => {
