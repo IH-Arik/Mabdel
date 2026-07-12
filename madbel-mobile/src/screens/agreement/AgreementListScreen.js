@@ -1,6 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
-import { View, Text, Pressable, StyleSheet, TextInput, FlatList, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Pressable, StyleSheet, TextInput, FlatList, ActivityIndicator, Alert, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
@@ -44,6 +44,7 @@ const AgreementListScreen = () => {
     data,
     isLoading,
     isFetching,
+    refetch,
     error,
   } = useMadbelListAgreementsQuery({
     page: 1,
@@ -129,6 +130,9 @@ const AgreementListScreen = () => {
             data={filtered}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor="#14C9E7" />
+            }
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.center}>
@@ -165,17 +169,7 @@ const AgreementListScreen = () => {
                       <Pressable onPress={() => handleDelete(item)} disabled={deletingAgreement}>
                         <Trash2 size={25} color="#9AA6B5" />
                       </Pressable>
-                      {(statusKey === "pending_signature" || statusKey === "draft") ? (
-                        <Pressable onPress={() => handleSend(item)} disabled={sendingSignature}>
-                          <Signature size={25} color="#12D0ED" />
-                        </Pressable>
-                      ) : (
-                        <Pressable
-                          onPress={() => navigation.navigate("AgreementPreview", { agreementId: item.id, agreement: item })}
-                        >
-                          <FileText size={25} color="#12D0ED" />
-                        </Pressable>
-                      )}
+                     
                     </View>
                   </View>
                 </View>

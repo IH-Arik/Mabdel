@@ -2,7 +2,6 @@ import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
-  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,6 +38,7 @@ import { MEETING_REMINDERS } from "../../../assets/data/meetingMockData";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import TimeSlotInput from "../../components/TimeSlotInput";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
+import useKeyboard from "../../hooks/useKeyboard";
 import {
   connectGoogleCalendar as connectGoogleCalendarAuth,
   createGoogleCalendarEvent,
@@ -82,7 +82,7 @@ const CreateMeetingScheduleScreen = () => {
   const [googleCalendarAccessToken, setGoogleCalendarAccessToken] = useState("");
   const [googleCalendarSyncStatus, setGoogleCalendarSyncStatus] = useState("idle");
   const [googleCalendarSyncMessage, setGoogleCalendarSyncMessage] = useState("");
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboard();
 
   const [createCalendarEvent, { isLoading: creatingMeeting }] =
     useMadbelCreateCalendarEventMutation();
@@ -144,24 +144,6 @@ const CreateMeetingScheduleScreen = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSub = Keyboard.addListener(showEvent, (event) => {
-      setKeyboardHeight(event?.endCoordinates?.height || 0);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
-
   const [meetingTitle, setMeetingTitle] = useState(
     prefill?.title || "Project Sync with Design Team",
   );
@@ -203,6 +185,11 @@ const CreateMeetingScheduleScreen = () => {
       }),
     [dateISO],
   );
+
+  const footerBottomMargin =
+    keyboardHeight > 0
+      ? keyboardHeight + insets.bottom + responsiveHeight(1)
+      : insets.bottom + responsiveHeight(5);
 
   const toggleRecipient = (contactId) => {
     setSelectedRecipientIds((prev) =>
@@ -343,9 +330,10 @@ const CreateMeetingScheduleScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+    <View style={styles.flex}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
+          style={styles.scroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -553,56 +541,56 @@ const CreateMeetingScheduleScreen = () => {
           ))}
         </View> */}
 
-        <View style={styles.googleCard}>
-          <View style={styles.googleTextWrap}>
-            <Text style={styles.googleTitle}>Google Calendar</Text>
-            <Text style={styles.googleSubTitle}>
-              {googleCalendarConnected
-                ? "Google Calendar connected."
-                : "Connect your Google account to sync this meeting to Google Calendar."}
-            </Text>
-            {googleCalendarSyncMessage ? (
-              <Text
-                style={[
-                  styles.googleSyncStatus,
-                  googleCalendarSyncStatus === "synced" && styles.googleSyncStatusSuccess,
-                  googleCalendarSyncStatus === "failed" && styles.googleSyncStatusFailed,
-                  googleCalendarSyncStatus === "syncing" && styles.googleSyncStatusInfo,
-                ]}
-              >
-                {googleCalendarSyncMessage}
-              </Text>
-            ) : null}
-          </View>
-          <View style={styles.googleActions}>
-            <Pressable
-              style={[styles.googleBtn, googleLoading && styles.googleBtnDisabled]}
-              onPress={handleGoogleCalendarConnect}
-              disabled={googleLoading}
-            >
-              {googleLoading && !googleCalendarConnected ? (
-                <ActivityIndicator color="#03141E" />
-              ) : (
-                <Text style={styles.googleBtnText}>
-                  {googleCalendarConnected ? t("connected") : t("connect")}
+            <View style={styles.googleCard}>
+              <View style={styles.googleTextWrap}>
+                <Text style={styles.googleTitle}>Google Calendar</Text>
+                <Text style={styles.googleSubTitle}>
+                  {googleCalendarConnected
+                    ? "Google Calendar connected."
+                    : "Connect your Google account to sync this meeting to Google Calendar."}
                 </Text>
-              )}
-            </Pressable>
-            {googleCalendarConnected ? (
-              <Pressable
-                style={[styles.googleDisconnectBtn, googleLoading && styles.googleBtnDisabled]}
-                onPress={handleGoogleCalendarDisconnect}
-                disabled={googleLoading}
-              >
-                {googleLoading ? (
-                  <ActivityIndicator color="#EAFDFF" />
-                ) : (
-                  <Text style={styles.googleDisconnectBtnText}>Disconnect</Text>
-                )}
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
+                {googleCalendarSyncMessage ? (
+                  <Text
+                    style={[
+                      styles.googleSyncStatus,
+                      googleCalendarSyncStatus === "synced" && styles.googleSyncStatusSuccess,
+                      googleCalendarSyncStatus === "failed" && styles.googleSyncStatusFailed,
+                      googleCalendarSyncStatus === "syncing" && styles.googleSyncStatusInfo,
+                    ]}
+                  >
+                    {googleCalendarSyncMessage}
+                  </Text>
+                ) : null}
+              </View>
+              <View style={styles.googleActions}>
+                <Pressable
+                  style={[styles.googleBtn, googleLoading && styles.googleBtnDisabled]}
+                  onPress={handleGoogleCalendarConnect}
+                  disabled={googleLoading}
+                >
+                  {googleLoading && !googleCalendarConnected ? (
+                    <ActivityIndicator color="#03141E" />
+                  ) : (
+                    <Text style={styles.googleBtnText}>
+                      {googleCalendarConnected ? t("connected") : t("connect")}
+                    </Text>
+                  )}
+                </Pressable>
+                {googleCalendarConnected ? (
+                  <Pressable
+                    style={[styles.googleDisconnectBtn, googleLoading && styles.googleBtnDisabled]}
+                    onPress={handleGoogleCalendarDisconnect}
+                    disabled={googleLoading}
+                  >
+                    {googleLoading ? (
+                      <ActivityIndicator color="#EAFDFF" />
+                    ) : (
+                      <Text style={styles.googleDisconnectBtnText}>Disconnect</Text>
+                    )}
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
 
         </ScrollView>
 
@@ -614,12 +602,7 @@ const CreateMeetingScheduleScreen = () => {
         />
 
         <View
-          style={[
-            styles.footerWrap,
-            {
-              bottom: Math.max(insets.bottom, 12) + keyboardHeight,
-            },
-          ]}
+          style={[styles.footerWrap, { marginBottom: footerBottomMargin }]}
           pointerEvents="box-none"
         >
           <Pressable
@@ -635,13 +618,14 @@ const CreateMeetingScheduleScreen = () => {
           </Pressable>
         </View>
       </SafeAreaView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: "#020406" },
   safeArea: { flex: 1, backgroundColor: "#020406" },
+  scroll: { flex: 1 },
   content: {
     paddingHorizontal: responsiveWidth(4.5),
     paddingTop: responsiveHeight(1),
@@ -867,9 +851,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   footerWrap: {
-    position: "absolute",
-    left: responsiveWidth(4.5),
-    right: responsiveWidth(4.5),
+    paddingHorizontal: responsiveWidth(5),
   },
   reminderGrid: {
     flexDirection: "row",

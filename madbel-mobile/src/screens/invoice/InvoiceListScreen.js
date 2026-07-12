@@ -8,6 +8,7 @@ import {
   FlatList,
   ActivityIndicator,
   TextInput,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -38,6 +39,7 @@ const InvoiceListScreen = () => {
     data: invoicesResponse,
     isLoading,
     isFetching,
+    refetch,
     error,
   } = useMadbelListInvoicesQuery({
     search: query?.trim() || undefined,
@@ -103,6 +105,9 @@ const InvoiceListScreen = () => {
             data={invoices}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor="#14C9E7" />
+            }
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.centerState}>

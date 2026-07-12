@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import {
@@ -37,6 +37,7 @@ import {
 import { useAppLanguage } from "../../context/LanguageContext";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 import SystemCalendarModal from "../../components/SystemCalendarModal";
+import useKeyboard from "../../hooks/useKeyboard";
 
 const SIGNING_PROVIDER = "docusign";
 
@@ -111,6 +112,8 @@ const NewLeaseScreen = () => {
   };
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboard();
   const authToken = useSelector(
     (state) => state?.auth?.accessToken || state?.auth?.token,
   );
@@ -355,6 +358,10 @@ const NewLeaseScreen = () => {
   };
 
   const isBusy = generating || creating || updating;
+  const footerBottomMargin =
+    keyboardHeight > 0
+      ? keyboardHeight + insets.bottom + responsiveHeight(1)
+      : insets.bottom + responsiveHeight(5);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -621,7 +628,13 @@ const NewLeaseScreen = () => {
             }}
           />
 
-          <Pressable style={styles.submitBtn} onPress={handleCreate} disabled={isBusy}>
+       
+        </ScrollView>
+   <Pressable
+            style={[styles.submitBtn, { marginBottom: footerBottomMargin }]}
+            onPress={handleCreate}
+            disabled={isBusy}
+          >
             {isBusy ? (
               <ActivityIndicator color="#EAF8FF" />
             ) : (
@@ -630,8 +643,6 @@ const NewLeaseScreen = () => {
               </Text>
             )}
           </Pressable>
-        </ScrollView>
-
         <SystemCalendarModal
           visible={calendarVisible}
           onClose={() => setCalendarVisible(false)}

@@ -146,7 +146,7 @@ const AgreementPreviewScreen = () => {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Pressable onPress={() => navigation.goBack()}>
-              <ChevronLeft size={35} color="#F8FAFC" />
+              <ChevronLeft size={responsiveWidth(5)} color="#F8FAFC" />
             </Pressable>
             <Text style={styles.headerTitle}>{t("agreement_preview")}</Text>
           </View>
@@ -179,7 +179,7 @@ const AgreementPreviewScreen = () => {
             </View>
           </View>
 
-          <View style={styles.reviewCard}>
+          {/* <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <Sparkles size={20} color="#10CDE9" />
               <Text style={styles.reviewTitle}>{t("ai_review")}</Text>
@@ -206,7 +206,7 @@ const AgreementPreviewScreen = () => {
                 <Text style={styles.reviewItemSub}>{t("no_ai_review_findings_available")}</Text>
               </View>
             )}
-          </View>
+          </View> */}
 
           <Pressable style={styles.sendBtn} onPress={() => setShowModal(true)}>
             <Text style={styles.sendBtnText}>{t("send_for_signature")}</Text>
@@ -254,10 +254,10 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#020406" },
   container: { flex: 1, paddingHorizontal: responsiveWidth(4) },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  header: { marginTop: responsiveHeight(0.7), flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  header: { marginTop: responsiveHeight(0.7), flexDirection: "row",  alignItems: "center" },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
-  headerTitle: { color: "#F4F8FF", fontSize: 46 / 2, fontWeight: "700" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) , width: "30%" },
+  headerTitle: { color: "#F4F8FF", fontSize: responsiveWidth(5), fontWeight: "700" , width: '50%' },
   editBtn: { minHeight: responsiveHeight(4.2), paddingHorizontal: responsiveWidth(3.2), borderRadius: 12, borderWidth: 1, borderColor: "#11CDE8", alignItems: "center", justifyContent: "center" },
   editBtnText: { color: "#11CDE8", fontSize: 14, fontWeight: "700" },
   content: { paddingTop: responsiveHeight(1.4), paddingBottom: responsiveHeight(9), gap: responsiveHeight(1.6) },
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   warningCard: { marginHorizontal: responsiveWidth(4), marginVertical: responsiveHeight(1), padding: responsiveWidth(3), borderRadius: 12, backgroundColor: "#391E2A", flexDirection: "row", gap: responsiveWidth(2.4) },
   warningTitle: { color: "#FF7287", fontWeight: "700", fontSize: 17 },
   warningSub: { color: "#C79AA9", fontSize: 15, marginTop: 2 },
-  sendBtn: { minHeight: responsiveHeight(6.7), borderRadius: 14, backgroundColor: "#11CDE8", alignItems: "center", justifyContent: "center" },
+  sendBtn: { minHeight: responsiveHeight(6.7), borderRadius: 14, backgroundColor: "#11CDE8", alignItems: "center", justifyContent: "center" , marginBottom: responsiveHeight(3)},
   sendBtnText: { color: "#EAF8FF", fontSize: 19, fontWeight: "700" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center", paddingHorizontal: responsiveWidth(4) },
   modalCard: { width: "100%", borderRadius: 20, borderWidth: 1, borderColor: "#313847", backgroundColor: "#1B1E24", paddingHorizontal: responsiveWidth(5), paddingTop: responsiveHeight(1.5), paddingBottom: responsiveHeight(2.2) },

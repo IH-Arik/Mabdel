@@ -87,7 +87,7 @@ const RootAppNavigator = () => {
       initialRouteName={isAuthenticated ? "BottomNavigator"
         : "Begin"}
     >
-      <Stack.Screen name="PublicSigning" component={PublicSigningScreen} />
+      {/* <Stack.Screen name="PublicSigning" component={PublicSigningScreen} /> */}
       {isAuthenticated ? (
         <>
           {/* <Stack.Screen name="SubscriptionTrial" component={SubscriptionTrialScreen} /> */}
