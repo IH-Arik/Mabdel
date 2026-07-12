@@ -282,7 +282,7 @@ const AgreementCreateScreen = () => {
             </Pressable>
           </View>
 
-          <View style={styles.generateCard}>
+          {/* <View style={styles.generateCard}>
             <Text style={styles.generateTitle}>{t("generate_with_ai")}</Text>
             <View style={styles.promptBox}>
               <TextInput
@@ -307,7 +307,7 @@ const AgreementCreateScreen = () => {
                 </>
               )}
             </Pressable>
-          </View>
+          </View> */}
 
           <View style={styles.generateCard}>
             <Text style={styles.generateTitle}>{t("agreement_content")}</Text>
