@@ -1,7 +1,7 @@
 ﻿import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Switch, Alert, ActivityIndicator, Linking } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { ChevronLeft, Mic, Sparkles, CircleAlert, CheckCircle2, AlertTriangle } from "lucide-react-native";
@@ -13,6 +13,8 @@ import {
   useMadbelReviewAgreementDraftMutation,
 } from "../../redux/slices/madbelApiSlice";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
+import SystemCalendarModal from "../../components/SystemCalendarModal";
+import useKeyboard from "../../hooks/useKeyboard";
 
 const SIGNING_PROVIDER = "docusign";
 
@@ -65,6 +67,8 @@ const AgreementCreateScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboard();
   const [voiceTrigger, setVoiceTrigger] = useState(0);
   const accessToken = useSelector((state) => state?.auth?.accessToken || state?.auth?.token);
   const routePrefill = route?.params?.prefill || route?.params?.agreement || {};
@@ -76,6 +80,7 @@ const AgreementCreateScreen = () => {
   const [clientPhone, setClientPhone] = useState(routePrefill.client_phone || "");
   const [agreementType, setAgreementType] = useState(routePrefill.agreement_type || "contract");
   const [date, setDate] = useState(routePrefill.start_date || "");
+  const [calendarVisible, setCalendarVisible] = useState(false);
   const [prompt, setPrompt] = useState(routePrefill.prompt || "");
   const [content, setContent] = useState(routePrefill.content || "");
   const [aiReview, setAiReview] = useState(normalizeReview(routePrefill.ai_review));
@@ -104,6 +109,11 @@ const AgreementCreateScreen = () => {
     if (!Array.isArray(items) || !items.length) return ["contract", "nda", "lease", "legal"];
     return items.map((item) => item?.value || item?.id || item?.key || "contract");
   }, [typesResponse]);
+
+  const footerBottomMargin =
+    keyboardHeight > 0
+      ? keyboardHeight + insets.bottom + responsiveHeight(1)
+      : insets.bottom + responsiveHeight(5);
 
   const runGenerate = async () => {
     if (!prompt.trim()) {
@@ -227,13 +237,13 @@ const AgreementCreateScreen = () => {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Pressable onPress={() => navigation.goBack()}>
-              <ChevronLeft size={35} color="#F8FAFC" />
+              <ChevronLeft size={responsiveWidth(5)} color="#F8FAFC" />
             </Pressable>
             <Text style={styles.headerTitle}>{t("agreement")}</Text>
           </View>
-          <Pressable onPress={handlePreview}>
+          {/* <Pressable onPress={handlePreview}>
             <Text style={styles.previewText}>{t("preview")}</Text>
-          </Pressable>
+          </Pressable> */}
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -267,7 +277,9 @@ const AgreementCreateScreen = () => {
             />
 
             <Text style={styles.label}>{t("date")}</Text>
-            <TextInput value={date} onChangeText={setDate} placeholder={t("yyyy_mm_dd")} placeholderTextColor="#5F6B80" style={styles.input} />
+            <Pressable style={styles.datePickerButton} onPress={() => setCalendarVisible(true)}>
+              <Text style={[styles.datePickerText, !date && styles.datePickerPlaceholder]}>{date || t("select_date")}</Text>
+            </Pressable>
           </View>
 
           <View style={styles.generateCard}>
@@ -307,16 +319,16 @@ const AgreementCreateScreen = () => {
               multiline
               style={styles.contentInput}
             />
-            <Pressable style={[styles.generateBtn, { marginTop: responsiveHeight(1) }]} onPress={runReview} disabled={reviewing}>
+            {/* <Pressable style={[styles.generateBtn, { marginTop: responsiveHeight(1) }]} onPress={runReview} disabled={reviewing}>
               {reviewing ? (
                 <ActivityIndicator color="#E9F8FF" />
               ) : (
                 <Text style={styles.generateBtnText}>{t("run_ai_review")}</Text>
               )}
-            </Pressable>
+            </Pressable> */}
           </View>
 
-          <View style={styles.reviewCard}>
+          {/* <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <Sparkles size={20} color="#10CDE9" />
               <Text style={styles.reviewTitle}>{t("ai_review")}</Text>
@@ -343,7 +355,7 @@ const AgreementCreateScreen = () => {
                 <Text style={styles.reviewItemSub}>{t("no_review_yet_generate_or_review_a_draft")}</Text>
               </View>
             )}
-          </View>
+          </View> */}
 
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>{t("signature_field")}</Text>
@@ -371,14 +383,25 @@ const AgreementCreateScreen = () => {
             }}
           />
 
-          <Pressable style={styles.sendBtn} onPress={handleCreate} disabled={creating}>
+        
+        </ScrollView>
+  <Pressable
+            style={[styles.sendBtn, { marginBottom: footerBottomMargin }]}
+            onPress={handleCreate}
+            disabled={creating}
+          >
             {creating ? (
               <ActivityIndicator color="#EAF8FF" />
             ) : (
-              <Text style={styles.sendBtnText}>{t("send_for_signature")}</Text>
+              <Text style={styles.sendBtnText}>{t("preview")}</Text>
             )}
           </Pressable>
-        </ScrollView>
+        <SystemCalendarModal
+          visible={calendarVisible}
+          selectedDate={date || undefined}
+          onClose={() => setCalendarVisible(false)}
+          onSelectDate={setDate}
+        />
       </View>
     </SafeAreaView>
   );
@@ -407,6 +430,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveWidth(4),
     fontSize: 17,
     marginBottom: responsiveHeight(1),
+  },
+  datePickerButton: {
+    minHeight: responsiveHeight(6.5),
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#344153",
+    backgroundColor: "#1A1D24",
+    paddingHorizontal: responsiveWidth(4),
+    justifyContent: "center",
+    marginBottom: responsiveHeight(1),
+  },
+  datePickerText: {
+    color: "#EAF2FF",
+    fontSize: 17,
+  },
+  datePickerPlaceholder: {
+    color: "#5F6B80",
   },
   generateCard: { borderRadius: 18, borderWidth: 1, borderColor: "#283245", backgroundColor: "#1B1E24", padding: responsiveWidth(4) },
   generateTitle: { color: "#E7EEF9", fontSize: 20, marginBottom: responsiveHeight(1) },

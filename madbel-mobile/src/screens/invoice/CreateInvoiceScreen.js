@@ -11,7 +11,7 @@ import {
   Modal,
   KeyboardAvoidingView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -32,6 +32,7 @@ import {
   useMadbelUpdateInvoiceMutation,
 } from "../../redux/slices/madbelApiSlice";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
+import useKeyboard from "../../hooks/useKeyboard";
 import {
   buildInvoicePayload,
   formatCurrency,
@@ -54,6 +55,8 @@ const CreateInvoiceScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboard();
   const prefill = route?.params?.prefill || {};
   const editingInvoice = route?.params?.invoice;
   const prefillPrompt = route?.params?.prefillPrompt || "";
@@ -102,6 +105,10 @@ const CreateInvoiceScreen = () => {
     if (qty <= 0 || price < 0) return sum;
     return sum + qty * price;
   }, 0);
+  const footerBottomMargin =
+    keyboardHeight > 0
+      ? keyboardHeight + insets.bottom + responsiveHeight(1)
+      : insets.bottom + responsiveHeight(5);
 
   const closeItemModal = () => {
     setEditingItemIndex(null);
@@ -232,7 +239,7 @@ const CreateInvoiceScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+    <View style={{ flex: 1 }}>
 
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -466,7 +473,11 @@ const CreateInvoiceScreen = () => {
         </Modal>
 
         <Pressable
-          style={[styles.createBtn, isSaving ? styles.createBtnDisabled : null]}
+          style={[
+            styles.createBtn,
+            { marginBottom: footerBottomMargin },
+            isSaving ? styles.createBtnDisabled : null,
+          ]}
           onPress={handleSubmit(onCreate)}
           disabled={isSaving}
         >
@@ -480,7 +491,7 @@ const CreateInvoiceScreen = () => {
         </Pressable>
       </View>
     </SafeAreaView>
-    </KeyboardAvoidingView>
+    </View>
 
   );
 };
@@ -618,7 +629,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 14,
     elevation: 7,
-    marginBottom: responsiveHeight(4),
+    // marginBottom: responsiveHeight(4),
   },
   createText: { color: "#EAF8FF", fontSize: 19, fontWeight: "600" },
   createBtnDisabled: {

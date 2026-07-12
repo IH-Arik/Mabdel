@@ -2,7 +2,6 @@ import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
-  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,6 +34,7 @@ import { useForm } from "react-hook-form";
 import SystemCalendarModal from "../../components/SystemCalendarModal";
 import ControllerTextInput from "../../components/ControllerTextInput";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
+import useKeyboard from "../../hooks/useKeyboard";
 import {
   useMadbelCreateContactMutation,
   useMadbelDeleteContactMutation,
@@ -47,6 +47,7 @@ const AddContactScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboard();
   const contact = route.params?.contact;
   const getContactId = (value) =>
     value?.id || value?._id || value?.contact_id || null;
@@ -82,7 +83,6 @@ const AddContactScreen = () => {
   const [avatarUrl, setAvatarUrl] = useState(defaults.avatarUrl);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [voiceTrigger, setVoiceTrigger] = useState(0);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     const p = route?.params?.prefill;
@@ -95,23 +95,6 @@ const AddContactScreen = () => {
     if (p.date_of_birth) setDob(p.date_of_birth);
     navigation.setParams?.({ prefill: undefined });
   }, [route?.params?.prefill]);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSub = Keyboard.addListener(showEvent, (event) => {
-      setKeyboardHeight(event?.endCoordinates?.height || 0);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   const [createContact, { isLoading: creatingContact }] =
     useMadbelCreateContactMutation();
@@ -130,6 +113,10 @@ const AddContactScreen = () => {
         year: "numeric",
       })
     : "MM/DD/YYYY";
+  const footerBottomMargin =
+    keyboardHeight > 0
+      ? keyboardHeight + insets.bottom + responsiveHeight(1)
+      : insets.bottom + responsiveHeight(5);
 
   const handleAvatarPick = async () => {
     const response = await launchImageLibrary({
@@ -230,7 +217,7 @@ console.log("LINE AT 177" , payload);
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+    <View style={styles.flex} >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
           <View style={styles.header}>
@@ -354,17 +341,16 @@ console.log("LINE AT 177" , payload);
             }}
           />
 
+        
+
           </ScrollView>
 
-          <View
-            style={[
-              styles.footerWrap,
-             
-            ]}
+         {/* <View
+            style={[styles.footerWrap, { marginBottom: footerBottomMargin }]}
             pointerEvents="box-none"
-          >
+          > */}
             <Pressable
-              style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
+              style={[styles.saveBtn, isSaving && styles.saveBtnDisabled , { marginBottom: footerBottomMargin}]}
               onPress={saveContact}
               disabled={isSaving}
             >
@@ -374,7 +360,7 @@ console.log("LINE AT 177" , payload);
                 <Text style={styles.saveText}>{t("save")}</Text>
               )}
             </Pressable>
-          </View>
+          {/* </View> */}
 
           <SystemCalendarModal
             visible={calendarVisible}
@@ -387,7 +373,7 @@ console.log("LINE AT 177" , payload);
           />
         </View>
       </SafeAreaView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -436,7 +422,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#2A1115",
   },
   scrollContent: {
-    paddingBottom: responsiveHeight(28),
+    flexGrow: 1,
+    paddingBottom: responsiveHeight(8),
   },
   avatarArea: {
     alignItems: "center",
@@ -482,11 +469,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   inputWrap: {
-    minHeight: 74,
-    borderRadius: 20,
-    backgroundColor: "#0F1116",
+    minHeight: responsiveHeight(7),
+    borderRadius: responsiveWidth(3),
+    backgroundColor: "#1D1F24",
     borderWidth: 1,
-    borderColor: "#212734",
+    borderColor: "gray",
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -513,10 +500,10 @@ const styles = StyleSheet.create({
   },
   footerWrap: {
 
-    paddingBottom: responsiveHeight(5),
+    marginBottom: responsiveHeight(8),
   },
   saveBtn: {
-    height: 74,
+    height: responsiveHeight(7.5),
     borderRadius: 22,
     backgroundColor: "#15CFE9",
     alignItems: "center",

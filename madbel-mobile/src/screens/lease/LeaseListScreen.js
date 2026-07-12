@@ -1,6 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
-import { View, Text, Pressable, StyleSheet, TextInput, FlatList, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Pressable, StyleSheet, TextInput, FlatList, ActivityIndicator, Alert, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
@@ -35,7 +35,7 @@ const LeaseListScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
   const [query, setQuery] = useState("");
-  const { data, isLoading, isFetching, error } = useMadbelListLeasesQuery({
+  const { data, isLoading, isFetching, refetch, error } = useMadbelListLeasesQuery({
     page: 1,
     page_size: 100,
     search: query.trim() || undefined,
@@ -103,6 +103,9 @@ const LeaseListScreen = () => {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor="#11CDE8" />
+            }
             ListEmptyComponent={
               <View style={styles.center}>
                 <Text style={styles.errorText}>{t("no_leases_found")}</Text>

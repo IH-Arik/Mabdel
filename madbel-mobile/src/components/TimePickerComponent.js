@@ -77,9 +77,10 @@ const TimePickerComponent = ({
               date={time}
               onDateChange={setTime}
               mode="time"
+              theme="dark"
               androidVariant="iosClone"
-              textColor="#FFFFFF"
-              fadeToColor="#0B1118"
+              // textColor="#FFFFFF"
+              // fadeToColor="#0B1118"
               style={styles.picker}
             />
             <TouchableOpacity

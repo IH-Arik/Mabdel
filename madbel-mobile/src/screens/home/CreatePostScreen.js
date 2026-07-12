@@ -497,8 +497,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: responsiveWidth(4.5),
     right: responsiveWidth(4.5),
-    bottom: responsiveHeight(10),
+    bottom: responsiveHeight(12),
     gap: responsiveHeight(1.2),
+    backgroundColor: 'black'
   },
   footerRow: {
     flexDirection: "row",

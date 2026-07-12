@@ -871,6 +871,7 @@ export const APP_TRANSLATIONS = {
     total_due: "TOTAL DUE",
 
     preview: "Preview",
+    agreement: "Agreement",
 
     agreement_basic_info: "Agreement Basic Info",
 
