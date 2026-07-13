@@ -44,6 +44,21 @@ const resolveSigningToken = (response) =>
   response?.data?.data?.signingToken ||
   null;
 
+const resolveAgreementPublicPdfUrl = (agreement, agreementId) => {
+  const publicUrl = normalizeProtectedFileUrl(agreement?.signature_request_url);
+  if (publicUrl) return publicUrl;
+
+  const signingToken = resolveSigningToken(agreement);
+  if (signingToken) {
+    return normalizeProtectedFileUrl(
+      `/api/v1/smartflow/agreements/signing/${signingToken}/pdf`,
+    );
+  }
+
+  if (!agreementId) return null;
+  return normalizeProtectedFileUrl(`/api/v1/smartflow/agreements/${agreementId}/pdf`);
+};
+
 const AgreementPreviewScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
@@ -122,6 +137,15 @@ const AgreementPreviewScreen = () => {
     if (!agreementId) return;
     try {
       setDownloadingPdf(true);
+      const publicPdfUrl = resolveAgreementPublicPdfUrl(agreement, agreementId);
+      if (publicPdfUrl) {
+        const canOpen = await Linking.canOpenURL(publicPdfUrl);
+        if (canOpen) {
+          await Linking.openURL(publicPdfUrl);
+          return;
+        }
+      }
+
       const pdfUrl =
         normalizeProtectedFileUrl(agreement?.pdf_url) ||
         normalizeProtectedFileUrl(`/api/v1/smartflow/agreements/${agreementId}/pdf`);

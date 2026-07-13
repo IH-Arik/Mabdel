@@ -61,6 +61,13 @@ const resolveSigningToken = (response) =>
   response?.data?.data?.signingToken ||
   null;
 
+const resolveLeasePublicPdfUrl = (lease) =>
+  normalizeProtectedFileUrl(
+    lease?.signature_request_url ||
+      lease?.data?.signature_request_url ||
+      null,
+  );
+
 const LeasePreviewScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
@@ -182,6 +189,15 @@ const LeasePreviewScreen = () => {
     try {
       setResolvingDownloadLink(true);
       setDownloadingPdf(true);
+      const publicPdfUrl = resolveLeasePublicPdfUrl(lease);
+      if (publicPdfUrl) {
+        const canOpen = await Linking.canOpenURL(publicPdfUrl);
+        if (canOpen) {
+          await Linking.openURL(publicPdfUrl);
+          return;
+        }
+      }
+
       const pdfUrl = await ensureDownloadUrl();
       if (!pdfUrl) {
         Alert.alert(t("pdf_unavailable"), t("could_not_generate_pdf_link"));
