@@ -31,6 +31,10 @@ import {
   useMadbelAiWorkflowPrefillMutation,
 } from "../../redux/slices/madbelApiSlice";
 import { redirectFromVoiceResult } from "../../utils/voiceNavigation";
+import {
+  inferVoiceWorkflowIntent,
+  normalizeVoiceWorkflowTranscript,
+} from "../../utils/voiceWorkflow";
 import { useAppLanguage } from "../../context/LanguageContext";
 
 const actionChips = [
@@ -40,13 +44,13 @@ const actionChips = [
   "new_agreement",
 ];
 
-const buildWorkflowPrefillBody = (transcript) => ({
-  transcript,
+const buildWorkflowPrefillBody = (transcript, workflowIntent = null) => ({
+  transcript: normalizeVoiceWorkflowTranscript(transcript),
   audio_mime_type: "audio/wav",
   audio_filename: "voice.wav",
   response_mode: "both",
   voice_id: null,
-  workflow_intent: null,
+  workflow_intent: workflowIntent,
   current_values: {},
 });
 
@@ -98,8 +102,9 @@ const MicListeningScreen = () => {
   useSpeechRecognitionEvent("result", (event) => {
     const text = event.results[0]?.transcript;
     if (text) {
-      setTranscribedText(text);
-      setTypedPrompt(text); // auto-fill the text input for visibility
+      const normalized = normalizeVoiceWorkflowTranscript(text);
+      setTranscribedText(normalized);
+      setTypedPrompt(normalized); // auto-fill the text input for visibility
     }
   });
 
@@ -195,11 +200,12 @@ const MicListeningScreen = () => {
 
   const submitWorkflowPrefill = useCallback(
     async (rawTranscript) => {
-      const transcript = rawTranscript.trim();
+      const transcript = normalizeVoiceWorkflowTranscript(rawTranscript);
+      const inferredIntent = inferVoiceWorkflowIntent(transcript);
       let finalResult;
 
       try {
-        const requestBody = buildWorkflowPrefillBody(transcript);
+        const requestBody = buildWorkflowPrefillBody(transcript, inferredIntent);
         const workflowResponse = await workflowPrefill(requestBody).unwrap();
         const workflowPayload = workflowResponse?.data || workflowResponse || {};
 
@@ -296,8 +302,8 @@ const MicListeningScreen = () => {
     async (promptOverride) => {
       const transcript =
         typeof promptOverride === "string"
-          ? promptOverride.trim()
-          : typedPrompt.trim();
+          ? normalizeVoiceWorkflowTranscript(promptOverride)
+          : normalizeVoiceWorkflowTranscript(typedPrompt);
       if (!transcript || isProcessing) return;
 
       setIsProcessing(true);

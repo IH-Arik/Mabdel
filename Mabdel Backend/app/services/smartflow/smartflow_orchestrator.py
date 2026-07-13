@@ -451,6 +451,9 @@ class SmartFlowService(SmartFlowBase):
     async def generate_lease_pdf(self, user_id, lease_id):
         return await self.lease_service.generate_lease_pdf(user_id, lease_id)
 
+    async def generate_public_lease_pdf(self, signature_token):
+        return await self.lease_service.generate_public_lease_pdf(signature_token)
+
     # ==================================================================
     # Call history (delegated)
     # ==================================================================
