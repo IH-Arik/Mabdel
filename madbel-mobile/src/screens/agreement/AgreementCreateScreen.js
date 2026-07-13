@@ -282,7 +282,7 @@ const AgreementCreateScreen = () => {
             </Pressable>
           </View>
 
-          {/* <View style={styles.generateCard}>
+          <View style={styles.generateCard}>
             <Text style={styles.generateTitle}>{t("generate_with_ai")}</Text>
             <View style={styles.promptBox}>
               <TextInput
@@ -307,7 +307,7 @@ const AgreementCreateScreen = () => {
                 </>
               )}
             </Pressable>
-          </View> */}
+          </View>
 
           <View style={styles.generateCard}>
             <Text style={styles.generateTitle}>{t("agreement_content")}</Text>
@@ -319,16 +319,16 @@ const AgreementCreateScreen = () => {
               multiline
               style={styles.contentInput}
             />
-            {/* <Pressable style={[styles.generateBtn, { marginTop: responsiveHeight(1) }]} onPress={runReview} disabled={reviewing}>
+            <Pressable style={[styles.generateBtn, { marginTop: responsiveHeight(1) }]} onPress={runReview} disabled={reviewing}>
               {reviewing ? (
                 <ActivityIndicator color="#E9F8FF" />
               ) : (
                 <Text style={styles.generateBtnText}>{t("run_ai_review")}</Text>
               )}
-            </Pressable> */}
+            </Pressable>
           </View>
 
-          {/* <View style={styles.reviewCard}>
+          <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <Sparkles size={20} color="#10CDE9" />
               <Text style={styles.reviewTitle}>{t("ai_review")}</Text>
@@ -355,7 +355,7 @@ const AgreementCreateScreen = () => {
                 <Text style={styles.reviewItemSub}>{t("no_review_yet_generate_or_review_a_draft")}</Text>
               </View>
             )}
-          </View> */}
+          </View>
 
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>{t("signature_field")}</Text>
