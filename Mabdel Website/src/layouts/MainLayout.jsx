@@ -18,6 +18,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import logoImg from '../assets/logo.png';
+import { TwilioVoiceProvider, useTwilioVoice } from '../context/TwilioVoiceContext';
+import IncomingCallOverlay from '../components/Calls/IncomingCallOverlay';
+import ActiveCallOverlay from '../components/Calls/ActiveCallOverlay';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -34,6 +37,57 @@ const primaryNavItems = [
   { name: 'Groups', icon: Users2, path: '/groups' },
   { name: 'Profile', icon: Settings, path: '/profile' },
 ];
+
+function CallOverlayHost() {
+  const {
+    incomingCall,
+    currentCall,
+    currentCallerName,
+    currentCallerNumber,
+    acceptIncomingCall,
+    rejectIncomingCall,
+    endCurrentCall,
+    toggleMute,
+    toggleSpeaker,
+    isMuted,
+    isSpeakerOn,
+    durationSeconds,
+    transcriptSegments,
+    callStatusText,
+  } = useTwilioVoice();
+
+  const latestTranscript = transcriptSegments.length
+    ? transcriptSegments
+        .slice(-3)
+        .map((segment) => `${String(segment?.speaker || 'caller').toUpperCase()}: ${segment?.text || segment?.content || ''}`)
+        .join('\n')
+    : '';
+
+  return (
+    <>
+      <IncomingCallOverlay
+        callerName={currentCallerName}
+        callerNumber={currentCallerNumber}
+        isOpen={Boolean(incomingCall && !currentCall)}
+        onAccept={acceptIncomingCall}
+        onReject={rejectIncomingCall}
+      />
+      <ActiveCallOverlay
+        callerName={currentCallerName}
+        callerNumber={currentCallerNumber}
+        isOpen={Boolean(currentCall)}
+        onEndCall={endCurrentCall}
+        onToggleMute={toggleMute}
+        onToggleSpeaker={toggleSpeaker}
+        isMuted={isMuted}
+        isSpeaker={isSpeakerOn}
+        durationSeconds={durationSeconds}
+        statusText={callStatusText}
+        latestTranscript={latestTranscript}
+      />
+    </>
+  );
+}
 
 export default function MainLayout() {
   const { user, logout } = useAuthStore();
@@ -63,7 +117,9 @@ export default function MainLayout() {
   };
 
   return (
+    <TwilioVoiceProvider>
     <div className="flex h-screen bg-[#02080B] text-white font-sans overflow-hidden">
+      <CallOverlayHost />
       
       {/* Sidebar */}
       <aside className="w-64 bg-[#0c101b] border-r border-[#243041] flex flex-col shrink-0 select-none">
@@ -170,7 +226,6 @@ export default function MainLayout() {
               )}
             >
               <Bell size={18} />
-              <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-[#11C7E5] rounded-full"></span>
             </button>
 
             {/* Profile Avatar */}
@@ -191,6 +246,7 @@ export default function MainLayout() {
         </main>
       </div>
     </div>
+    </TwilioVoiceProvider>
   );
 }
 

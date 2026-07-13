@@ -6,6 +6,8 @@ import {
 
 export const loginAdmin = async ({ email, password }) => {
   const endpointCandidates = [
+    "/dashboard/admin/login",
+    "/api/v1/dashboard/admin/login",
     "/admin/login",
     "/auth/admin/login",
     "/api/v1/auth/admin/login",

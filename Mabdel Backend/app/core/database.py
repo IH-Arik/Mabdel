@@ -84,7 +84,9 @@ class MongoConnectionManager:
         await self.database.contacts.create_index([("user_id", 1), ("identities.external_id", 1)])
         await self.database.conversations.create_index([("user_id", 1), ("updated_at", -1)])
         await self.database.conversations.create_index([("user_id", 1), ("platform", 1), ("updated_at", -1)])
+        await self.database.conversations.create_index([("organization_id", 1), ("is_global_chat", 1), ("updated_at", -1)])
         await self.database.messages.create_index([("user_id", 1), ("conversation_id", 1), ("timestamp", -1)])
+        await self.database.messages.create_index([("conversation_id", 1), ("sender_user_id", 1), ("timestamp", -1)])
         await self.database.messages.create_index([("user_id", 1), ("platform", 1), ("provider_message_id", 1)])
         await self.database.messages.create_index([("user_id", 1), ("content", "text")])
         await self.database.ai_command_history.create_index([("user_id", 1), ("timestamp", -1)])
@@ -120,6 +122,11 @@ class MongoConnectionManager:
         await self.database.oauth_states.create_index("state", unique=True)
         await self.database.oauth_states.create_index("expires_at", expireAfterSeconds=0)
         await self.database.groups.create_index([("user_id", 1), ("created_at", -1)])
+        await self.database.groups.create_index(
+            [("organization_id", 1), ("is_global_chat", 1)],
+            unique=True,
+            partialFilterExpression={"organization_id": {"$type": "string"}, "is_global_chat": True},
+        )
         await self.database.group_members.create_index([("group_id", 1), ("member_id", 1)], unique=True)
         await self.database.processed_webhooks.create_index([("platform", 1), ("event_id", 1)], unique=True)
         await self.database.app_configs.create_index([("updated_at", -1)])

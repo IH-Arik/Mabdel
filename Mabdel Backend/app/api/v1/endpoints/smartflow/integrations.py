@@ -5,6 +5,7 @@ import hmac
 import json
 
 from fastapi import Depends, Header, Query, Request, status
+from fastapi.responses import HTMLResponse
 
 from app.core.config import settings
 from app.core.exceptions import AppException
@@ -115,14 +116,46 @@ async def start_integration_oauth(
     return success_response(data=data, message="Integration OAuth started successfully.")
 
 
-@router.get("/integrations/{platform}/oauth/callback")
+@router.get("/integrations/{platform}/oauth/callback", response_model=None)
 async def complete_integration_oauth(
     platform: str,
-    code: str,
-    state: str,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
     service: SmartFlowService = Depends(get_smartflow_service),
-) -> dict:
+) -> HTMLResponse | dict:
+    if platform == "google_business":
+        if error:
+            html = """
+            <html><body style="font-family:Arial,sans-serif;background:#0b1220;color:#fff;padding:24px;">
+            <h2>Google Calendar connection was not completed.</h2>
+            <p>You can close this window and try again.</p>
+            <script>
+              if (window.opener) { window.opener.postMessage({ type: 'mabdel-google-calendar-oauth', status: 'error' }, '*'); }
+              window.close();
+            </script>
+            </body></html>
+            """
+            return HTMLResponse(content=html, status_code=200)
+        if not code or not state:
+            raise AppException(status_code=400, code="OAUTH_CALLBACK_INVALID", message="OAuth callback is missing required parameters.")
+    else:
+        if not code or not state:
+            raise AppException(status_code=400, code="OAUTH_CALLBACK_INVALID", message="OAuth callback is missing required parameters.")
+
     data = await service.complete_integration_oauth(platform, code, state)
+    if platform == "google_business":
+        html = """
+        <html><body style="font-family:Arial,sans-serif;background:#0b1220;color:#fff;padding:24px;">
+        <h2>Google Calendar connected.</h2>
+        <p>You can close this window.</p>
+        <script>
+          if (window.opener) { window.opener.postMessage({ type: 'mabdel-google-calendar-oauth', status: 'success' }, '*'); }
+          window.close();
+        </script>
+        </body></html>
+        """
+        return HTMLResponse(content=html, status_code=200)
     return success_response(data=data, message="Integration OAuth completed successfully.")
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import Depends, File, Query, UploadFile, WebSocket, WebSocketDisconnect, status
 
 from app.core.realtime import conversation_realtime_hub, inbox_realtime_hub
 from app.core.security import decode_token
@@ -36,7 +36,7 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str, token:
             return
         service = SmartFlowService(db)
         await service.get_conversation(str(user["_id"]), conversation_id)
-        await conversation_realtime_hub.connect(conversation_id, websocket)
+        await conversation_realtime_hub.connect(conversation_id, websocket, str(user["_id"]))
         await websocket.send_json({"event": "connected", "conversation_id": conversation_id, "data": {"connected": True}})
         await conversation_realtime_hub.publish(conversation_id, "presence.updated", {
             "user_id": str(user["_id"]),
@@ -76,7 +76,7 @@ async def inbox_stream(websocket: WebSocket, token: str) -> None:
             return
         user_id = str(user["_id"])
         service = SmartFlowService(db)
-        await inbox_realtime_hub.connect(user_id, websocket)
+        await inbox_realtime_hub.connect(user_id, websocket, user_id)
         summary = await service.get_unread_message_summary(user_id, None)
         await websocket.send_json({"event": "connected", "channel": "inbox", "data": {"connected": True, "summary": summary}})
         while True:
@@ -175,6 +175,25 @@ async def create_message(
 ) -> dict:
     data = await service.create_message(str(current_user["_id"]), payload.model_dump())
     return success_response(data=data, message="Message created successfully.")
+
+
+@router.post("/conversations/{conversation_id}/attachments", status_code=status.HTTP_201_CREATED)
+async def upload_conversation_attachment(
+    conversation_id: str,
+    attachment_file: UploadFile = File(...),
+    current_user: dict = Depends(require_permission("messages", "send")),
+    _: dict = Depends(require_subscription),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    file_bytes = await attachment_file.read()
+    data = await service.store_message_attachment(
+        str(current_user["_id"]),
+        conversation_id,
+        file_bytes=file_bytes,
+        content_type=attachment_file.content_type,
+        filename=attachment_file.filename,
+    )
+    return success_response(data=data, message="Attachment uploaded successfully.")
 
 
 @router.patch("/messages/{message_id}")

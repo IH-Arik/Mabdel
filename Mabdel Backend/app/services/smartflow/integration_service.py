@@ -17,12 +17,14 @@ from app.utils.helpers import utc_now
 
 from ._base import SmartFlowBase
 from .conversation_service import ConversationService
+from .google_calendar_service import GoogleCalendarService
 
 
 class IntegrationService(SmartFlowBase):
     def __init__(self, db: AsyncIOMotorDatabase, conversation_service: ConversationService | None = None) -> None:
         super().__init__(db)
         self.conversation_service = conversation_service or ConversationService(db)
+        self.google_calendar_service = GoogleCalendarService(db)
 
     async def list_integrations(self, user_id: str) -> list[dict]:
         docs = await self.db.social_integrations.find({"user_id": user_id}).sort("platform", 1).to_list(length=20)
@@ -113,6 +115,12 @@ class IntegrationService(SmartFlowBase):
         integration = await self.db.social_integrations.find_one({"user_id": user_id, "platform": platform, "status": "connected"})
         if not integration:
             raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
+        if platform == "google_business":
+            await self.db.social_integrations.update_one(
+                {"_id": integration["_id"]},
+                {"$set": {"sync_status": "syncing", "updated_at": utc_now()}},
+            )
+            return await self.google_calendar_service.sync_events(user_id, integration)
         adapter = get_social_provider_adapter(platform)
         now = utc_now()
         if not adapter.supports_recent_sync:
@@ -276,6 +284,11 @@ class IntegrationService(SmartFlowBase):
             {
                 "$set": {
                     "status": "disconnected",
+                    "access_token_encrypted": None,
+                    "refresh_token_encrypted": None,
+                    "access_token_expires_at": None,
+                    "sync_status": "idle",
+                    "last_error": None,
                     "updated_at": utc_now(),
                 }
             },
@@ -358,8 +371,39 @@ class IntegrationService(SmartFlowBase):
         if not access_token:
             raise AppException(status_code=502, code="OAUTH_ACCESS_TOKEN_MISSING", message="Provider did not return an access token.")
 
-        adapter = get_social_provider_adapter(platform)
-        account_metadata = await adapter.fetch_account_metadata(access_token, token_data)
+        account_metadata = {}
+        provider_metadata = {}
+        if platform == "google_business":
+            google_context = await self.google_calendar_service.fetch_account_context(access_token)
+            userinfo = google_context["userinfo"]
+            default_calendar = google_context.get("default_calendar") or {}
+            account_metadata = {
+                "external_account_id": userinfo.get("email") or userinfo.get("id"),
+                "external_account_name": userinfo.get("name") or userinfo.get("email") or "Google Calendar",
+            }
+            provider_metadata = {
+                "calendar_provider": "google_calendar",
+                "google_user_email": userinfo.get("email"),
+                "google_user_id": userinfo.get("id"),
+                "default_calendar_id": default_calendar.get("id") or "primary",
+                "default_calendar_name": default_calendar.get("summary") or "Primary",
+                "timezone": default_calendar.get("timeZone") or userinfo.get("locale") or "UTC",
+                "calendar_count": len(google_context.get("calendars") or []),
+                "available_calendars": [
+                    {
+                        "id": item.get("id"),
+                        "summary": item.get("summary"),
+                        "primary": bool(item.get("primary")),
+                        "access_role": item.get("accessRole"),
+                        "time_zone": item.get("timeZone"),
+                    }
+                    for item in (google_context.get("calendars") or [])
+                ],
+            }
+        else:
+            adapter = get_social_provider_adapter(platform)
+            account_metadata = await adapter.fetch_account_metadata(access_token, token_data)
+
         integration = await self.upsert_integration(
             state_doc["user_id"],
             {
@@ -368,6 +412,7 @@ class IntegrationService(SmartFlowBase):
                 "refresh_token": token_data.get("refresh_token"),
                 "external_account_id": account_metadata.get("external_account_id") or token_data.get("scope") or token_data.get("token_type"),
                 "external_account_name": account_metadata.get("external_account_name"),
+                "provider_metadata": provider_metadata,
             },
         )
         await self.db.social_integrations.update_one(
@@ -376,13 +421,18 @@ class IntegrationService(SmartFlowBase):
                 "$set": {
                     "oauth_state_completed_at": utc_now(),
                     "token_expires_in": token_data.get("expires_in"),
+                    "access_token_expires_at": utc_now() + timedelta(seconds=int(token_data.get("expires_in") or 3600)),
                     "granted_scopes": token_data.get("scope"),
                 }
             },
         )
         await self.db.oauth_states.delete_one({"_id": state_doc["_id"]})
-        if adapter.supports_recent_sync:
+        if platform == "google_business":
             await self.sync_integration(state_doc["user_id"], platform)
+        else:
+            adapter = get_social_provider_adapter(platform)
+            if adapter.supports_recent_sync:
+                await self.sync_integration(state_doc["user_id"], platform)
         return {
             "connected": True,
             "platform": platform,

@@ -88,6 +88,12 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str | None = None
     TWILIO_AUTH_TOKEN: str | None = None
     TWILIO_PHONE_NUMBER: str | None = None
+    TWILIO_VOICE_API_KEY_SID: str | None = None
+    TWILIO_VOICE_API_KEY_SECRET: str | None = None
+    TWILIO_VOICE_TWIML_APP_SID: str | None = None
+    TWILIO_VOICE_IDENTITY_PREFIX: str = "web-user"
+    TWILIO_VOICE_TOKEN_EXPIRE_SECONDS: int = 3600
+    TWILIO_VOICE_REGISTRATION_TTL_SECONDS: int = 180
     TWILIO_VALIDATE_SIGNATURE: bool = True
     TWILIO_STREAM_TRACK: str = "inbound_track"
     TWILIO_NUMBER_COUNTRY: str = "US"

@@ -1,20 +1,65 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { 
   Search, MoreVertical, Mail, Phone, User, 
   Trash2, Filter, Download, UserPlus, ArrowLeft, 
   Check, Calendar, MapPin, Building, ChevronLeft, 
-  ChevronRight, Plus, ShieldCheck, Sparkles, MessageSquare, 
+  ChevronRight, Plus, ShieldCheck, Sparkles, MessageSquare, Upload,
   PhoneCall, Pencil, Grid, List, Activity, FileText
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 
-// Removed SEED_CONTACTS
+const IMPORT_HEADERS = ['name', 'first_name', 'last_name', 'email', 'phone', 'address', 'notes', 'company', 'job_title'];
+
+function parseContactCsv(text) {
+  const lines = String(text || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) return [];
+
+  const firstRow = lines[0].split(',').map((cell) => cell.trim().toLowerCase());
+  const hasHeader = firstRow.some((cell) => IMPORT_HEADERS.includes(cell));
+  const headers = hasHeader ? firstRow : ['name', 'email', 'phone', 'address', 'notes'];
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+
+  return dataLines
+    .map((line) => line.split(',').map((cell) => cell.trim()))
+    .filter((cells) => cells.some(Boolean))
+    .map((cells) =>
+      headers.reduce((entry, header, index) => {
+        entry[header] = cells[index] || '';
+        return entry;
+      }, {})
+    );
+}
+
+function mapPickerContacts(entries) {
+  return (entries || []).map((entry) => {
+    const nameValue = Array.isArray(entry.name) ? entry.name[0] : entry.name;
+    const emailValue = Array.isArray(entry.email) ? entry.email[0] : entry.email;
+    const phoneValue = Array.isArray(entry.tel) ? entry.tel[0] : entry.tel;
+    const addressValue = Array.isArray(entry.address) ? entry.address[0] : entry.address;
+    return {
+      name: String(nameValue || '').trim(),
+      email: String(emailValue || '').trim(),
+      phone: String(phoneValue || '').trim(),
+      address: typeof addressValue === 'string' ? addressValue.trim() : '',
+    };
+  });
+}
 
 export default function Contacts() {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [importing, setImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [importReport, setImportReport] = useState(null);
   
   const location = useLocation();
   
@@ -41,12 +86,32 @@ export default function Contacts() {
 
   // Layout view config
   const [layoutMode, setLayoutMode] = useState('list'); // 'grid' or 'list'
+  const importInputRef = useRef(null);
+
+  const resetForm = useCallback(() => {
+    if (avatarPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+    setEditId(null);
+    setFirstName('');
+    setLastName('');
+    setPhone('');
+    setEmail('');
+    setAddress('');
+    setDob('');
+    setNotes('');
+    setLeadStatus('New Prospect');
+    setWorkflowSequence(true);
+    setAvatarFile(null);
+    setAvatarPreview(null);
+  }, [avatarPreview]);
 
   // Fetch Contacts from backend
   const fetchContacts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await smartflowApi.getContacts();
+      setError('');
+      const response = await smartflowApi.getContacts({ page: 1, page_size: 100 });
       const rawItems = response.data?.data?.items || [];
       const backendItems = rawItems.map(item => {
         let avatarText = item.avatarText;
@@ -59,22 +124,47 @@ export default function Contacts() {
           }
           avatarText = avatarText ? avatarText.toUpperCase() : '??';
         }
+        const isAppUser =
+          item.is_app_user !== undefined
+            ? Boolean(item.is_app_user)
+            : Boolean(item.on_mabdel || item.is_mabdel_user || item.app_user);
         return {
           ...item,
+          id: item.id || item._id,
+          name: item.name || [item.first_name, item.last_name].filter(Boolean).join(' ').trim() || 'Unnamed Contact',
           avatarText,
+          is_app_user: isAppUser,
+          status: item.status || (isAppUser ? 'active' : 'pending'),
           online: item.online !== undefined ? item.online : (item.presence === 'online'),
           location: item.location || item.address || 'Remote',
           company: item.company || 'Individual',
           last_interaction: item.last_interaction || 'Active',
           last_contact_days: item.last_contact_days || 'Today',
           total_calls: item.total_calls !== undefined ? item.total_calls : 0,
-          activity_chart: item.activity_chart || [0, 0, 0, 0, 0]
+          activity_chart: item.activity_chart || [0, 0, 0, 0, 0],
+          dob: item.dob || item.date_of_birth || null,
         };
       });
 
       setContacts(backendItems);
+      setActiveTab((currentTab) => {
+        const hasOnMabdel = backendItems.some((item) => item.is_app_user === true);
+        const hasInviteOnly = backendItems.some((item) => item.is_app_user !== true);
+
+        if (currentTab === 'on_mabdel' && !hasOnMabdel && hasInviteOnly) {
+          return 'invite';
+        }
+
+        if (currentTab === 'invite' && !hasInviteOnly && hasOnMabdel) {
+          return 'on_mabdel';
+        }
+
+        return currentTab;
+      });
     } catch (error) {
       console.error('Error fetching contacts from backend:', error);
+      setContacts([]);
+      setError(error?.response?.data?.message || 'Could not load contacts.');
     } finally {
       setLoading(false);
     }
@@ -83,6 +173,28 @@ export default function Contacts() {
   useEffect(() => {
     fetchContacts();
   }, [fetchContacts]);
+
+  useEffect(() => {
+    if (!selectedContactId && contacts.length > 0) {
+      setSelectedContactId(contacts[0].id);
+      return;
+    }
+
+    if (selectedContactId && !contacts.some((contact) => contact.id === selectedContactId)) {
+      setSelectedContactId(contacts[0]?.id || null);
+      if (!contacts.length) {
+        setViewMode('dashboard');
+      }
+    }
+  }, [contacts, selectedContactId]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
   useEffect(() => {
     if (location.state?.prefill) {
@@ -107,23 +219,35 @@ export default function Contacts() {
   // Save Contact trigger (Create / Update)
   const handleSaveContact = async (e) => {
     e.preventDefault();
-    if (!firstName.trim()) return;
+    if (!firstName.trim()) {
+      setError('First name is required.');
+      return;
+    }
+
+    const trimmedEmail = email.trim();
+    const trimmedPhone = phone.trim();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Enter a valid email address.');
+      return;
+    }
 
     const fullName = `${firstName} ${lastName}`.trim();
     const payload = {
-      first_name: firstName,
-      last_name: lastName,
+      first_name: firstName.trim(),
+      last_name: lastName.trim() || undefined,
       name: fullName,
-      phone: phone || undefined,
-      email: email || undefined,
-      address: address || undefined,
+      phone: trimmedPhone || undefined,
+      email: trimmedEmail || undefined,
+      address: address.trim() || undefined,
       status: leadStatus === 'New Prospect' ? 'pending' : 'active',
-      notes: notes || undefined,
-      dob: dob || undefined
+      notes: notes.trim() || undefined,
+      date_of_birth: dob || undefined
     };
 
     try {
-      setLoading(true);
+      setSubmitting(true);
+      setError('');
+      setSuccessMessage('');
       let res;
       if (editId) {
         res = await smartflowApi.updateContact(editId, payload);
@@ -135,45 +259,136 @@ export default function Contacts() {
 
       if (savedContactId && avatarFile) {
         const formData = new FormData();
-        formData.append('avatar', avatarFile);
+        formData.append('avatar_file', avatarFile);
         await smartflowApi.uploadContactAvatar(savedContactId, formData);
       }
 
       await fetchContacts();
-      setEditId(null);
-      setAvatarFile(null);
-      setAvatarPreview(null);
+      setSelectedContactId(savedContactId || null);
+      resetForm();
+      setSuccessMessage(editId ? 'Contact updated successfully.' : 'Contact created successfully.');
       setViewMode('dashboard');
     } catch (err) {
       console.error('Failed to save contact:', err);
+      setError(err?.response?.data?.message || 'Failed to save contact.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   const handleAvatarSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError('Please choose an image file.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image must be smaller than 5MB.');
+        return;
+      }
+      if (avatarPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreview);
+      }
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
+      setError('');
+    }
+  };
+
+  const submitImportedContacts = useCallback(async (entries, sourceLabel) => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      setError('No contacts were available to import.');
+      return;
+    }
+
+    try {
+      setImporting(true);
+      setError('');
+      setSuccessMessage('');
+      setImportReport(null);
+      const response = await smartflowApi.importContacts({ contacts: entries });
+      const data = response.data?.data || {};
+      await fetchContacts();
+      setImportReport(data);
+      setSuccessMessage(
+        `${sourceLabel} import finished: ${data.summary?.imported || 0} imported, ${data.summary?.duplicates || 0} duplicates, ${data.summary?.invalid || 0} invalid.`
+      );
+      setActiveTab((data.summary?.imported || 0) > 0 ? 'invite' : activeTab);
+    } catch (importError) {
+      console.error('Import contacts failed:', importError);
+      setError(importError?.response?.data?.message || 'Contacts import failed.');
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) {
+        importInputRef.current.value = '';
+      }
+    }
+  }, [activeTab, fetchContacts]);
+
+  const handleImportFallbackClick = useCallback(() => {
+    if (importInputRef.current) {
+      importInputRef.current.click();
+      return;
+    }
+    setError('This browser does not support contact import.');
+  }, []);
+
+  const handleImportContacts = useCallback(async () => {
+    if (navigator.contacts?.select) {
+      try {
+        const selected = await navigator.contacts.select(['name', 'email', 'tel', 'address'], { multiple: true });
+        await submitImportedContacts(mapPickerContacts(selected), 'Phone contacts');
+        return;
+      } catch (pickerError) {
+        if (pickerError?.name === 'NotAllowedError') {
+          setError('Contact access was denied.');
+          return;
+        }
+        if (pickerError?.name !== 'AbortError') {
+          console.error('Contact Picker import failed, falling back to CSV.', pickerError);
+        } else {
+          return;
+        }
+      }
+    }
+
+    if (typeof FileReader === 'undefined') {
+      setError('This browser does not support contact import.');
+      return;
+    }
+    handleImportFallbackClick();
+  }, [handleImportFallbackClick, submitImportedContacts]);
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const entries = parseContactCsv(text);
+      await submitImportedContacts(entries, 'CSV');
+    } catch (fileError) {
+      console.error('Could not read import file:', fileError);
+      setError('Could not read the selected import file.');
+      setImporting(false);
     }
   };
 
   const handleCallContact = async (contact) => {
-    if (!contact?.phone) return alert('No phone number for this contact');
-    try {
-      setLoading(true);
-      await smartflowApi.createOutboundCall({
-        to_number: contact.phone,
-        contact_id: contact.id
-      });
-      alert(`Call initiated to ${contact.name}`);
-    } catch (err) {
-      console.error('Failed to initiate call:', err);
-      alert('Failed to initiate call');
-    } finally {
-      setLoading(false);
+    const rawPhone = String(contact?.phone || '').trim();
+    if (!rawPhone) {
+      setError('No phone number exists for this contact.');
+      return;
     }
+
+    const sanitizedPhone = rawPhone.replace(/[^\d+]/g, '');
+    if (!/^\+?\d{7,}$/.test(sanitizedPhone)) {
+      setError('This contact phone number is not valid for calling.');
+      return;
+    }
+
+    setError('');
+    window.open(`tel:${sanitizedPhone}`, '_self');
   };
 
   const openEdit = (contact) => {
@@ -183,27 +398,35 @@ export default function Contacts() {
     setPhone(contact.phone || '');
     setEmail(contact.email || '');
     setAddress(contact.address || contact.location || '');
-    setDob(contact.dob || '');
+    setDob(contact.date_of_birth || contact.dob || '');
     setNotes(contact.notes || '');
     setLeadStatus(contact.status === 'pending' ? 'New Prospect' : 'Active Partner');
     setAvatarPreview(contact.avatar_url || null);
     setAvatarFile(null);
+    setError('');
+    setSuccessMessage('');
     setViewMode('create');
   };
 
   // Delete Contact trigger
   const handleDeleteContact = async (id) => {
+    if (!window.confirm('Delete this contact?')) return;
     try {
-      setLoading(true);
+      setDeletingId(id);
+      setError('');
+      setSuccessMessage('');
       await smartflowApi.deleteContact(id);
+      const remaining = contacts.filter(c => c.id !== id);
+      setContacts(remaining);
+      setSelectedContactId(remaining.length > 0 ? remaining[0].id : null);
+      setViewMode('dashboard');
+      setSuccessMessage('Contact deleted successfully.');
     } catch (err) {
-      console.error('Delete Contact API failed, deleting locally:', err);
+      console.error('Delete Contact API failed:', err);
+      setError(err?.response?.data?.message || 'Failed to delete contact.');
+    } finally {
+      setDeletingId(null);
     }
-    const remaining = contacts.filter(c => c.id !== id);
-    setContacts(remaining);
-    setSelectedContactId(remaining.length > 0 ? remaining[0].id : null);
-    setViewMode('dashboard');
-    setLoading(false);
   };
 
   // Status Styles
@@ -220,14 +443,19 @@ export default function Contacts() {
   };
 
   // Filters search list
-  const tabFilteredContacts = contacts.filter(c => 
-    activeTab === 'on_mabdel' ? c.is_app_user === true : !c.is_app_user
-  );
-  const filteredContacts = tabFilteredContacts.filter(c => 
-    (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.phone || '').includes(searchTerm)
-  );
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const onMabdelContacts = useMemo(() => contacts.filter((c) => c.is_app_user === true), [contacts]);
+  const inviteContacts = useMemo(() => contacts.filter((c) => c.is_app_user !== true), [contacts]);
+  const tabFilteredContacts = activeTab === 'on_mabdel' ? onMabdelContacts : inviteContacts;
+  const filteredContacts = tabFilteredContacts.filter(c => {
+    if (!normalizedSearch) return true;
+    return (
+      (c.name || '').toLowerCase().includes(normalizedSearch) ||
+      (c.email || '').toLowerCase().includes(normalizedSearch) ||
+      (c.phone || '').toLowerCase().includes(normalizedSearch)
+    );
+  });
+  const showcasedContacts = filteredContacts.slice(0, 4);
 
   return (
     <div className="h-full flex flex-col space-y-6">
@@ -255,7 +483,7 @@ export default function Contacts() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                On Mabdel
+                On Mabdel ({onMabdelContacts.length})
               </button>
               <button
                 onClick={() => setActiveTab('invite')}
@@ -265,7 +493,7 @@ export default function Contacts() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Invite to Mabdel
+                Invite to Mabdel ({inviteContacts.length})
               </button>
             </div>
             
@@ -276,26 +504,79 @@ export default function Contacts() {
               <button className="px-4 py-2.5 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer">
                 <Download size={14} /> Export
               </button>
+              <button
+                onClick={handleImportContacts}
+                disabled={importing}
+                className="px-4 py-2.5 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <Upload size={14} /> {importing ? 'Importing...' : 'Import'}
+              </button>
               <button 
                 onClick={() => {
-                  setEditId(null);
-                  setFirstName('');
-                  setLastName('');
-                  setPhone('');
-                  setEmail('');
-                  setAddress('');
-                  setDob('');
-                  setNotes('');
-                  setAvatarFile(null);
-                  setAvatarPreview(null);
+                  resetForm();
+                  setError('');
+                  setSuccessMessage('');
                   setViewMode('create');
                 }}
                 className="px-4 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] hover:shadow-cyan-400/10 rounded-xl text-xs font-extrabold shadow-lg shadow-cyan-500/5 active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <UserPlus size={14} /> Add Contact
               </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".csv,.txt"
+                className="hidden"
+                onChange={handleImportFile}
+              />
             </div>
           </div>
+
+          {error ? (
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 px-4 py-3 text-sm font-semibold text-rose-300">
+              {error}
+            </div>
+          ) : null}
+
+          {successMessage ? (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-sm font-semibold text-emerald-300">
+              {successMessage}
+            </div>
+          ) : null}
+
+          {importReport ? (
+            <div className="rounded-3xl border border-slate-900 bg-[#0c101b]/95 p-4 text-left space-y-3">
+              <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-300">
+                <span>Imported: {importReport.summary?.imported || 0}</span>
+                <span>Duplicates: {importReport.summary?.duplicates || 0}</span>
+                <span>Invalid: {importReport.summary?.invalid || 0}</span>
+              </div>
+              {importReport.duplicates?.length ? (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Duplicates</p>
+                  <div className="mt-2 space-y-1 text-xs text-slate-400">
+                    {importReport.duplicates.slice(0, 5).map((item) => (
+                      <p key={`duplicate-${item.row_index}-${item.email || item.phone || item.name}`}>
+                        Row {item.row_index}: {item.reason}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {importReport.invalid?.length ? (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Invalid</p>
+                  <div className="mt-2 space-y-1 text-xs text-slate-400">
+                    {importReport.invalid.slice(0, 5).map((item) => (
+                      <p key={`invalid-${item.row_index}-${item.email || item.phone || item.name}`}>
+                        Row {item.row_index}: {item.reason}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* Prospects row & Network Reach Card grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
@@ -308,7 +589,17 @@ export default function Contacts() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {contacts.slice(0, 2).map((item, idx) => (
+                {loading ? (
+                  <div className="md:col-span-2 rounded-2xl border border-slate-900 bg-slate-950/40 px-4 py-8 text-center text-sm font-semibold text-slate-400">
+                    Loading contacts...
+                  </div>
+                ) : null}
+                {!loading && showcasedContacts.length === 0 ? (
+                  <div className="md:col-span-2 rounded-2xl border border-slate-900 bg-slate-950/40 px-4 py-8 text-center text-sm font-semibold text-slate-400">
+                    {normalizedSearch ? 'No contacts match this search.' : 'No contacts in this section yet.'}
+                  </div>
+                ) : null}
+                {showcasedContacts.slice(0, 2).map((item, idx) => (
                   <div 
                     key={item.id || idx}
                     onClick={() => {
@@ -357,7 +648,7 @@ export default function Contacts() {
                 <p className="text-[10px] font-bold opacity-80 mt-1">+12.4% vs last month</p>
               </div>
               <div className="flex items-center -space-x-2 pt-2">
-                {contacts.slice(0, 4).map((item, idx) => (
+                {showcasedContacts.map((item, idx) => (
                   <div key={idx} className="w-6 h-6 rounded-full border border-[#070a13] bg-[#0c101b] flex items-center justify-center text-[7px] text-cyan-400 font-extrabold shadow-md overflow-hidden">
                     {item.avatarText}
                   </div>
@@ -427,6 +718,13 @@ export default function Contacts() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-900/50">
+                    {!loading && filteredContacts.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-10 text-center text-sm font-semibold text-slate-400">
+                          {normalizedSearch ? 'No contacts matched your search.' : 'No contacts available in this section.'}
+                        </td>
+                      </tr>
+                    ) : null}
                     {filteredContacts.map(item => (
                       <tr 
                         key={item.id}
@@ -489,6 +787,7 @@ export default function Contacts() {
                                 e.stopPropagation();
                                 handleDeleteContact(item.id);
                               }}
+                              disabled={deletingId === item.id}
                               className="p-2 bg-slate-950 border border-slate-900 hover:border-red-950/20 text-slate-400 hover:text-red-400 rounded-xl transition-all"
                             >
                               <Trash2 size={12} />
@@ -503,6 +802,11 @@ export default function Contacts() {
             ) : (
               /* Grid Layout View mode fallback */
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                {!loading && filteredContacts.length === 0 ? (
+                  <div className="md:col-span-2 lg:col-span-3 rounded-2xl border border-slate-900 bg-slate-950/40 px-4 py-10 text-center text-sm font-semibold text-slate-400">
+                    {normalizedSearch ? 'No contacts matched your search.' : 'No contacts available in this section.'}
+                  </div>
+                ) : null}
                 {filteredContacts.map(item => (
                   <div 
                     key={item.id}
@@ -589,6 +893,18 @@ export default function Contacts() {
             </button>
             <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">Contact Profile</span>
           </div>
+
+          {error ? (
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 px-4 py-3 text-sm font-semibold text-rose-300">
+              {error}
+            </div>
+          ) : null}
+
+          {successMessage ? (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-sm font-semibold text-emerald-300">
+              {successMessage}
+            </div>
+          ) : null}
 
           {/* John Doe Profile summary header card */}
           <div className="bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 text-left">
@@ -716,7 +1032,7 @@ export default function Contacts() {
                   <div>
                     <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Date of Birth (DOB)</span>
                     <span className="text-white mt-0.5 block">
-                      {activeContact.dob ? new Date(activeContact.dob).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '04/12/1999'}
+                      {activeContact.date_of_birth || activeContact.dob ? new Date(activeContact.date_of_birth || activeContact.dob).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not provided'}
                     </span>
                   </div>
                 </div>
@@ -774,6 +1090,18 @@ export default function Contacts() {
               {editId ? 'Editing Contact' : 'Creating Draft'}
             </span>
           </div>
+
+          {error ? (
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 px-4 py-3 text-sm font-semibold text-rose-300">
+              {error}
+            </div>
+          ) : null}
+
+          {successMessage ? (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-sm font-semibold text-emerald-300">
+              {successMessage}
+            </div>
+          ) : null}
 
           {/* Form container */}
           <form onSubmit={handleSaveContact} className="bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 space-y-6 text-left">
@@ -932,14 +1260,19 @@ export default function Contacts() {
             <div className="flex items-center gap-3 pt-2">
               <button 
                 type="submit"
-                disabled={loading}
+                disabled={submitting}
                 className="px-6 py-3 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-50 text-[#070a13] hover:shadow-cyan-400/15 rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer"
               >
-                Save Contact
+                {submitting ? 'Saving...' : 'Save Contact'}
               </button>
               <button 
                 type="button"
-                onClick={() => setViewMode('dashboard')}
+                onClick={() => {
+                  resetForm();
+                  setError('');
+                  setSuccessMessage('');
+                  setViewMode('dashboard');
+                }}
                 className="px-6 py-3 bg-transparent border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
               >
                 Cancel

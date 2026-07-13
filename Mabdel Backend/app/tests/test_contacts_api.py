@@ -111,3 +111,35 @@ def test_contact_create_still_accepts_legacy_name_payload(client, mock_db) -> No
     assert contact["first_name"] == "Sarah"
     assert contact["last_name"] == "Jenkins"
     assert contact["primary_detail"] == "sarah@example.com"
+
+
+def test_contact_bulk_import_reports_imported_duplicates_and_invalid_rows(client, mock_db) -> None:
+    headers = _auth_headers(client, mock_db, email="contacts-import@example.com")
+
+    existing = client.post(
+        "/api/v1/smartflow/contacts",
+        headers=headers,
+        json={"name": "Existing Contact", "email": "existing@example.com", "phone": "+1 (415) 555-1000"},
+    )
+    assert existing.status_code == 201
+
+    response = client.post(
+        "/api/v1/smartflow/contacts/import",
+        headers=headers,
+        json={
+            "contacts": [
+                {"name": " Fresh Lead ", "email": " Fresh@Example.com ", "phone": "+1 (415) 555-2000"},
+                {"name": "Dup Existing", "email": "existing@example.com"},
+                {"name": "Bad Email", "email": "not-an-email"},
+                {"name": "Dup Batch One", "phone": "+1 (415) 555-3000"},
+                {"name": "Dup Batch Two", "phone": "(415) 555-3000"},
+            ]
+        },
+    )
+    assert response.status_code == 201
+    payload = response.json()["data"]
+    assert payload["summary"] == {"received": 5, "imported": 2, "duplicates": 2, "invalid": 1}
+    assert payload["imported"][0]["email"] == "fresh@example.com"
+    assert payload["imported"][0]["phone"] == "+14155552000"
+    assert {item["reason"] for item in payload["duplicates"]} == {"Duplicate email", "Duplicate phone"}
+    assert payload["invalid"][0]["reason"] == "Invalid email"

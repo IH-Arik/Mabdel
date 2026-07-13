@@ -8,12 +8,19 @@ import {
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import { ChevronLeft, Plus, Users } from "lucide-react-native";
-import { useFetchConversationsQuery } from "../../redux/slices/chat/chatSlice";
+import { useMadbelListGroupsQuery } from "../../redux/slices/madbelSmartflowSlice";
 
 const GroupsHomeScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
-  const { data: groups = [], isLoading, isFetching, error } = useFetchConversationsQuery({ type: "group" });
+  const {
+    data: groupsResponse,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useMadbelListGroupsQuery({ page: 1, page_size: 100 });
+  const groups = groupsResponse?.data?.items || [];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -43,22 +50,30 @@ const GroupsHomeScreen = () => {
             renderItem={({ item }) => (
               <Pressable
                 style={styles.groupCard}
-                onPress={() => navigation.navigate("GroupChat", {
-                  group: {
-                    ...item,
-                    name: item.title || item.directPeer?.fullName || "Team Chat",
-                    conversation_id: item.id,
-                  },
-                })}
+                onPress={() =>
+                  navigation.navigate("GroupChat", {
+                    group_id: item.id,
+                    group: item,
+                  })
+                }
               >
                 <View style={styles.groupIconWrap}>
                   <Users size={24} color="#13CBEB" strokeWidth={2.2} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.groupTitle}>{item.title || item.directPeer?.fullName || "Team Chat"}</Text>
-                  <Text style={styles.groupMeta}>
-                    {Array.isArray(item.member_ids) ? item.member_ids.length : 0} Members
+                  <Text style={styles.groupTitle}>
+                    {item.name || item.title || item.directPeer?.fullName || "Team Chat"}
                   </Text>
+                  <Text style={styles.groupMeta}>
+                    {item.is_system_managed || item.is_global_chat
+                      ? "Owner-controlled Global Chat"
+                      : `${item.member_count || item.members?.length || 0} Members`}
+                  </Text>
+                  {item.description ? (
+                    <Text style={styles.groupDescription} numberOfLines={1}>
+                      {item.description}
+                    </Text>
+                  ) : null}
                 </View>
               </Pressable>
             )}
@@ -68,6 +83,8 @@ const GroupsHomeScreen = () => {
                 <Text style={styles.metaText}>{t("no_groups_found")}</Text>
               </View>
             }
+            onRefresh={refetch}
+            refreshing={Boolean(isFetching && !isLoading)}
             showsVerticalScrollIndicator={false}
           />
         )}
@@ -117,6 +134,7 @@ const styles = StyleSheet.create({
   },
   groupTitle: { color: "#F3F6FA", fontSize: 22, fontWeight: "600" },
   groupMeta: { marginTop: responsiveHeight(0.2), color: "#9EA9BD", fontSize: 16 },
+  groupDescription: { marginTop: responsiveHeight(0.3), color: "#6F7D92", fontSize: 14 },
   center: { alignItems: "center", justifyContent: "center", paddingVertical: responsiveHeight(3) },
   metaText: { color: "#9EA9BD", fontSize: 16 },
   refresh: { color: "#88C4D3", textAlign: "center", marginBottom: responsiveHeight(0.5) },

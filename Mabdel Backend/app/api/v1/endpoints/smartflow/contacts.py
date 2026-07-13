@@ -5,6 +5,7 @@ from fastapi import Depends, File, Query, UploadFile, status
 from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
     ContactCreateRequest,
+    ContactImportRequest,
     ContactUpdateRequest,
 )
 from app.services.smartflow_service import SmartFlowService
@@ -35,6 +36,17 @@ async def create_contact(
 ) -> dict:
     data = await service.create_contact(str(current_user["_id"]), payload.model_dump())
     return success_response(data=data, message="Contact created successfully.")
+
+
+@router.post("/contacts/import", status_code=status.HTTP_201_CREATED)
+async def import_contacts(
+    payload: ContactImportRequest,
+    current_user: dict = Depends(require_permission("contacts", "create")),
+    _: dict = Depends(require_subscription),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.import_contacts(str(current_user["_id"]), [item.model_dump() for item in payload.contacts])
+    return success_response(data=data, message="Contacts import finished successfully.")
 
 
 @router.get("/contacts/{contact_id}")

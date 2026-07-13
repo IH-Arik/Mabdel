@@ -126,6 +126,9 @@ class SmartFlowService(SmartFlowBase):
     async def create_contact(self, user_id, payload):
         return await self.contact_service.create_contact(user_id, payload)
 
+    async def import_contacts(self, user_id, entries):
+        return await self.contact_service.import_contacts(user_id, entries)
+
     async def update_contact(self, user_id, contact_id, updates):
         return await self.contact_service.update_contact(user_id, contact_id, updates)
 
@@ -160,6 +163,15 @@ class SmartFlowService(SmartFlowBase):
 
     async def create_message(self, user_id, payload):
         return await self.conversation_service.create_message(user_id, payload)
+
+    async def store_message_attachment(self, user_id, conversation_id, *, file_bytes, content_type, filename):
+        return await self.conversation_service.store_message_attachment(
+            user_id,
+            conversation_id,
+            file_bytes=file_bytes,
+            content_type=content_type,
+            filename=filename,
+        )
 
     async def update_message(self, user_id, message_id, updates):
         return await self.conversation_service.update_message(user_id, message_id, updates)
@@ -229,6 +241,12 @@ class SmartFlowService(SmartFlowBase):
 
     async def remove_user_from_global_chat(self, organization_id, user_id):
         return await self.conversation_service.remove_user_from_global_chat(organization_id, user_id)
+
+    async def sync_user_global_chat_membership(self, user_id, organization_id=None):
+        return await self.conversation_service.sync_user_global_chat_membership(user_id, organization_id)
+
+    async def backfill_global_chats(self):
+        return await self.conversation_service.backfill_global_chats()
 
     # ==================================================================
     # AI history / voice / workflow prefill (delegated)

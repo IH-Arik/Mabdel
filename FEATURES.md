@@ -57,7 +57,7 @@
 | Voice listening with live transcription | ✅ |
 | AI text + voice chat | ✅ |
 | Voice-to-workflow (create invoice, schedule meeting etc.) | ✅ |
-| AI image generation | ✅ |
+
 | AI voice history (replay past interactions) | ✅ |
 | Action chips (Create Invoice, Bulk Message, Schedule Meeting, New Agreement) | ✅ |
 
@@ -148,7 +148,7 @@
 | AI-powered agreement generation | ✅ |
 | Improve/enhance agreement with AI | ✅ |
 | Preview agreement | ✅ |
-| Send for signature | ✅ |
+| Send for signature Docu Sign| ✅ |
 | Sign agreement | ✅ |
 | Delete agreement | ✅ |
 | Status badges (Draft, Pending Signature, Signed, Expired, Cancelled) | ✅ |
@@ -164,7 +164,7 @@
 | AI-powered lease generation | ✅ |
 | Enhance lease terms with AI | ✅ |
 | Preview lease | ✅ |
-| Send for signature | ✅ |
+| Send for signature Docusign | ✅ |
 | Sign lease | ✅ |
 | Renew lease | ✅ |
 | Delete lease | ✅ |
@@ -209,6 +209,7 @@
 | Join event | ✅ |
 | Create event | ✅ |
 | Create group | ✅ |
+global chat (only same buisness)
 | Group chat | ✅ |
 | Add/remove group members | ✅ |
 | Change member role in group | ✅ |
