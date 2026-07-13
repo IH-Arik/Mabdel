@@ -80,7 +80,7 @@ const RootAppNavigator = () => {
 
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+    // <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
 
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
@@ -108,7 +108,7 @@ const RootAppNavigator = () => {
         <Stack.Screen name="Notification" component={NotificationScreen} />
       )}
     </Stack.Navigator>
-    </SafeAreaView>
+    // </SafeAreaView>
 
   );
 };

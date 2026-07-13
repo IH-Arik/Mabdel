@@ -593,19 +593,7 @@ const GroupSettingScreen = () => {
                         )}
                       </Pressable>
                     ) : null}
-                    {removable ? (
-                      <Pressable
-                        onPress={() => openRemoveConfirm(member)}
-                        style={styles.moreBtn}
-                        disabled={isRemovingThisMember}
-                      >
-                        {isRemovingThisMember ? (
-                          <ActivityIndicator size="small" color="#8E9AA0" />
-                        ) : (
-                          <MoreVertical size={20} color="#8E9AA0" />
-                        )}
-                      </Pressable>
-                    ) : null}
+                 
                   </View>
                 ) : null}
               </View>
@@ -861,14 +849,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#20242F",
-    backgroundColor: "#161B26",
+    backgroundColor: "#20242F",
     padding: 12,
-    flexDirection: "row",
+    // flexDirection: "row",
     alignItems: "center",
     marginBottom: 4,
+    // height: responsiveHeight(10)
   },
-  memberAvatarWrap: { width: 48, height: 48, position: "relative" },
-  memberAvatar: { width: 48, height: 48, borderRadius: 24 },
+  // memberAvatarWrap: { width: 48, height: 48, position: "relative" },
+  // memberAvatar: { width: 48, height: 48, borderRadius: 24 },
   memberAvatarFallback: {
     width: 48,
     height: 48,
@@ -916,7 +905,7 @@ const styles = StyleSheet.create({
   creatorBadgeText: { color: "#F5D728" },
   memberBadgeText: { color: "#9CA3AF" },
   memberActions: {
-    flexDirection: "row",
+    // flexDirection: "row",
     alignItems: "center",
     gap: responsiveWidth(1.8),
     marginLeft: responsiveWidth(2),
