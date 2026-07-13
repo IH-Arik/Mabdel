@@ -3,6 +3,7 @@ from __future__ import annotations
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.exceptions import AppException
+from app.workflows.intent_utils import infer_intent_from_command, normalize_workflow_command
 from app.workflows.graph import run_assistant_workflow
 
 from ._base import SmartFlowBase
@@ -63,9 +64,9 @@ class WorkflowService(SmartFlowBase):
             audio_mime_type=payload.get("audio_mime_type", "audio/wav"),
             audio_filename=payload.get("audio_filename", "voice.wav"),
         )
-        transcript = transcription["transcript"]
+        transcript = normalize_workflow_command(transcription["transcript"])
         workflow_state = run_assistant_workflow(transcript)
-        intent = payload.get("workflow_intent") or workflow_state.intent
+        intent = payload.get("workflow_intent") or infer_intent_from_command(transcript) or workflow_state.intent
         if intent not in {"invoice", "bulk_message", "calendar", "lease", "agreement", "contact", "email", "group", "call"}:
             return {
                 "state": transcription["state"],
