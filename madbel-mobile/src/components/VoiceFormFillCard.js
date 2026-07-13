@@ -29,6 +29,7 @@ try {
 }
 import { useMadbelAiWorkflowPrefillMutation } from "../redux/slices/madbelApiSlice";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { normalizeVoiceWorkflowTranscript } from "../utils/voiceWorkflow";
 
 // ─── Phase state machine ──────────────────────────────────────────────────────
 const PHASE = {
@@ -316,7 +317,7 @@ const VoiceFormFillCard = ({
   // ─── Speech recognition ───────────────────────────────────────────────────
   useSpeechRecognitionEvent("result", (event) => {
     const text = event.results?.[0]?.transcript;
-    if (text) setVoiceInput(text);
+    if (text) setVoiceInput(normalizeVoiceWorkflowTranscript(text));
   });
 
   useSpeechRecognitionEvent("end", () => {
@@ -430,7 +431,7 @@ const VoiceFormFillCard = ({
 
   // ─── Initial submit ───────────────────────────────────────────────────────
   const handleInitialSubmit = useCallback(async () => {
-    const transcript = voiceInput.trim();
+    const transcript = normalizeVoiceWorkflowTranscript(voiceInput);
     if (!transcript) { setErrorText("Please speak or type a command first."); return; }
     ExpoSpeechRecognitionModule.stop();
     setPhase(PHASE.PROCESSING);

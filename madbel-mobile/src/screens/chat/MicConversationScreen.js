@@ -21,6 +21,10 @@ import {
   useMadbelAiWorkflowPrefillMutation,
 } from "../../redux/slices/madbelApiSlice";
 import { redirectFromVoiceResult } from "../../utils/voiceNavigation";
+import {
+  inferVoiceWorkflowIntent,
+  normalizeVoiceWorkflowTranscript,
+} from "../../utils/voiceWorkflow";
 import { useAppLanguage } from "../../context/LanguageContext";
 
 const getVoiceResultTranscript = (voiceResult) => {
@@ -110,9 +114,14 @@ const MicConversationScreen = () => {
       }
 
       try {
+        const normalizedTranscript = normalizeVoiceWorkflowTranscript(
+          voiceResult.transcript,
+        );
+        const resolvedIntent =
+          intent || inferVoiceWorkflowIntent(normalizedTranscript);
         const prefillResponse = await workflowPrefill({
-          workflow_intent: intent,
-          transcript: voiceResult.transcript,
+          workflow_intent: resolvedIntent,
+          transcript: normalizedTranscript,
         }).unwrap();
         const workflowPrefillData = prefillResponse?.data || prefillResponse;
         return redirectFromVoiceResult(navigation, {
@@ -169,8 +178,10 @@ const MicConversationScreen = () => {
   }, [messages, t]);
 
   const sendPrompt = async () => {
-    const transcript = inputText.trim();
+    const transcript = normalizeVoiceWorkflowTranscript(inputText);
     if (!transcript || isLoading) return;
+    const resolvedIntent =
+      workflowIntent || inferVoiceWorkflowIntent(transcript);
 
     const userMessage = {
       id: `user-${Date.now()}`,
@@ -184,7 +195,7 @@ const MicConversationScreen = () => {
       const response = await voiceChat({
         transcript,
         response_mode: "text",
-        workflow_intent: workflowIntent,
+        workflow_intent: resolvedIntent,
         current_values:
           currentValues && typeof currentValues === "object" ? currentValues : {},
       }).unwrap();
