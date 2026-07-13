@@ -1,6 +1,6 @@
 import { Check } from "lucide-react-native";
 import React, { useEffect } from "react";
-import { Modal, View, Text, Pressable } from "react-native";
+import { Modal, View, Text, StyleSheet } from "react-native";
 import { responsiveWidth } from "react-native-responsive-dimensions";
 
 const SuccessModal = ({
@@ -8,10 +8,8 @@ const SuccessModal = ({
   onClose,
   title = "You Joined This Activity!",
   message = "Get ready to meet your fitness partner.",
-  buttonText = "Great!",
-  buttonColor = "bg-blue-500",
-  autoClose = false, // New prop to enable auto-close
-  autoCloseTime = 3000, // New prop to set auto-close time in milliseconds (default 3 seconds)
+  autoClose = false,
+  autoCloseTime = 3000,
 }) => {
   useEffect(() => {
     if (visible && autoClose) {
@@ -26,33 +24,57 @@ const SuccessModal = ({
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade">
-      <View className="flex-1 bg-black/50 justify-center items-center px-4">
-        <View className="bg-white rounded-2xl p-6 w-full max-w-sm"
-          style={{ gap: responsiveWidth(2) }}>
-          <View
-            className="bg-primary rounded-full"
-            style={{ padding: responsiveWidth(5), alignSelf: "center" }}
-          >
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <View style={styles.iconWrapper}>
             <Check size={50} color={"white"} />
           </View>
-          <Text className="text-xl font-bold text-center text-gray-900 mb-2">
+          <Text style={styles.title}>
             {title}
           </Text>
-          <Text className="text-base text-center text-gray-600 mb-6">
+          <Text style={styles.message}>
             {message}
           </Text>
-          {/* <Pressable
-            className={`${buttonColor} rounded-xl py-3`}
-            onPress={onClose}
-          >
-            <Text className="text-white text-center text-lg font-semibold">
-              {buttonText}
-            </Text>
-          </Pressable> */}
         </View>
       </View>
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: responsiveWidth(4),
+  },
+  card: {
+    width: "100%",
+    maxWidth: responsiveWidth(85),
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: responsiveWidth(6),
+  },
+  iconWrapper: {
+    alignSelf: "center",
+    backgroundColor: "#0EA5E9",
+    borderRadius: 999,
+    padding: responsiveWidth(5),
+    marginBottom: responsiveWidth(4),
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    color: "#111827",
+    marginBottom: responsiveWidth(2),
+  },
+  message: {
+    fontSize: 16,
+    textAlign: "center",
+    color: "#4B5563",
+  },
+});
 
 export default SuccessModal;

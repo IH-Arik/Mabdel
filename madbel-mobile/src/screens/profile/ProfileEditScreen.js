@@ -363,7 +363,7 @@ const ProfileEditScreen = () => {
                 </Pressable>
               </View>
 
-              <ControllerTextInput
+              {/* <ControllerTextInput
                 name="country"
                 control={control}
                 label={t("country")}
@@ -371,8 +371,8 @@ const ProfileEditScreen = () => {
                 placeholderTextColor="#8493A8"
                 // inputStyle={[styles.input, styles.inputWithIcon]}
                 // labelStyle={styles.label}
-                rightIcon={<ChevronDown size={28} color="#D5E5EF" />}
-              />
+                // rightIcon={<ChevronDown size={28} color="#D5E5EF" />}
+              /> */}
               <VoiceFormFillCard
                 label={t("profile")}
                 workflowIntent="profile"
