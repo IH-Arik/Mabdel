@@ -170,10 +170,7 @@ class DashboardService:
                 if user and user.get("organization_id"):
                     from app.services.smartflow.smartflow_orchestrator import SmartFlowService
                     smartflow = SmartFlowService(self.repository.db)
-                    if status == "active":
-                        await smartflow.add_user_to_global_chat(user["organization_id"], user_id)
-                    else:
-                        await smartflow.remove_user_from_global_chat(user["organization_id"], user_id)
+                    await smartflow.sync_user_global_chat_membership(user_id, user["organization_id"])
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).error("Failed to sync user status with global chat: %s", e)

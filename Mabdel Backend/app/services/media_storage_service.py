@@ -59,6 +59,39 @@ class MediaStorageService:
             size_bytes=len(file_bytes),
         )
 
+    def store_file(
+        self,
+        *,
+        owner_id: str,
+        folder: str,
+        file_bytes: bytes,
+        content_type: str | None,
+        filename: str | None = None,
+        label: str = "File",
+    ) -> StoredMedia:
+        media_type = self._normalize_content_type(content_type) or "application/octet-stream"
+        self._validate_file(file_bytes=file_bytes, label=label)
+
+        safe_owner_id = self._safe_path_part(owner_id, "owner_id")
+        safe_folder = self._safe_path_part(folder, "folder")
+        extension = self._file_extension(media_type, filename)
+        stored_name = f"{uuid4().hex}{extension}"
+
+        directory = Path(settings.MEDIA_ROOT).expanduser() / safe_folder / safe_owner_id
+        directory.mkdir(parents=True, exist_ok=True)
+        storage_path = directory / stored_name
+        storage_path.write_bytes(file_bytes)
+
+        public_path = f"{settings.MEDIA_PUBLIC_PATH.rstrip('/')}/{safe_folder}/{safe_owner_id}/{stored_name}"
+        return StoredMedia(
+            url=f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}{public_path}",
+            public_path=public_path,
+            storage_path=storage_path,
+            filename=stored_name,
+            content_type=media_type,
+            size_bytes=len(file_bytes),
+        )
+
     def normalize_public_url(self, url: str | None) -> str | None:
         if not url:
             return None
@@ -76,6 +109,17 @@ class MediaStorageService:
                 code="UNSUPPORTED_IMAGE_TYPE",
                 message=f"{label} must be a JPG, PNG, WebP, or GIF image.",
                 details={"content_type": media_type or None},
+            )
+
+    def _validate_file(self, *, file_bytes: bytes, label: str) -> None:
+        if not file_bytes:
+            raise AppException(status_code=400, code="FILE_EMPTY", message=f"{label} file is empty.")
+        if len(file_bytes) > settings.MEDIA_MAX_UPLOAD_BYTES:
+            raise AppException(
+                status_code=413,
+                code="FILE_TOO_LARGE",
+                message=f"{label} file is too large.",
+                details={"max_bytes": settings.MEDIA_MAX_UPLOAD_BYTES},
             )
         if not file_bytes:
             raise AppException(status_code=400, code="IMAGE_FILE_EMPTY", message=f"{label} file is empty.")
@@ -97,6 +141,25 @@ class MediaStorageService:
             return cls.IMAGE_EXTENSIONS_BY_TYPE[content_type]
         suffix = Path(filename or "").suffix.lower()
         return suffix if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"} else ".img"
+
+    @staticmethod
+    def _file_extension(content_type: str, filename: str | None) -> str:
+        suffix = Path(filename or "").suffix.lower()
+        if suffix and len(suffix) <= 10:
+            return suffix
+
+        mapping = {
+            "audio/webm": ".webm",
+            "audio/wav": ".wav",
+            "audio/x-wav": ".wav",
+            "audio/mpeg": ".mp3",
+            "audio/mp3": ".mp3",
+            "audio/mp4": ".m4a",
+            "audio/ogg": ".ogg",
+            "video/mp4": ".mp4",
+            "application/pdf": ".pdf",
+        }
+        return mapping.get(content_type, ".bin")
 
     @staticmethod
     def _safe_path_part(value: str, field_name: str) -> str:

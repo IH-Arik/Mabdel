@@ -213,6 +213,58 @@ class SmartFlowBase:
             raise AppException(status_code=404, code=code, message="Requested resource was not found.")
         return document
 
+    async def _get_user_document(self, user_id: str) -> dict:
+        if not ObjectId.is_valid(user_id):
+            raise AppException(status_code=404, code="USER_NOT_FOUND", message="Requested resource was not found.")
+        user = await self.db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise AppException(status_code=404, code="USER_NOT_FOUND", message="Requested resource was not found.")
+        return user
+
+    @staticmethod
+    def _user_has_global_chat_access(user: dict | None) -> bool:
+        if not user:
+            return False
+        return str(user.get("status") or "active").lower() == "active"
+
+    async def _get_accessible_conversation(self, user_id: str, conversation_id: str, code: str = "CONVERSATION_NOT_FOUND") -> dict:
+        if not ObjectId.is_valid(conversation_id):
+            raise AppException(status_code=404, code=code, message="Requested resource was not found.")
+
+        conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "user_id": user_id})
+        if conversation:
+            return conversation
+
+        conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "is_global_chat": True})
+        if not conversation or conversation.get("is_active", True) is False:
+            raise AppException(status_code=404, code=code, message="Requested resource was not found.")
+
+        user = await self._get_user_document(user_id)
+        organization_id = user.get("organization_id")
+        if (
+            not organization_id
+            or conversation.get("organization_id") != organization_id
+            or user_id not in conversation.get("member_ids", [])
+            or not self._user_has_global_chat_access(user)
+        ):
+            raise AppException(status_code=403, code="GLOBAL_CHAT_ACCESS_DENIED", message="You do not have access to this global chat.")
+        return conversation
+
+    async def _get_accessible_message(self, user_id: str, message_id: str, code: str = "MESSAGE_NOT_FOUND") -> dict:
+        if not ObjectId.is_valid(message_id):
+            raise AppException(status_code=404, code=code, message="Requested resource was not found.")
+
+        message = await self.db.messages.find_one({"_id": ObjectId(message_id), "user_id": user_id})
+        if message:
+            return message
+
+        message = await self.db.messages.find_one({"_id": ObjectId(message_id)})
+        if not message:
+            raise AppException(status_code=404, code=code, message="Requested resource was not found.")
+
+        await self._get_accessible_conversation(user_id, message.get("conversation_id", ""), "CONVERSATION_NOT_FOUND")
+        return message
+
     def _to_public(self, document: dict | None) -> dict:
         safe = serialize_mongo_document(document) or {}
         if "_id" in safe:
@@ -459,26 +511,41 @@ class SmartFlowBase:
     # ------------------------------------------------------------------
     # Conversation / message helpers
     # ------------------------------------------------------------------
-    async def _serialize_conversation(self, conversation: dict) -> dict:
+    async def _serialize_conversation(self, conversation: dict, viewer_user_id: str | None = None) -> dict:
         safe = self._to_public(conversation)
-        latest = await self.db.messages.find({"conversation_id": safe["id"], "user_id": safe["user_id"]}).sort(
-            "timestamp", -1
-        ).limit(1).to_list(length=1)
-        unread_count = await self.db.messages.aggregate(
-            [
-                {"$match": {"conversation_id": safe["id"], "user_id": safe["user_id"]}},
-                {"$group": {"_id": None, "total": {"$sum": "$unread_count"}}},
-            ]
-        ).to_list(length=1)
+        viewer_id = viewer_user_id or safe.get("viewer_user_id") or safe.get("user_id")
+        is_global_chat = bool(safe.get("is_global_chat"))
+        latest_filters = {"conversation_id": safe["id"]}
+        if not is_global_chat:
+            latest_filters["user_id"] = safe["user_id"]
+        latest = await self.db.messages.find(latest_filters).sort("timestamp", -1).limit(1).to_list(length=1)
+
+        if is_global_chat and viewer_id:
+            unread_total = await self.db.messages.count_documents(
+                {
+                    "conversation_id": safe["id"],
+                    "sender_user_id": {"$ne": viewer_id},
+                    "read_by": {"$ne": viewer_id},
+                }
+            )
+        else:
+            unread_count = await self.db.messages.aggregate(
+                [
+                    {"$match": {"conversation_id": safe["id"], "user_id": safe["user_id"]}},
+                    {"$group": {"_id": None, "total": {"$sum": "$unread_count"}}},
+                ]
+            ).to_list(length=1)
+            unread_total = unread_count[0]["total"] if unread_count else 0
         latest_message = latest[0] if latest else None
-        latest_sender_name = await self._resolve_message_sender_name(safe.get("user_id", ""), latest_message, safe)
+        latest_sender_name = await self._resolve_message_sender_name(viewer_id or safe.get("user_id", ""), latest_message, safe)
         safe["last_message_preview"] = latest_message["content"] if latest_message else None
         safe["last_message_sender_name"] = latest_sender_name
-        safe["unread_count"] = unread_count[0]["total"] if unread_count else 0
+        safe["unread_count"] = unread_total
         safe["has_unread"] = safe["unread_count"] > 0
         safe["is_ai_assistant"] = safe.get("type") == "ai"
-        safe["is_group"] = safe.get("type") == "group"
-        safe["member_count"] = len([member_id for member_id in safe.get("member_ids", []) if member_id != safe.get("user_id")])
+        safe["is_group"] = safe.get("type") == "group" or is_global_chat
+        safe["is_global_chat"] = is_global_chat
+        safe["member_count"] = len([member_id for member_id in safe.get("member_ids", []) if member_id != viewer_id])
         safe["display_time_label"] = self._conversation_time_label(latest_message.get("timestamp") if latest_message else safe.get("updated_at"))
         safe["delivery_state"] = self._conversation_delivery_state(latest_message, safe["has_unread"])
         safe["platform_label"] = self._platform_label(safe.get("platform"))
@@ -495,9 +562,12 @@ class SmartFlowBase:
         elif safe["is_group"]:
             safe["presence"] = "group"
             safe["presence_label"] = "Group"
-            group = await self.db.groups.find_one({"conversation_id": safe["id"], "user_id": safe.get("user_id"), "is_active": {"$ne": False}})
+            group_filters = {"conversation_id": safe["id"], "is_active": {"$ne": False}}
+            if not is_global_chat:
+                group_filters["user_id"] = safe.get("user_id")
+            group = await self.db.groups.find_one(group_filters)
             group_members = (group or {}).get("member_ids", safe.get("member_ids", []))
-            safe["participant_preview"] = await self._group_participant_preview(safe.get("user_id", ""), group_members)
+            safe["participant_preview"] = await self._group_participant_preview(viewer_id or safe.get("user_id", ""), group_members, is_global_chat=is_global_chat)
             safe["avatar_url"] = self._normalize_media_url((group or {}).get("avatar_url"))
             safe["member_count"] = len(group_members)
             safe["contact_name"] = safe.get("title")
@@ -512,22 +582,31 @@ class SmartFlowBase:
             safe["presence_label"] = self._presence_label(safe["presence"])
             safe["participant_preview"] = []
         safe.pop("user_id", None)
+        safe.pop("viewer_user_id", None)
         return safe
 
-    async def _serialize_message(self, message: dict) -> dict:
+    async def _serialize_message(self, message: dict, viewer_user_id: str | None = None) -> dict:
         safe = self._to_public(message)
+        viewer_id = viewer_user_id or safe.get("viewer_user_id") or safe.get("user_id")
+        is_global_chat = bool(safe.get("is_global_chat"))
         reply_id = safe.get("reply_to_message_id")
         forward_id = safe.get("forward_from_message_id")
-        reply_doc = await self._get_optional_owned_message(safe.get("user_id", ""), reply_id)
-        forward_doc = await self._get_optional_owned_message(safe.get("user_id", ""), forward_id)
-        sender = await self._resolve_message_sender(safe.get("user_id", ""), safe)
+        reply_doc = await self._get_optional_owned_message(viewer_id or safe.get("user_id", ""), reply_id)
+        forward_doc = await self._get_optional_owned_message(viewer_id or safe.get("user_id", ""), forward_id)
+        sender = await self._resolve_message_sender(viewer_id or safe.get("user_id", ""), safe)
         attachments = safe.get("attachments") or self._legacy_message_attachments(safe.get("media_url"))
-        safe["is_read"] = safe.get("status") == "read" or safe.get("read_at") is not None
-        safe["read_receipt_label"] = self._format_read_receipt_label(safe.get("read_at")) if safe["is_read"] else None
+        if is_global_chat and viewer_id:
+            safe["sender_is_self"] = safe.get("sender_user_id") == viewer_id
+            safe["direction"] = "outbound" if safe["sender_is_self"] else "inbound"
+            safe["is_read"] = safe["sender_is_self"] or viewer_id in (safe.get("read_by") or [])
+            safe["read_receipt_label"] = None
+        else:
+            safe["is_read"] = safe.get("status") == "read" or safe.get("read_at") is not None
+            safe["read_receipt_label"] = self._format_read_receipt_label(safe.get("read_at")) if safe["is_read"] else None
         safe["attachments"] = attachments
         safe["attachment_count"] = len(attachments)
         safe["has_attachments"] = bool(attachments)
-        safe["mentions"] = await self._serialize_message_mentions(safe.get("user_id", ""), safe.get("mentions", []))
+        safe["mentions"] = await self._serialize_message_mentions(viewer_id or safe.get("user_id", ""), safe.get("mentions", []))
         safe["status_timestamps"] = {
             "sent_at": safe.get("timestamp"),
             "delivered_at": safe.get("delivered_at"),
@@ -540,6 +619,7 @@ class SmartFlowBase:
         safe["sender_presence"] = sender.get("presence")
         safe["sender_is_self"] = sender.get("is_self", False)
         safe.pop("user_id", None)
+        safe.pop("viewer_user_id", None)
         return safe
 
     @staticmethod
@@ -571,10 +651,16 @@ class SmartFlowBase:
         return None
 
     async def _publish_inbox_update(self, user_id: str, conversation_id: str) -> None:
-        conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "user_id": user_id}) if ObjectId.is_valid(conversation_id) else None
+        conversation = None
+        if ObjectId.is_valid(conversation_id):
+            conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "user_id": user_id})
+            if not conversation:
+                conversation = await self.db.conversations.find_one(
+                    {"_id": ObjectId(conversation_id), "is_global_chat": True, "member_ids": user_id}
+                )
         if not conversation:
             return
-        serialized = await self._serialize_conversation(conversation)
+        serialized = await self._serialize_conversation(conversation, viewer_user_id=user_id)
         summary = await self.get_unread_message_summary(user_id, None)
         await inbox_realtime_hub.publish(
             user_id,
@@ -583,22 +669,58 @@ class SmartFlowBase:
         )
 
     async def get_unread_message_summary(self, user_id: str, platform: str | None) -> dict:
+        grouped: list[dict] = []
         filters = {"user_id": user_id}
         if platform:
             filters["platform"] = platform
-        pipeline = [
-            {"$match": filters},
-            {"$group": {"_id": "$platform", "unread": {"$sum": "$unread_count"}}},
-        ]
-        grouped = await self.db.messages.aggregate(pipeline).to_list(length=20)
+        direct_grouped = await self.db.messages.aggregate(
+            [
+                {"$match": filters},
+                {"$group": {"_id": "$platform", "unread": {"$sum": "$unread_count"}}},
+            ]
+        ).to_list(length=20)
+        grouped.extend(direct_grouped)
+
+        user = await self.db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else None
+        if user and self._user_has_global_chat_access(user) and user.get("organization_id"):
+            conversation_filters = {
+                "organization_id": user.get("organization_id"),
+                "is_global_chat": True,
+                "member_ids": user_id,
+                "is_active": {"$ne": False},
+            }
+            if platform:
+                conversation_filters["platform"] = platform
+            global_chats = await self.db.conversations.find(conversation_filters).to_list(length=20)
+            for chat in global_chats:
+                unread = await self.db.messages.count_documents(
+                    {
+                        "conversation_id": str(chat["_id"]),
+                        "sender_user_id": {"$ne": user_id},
+                        "read_by": {"$ne": user_id},
+                    }
+                )
+                grouped.append({"_id": chat.get("platform", "ai"), "unread": unread})
+        by_platform: dict[str, int] = {}
+        for item in grouped:
+            key = item.get("_id") or "unknown"
+            by_platform[key] = by_platform.get(key, 0) + int(item.get("unread", 0))
         return {
             "total_unread": sum(item["unread"] for item in grouped),
-            "by_platform": {item["_id"]: item["unread"] for item in grouped},
+            "by_platform": by_platform,
         }
 
     async def _resolve_message_sender_name(self, user_id: str, latest_message: dict | None, conversation: dict) -> str | None:
         if not latest_message:
             return None
+        if conversation.get("is_global_chat"):
+            sender_user_id = latest_message.get("sender_user_id") or latest_message.get("user_id")
+            if sender_user_id == user_id:
+                return "You"
+            if sender_user_id and ObjectId.is_valid(sender_user_id):
+                sender = await self.db.users.find_one({"_id": ObjectId(sender_user_id)})
+                if sender:
+                    return sender.get("full_name") or sender.get("email") or "Member"
         if conversation.get("type") == "ai":
             return "Mabdel AI"
         contact_id = latest_message.get("contact_id")
@@ -612,14 +734,19 @@ class SmartFlowBase:
             return "Member"
         return conversation.get("title")
 
-    async def _group_participant_preview(self, user_id: str, member_ids: list[str]) -> list[str]:
+    async def _group_participant_preview(self, user_id: str, member_ids: list[str], *, is_global_chat: bool = False) -> list[str]:
         names: list[str] = []
         for member_id in member_ids:
             if member_id == user_id or not ObjectId.is_valid(member_id):
                 continue
-            contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": user_id})
-            if contact and contact.get("name"):
-                names.append(contact["name"])
+            if is_global_chat:
+                member = await self.db.users.find_one({"_id": ObjectId(member_id)})
+                if member:
+                    names.append(member.get("full_name") or member.get("email") or "Member")
+            else:
+                contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": user_id})
+                if contact and contact.get("name"):
+                    names.append(contact["name"])
             if len(names) >= 3:
                 break
         return names
@@ -665,6 +792,7 @@ class SmartFlowBase:
             "google_business": "Google Business",
             "threads": "Threads",
             "ai": "AI",
+            "global_chat": "Global Chat",
         }
         return labels.get(platform or "", "Unknown")
 
@@ -693,6 +821,7 @@ class SmartFlowBase:
             "google_business": "#4285F4",
             "threads": "#101010",
             "ai": "#06B6D4",
+            "global_chat": "#10B981",
         }
         return colors.get(platform or "", "#64748B")
 
@@ -756,6 +885,20 @@ class SmartFlowBase:
         return mentions
 
     async def _resolve_message_sender(self, user_id: str, message: dict) -> dict:
+        if message.get("is_global_chat"):
+            sender_user_id = message.get("sender_user_id") or message.get("user_id")
+            if sender_user_id == user_id:
+                return {"name": "You", "avatar_url": None, "presence": "online", "is_self": True}
+            if sender_user_id and ObjectId.is_valid(sender_user_id):
+                sender = await self.db.users.find_one({"_id": ObjectId(sender_user_id)})
+                if sender:
+                    return {
+                        "name": sender.get("full_name") or sender.get("email") or "Member",
+                        "avatar_url": sender.get("avatar_url"),
+                        "presence": "online" if self._user_has_global_chat_access(sender) else "offline",
+                        "is_self": False,
+                    }
+            return {"name": "Member", "avatar_url": None, "presence": "offline", "is_self": False}
         if message.get("direction") == "outbound":
             return {"name": "You", "avatar_url": None, "presence": "online", "is_self": True}
         contact_id = message.get("contact_id")
@@ -788,7 +931,7 @@ class SmartFlowBase:
         forward_from_message_id = payload.get("forward_from_message_id")
 
         if reply_to_message_id:
-            reply_message = await self._get_owned_document(self.db.messages, user_id, reply_to_message_id, "MESSAGE_NOT_FOUND")
+            reply_message = await self._get_accessible_message(user_id, reply_to_message_id, "MESSAGE_NOT_FOUND")
             if reply_message["conversation_id"] != payload["conversation_id"]:
                 raise AppException(
                     status_code=400,
@@ -797,12 +940,18 @@ class SmartFlowBase:
                 )
 
         if forward_from_message_id:
-            await self._get_owned_document(self.db.messages, user_id, forward_from_message_id, "MESSAGE_NOT_FOUND")
+            await self._get_accessible_message(user_id, forward_from_message_id, "MESSAGE_NOT_FOUND")
 
     async def _get_optional_owned_message(self, user_id: str, message_id: str | None) -> dict | None:
         if not message_id or not ObjectId.is_valid(message_id):
             return None
-        return await self.db.messages.find_one({"_id": ObjectId(message_id), "user_id": user_id})
+        message = await self.db.messages.find_one({"_id": ObjectId(message_id), "user_id": user_id})
+        if message:
+            return message
+        try:
+            return await self._get_accessible_message(user_id, message_id, "MESSAGE_NOT_FOUND")
+        except AppException:
+            return None
 
     @staticmethod
     def _message_preview(message: dict | None) -> dict | None:
@@ -838,7 +987,8 @@ class SmartFlowBase:
         safe = self._to_public(group)
         member_ids = list(dict.fromkeys(safe.get("member_ids", [])))
         admin_ids = list(dict.fromkeys(safe.get("admin_ids", [])))
-        members = await self._serialize_group_members(safe.get("user_id", ""), member_ids, admin_ids) if include_members else []
+        is_global_chat = bool(safe.get("is_global_chat"))
+        members = await self._serialize_group_members(safe.get("user_id", ""), member_ids, admin_ids, is_global_chat=is_global_chat) if include_members else []
         pending_invites = [
             {
                 "id": invite.get("id"),
@@ -856,33 +1006,56 @@ class SmartFlowBase:
         safe["member_count"] = len(member_ids)
         safe["pending_invite_count"] = len(pending_invites)
         safe["admin_count"] = len(admin_ids) + 1
-        safe["can_manage"] = True
-        safe["can_leave"] = True
+        safe["can_manage"] = False if is_global_chat else True
+        safe["can_leave"] = False
+        safe["is_system_managed"] = is_global_chat
         safe.pop("user_id", None)
         return safe
 
-    async def _serialize_group_members(self, user_id: str, member_ids: list[str], admin_ids: list[str]) -> list[dict]:
+    async def _serialize_group_members(self, user_id: str, member_ids: list[str], admin_ids: list[str], *, is_global_chat: bool = False) -> list[dict]:
         members: list[dict] = []
         for member_id in member_ids:
             if not ObjectId.is_valid(member_id):
                 continue
-            contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": user_id})
-            if not contact:
-                continue
-            safe_contact = self._to_public(contact)
-            members.append(
-                {
-                    "id": safe_contact["id"],
-                    "name": safe_contact.get("name") or "Unknown",
-                    "email": safe_contact.get("email"),
-                    "phone": safe_contact.get("phone"),
-                    "avatar_url": safe_contact.get("avatar_url"),
-                    "presence": safe_contact.get("presence", "offline"),
-                    "role": "admin" if safe_contact["id"] in admin_ids else "member",
-                    "status": "active",
-                    "is_self": False,
-                }
-            )
+            if is_global_chat:
+                member = await self.db.users.find_one({"_id": ObjectId(member_id)})
+                if not member:
+                    continue
+                members.append(
+                    {
+                        "id": str(member["_id"]),
+                        "name": member.get("full_name") or member.get("email") or "Unknown",
+                        "email": member.get("email"),
+                        "phone": member.get("phone_no"),
+                        "avatar_url": member.get("avatar_url"),
+                        "presence": "online" if self._user_has_global_chat_access(member) else "offline",
+                        "role": (
+                            "owner"
+                            if str(member.get("primary_role") or member.get("role") or "").lower() == "owner"
+                            else ("admin" if str(member["_id"]) in admin_ids else "member")
+                        ),
+                        "status": member.get("status", "active"),
+                        "is_self": False,
+                    }
+                )
+            else:
+                contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": user_id})
+                if not contact:
+                    continue
+                safe_contact = self._to_public(contact)
+                members.append(
+                    {
+                        "id": safe_contact["id"],
+                        "name": safe_contact.get("name") or "Unknown",
+                        "email": safe_contact.get("email"),
+                        "phone": safe_contact.get("phone"),
+                        "avatar_url": safe_contact.get("avatar_url"),
+                        "presence": safe_contact.get("presence", "offline"),
+                        "role": "admin" if safe_contact["id"] in admin_ids else "member",
+                        "status": "active",
+                        "is_self": False,
+                    }
+                )
         return members
 
     async def _get_active_owned_group(self, user_id: str, group_id: str) -> dict:
@@ -896,8 +1069,18 @@ class SmartFlowBase:
             raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
         group = await self.db.groups.find_one({
             "_id": ObjectId(group_id),
-            "$or": [{"owner_user_id": user_id}, {"admin_ids": user_id}, {"user_id": user_id}]
+            "$or": [{"owner_user_id": user_id}, {"user_id": user_id}]
         })
+        if not group:
+            group = await self.db.groups.find_one({"_id": ObjectId(group_id), "is_global_chat": True})
+            if group:
+                user = await self._get_user_document(user_id)
+                if (
+                    group.get("organization_id") != user.get("organization_id")
+                    or str(user.get("primary_role") or user.get("role") or "").lower() != "owner"
+                    or not self._user_has_global_chat_access(user)
+                ):
+                    group = None
         if not group or group.get("is_active", True) is False:
             raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
         return group
@@ -907,8 +1090,17 @@ class SmartFlowBase:
             raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
         group = await self.db.groups.find_one({
             "_id": ObjectId(group_id),
-            "$or": [{"owner_user_id": user_id}, {"member_ids": user_id}, {"user_id": user_id}]
+            "$or": [{"owner_user_id": user_id}, {"user_id": user_id}]
         })
+        if not group:
+            group = await self.db.groups.find_one({"_id": ObjectId(group_id), "is_global_chat": True, "member_ids": user_id})
+            if group:
+                user = await self._get_user_document(user_id)
+                if (
+                    group.get("organization_id") != user.get("organization_id")
+                    or not self._user_has_global_chat_access(user)
+                ):
+                    group = None
         if not group or group.get("is_active", True) is False:
             raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
         return group
@@ -1459,6 +1651,20 @@ class SmartFlowBase:
         safe = self._to_public(event)
         user_id = safe.get("user_id", "")
         attendees = await self._hydrate_calendar_attendees(user_id, safe.get("contact_ids", []))
+        external_attendees = []
+        for attendee in safe.get("external_attendees", []) or []:
+            external_attendees.append(
+                {
+                    "id": attendee.get("email") or attendee.get("name") or "external",
+                    "name": attendee.get("name") or attendee.get("email") or "External Attendee",
+                    "email": attendee.get("email"),
+                    "phone": None,
+                    "avatar_url": None,
+                    "initials": self._contact_initials(attendee.get("name") or attendee.get("email") or "EA"),
+                    "source": "external",
+                }
+            )
+        attendees.extend(external_attendees)
         safe["attendees"] = attendees
         safe["attendee_count"] = len(attendees)
         safe["meeting_mode"] = safe.get("meeting_mode", "offline")
@@ -1470,6 +1676,9 @@ class SmartFlowBase:
         safe["timezone"] = safe.get("timezone", "UTC")
         safe["status"] = safe.get("status", "scheduled")
         safe["sync_status"] = safe.get("sync_status", "local")
+        safe["calendar_source"] = safe.get("calendar_source", "mabdel")
+        safe["google_calendar_id"] = safe.get("google_calendar_id")
+        safe["google_calendar_name"] = safe.get("google_calendar_name")
         safe["share_url"] = self._calendar_share_url(safe["share_token"]) if safe.get("share_token") else None
         safe.pop("share_token", None)
         safe.pop("user_id", None)
@@ -2965,7 +3174,6 @@ class SmartFlowBase:
                 client = OpenAI(api_key=settings.OPENAI_API_KEY)
                 response = client.chat.completions.create(
                     model=settings.OPENAI_MODEL,
-                    temperature=0,
                     response_format={"type": "json_object"},
                     messages=[
                         {
@@ -3586,7 +3794,7 @@ class SmartFlowBase:
             "topic": session.get("topic", "general"),
             "agent": session.get("agent") or SUPPORT_AGENT,
             "quick_replies": SUPPORT_QUICK_REPLIES,
-            "support_typing": False,
+            "support_typing": bool(session.get("support_typing", False)),
             "started_at": session.get("created_at"),
             "updated_at": session.get("updated_at"),
             "latest_messages": messages,

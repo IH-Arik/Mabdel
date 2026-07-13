@@ -4,9 +4,10 @@ export const smartflowApi = {
   getHome: () => client.get('/api/v1/smartflow/home'),
   
   // Contacts
-  getContacts: () => client.get('/api/v1/smartflow/contacts'),
+  getContacts: (params) => client.get('/api/v1/smartflow/contacts', { params }),
   getContact: (id) => client.get(`/api/v1/smartflow/contacts/${id}`),
   createContact: (data) => client.post('/api/v1/smartflow/contacts', data),
+  importContacts: (data) => client.post('/api/v1/smartflow/contacts/import', data),
   updateContact: (id, data) => client.patch(`/api/v1/smartflow/contacts/${id}`, data),
   deleteContact: (id) => client.delete(`/api/v1/smartflow/contacts/${id}`),
   uploadContactAvatar: (id, formData) => client.post(`/api/v1/smartflow/contacts/${id}/avatar`, formData, {
@@ -21,7 +22,7 @@ export const smartflowApi = {
   markRead: (id) => client.post(`/api/v1/smartflow/conversations/${id}/mark-read`),
   archiveConversation: (id) => client.patch(`/api/v1/smartflow/conversations/${id}/archive`),
   getTypingStatus: (id) => client.get(`/api/v1/smartflow/conversations/${id}/typing`),
-  setTypingStatus: (id, typing) => client.post(`/api/v1/smartflow/conversations/${id}/typing`, { typing }),
+  setTypingStatus: (id, payload) => client.post(`/api/v1/smartflow/conversations/${id}/typing`, payload),
 
   // AI & Voice
   processAI: (data) => client.post('/api/v1/smartflow/ai/workflow-prefill', {
@@ -134,10 +135,15 @@ export const smartflowApi = {
   listEvents: (params) => client.get('/api/v1/events', { params }),
   createEvent: (data) => client.post('/api/v1/events', data),
   joinEvent: (id) => client.post(`/api/v1/events/${id}/join`),
+  leaveEvent: (id) => client.post(`/api/v1/events/${id}/leave`),
 
   // Voice History (alias for AI history in settings)
   getVoiceHistory: () => client.get('/api/v1/smartflow/ai/history'),
   replayVoiceHistory: (id) => client.post(`/api/v1/smartflow/ai/history/${id}/replay`),
+  getTwilioVoiceToken: () => client.get('/api/v1/twilio/voice/token'),
+  setTwilioVoiceRegistration: (data) => client.post('/api/v1/twilio/voice/registration', data),
+  syncTwilioVoiceSession: (data) => client.post('/api/v1/twilio/voice/session-sync', data),
+  getLiveCallTranscriptBySid: (callSid) => client.get(`/api/v1/calls/${callSid}/transcript`),
 
   // Earnings & Withdrawals
   getUserEarnings: () => client.get('/api/v1/smartflow/earnings'),
@@ -222,6 +228,9 @@ export const smartflowApi = {
   archiveConversation: (id) => client.patch(`/api/v1/smartflow/conversations/${id}/archive`, { archived: true }),
   markConversationRead: (id) => client.post(`/api/v1/smartflow/conversations/${id}/mark-read`),
   getMessages: (id, params) => client.get(`/api/v1/smartflow/conversations/${id}/messages`, { params }),
+  uploadConversationAttachment: (id, formData) => client.post(`/api/v1/smartflow/conversations/${id}/attachments`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   sendMessage: (data) => client.post('/api/v1/smartflow/messages', data),
 
   // ── AI & Voice ────────────────────────────────────────────────────────────────
@@ -247,9 +256,12 @@ export const smartflowApi = {
   createReport: (data) => client.post('/api/v1/smartflow/reports', data),
 
   // ── Groups extras ─────────────────────────────────────────────────────────────
+  listGroups: (params) => client.get('/api/v1/smartflow/groups', { params }),
+  createGroup: (data) => client.post('/api/v1/smartflow/groups', data),
   getGroup: (id) => client.get(`/api/v1/smartflow/groups/${id}`),
   deleteGroup: (id) => client.delete(`/api/v1/smartflow/groups/${id}`),
   updateGroup: (id, data) => client.patch(`/api/v1/smartflow/groups/${id}`, data),
+  addGroupMembers: (gid, data) => client.post(`/api/v1/smartflow/groups/${gid}/members`, data),
   updateGroupMember: (gid, mid, data) => client.patch(`/api/v1/smartflow/groups/${gid}/members/${mid}`, data),
   removeGroupMember: (gid, mid) => client.delete(`/api/v1/smartflow/groups/${gid}/members/${mid}`),
   leaveGroup: (id) => client.post(`/api/v1/smartflow/groups/${id}/leave`),

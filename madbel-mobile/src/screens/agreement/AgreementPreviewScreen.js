@@ -7,11 +7,11 @@ import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimen
 import { ChevronLeft, ClipboardCheck, Sparkles, CheckCircle2, AlertTriangle, X, Download } from "lucide-react-native";
 import { useSelector } from "react-redux";
 import {
-  useLazyMadbelDownloadAgreementPdfQuery,
   useMadbelGetAgreementQuery,
   useMadbelSendAgreementForSignatureMutation,
   useMadbelSignAgreementMutation,
 } from "../../redux/slices/madbelApiSlice";
+import { downloadAndOpenProtectedPdf, normalizeProtectedFileUrl } from "../../utils/downloadPdf";
 
 const STATUS_TONE_MAP = {
   pending_signature: { text: "PENDING SIGNATURE", color: "#F6D32B", border: "#796A05", bg: "#302C13" },
@@ -49,7 +49,8 @@ const AgreementPreviewScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const routeAgreement = route?.params?.agreement || {};
-  const agreementId = route?.params?.agreementId || routeAgreement?.id;
+  const agreementId = route?.params?.agreementId || routeAgreement?.id || routeAgreement?._id;
+  const accessToken = useSelector((state) => state?.auth?.accessToken || state?.auth?.token);
 
   const { data: agreementResponse, isLoading: loadingAgreement } = useMadbelGetAgreementQuery(
     { agreement_id: agreementId },
@@ -65,7 +66,7 @@ const AgreementPreviewScreen = () => {
   const [phone, setPhone] = useState(agreement?.client_phone || "");
 
   const [sendForSignature, { isLoading: sending }] = useMadbelSendAgreementForSignatureMutation();
-  const [downloadAgreementPdf, { isFetching: downloadingPdf }] = useLazyMadbelDownloadAgreementPdfQuery();
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const review = useMemo(() => agreement?.ai_review || [], [agreement?.ai_review]);
 
@@ -120,15 +121,22 @@ const AgreementPreviewScreen = () => {
   const openPdf = async () => {
     if (!agreementId) return;
     try {
-      const response = await downloadAgreementPdf({ agreement_id: agreementId });
-      const url = response?.data?.data?.pdf_url || agreement?.pdf_url;
-      if (url) {
-        await Linking.openURL(url);
-        return;
-      }
-      Alert.alert(t("unavailable"), t("pdf_url_not_available"));
+      setDownloadingPdf(true);
+      const pdfUrl =
+        normalizeProtectedFileUrl(agreement?.pdf_url) ||
+        normalizeProtectedFileUrl(`/api/v1/smartflow/agreements/${agreementId}/pdf`);
+      await downloadAndOpenProtectedPdf({
+        url: pdfUrl,
+        accessToken,
+        filePrefix: `agreement-${agreementId}`,
+      });
     } catch (error) {
-      Alert.alert("PDF failed", error?.data?.message || "Could not open agreement PDF.");
+      Alert.alert(
+        "PDF failed",
+        error?.data?.message || error?.message || "Could not open agreement PDF.",
+      );
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Building2, Bell, CreditCard, Mic, TrendingUp, LifeBuoy, Cpu, Shield, Calendar } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 import ProfileTab from './tabs/ProfileTab';
 import BusinessProfileTab from './tabs/BusinessProfileTab';
@@ -17,6 +18,7 @@ import EventParticipantsTab from './tabs/EventParticipantsTab';
 import AddBankTab from './tabs/AddBankTab';
 
 export default function Profile() {
+  const location = useLocation();
   const [active, setActive] = useState('profile');
 
   const tabs = [
@@ -52,6 +54,21 @@ export default function Profile() {
   };
 
   const ActiveComponent = components[active] || ProfileTab;
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const requestedTab = params.get('tab');
+    if (!requestedTab) return;
+
+    if (requestedTab === 'voice-history') {
+      setActive('voice');
+      return;
+    }
+
+    if (requestedTab in components) {
+      setActive(requestedTab);
+    }
+  }, [location.search]);
 
   return (
     <div className="space-y-6">

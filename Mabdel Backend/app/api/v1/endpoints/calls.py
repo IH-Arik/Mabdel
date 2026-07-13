@@ -5,18 +5,18 @@ from fastapi.responses import PlainTextResponse
 import asyncio
 
 from app.dependencies import get_current_user, get_mongo_database
-from app.schemas.call import CallActionRequest, TwilioStatusCallbackPayload, TwilioWebhookPayload
+from app.schemas.call import CallActionRequest, TwilioStatusCallbackPayload, TwilioWebhookPayload, VoiceSessionSyncRequest
 from app.services.call_service import CallService
 from app.services.smartflow_service import SmartFlowService
-from app.services.twilio_provisioning_service import TwilioProvisioningService
+from app.services.twilio_web_voice_service import TwilioWebVoiceService
 from app.utils.responses import success_response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.services.ai_phone_agent import AIPhoneAgent
 from app.services.mabdel_ai_service import MabdelAIService
+from app.core.config import settings
 from app.core.exceptions import AppException
 from app.utils.audio import utc_now
 from bson import ObjectId
-import secrets
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,31 @@ active_sessions: dict[str, AIPhoneAgent] = {}
 
 def get_smartflow_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> SmartFlowService:
     return SmartFlowService(db)
+
+
+def get_voice_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> TwilioWebVoiceService:
+    return TwilioWebVoiceService(db)
+
+
+def normalize_browser_call_status(status_value: str) -> str:
+    normalized = (status_value or "").strip().lower()
+    mapping = {
+        "connecting": "ringing",
+        "ringing": "ringing",
+        "connected": "in_progress",
+        "in_progress": "in_progress",
+        "completed": "completed",
+        "disconnected": "completed",
+        "rejected": "canceled",
+        "canceled": "canceled",
+        "cancelled": "canceled",
+        "failed": "failed",
+        "busy": "busy",
+        "no_answer": "no_answer",
+        "no-answer": "no_answer",
+        "incoming": "ringing",
+    }
+    return mapping.get(normalized, normalized or "initiated")
 
 
 @router.post("/calls/{call_sid}/action")
@@ -79,6 +104,7 @@ async def call_action(
 async def incoming_call(
     request: Request,
     service: SmartFlowService = Depends(get_smartflow_service),
+    voice_service: TwilioWebVoiceService = Depends(get_voice_service),
 ) -> Response:
     """
     Twilio Voice webhook.
@@ -92,12 +118,30 @@ async def incoming_call(
     call_sid = payload.call_sid or "unknown"
 
     # Match the called number (To) to the user's Twilio sub-account number first,
-    # then their profile phone_number. Falls back to the first user if no match.
+    # then their profile phone_number. If the shared platform number is being used,
+    # prefer the latest active browser registration so the web client can ring.
     user = None
     if payload.to_number:
         user = await service.db.users.find_one({"twilio_phone_number": payload.to_number})
     if not user and payload.to_number:
         user = await service.db.users.find_one({"phone_number": payload.to_number})
+    active_registration = None
+    if not user and payload.to_number and payload.to_number == settings.TWILIO_PHONE_NUMBER:
+        active_registration = await voice_service.get_latest_active_registration()
+        if active_registration:
+            user = await service.db.users.find_one({"_id": ObjectId(active_registration["user_id"])})
+    if user and not active_registration:
+        active_registration = await voice_service.get_active_registration(str(user["_id"]))
+
+    logger.info(
+        "Twilio incoming webhook received: call_sid=%s from=%s to=%s direction=%s at=%s active_identity=%s",
+        call_sid,
+        payload.from_number,
+        payload.to_number,
+        payload.direction,
+        utc_now().isoformat(),
+        (active_registration or {}).get("identity"),
+    )
     if not user:
         logger.warning("Incoming call to %s: no matching user found, routing as guest", payload.to_number)
     user_id = str(user["_id"]) if user else "guest"
@@ -113,7 +157,16 @@ async def incoming_call(
         "created_at": utc_now(),
     })
 
-    # 3. Push notification so the user's phone rings in the app.
+    # 3. If the owner is live in the browser, ring the web client directly.
+    if user_id != "guest" and active_registration and active_registration.get("identity"):
+        twiml = call_service.build_browser_client_twiml(
+            identity=active_registration["identity"],
+            caller_id=payload.from_number,
+            recording_callback_url=call_service.build_recording_callback_url(user_id),
+        )
+        return PlainTextResponse(content=twiml, media_type="application/xml")
+
+    # 4. Otherwise push a notification so the user's phone/app can handle the call.
     if user_id != "guest":
         try:
             caller_number = payload.from_number or "Unknown"
@@ -139,6 +192,104 @@ async def incoming_call(
     twiml = twiml.replace("<Response>", f'<Response record="record-from-answer" recordingStatusCallback="{call_service.build_recording_callback_url(user_id)}">')
     
     return PlainTextResponse(content=twiml, media_type="application/xml")
+
+
+@router.post("/twilio/voice/outbound")
+async def browser_outbound_call(
+    request: Request,
+    db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+) -> Response:
+    """
+    TwiML app webhook for browser-originated outbound calls.
+    """
+    form_data = await request.form()
+    form_payload = {key: str(value) for key, value in form_data.multi_items()} if form_data else {}
+    await call_service.validate_twilio_request(request, form_payload)
+
+    user_id = form_payload.get("user_id", "").strip()
+    destination = (form_payload.get("To") or form_payload.get("phone_number") or form_payload.get("destination") or "").strip()
+    display_name = (form_payload.get("display_name") or destination or "Outbound Call").strip()
+
+    if not user_id:
+        raise AppException(status_code=400, code="VOICE_USER_ID_MISSING", message="Outbound voice call user is missing.")
+    if not destination:
+        raise AppException(status_code=400, code="VOICE_DESTINATION_MISSING", message="Outbound voice destination is missing.")
+
+    call_log = {
+        "user_id": user_id,
+        "contact_name": display_name,
+        "phone_number": destination,
+        "from_number": settings.TWILIO_PHONE_NUMBER,
+        "status": "initiated",
+        "direction": "outbound",
+        "call_type": "outgoing_direct",
+        "created_at": utc_now(),
+    }
+    inserted = await db.call_logs.insert_one(call_log)
+    call_log_id = str(inserted.inserted_id)
+
+    twiml = call_service.build_browser_outbound_twiml(
+        to_number=destination,
+        caller_id=settings.TWILIO_PHONE_NUMBER or "",
+        status_callback_url=TwilioWebVoiceService.build_browser_status_callback_url(user_id=user_id, call_log_id=call_log_id),
+        recording_callback_url=TwilioWebVoiceService.build_browser_recording_callback_url(user_id=user_id),
+    )
+    return PlainTextResponse(content=twiml, media_type="application/xml")
+
+
+@router.post("/twilio/voice/session-sync")
+async def sync_browser_call_session(
+    payload: VoiceSessionSyncRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+) -> dict:
+    user_id = str(current_user["_id"])
+    normalized_status = normalize_browser_call_status(payload.status)
+    direction = "outbound" if str(payload.direction).lower() == "outbound" else "inbound"
+    call_type = "outgoing_direct" if direction == "outbound" else "incoming_direct"
+    call_log = await db.call_logs.find_one({"twilio_call_sid": payload.call_sid, "user_id": user_id})
+
+    if not call_log and payload.phone_number:
+        call_log = await db.call_logs.find_one(
+            {
+                "user_id": user_id,
+                "phone_number": payload.phone_number,
+                "status": {"$in": ["initiated", "ringing", "in_progress"]},
+            },
+            sort=[("created_at", -1)],
+        )
+
+    update_fields = {
+        "twilio_call_sid": payload.call_sid,
+        "status": normalized_status,
+        "direction": direction,
+        "call_type": call_type,
+        "updated_at": utc_now(),
+    }
+    if payload.phone_number:
+        update_fields["phone_number"] = payload.phone_number
+    if payload.contact_name:
+        update_fields["contact_name"] = payload.contact_name
+    if payload.duration_seconds is not None:
+        update_fields["duration"] = int(payload.duration_seconds)
+
+    if call_log:
+        await db.call_logs.update_one({"_id": call_log["_id"]}, {"$set": update_fields})
+        result_id = call_log["_id"]
+    else:
+        inserted = await db.call_logs.insert_one(
+            {
+                "user_id": user_id,
+                "created_at": utc_now(),
+                **update_fields,
+            }
+        )
+        result_id = inserted.inserted_id
+
+    updated = await db.call_logs.find_one({"_id": result_id})
+    if updated:
+        updated["_id"] = str(updated["_id"])
+    return success_response(data=updated, message="Browser call session synced.")
 
 
 async def _process_recording(
@@ -271,6 +422,19 @@ async def call_status(
             to_number=payload.to_number,
         )
         response_data["call_log"] = updated_log
+    elif payload.call_sid:
+        existing_call = await service.db.call_logs.find_one({"twilio_call_sid": payload.call_sid})
+        if existing_call:
+            updated_log = await service.update_call_log_from_provider_callback(
+                user_id=existing_call["user_id"],
+                call_log_id=str(existing_call["_id"]),
+                twilio_call_sid=payload.call_sid,
+                call_status=payload.call_status,
+                call_duration=payload.call_duration,
+                from_number=payload.from_number,
+                to_number=payload.to_number,
+            )
+            response_data["call_log"] = updated_log
     return success_response(
         data=response_data,
         message="Twilio call status received successfully.",

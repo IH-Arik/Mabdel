@@ -77,6 +77,52 @@ class CallService:
         xml = tostring(response, encoding="unicode")
         return '<?xml version="1.0" encoding="UTF-8"?>' + xml
 
+    def build_browser_client_twiml(
+        self,
+        *,
+        identity: str,
+        caller_id: str | None = None,
+        recording_callback_url: str | None = None,
+    ) -> str:
+        response = Element("Response")
+        dial_attributes = {"answerOnBridge": "true"}
+        if caller_id:
+            dial_attributes["callerId"] = caller_id
+        if recording_callback_url:
+            dial_attributes["record"] = "record-from-answer"
+            dial_attributes["recordingStatusCallback"] = recording_callback_url
+            dial_attributes["recordingStatusCallbackMethod"] = "POST"
+        dial = SubElement(response, "Dial", **dial_attributes)
+        SubElement(dial, "Client").text = identity
+        xml = tostring(response, encoding="unicode")
+        return '<?xml version="1.0" encoding="UTF-8"?>' + xml
+
+    def build_browser_outbound_twiml(
+        self,
+        *,
+        to_number: str,
+        caller_id: str,
+        status_callback_url: str,
+        recording_callback_url: str | None = None,
+    ) -> str:
+        response = Element("Response")
+        dial_attributes = {"answerOnBridge": "true", "callerId": caller_id}
+        if recording_callback_url:
+            dial_attributes["record"] = "record-from-answer"
+            dial_attributes["recordingStatusCallback"] = recording_callback_url
+            dial_attributes["recordingStatusCallbackMethod"] = "POST"
+        dial = SubElement(response, "Dial", **dial_attributes)
+        number = SubElement(
+            dial,
+            "Number",
+            statusCallback=status_callback_url,
+            statusCallbackMethod="POST",
+            statusCallbackEvent="initiated ringing answered completed",
+        )
+        number.text = to_number
+        xml = tostring(response, encoding="unicode")
+        return '<?xml version="1.0" encoding="UTF-8"?>' + xml
+
     def build_hold_twiml(self, message: str = "Please wait while I connect you...") -> str:
         response = Element("Response")
         SubElement(response, "Say").text = message

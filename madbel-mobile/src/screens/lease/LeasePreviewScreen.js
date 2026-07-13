@@ -7,13 +7,12 @@ import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimen
 import { ChevronLeft, ClipboardCheck, Sparkles, CheckCircle2, AlertTriangle, X, Download } from "lucide-react-native";
 import { useSelector } from "react-redux";
 import {
-  useLazyMadbelDownloadLeasePdfQuery,
   useMadbelGetLeaseQuery,
   useMadbelReviewLeaseMutation,
   useMadbelSendLeaseForSignatureMutation,
   useMadbelSignLeaseMutation,
 } from "../../redux/slices/madbelApiSlice";
-import { API_BASE_URL } from "../../redux/apiUtils";
+import { downloadAndOpenProtectedPdf, normalizeProtectedFileUrl } from "../../utils/downloadPdf";
 
 const STATUS_TONE_MAP = {
   pending_signature: { text: "PENDING SIGNATURE", color: "#F4D52B", border: "#7A6B06", bg: "#302C13" },
@@ -36,37 +35,6 @@ const formatMoney = (value) => {
   const numeric = Number(value);
   if (Number.isNaN(numeric)) return String(value);
   return `$${numeric.toLocaleString()}`;
-};
-
-const resolvePdfUrl = (payload) => {
-  if (!payload) return null;
-  if (typeof payload === "string") return payload;
-
-  return (
-    payload?.pdf_url ||
-    payload?.pdfUrl ||
-    payload?.url ||
-    payload?.data?.pdf_url ||
-    payload?.data?.pdfUrl ||
-    payload?.data?.url ||
-    null
-  );
-};
-
-const getPublicLeasePdfUrl = (shareUrl) => {
-  if (!shareUrl) return null;
-
-  if (/^https?:\/\//i.test(shareUrl)) {
-    try {
-      const parsed = new URL(shareUrl);
-      const pathWithQuery = `${parsed.pathname || ""}${parsed.search || ""}`;
-      return `${API_BASE_URL}${pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`}`;
-    } catch {
-      return shareUrl;
-    }
-  }
-
-  return `${API_BASE_URL}${shareUrl.startsWith("/") ? shareUrl : `/${shareUrl}`}`;
 };
 
 const resolveSigningUrl = (response) =>
@@ -98,7 +66,7 @@ const LeasePreviewScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const routeLease = route?.params?.lease || {};
-  const leaseId = route?.params?.leaseId || routeLease?.id;
+  const leaseId = route?.params?.leaseId || routeLease?.id || routeLease?._id;
   const { data: leaseResponse, isLoading: loadingLease } = useMadbelGetLeaseQuery(
     { lease_id: leaseId },
     { skip: !leaseId },
@@ -121,30 +89,16 @@ const LeasePreviewScreen = () => {
   const [reviewLease, { isLoading: reviewingLease }] = useMadbelReviewLeaseMutation();
   const [sendForSignature, { isLoading: sendingForSignature }] = useMadbelSendLeaseForSignatureMutation();
   const [signLease, { isLoading: signingLease }] = useMadbelSignLeaseMutation();
-  const [downloadLeasePdf, { isFetching: downloadingPdf }] = useLazyMadbelDownloadLeasePdfQuery();
-  const [cachedDownloadUrl, setCachedDownloadUrl] = useState(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [resolvingDownloadLink, setResolvingDownloadLink] = useState(false);
+  const accessToken = useSelector((state) => state?.auth?.accessToken || state?.auth?.token);
 
   const ensureDownloadUrl = async () => {
-    if (cachedDownloadUrl) return cachedDownloadUrl;
     if (lease?.pdf_url) {
-      const normalizedLeaseUrl = getPublicLeasePdfUrl(lease.pdf_url);
-      setCachedDownloadUrl(normalizedLeaseUrl);
-      return normalizedLeaseUrl;
+      return normalizeProtectedFileUrl(lease.pdf_url);
     }
     if (!leaseId) return null;
-
-    const response = await downloadLeasePdf({ lease_id: leaseId }).unwrap();
-    const resolvedUrl =
-      getPublicLeasePdfUrl(resolvePdfUrl(response)) ||
-      getPublicLeasePdfUrl(resolvePdfUrl(lease)) ||
-      null;
-
-    if (resolvedUrl) {
-      setCachedDownloadUrl(resolvedUrl);
-    }
-
-    return resolvedUrl;
+    return normalizeProtectedFileUrl(`/api/v1/smartflow/leases/${leaseId}/pdf`);
   };
 
   const handleDirectSign = async () => {
@@ -227,22 +181,24 @@ const LeasePreviewScreen = () => {
     }
     try {
       setResolvingDownloadLink(true);
+      setDownloadingPdf(true);
       const pdfUrl = await ensureDownloadUrl();
       if (!pdfUrl) {
         Alert.alert(t("pdf_unavailable"), t("could_not_generate_pdf_link"));
         return;
       }
-
-      const canOpen = await Linking.canOpenURL(pdfUrl);
-      if (!canOpen) {
-        Alert.alert(t("open_failed"), t("this_device_cannot_open_the_pdf_link"));
-        return;
-      }
-
-      await Linking.openURL(pdfUrl);
+      await downloadAndOpenProtectedPdf({
+        url: pdfUrl,
+        accessToken,
+        filePrefix: `lease-${leaseId}`,
+      });
     } catch (error) {
-      Alert.alert(t("download_failed"), error?.data?.message || t("could_not_open_the_lease_pdf"));
+      Alert.alert(
+        t("download_failed"),
+        error?.data?.message || error?.message || t("could_not_open_the_lease_pdf"),
+      );
     } finally {
+      setDownloadingPdf(false);
       setResolvingDownloadLink(false);
     }
   };

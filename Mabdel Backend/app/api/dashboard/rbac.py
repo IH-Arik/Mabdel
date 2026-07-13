@@ -187,6 +187,7 @@ async def assign_role_to_user(
     request: Request,
     current_user: dict = Depends(require_permission("roles", "manage")),
     rbac=Depends(get_rbac_service),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     actor_id, actor_role = _actor(current_user)
     data = await rbac.assign_role_to_user(
@@ -197,6 +198,9 @@ async def assign_role_to_user(
         organization_id=body.organization_id,
         expires_at=body.expires_at,
     )
+    if body.organization_id:
+        from app.services.smartflow.smartflow_orchestrator import SmartFlowService
+        await SmartFlowService(db).sync_user_global_chat_membership(body.user_id, body.organization_id)
     await rbac.log_action(actor_id, actor_role, "user.assign_role", "user", body.user_id, {"role": body.role_slug}, _ip(request))
     return ApiResponse(data=data, message="Role assigned successfully.")
 
@@ -207,6 +211,7 @@ async def revoke_role_from_user(
     request: Request,
     current_user: dict = Depends(require_permission("roles", "manage")),
     rbac=Depends(get_rbac_service),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     actor_id, actor_role = _actor(current_user)
     await rbac.revoke_role_from_user(
@@ -215,6 +220,9 @@ async def revoke_role_from_user(
         revoked_by_role=actor_role,
         organization_id=body.organization_id,
     )
+    if body.organization_id:
+        from app.services.smartflow.smartflow_orchestrator import SmartFlowService
+        await SmartFlowService(db).sync_user_global_chat_membership(body.user_id, body.organization_id)
     await rbac.log_action(actor_id, actor_role, "user.revoke_role", "user", body.user_id, {"role": body.role_slug}, _ip(request))
     return ApiResponse(message="Role revoked successfully.")
 
@@ -234,8 +242,13 @@ async def create_subordinate_account(
     body: SubordinateAccountCreate,
     current_user: dict = Depends(require_role(["owner"])),
     rbac: Any = Depends(get_dashboard_rbac_service),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     data = await rbac.create_subordinate_account(current_user, body)
+    user_id = data.get("user_id") if isinstance(data, dict) else None
+    if user_id and current_user.get("organization_id"):
+        from app.services.smartflow.smartflow_orchestrator import SmartFlowService
+        await SmartFlowService(db).sync_user_global_chat_membership(user_id, current_user.get("organization_id"))
     return ApiResponse(data=data, message="Subordinate account created successfully.")
 
 

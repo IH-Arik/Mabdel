@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff } from 'lucide-react';
 
-export default function IncomingCallOverlay({ callerName, isOpen, onAccept, onReject }) {
+export default function IncomingCallOverlay({ callerName, callerNumber, isOpen, onAccept, onReject }) {
   if (!isOpen) return null;
 
   return (
@@ -25,6 +25,7 @@ export default function IncomingCallOverlay({ callerName, isOpen, onAccept, onRe
              <div>
                  <h4 className="text-white font-bold text-sm">{callerName || 'Unknown Caller'}</h4>
                  <p className="text-cyan-400 text-xs font-semibold mt-0.5 animate-pulse">Incoming Call...</p>
+                 {callerNumber ? <p className="text-[#A4B0B7] text-[11px] mt-1">{callerNumber}</p> : null}
              </div>
           </div>
           

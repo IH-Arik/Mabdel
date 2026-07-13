@@ -36,9 +36,9 @@ import {
   responsiveHeight,
   responsiveWidth,
 } from "react-native-responsive-dimensions";
-import { useMadbelGetGroupQuery } from "../../redux/slices/madbelApiSlice";
 import {
   useMadbelCreateMessageMutation,
+  useMadbelGetGroupQuery,
   useMadbelListMessagesQuery,
   useMadbelMarkConversationReadMutation,
   useMadbelSetTypingStateMutation,
@@ -210,7 +210,6 @@ const GroupChatScreen = () => {
   const myUserId = authUser?._id || authUser?.id || authUser?.userId;
 
   const routeGroup = route?.params?.group || {};
-  console.log('LINE AT 222' , routeGroup);
   const groupId =
     route?.params?.group_id ||
     routeGroup?.group_id ||
@@ -219,14 +218,6 @@ const GroupChatScreen = () => {
     routeGroup?.conversationId ||
     routeGroup?.threadId ||
     routeGroup?.thread_id ||
-    null;
-
-  const threadId =
-    routeGroup?.conversation_id ||
-    routeGroup?.conversationId ||
-    routeGroup?.threadId ||
-    routeGroup?.thread_id ||
-    groupId ||
     null;
 
   const {
@@ -238,6 +229,14 @@ const GroupChatScreen = () => {
     { skip: !groupId },
   );
   const group = groupResponse?.data || routeGroup || {};
+  const threadId =
+    group?.conversation_id ||
+    routeGroup?.conversation_id ||
+    routeGroup?.conversationId ||
+    routeGroup?.threadId ||
+    routeGroup?.thread_id ||
+    groupId ||
+    null;
   const hasGroupIdentity = Boolean(
     group?.name ||
       group?.title ||
@@ -329,6 +328,38 @@ const GroupChatScreen = () => {
       setMessages((prev) => upsertMessages(prev, normalized));
     },
   });
+
+  useEffect(() => {
+    if (!threadId) return undefined;
+
+    const handleMembershipRemoved = (payload) => {
+      if (String(payload?.user_id || "") !== String(myUserId || "")) return;
+      const conversationId = String(payload?.channel || payload?.conversation_id || "");
+      if (conversationId && conversationId !== String(threadId)) return;
+      Alert.alert(
+        tr("access_removed", "Access removed"),
+        tr(
+          "you_no_longer_have_access_to_this_group_chat",
+          "You no longer have access to this group chat.",
+        ),
+        [{ text: tr("ok", "OK"), onPress: () => navigation.goBack() }],
+      );
+    };
+
+    const handleMembershipAdded = (payload) => {
+      if (String(payload?.user_id || "") !== String(myUserId || "")) return;
+      const conversationId = String(payload?.channel || payload?.conversation_id || "");
+      if (conversationId && conversationId !== String(threadId)) return;
+      markConversationRead({ conversation_id: threadId }).catch(() => null);
+    };
+
+    const offRemoved = addEventListener("global_member.removed", handleMembershipRemoved);
+    const offAdded = addEventListener("global_member.added", handleMembershipAdded);
+    return () => {
+      offRemoved?.();
+      offAdded?.();
+    };
+  }, [markConversationRead, myUserId, navigation, threadId, tr]);
 
   useEffect(() => {
     const rawMessages =
@@ -487,9 +518,11 @@ const GroupChatScreen = () => {
       const result = await createMessage({
         conversation_id: threadId,
         content: text,
+        platform: "ai",
+        direction: "outbound",
       }).unwrap();
 
-      const created = result?.message || result;
+      const created = result?.data?.message || result?.data || result?.message || result;
       if (created?._id || created?.id) {
         setMessages((prev) =>
           upsertMessages(prev, normalizeMessage(created, myUserId)),

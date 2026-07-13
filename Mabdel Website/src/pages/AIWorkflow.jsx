@@ -154,7 +154,7 @@ export default function AIWorkflow() {
           <p className="text-slate-400 text-sm font-semibold">Generate invoices, schedule meetings, create documents, or generate images by asking.</p>
         </div>
         <button 
-          onClick={() => navigate('/profile?tab=voice-history')}
+          onClick={() => navigate('/profile?tab=voice')}
           className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 hover:text-[#11C7E5] hover:border-[#11C7E5]/50 transition-all cursor-pointer shadow-lg"
         >
           <History size={16} />

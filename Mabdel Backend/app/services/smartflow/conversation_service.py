@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from math import ceil
 import logging
+from pathlib import Path
 
 from bson import ObjectId
 import httpx
@@ -21,6 +23,52 @@ from ._base import SmartFlowBase
 
 
 class ConversationService(SmartFlowBase):
+    async def _publish_global_chat_inbox_updates(self, conversation: dict) -> None:
+        for member_id in conversation.get("member_ids", []):
+            try:
+                await self._publish_inbox_update(member_id, str(conversation["_id"]))
+            except Exception:
+                continue
+
+    async def _find_global_chat_group(self, organization_id: str, owner_id: str | None = None) -> dict | None:
+        queries = [
+            {"organization_id": organization_id, "is_global_chat": True},
+            {"owner_user_id": organization_id, "is_global_chat": True},
+        ]
+        if owner_id:
+            queries.extend(
+                [
+                    {"owner_user_id": owner_id, "is_global_chat": True},
+                    {"user_id": owner_id, "is_global_chat": True, "organization_id": {"$exists": False}},
+                ]
+            )
+        for query in queries:
+            group = await self.db.groups.find_one(query)
+            if group:
+                return group
+        return None
+
+    async def _resolve_global_chat_owner(self, organization_id: str, fallback_owner_id: str | None = None) -> dict | None:
+        owner = await self.db.users.find_one(
+            {
+                "organization_id": organization_id,
+                "$or": [{"primary_role": "owner"}, {"role": "owner"}],
+            }
+        )
+        if owner:
+            return owner
+        if fallback_owner_id and ObjectId.is_valid(fallback_owner_id):
+            return await self.db.users.find_one({"_id": ObjectId(fallback_owner_id)})
+        return None
+
+    async def _sync_global_chat_member_lists(self, conversation_id: str, member_ids: list[str]) -> None:
+        if not ObjectId.is_valid(conversation_id):
+            return
+        await self.db.conversations.update_one(
+            {"_id": ObjectId(conversation_id)},
+            {"$set": {"member_ids": list(dict.fromkeys(member_ids)), "updated_at": utc_now()}},
+        )
+
     async def create_conversation(self, user_id: str, payload: dict) -> dict:
         now = utc_now()
         member_ids = list(dict.fromkeys([user_id, *payload.get("member_ids", [])]))
@@ -37,11 +85,11 @@ class ConversationService(SmartFlowBase):
         }
         result = await self.db.conversations.insert_one(document)
         document["_id"] = result.inserted_id
-        return await self._serialize_conversation(document)
+        return await self._serialize_conversation(document, viewer_user_id=user_id)
 
     async def get_conversation(self, user_id: str, conversation_id: str) -> dict:
-        conversation = await self._get_owned_document(self.db.conversations, user_id, conversation_id, "CONVERSATION_NOT_FOUND")
-        return await self._serialize_conversation(conversation)
+        conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        return await self._serialize_conversation(conversation, viewer_user_id=user_id)
 
     async def list_conversations(
         self,
@@ -71,7 +119,28 @@ class ConversationService(SmartFlowBase):
         if type_filter:
             filters["type"] = type_filter
         conversations = await self.db.conversations.find(filters).sort("updated_at", -1).to_list(length=500)
-        items = [await self._serialize_conversation(item) for item in conversations]
+
+        user = await self._get_user_document(user_id)
+        if self._user_has_global_chat_access(user) and user.get("organization_id"):
+            global_chat_filters: dict = {
+                "organization_id": user.get("organization_id"),
+                "is_global_chat": True,
+                "member_ids": user_id,
+                "is_active": {"$ne": False},
+            }
+            if len(platform_values) == 1:
+                global_chat_filters["platform"] = platform_values[0]
+            elif platform_values:
+                global_chat_filters["platform"] = {"$in": platform_values}
+            if archived is not None:
+                global_chat_filters["archived"] = archived
+            if type_filter:
+                global_chat_filters["type"] = type_filter
+            global_chats = await self.db.conversations.find(global_chat_filters).sort("updated_at", -1).to_list(length=20)
+            existing_ids = {item["_id"] for item in conversations}
+            conversations.extend([item for item in global_chats if item["_id"] not in existing_ids])
+
+        items = [await self._serialize_conversation(item, viewer_user_id=user_id) for item in conversations]
         if unread_only:
             items = [item for item in items if item.get("unread_count", 0) > 0]
         if search:
@@ -92,23 +161,31 @@ class ConversationService(SmartFlowBase):
         }
 
     async def archive_conversation(self, user_id: str, conversation_id: str, archived: bool) -> dict:
-        conversation = await self._get_owned_document(self.db.conversations, user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        if conversation.get("is_global_chat"):
+            raise AppException(status_code=400, code="GLOBAL_CHAT_ARCHIVE_UNSUPPORTED", message="Global chat cannot be archived individually.")
         updated = await self.db.conversations.find_one_and_update(
             {"_id": conversation["_id"]},
             {"$set": {"archived": archived, "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
-        return await self._serialize_conversation(updated)
+        return await self._serialize_conversation(updated, viewer_user_id=user_id)
 
     async def mark_conversation_read(self, user_id: str, conversation_id: str) -> dict:
-        conversation = await self._get_owned_document(self.db.conversations, user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
         now = utc_now()
-        await self.db.messages.update_many(
-            {"user_id": user_id, "conversation_id": conversation_id, "unread_count": {"$gt": 0}},
-            {"$set": {"status": "read", "unread_count": 0, "read_at": now, "delivered_at": now}},
-        )
+        if conversation.get("is_global_chat"):
+            await self.db.messages.update_many(
+                {"conversation_id": conversation_id, "sender_user_id": {"$ne": user_id}},
+                {"$addToSet": {"read_by": user_id}, "$set": {"updated_at": now}},
+            )
+        else:
+            await self.db.messages.update_many(
+                {"user_id": user_id, "conversation_id": conversation_id, "unread_count": {"$gt": 0}},
+                {"$set": {"status": "read", "unread_count": 0, "read_at": now, "delivered_at": now}},
+            )
         refreshed = await self.db.conversations.find_one({"_id": conversation["_id"]})
-        serialized = await self._serialize_conversation(refreshed)
+        serialized = await self._serialize_conversation(refreshed, viewer_user_id=user_id)
         await conversation_realtime_hub.publish(conversation_id, "conversation.read", {"unread_count": 0, "read_at": now})
         await self._publish_inbox_update(user_id, conversation_id)
         return serialized
@@ -122,20 +199,23 @@ class ConversationService(SmartFlowBase):
         search: str | None,
         platform: str | None,
     ) -> dict:
-        await self._get_owned_document(self.db.conversations, user_id, conversation_id, "CONVERSATION_NOT_FOUND")
-        filters: dict = {"user_id": user_id, "conversation_id": conversation_id}
+        conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        filters: dict = {"conversation_id": conversation_id}
+        if not conversation.get("is_global_chat"):
+            filters["user_id"] = user_id
         if search:
             filters["content"] = {"$regex": search, "$options": "i"}
         if platform:
             filters["platform"] = platform
         page_result = await self._paginate(self.db.messages, filters, page, page_size, "timestamp")
-        page_result["items"] = [await self._serialize_message(item) for item in page_result["items"]]
+        page_result["items"] = [
+            await self._serialize_message({**item, "is_global_chat": conversation.get("is_global_chat")}, viewer_user_id=user_id)
+            for item in page_result["items"]
+        ]
         return page_result
 
     async def create_message(self, user_id: str, payload: dict) -> dict:
-        conversation = await self._get_owned_document(
-            self.db.conversations, user_id, payload["conversation_id"], "CONVERSATION_NOT_FOUND"
-        )
+        conversation = await self._get_accessible_conversation(user_id, payload["conversation_id"], "CONVERSATION_NOT_FOUND")
         await self._validate_message_links(user_id, payload)
         attachments = self._normalize_message_attachments(payload)
         mentions = await self._normalize_message_mentions(user_id, payload.get("mentions", []))
@@ -144,6 +224,9 @@ class ConversationService(SmartFlowBase):
         unread_count = 1 if payload["direction"] == "inbound" else 0
         document = {
             "user_id": user_id,
+            "sender_user_id": user_id if conversation.get("is_global_chat") else None,
+            "organization_id": conversation.get("organization_id"),
+            "is_global_chat": bool(conversation.get("is_global_chat")),
             "conversation_id": payload["conversation_id"],
             "contact_id": payload.get("contact_id"),
             "platform": payload["platform"],
@@ -163,6 +246,7 @@ class ConversationService(SmartFlowBase):
             "provider_event_id": payload.get("provider_event_id"),
             "provider_message_id": payload.get("provider_message_id"),
             "external_account_id": payload.get("external_account_id"),
+            "read_by": [user_id] if conversation.get("is_global_chat") else [],
         }
         result = await self.db.messages.insert_one(document)
         document["_id"] = result.inserted_id
@@ -171,41 +255,81 @@ class ConversationService(SmartFlowBase):
             {"$set": {"updated_at": now}},
         )
 
-        # Deliver outbound messages to the actual platform
-        if payload["direction"] == "outbound":
-            delivered = await self._deliver_outbound(user_id, payload["platform"], payload.get("contact_id"), content)
-            if not delivered:
-                document["status"] = "failed"
-                await self.db.messages.update_one({"_id": document["_id"]}, {"$set": {"status": "failed"}})
-
-        serialized = await self._serialize_message(document)
+        serialized = await self._serialize_message(document, viewer_user_id=user_id)
         await conversation_realtime_hub.publish(payload["conversation_id"], "message.created", serialized)
-        await self._publish_inbox_update(user_id, payload["conversation_id"])
+        if conversation.get("is_global_chat"):
+            await self._publish_global_chat_inbox_updates(conversation)
+        else:
+            await self._publish_inbox_update(user_id, payload["conversation_id"])
+
+        if payload["direction"] == "outbound":
+            asyncio.create_task(
+                self._finalize_outbound_delivery(
+                    user_id=user_id,
+                    conversation_id=payload["conversation_id"],
+                    message_id=str(document["_id"]),
+                    platform=payload["platform"],
+                    contact_id=payload.get("contact_id"),
+                    content=content,
+                )
+            )
         return serialized
 
+    async def store_message_attachment(
+        self,
+        user_id: str,
+        conversation_id: str,
+        *,
+        file_bytes: bytes,
+        content_type: str | None,
+        filename: str | None,
+    ) -> dict:
+        await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        stored = self.media_storage.store_file(
+            owner_id=user_id,
+            folder="message_attachments",
+            file_bytes=file_bytes,
+            content_type=content_type,
+            filename=filename,
+            label="Attachment",
+        )
+        return {
+            "type": self._guess_attachment_type(stored.url, stored.content_type),
+            "url": stored.url,
+            "file_name": filename or Path(stored.filename).name,
+            "mime_type": stored.content_type,
+            "file_size_bytes": stored.size_bytes,
+            "thumbnail_url": None,
+        }
+
     async def update_message(self, user_id: str, message_id: str, updates: dict) -> dict:
-        message = await self._get_owned_document(self.db.messages, user_id, message_id, "MESSAGE_NOT_FOUND")
+        message = await self._get_accessible_message(user_id, message_id, "MESSAGE_NOT_FOUND")
         clean_updates = {key: value for key, value in updates.items() if value is not None}
-        status_value = clean_updates.get("status")
-        if status_value == "delivered" and not message.get("delivered_at"):
-            clean_updates["delivered_at"] = utc_now()
-        if clean_updates.get("status") == "read":
-            if not message.get("delivered_at"):
+        if not message.get("is_global_chat"):
+            status_value = clean_updates.get("status")
+            if status_value == "delivered" and not message.get("delivered_at"):
                 clean_updates["delivered_at"] = utc_now()
-            clean_updates["read_at"] = utc_now()
-            clean_updates["unread_count"] = 0
+            if clean_updates.get("status") == "read":
+                if not message.get("delivered_at"):
+                    clean_updates["delivered_at"] = utc_now()
+                clean_updates["read_at"] = utc_now()
+                clean_updates["unread_count"] = 0
         updated = await self.db.messages.find_one_and_update(
             {"_id": message["_id"]},
             {"$set": clean_updates},
             return_document=ReturnDocument.AFTER,
         )
-        serialized = await self._serialize_message(updated)
+        serialized = await self._serialize_message(updated, viewer_user_id=user_id)
         await conversation_realtime_hub.publish(updated["conversation_id"], "message.updated", serialized)
-        await self._publish_inbox_update(user_id, updated["conversation_id"])
+        conversation = await self.db.conversations.find_one({"_id": ObjectId(updated["conversation_id"])})
+        if conversation and conversation.get("is_global_chat"):
+            await self._publish_global_chat_inbox_updates(conversation)
+        else:
+            await self._publish_inbox_update(user_id, updated["conversation_id"])
         return serialized
 
     async def reply_to_message(self, user_id: str, message_id: str, payload: dict) -> dict:
-        source_message = await self._get_owned_document(self.db.messages, user_id, message_id, "MESSAGE_NOT_FOUND")
+        source_message = await self._get_accessible_message(user_id, message_id, "MESSAGE_NOT_FOUND")
         return await self.create_message(
             user_id,
             {
@@ -223,7 +347,7 @@ class ConversationService(SmartFlowBase):
         )
 
     async def forward_message(self, user_id: str, message_id: str, payload: dict) -> dict:
-        source_message = await self._get_owned_document(self.db.messages, user_id, message_id, "MESSAGE_NOT_FOUND")
+        source_message = await self._get_accessible_message(user_id, message_id, "MESSAGE_NOT_FOUND")
         return await self.create_message(
             user_id,
             {
@@ -241,8 +365,14 @@ class ConversationService(SmartFlowBase):
         )
 
     async def get_typing_state(self, user_id: str, conversation_id: str) -> dict:
-        await self._get_owned_document(self.db.conversations, user_id, conversation_id, "CONVERSATION_NOT_FOUND")
-        typing_doc = await self.db.typing_states.find_one({"user_id": user_id, "conversation_id": conversation_id})
+        conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        if conversation.get("is_global_chat"):
+            typing_doc = await self.db.typing_states.find_one(
+                {"conversation_id": conversation_id, "is_typing": True, "user_id": {"$ne": user_id}},
+                sort=[("updated_at", -1)],
+            )
+        else:
+            typing_doc = await self.db.typing_states.find_one({"user_id": user_id, "conversation_id": conversation_id})
         if not typing_doc:
             return {
                 "conversation_id": conversation_id,
@@ -270,7 +400,7 @@ class ConversationService(SmartFlowBase):
         }
 
     async def set_typing_state(self, user_id: str, conversation_id: str, payload: dict) -> dict:
-        await self._get_owned_document(self.db.conversations, user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
         now = utc_now()
         is_typing = bool(payload.get("is_typing", True))
         expires_at = now + timedelta(seconds=20) if is_typing else now
@@ -303,6 +433,8 @@ class ConversationService(SmartFlowBase):
             "expires_at": updated.get("expires_at"),
         }
         await conversation_realtime_hub.publish(conversation_id, "typing.updated", response)
+        if conversation.get("is_global_chat"):
+            await self._publish_global_chat_inbox_updates(conversation)
         return response
 
     async def ensure_ai_conversation(self, user_id: str) -> dict:
@@ -467,9 +599,27 @@ class ConversationService(SmartFlowBase):
         filters = {"user_id": user_id, "is_active": {"$ne": False}}
         if search:
             filters["name"] = {"$regex": search, "$options": "i"}
-        total = await self.db.groups.count_documents(filters)
-        cursor = self.db.groups.find(filters).sort("updated_at", -1).skip((page - 1) * page_size).limit(page_size)
+        cursor = self.db.groups.find(filters).sort("updated_at", -1)
         groups = await cursor.to_list(length=page_size)
+
+        user = await self._get_user_document(user_id)
+        if self._user_has_global_chat_access(user) and user.get("organization_id"):
+            global_filters: dict = {
+                "organization_id": user.get("organization_id"),
+                "is_global_chat": True,
+                "member_ids": user_id,
+                "is_active": {"$ne": False},
+            }
+            if search:
+                global_filters["name"] = {"$regex": search, "$options": "i"}
+            global_groups = await self.db.groups.find(global_filters).sort("updated_at", -1).to_list(length=10)
+            existing_ids = {item["_id"] for item in groups}
+            groups.extend([item for item in global_groups if item["_id"] not in existing_ids])
+
+        groups = sorted(groups, key=lambda item: item.get("updated_at") or item.get("created_at"), reverse=True)
+        total = len(groups)
+        slice_start = (page - 1) * page_size
+        groups = groups[slice_start : slice_start + page_size]
         items = [await self._serialize_group(item, include_members=False) for item in groups]
         return {
             "items": items,
@@ -589,6 +739,12 @@ class ConversationService(SmartFlowBase):
 
     async def leave_group(self, user_id: str, group_id: str) -> dict:
         group = await self._get_active_group_for_member(user_id, group_id)
+        if group.get("owner_user_id") == user_id or group.get("user_id") == user_id:
+            raise AppException(
+                status_code=400,
+                code="GROUP_OWNER_CANNOT_LEAVE",
+                message="The group owner cannot leave this group. Delete it instead.",
+            )
         member_ids = [m for m in group.get("member_ids", []) if m != user_id]
         admin_ids = [m for m in group.get("admin_ids", []) if m != user_id]
         now = utc_now()
@@ -719,34 +875,110 @@ class ConversationService(SmartFlowBase):
                 return identity.get("external_id")
         return None
 
+    async def _finalize_outbound_delivery(
+        self,
+        *,
+        user_id: str,
+        conversation_id: str,
+        message_id: str,
+        platform: str,
+        contact_id: str | None,
+        content: str,
+    ) -> None:
+        delivered = await self._deliver_outbound(user_id, platform, contact_id, content)
+        if delivered or not ObjectId.is_valid(message_id):
+            return
+
+        updated = await self.db.messages.find_one_and_update(
+            {"_id": ObjectId(message_id), "user_id": user_id},
+            {"$set": {"status": "failed"}},
+            return_document=ReturnDocument.AFTER,
+        )
+        if not updated:
+            return
+
+        serialized = await self._serialize_message(updated)
+        await conversation_realtime_hub.publish(conversation_id, "message.updated", serialized)
+        await self._publish_inbox_update(user_id, conversation_id)
+
     async def ensure_global_chat(self, organization_id: str, business_name: str, owner_id: str) -> dict:
         """Ensure a global chat exists for the organization."""
-        group = await self.db.groups.find_one({"owner_user_id": organization_id, "is_global_chat": True})
+        owner = await self._resolve_global_chat_owner(organization_id, owner_id)
+        owner_user_id = str((owner or {}).get("_id") or owner_id or organization_id)
+        display_name = business_name or (owner or {}).get("business_name") or (owner or {}).get("full_name") or "Organization"
+        group = await self._find_global_chat_group(organization_id, owner_user_id)
         if group:
+            group = await self.db.groups.find_one_and_update(
+                {"_id": group["_id"]},
+                {
+                    "$set": {
+                        "organization_id": organization_id,
+                        "owner_user_id": owner_user_id,
+                        "user_id": owner_user_id,
+                        "is_global_chat": True,
+                        "is_system_managed": True,
+                        "is_active": True,
+                        "global_chat_type": "organization",
+                        "updated_at": utc_now(),
+                    }
+                },
+                return_document=ReturnDocument.AFTER,
+            )
+            if group.get("conversation_id"):
+                await self.db.conversations.update_one(
+                    {"_id": ObjectId(group["conversation_id"])},
+                    {
+                        "$set": {
+                            "organization_id": organization_id,
+                            "is_global_chat": True,
+                            "is_system_managed": True,
+                            "is_active": True,
+                            "global_chat_type": "organization",
+                            "platform": "global_chat",
+                            "title": group.get("name") or f"{display_name} Global Chat",
+                        }
+                    },
+                )
+                await self._sync_global_chat_member_lists(group["conversation_id"], group.get("member_ids", []))
             return group
 
         now = utc_now()
         conversation = await self.create_conversation(
-            owner_id,
+            owner_user_id,
             {
-                "title": f"{business_name} Global Chat",
-                "member_ids": [owner_id],
+                "title": f"{display_name} Global Chat",
+                "member_ids": [owner_user_id],
                 "type": "group",
-                "platform": "ai",
+                "platform": "global_chat",
                 "contact_id": None,
             },
         )
+        await self.db.conversations.update_one(
+            {"_id": ObjectId(conversation["id"])},
+            {
+                "$set": {
+                    "organization_id": organization_id,
+                    "is_global_chat": True,
+                    "is_system_managed": True,
+                    "is_active": True,
+                    "global_chat_type": "organization",
+                }
+            },
+        )
         group_doc = {
-            "user_id": owner_id,
-            "owner_user_id": organization_id,
-            "name": f"{business_name} Global Chat",
+            "user_id": owner_user_id,
+            "owner_user_id": owner_user_id,
+            "name": f"{display_name} Global Chat",
             "avatar_url": None,
-            "description": f"Global chat for {business_name}",
-            "member_ids": [owner_id],
-            "admin_ids": [owner_id],
+            "description": f"Global chat for {display_name}",
+            "member_ids": [owner_user_id],
+            "admin_ids": [owner_user_id],
             "pending_invites": [],
             "is_active": True,
             "is_global_chat": True,
+            "is_system_managed": True,
+            "organization_id": organization_id,
+            "global_chat_type": "organization",
             "conversation_id": conversation["id"],
             "created_at": now,
             "updated_at": now,
@@ -755,26 +987,78 @@ class ConversationService(SmartFlowBase):
         group_doc["_id"] = result.inserted_id
         return group_doc
 
+    async def sync_user_global_chat_membership(self, user_id: str, organization_id: str | None = None) -> dict | None:
+        user = await self._get_user_document(user_id)
+        org_id = organization_id or user.get("organization_id")
+        if not org_id:
+            return None
+
+        owner = await self._resolve_global_chat_owner(org_id, str(user["_id"]))
+        business_name = (owner or {}).get("business_name") or (owner or {}).get("full_name") or "Organization"
+        group = await self.ensure_global_chat(org_id, business_name, str((owner or {}).get("_id") or user["_id"]))
+        is_eligible = self._user_has_global_chat_access(user) and user.get("organization_id") == org_id
+
+        if is_eligible:
+            return await self.add_user_to_global_chat(org_id, user_id)
+        return await self.remove_user_from_global_chat(org_id, user_id)
+
+    async def backfill_global_chats(self) -> dict:
+        owners = await self.db.users.find({"$or": [{"primary_role": "owner"}, {"role": "owner"}]}).to_list(length=2000)
+        created_or_checked = 0
+        synced_users = 0
+        for owner in owners:
+            owner_id = str(owner["_id"])
+            organization_id = owner.get("organization_id") or owner_id
+            await self.ensure_global_chat(organization_id, owner.get("business_name") or owner.get("full_name") or "Organization", owner_id)
+            created_or_checked += 1
+            org_users = await self.db.users.find({"organization_id": organization_id}).to_list(length=2000)
+            for org_user in org_users:
+                await self.sync_user_global_chat_membership(str(org_user["_id"]), organization_id)
+                synced_users += 1
+        return {"organizations_processed": created_or_checked, "users_synced": synced_users}
+
     async def add_user_to_global_chat(self, organization_id: str, user_id: str) -> dict | None:
         """Add a user to the organization's global chat."""
-        group = await self.db.groups.find_one({"owner_user_id": organization_id, "is_global_chat": True})
+        group = await self._find_global_chat_group(organization_id)
         if not group:
             return None
-            
-        member_ids = list(set([*group.get("member_ids", []), user_id]))
+
+        member_ids = list(dict.fromkeys([*group.get("member_ids", []), user_id]))
+        admin_ids = list(dict.fromkeys(group.get("admin_ids", [])))
+        user = await self.db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else None
+        role_slug = str((user or {}).get("primary_role") or (user or {}).get("role") or "user").lower()
+        if role_slug in {"owner", "admin", "manager"}:
+            admin_ids = list(dict.fromkeys([*admin_ids, user_id]))
         updated = await self.db.groups.find_one_and_update(
             {"_id": group["_id"]},
-            {"$set": {"member_ids": member_ids, "updated_at": utc_now()}},
+            {"$set": {"member_ids": member_ids, "admin_ids": admin_ids, "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
         await self._sync_group_conversation(updated)
+        await self._sync_global_chat_member_lists(updated.get("conversation_id"), member_ids)
+        if updated.get("conversation_id"):
+            await conversation_realtime_hub.publish(
+                updated["conversation_id"],
+                "global_member.added",
+                {"user_id": user_id, "organization_id": organization_id},
+            )
+            await self._publish_global_chat_inbox_updates(
+                {"_id": ObjectId(updated["conversation_id"]), "member_ids": member_ids}
+            )
         return updated
 
     async def remove_user_from_global_chat(self, organization_id: str, user_id: str) -> dict | None:
         """Remove a user from the organization's global chat."""
-        group = await self.db.groups.find_one({"owner_user_id": organization_id, "is_global_chat": True})
+        group = await self._find_global_chat_group(organization_id)
         if not group:
             return None
+        user = await self.db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else None
+        if (
+            user
+            and user.get("organization_id") == organization_id
+            and str(user.get("primary_role") or user.get("role") or "").lower() == "owner"
+        ):
+            return group
 
         member_ids = [m for m in group.get("member_ids", []) if m != user_id]
         admin_ids = [m for m in group.get("admin_ids", []) if m != user_id]
@@ -784,6 +1068,18 @@ class ConversationService(SmartFlowBase):
             return_document=ReturnDocument.AFTER,
         )
         await self._sync_group_conversation(updated)
+        await self._sync_global_chat_member_lists(updated.get("conversation_id"), member_ids)
+        if updated.get("conversation_id"):
+            await conversation_realtime_hub.publish(
+                updated["conversation_id"],
+                "global_member.removed",
+                {"user_id": user_id, "organization_id": organization_id},
+            )
+            await conversation_realtime_hub.disconnect_user(updated["conversation_id"], user_id)
+            await self._publish_inbox_update(user_id, updated["conversation_id"])
+            await self._publish_global_chat_inbox_updates(
+                {"_id": ObjectId(updated["conversation_id"]), "member_ids": member_ids}
+            )
         return updated
 
     async def delete_group(self, user_id: str, group_id: str) -> None:

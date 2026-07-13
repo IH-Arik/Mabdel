@@ -9,9 +9,14 @@ from app.utils.helpers import utc_now
 from pymongo import ReturnDocument
 
 from ._base import SmartFlowBase
+from .google_calendar_service import GoogleCalendarService
 
 
 class CalendarService(SmartFlowBase):
+    def __init__(self, db) -> None:
+        super().__init__(db)
+        self.google_calendar_service = GoogleCalendarService(db)
+
     async def list_calendar_events(
         self,
         user_id: str,
@@ -72,10 +77,23 @@ class CalendarService(SmartFlowBase):
         await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"])
         if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
             payload["meeting_link"] = self._generate_meeting_link()
+        google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
+        if google_event:
+            payload["google_event_id"] = google_event.get("id")
+            payload["sync_status"] = "synced"
+            payload["calendar_source"] = "mabdel_google_sync"
+            payload["provider_metadata"] = {
+                "integration_platform": "google_business",
+                "google_html_link": google_event.get("htmlLink"),
+                "google_status": google_event.get("status"),
+                "google_recurrence": google_event.get("recurrence") or [],
+                "google_updated": google_event.get("updated"),
+                "google_etag": google_event.get("etag"),
+            }
         document = {
             "user_id": user_id,
             **payload,
-            "sync_status": "synced" if payload.get("google_event_id") else "local",
+            "sync_status": payload.get("sync_status") or ("synced" if payload.get("google_event_id") else "local"),
             "share_token": None,
             "created_at": utc_now(),
             "updated_at": utc_now(),
@@ -98,6 +116,27 @@ class CalendarService(SmartFlowBase):
         )
         if merged.get("meeting_mode") == "online" and not merged.get("meeting_link"):
             clean_updates["meeting_link"] = self._generate_meeting_link()
+            merged["meeting_link"] = clean_updates["meeting_link"]
+        google_event = None
+        google_event_id = event.get("google_event_id")
+        if google_event_id:
+            google_event = await self.google_calendar_service.update_remote_event(user_id, google_event_id, merged)
+        else:
+            google_event = await self.google_calendar_service.create_remote_event(user_id, merged)
+            if google_event:
+                clean_updates["google_event_id"] = google_event.get("id")
+                google_event_id = google_event.get("id")
+        if google_event:
+            clean_updates["sync_status"] = "synced"
+            clean_updates["calendar_source"] = "mabdel_google_sync"
+            clean_updates["provider_metadata"] = {
+                "integration_platform": "google_business",
+                "google_html_link": google_event.get("htmlLink"),
+                "google_status": google_event.get("status"),
+                "google_recurrence": google_event.get("recurrence") or [],
+                "google_updated": google_event.get("updated"),
+                "google_etag": google_event.get("etag"),
+            }
         if "google_event_id" in clean_updates:
             clean_updates["sync_status"] = "synced" if clean_updates["google_event_id"] else "local"
         clean_updates["updated_at"] = utc_now()
@@ -137,4 +176,6 @@ class CalendarService(SmartFlowBase):
 
     async def delete_calendar_event(self, user_id: str, event_id: str) -> None:
         event = await self._get_owned_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")
+        if event.get("google_event_id"):
+            await self.google_calendar_service.delete_remote_event(user_id, event.get("google_event_id"))
         await self.db.calendar_events.delete_one({"_id": event["_id"]})

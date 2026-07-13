@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.dependencies import get_current_user, get_mongo_database
 from app.services.twilio_provisioning_service import TwilioProvisioningService
+from app.services.twilio_web_voice_service import TwilioWebVoiceService
 from app.utils.responses import success_response
 
 
@@ -14,11 +15,21 @@ class CustomTwilioCredentials(BaseModel):
     auth_token: str = Field(min_length=10)
     phone_number: str = Field(min_length=7)
 
+
+class VoiceRegistrationPayload(BaseModel):
+    identity: str = Field(min_length=3)
+    active: bool = True
+
+
 router = APIRouter(prefix="/twilio", tags=["Twilio Provisioning"])
 
 
 def get_provisioning_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> TwilioProvisioningService:
     return TwilioProvisioningService(db)
+
+
+def get_voice_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> TwilioWebVoiceService:
+    return TwilioWebVoiceService(db)
 
 
 @router.get("/status")
@@ -97,3 +108,24 @@ async def remove_custom_twilio(
     user_id = str(current_user["_id"])
     await service.remove_custom_credentials(user_id)
     return success_response(message="Custom Twilio credentials removed.")
+
+
+@router.get("/voice/token")
+async def get_twilio_voice_token(
+    current_user: dict = Depends(get_current_user),
+    service: TwilioWebVoiceService = Depends(get_voice_service),
+) -> dict:
+    user_id = str(current_user["_id"])
+    token_payload = await service.create_access_token(user_id)
+    return success_response(data=token_payload, message="Twilio voice token created.")
+
+
+@router.post("/voice/registration")
+async def update_twilio_voice_registration(
+    payload: VoiceRegistrationPayload,
+    current_user: dict = Depends(get_current_user),
+    service: TwilioWebVoiceService = Depends(get_voice_service),
+) -> dict:
+    user_id = str(current_user["_id"])
+    await service.set_registration(user_id=user_id, identity=payload.identity, active=payload.active)
+    return success_response(message="Twilio voice registration updated.")

@@ -254,7 +254,7 @@ async def create_organization_admin(
     try:
         from app.services.smartflow.smartflow_orchestrator import SmartFlowService
         smartflow = SmartFlowService(db)
-        await smartflow.add_user_to_global_chat(request.organization_id, new_user_id)
+        await smartflow.sync_user_global_chat_membership(new_user_id, request.organization_id)
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("Failed to add user to global chat: %s", e)

@@ -110,6 +110,22 @@ class ContactUpdateRequest(BaseModel):
     presence: str | None = Field(default=None, max_length=40)
 
 
+class ContactImportEntry(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    first_name: str | None = Field(default=None, max_length=80)
+    last_name: str | None = Field(default=None, max_length=80)
+    email: str | None = Field(default=None, max_length=320)
+    phone: str | None = Field(default=None, max_length=80)
+    address: str | None = Field(default=None, max_length=300)
+    notes: str | None = Field(default=None, max_length=3000)
+    company: str | None = Field(default=None, max_length=160)
+    job_title: str | None = Field(default=None, max_length=160)
+
+
+class ContactImportRequest(BaseModel):
+    contacts: list[ContactImportEntry] = Field(default_factory=list, max_length=500)
+
+
 class ContactResponse(BaseModel):
     id: str
     name: str

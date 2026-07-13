@@ -18,6 +18,7 @@ class TwilioWebhookPayload(BaseModel):
     from_number: str | None = Field(default=None, alias="From")
     to_number: str | None = Field(default=None, alias="To")
     call_status: str | None = Field(default=None, alias="CallStatus")
+    direction: str | None = Field(default=None, alias="Direction")
     stream_sid: str | None = Field(default=None, alias="StreamSid")
 
     model_config = {"populate_by_name": True}
@@ -47,3 +48,12 @@ class TwilioStreamMessage(BaseModel):
 class CallActionRequest(BaseModel):
     action: str  # "receive", "transfer_to_ai", "cancel"
     user_id: str
+
+
+class VoiceSessionSyncRequest(BaseModel):
+    call_sid: str = Field(min_length=2)
+    status: str = Field(min_length=2)
+    direction: str = "outbound"
+    phone_number: str | None = None
+    contact_name: str | None = None
+    duration_seconds: int | None = None
