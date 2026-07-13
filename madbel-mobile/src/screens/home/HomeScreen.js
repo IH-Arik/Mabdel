@@ -293,7 +293,7 @@ const HomeScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       {isLoading ? <HomeScreenSkeleton /> : null}
       <ScrollView
         contentContainerStyle={styles.content}
@@ -477,8 +477,8 @@ const HomeScreen = () => {
             />
           ))}
         </DashboardCard>
-      </ScrollView>{" "}
-    </SafeAreaView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -753,7 +753,7 @@ const styles = StyleSheet.create({
   },
   docTitle: {
     color: "#E9F2FF",
-    fontSize: rw(3.5),
+    fontSize: rw(3),
     fontWeight: "500",
     textAlign: "center",
     lineHeight: rw(4.6),

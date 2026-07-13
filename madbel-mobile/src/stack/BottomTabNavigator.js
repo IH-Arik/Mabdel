@@ -59,7 +59,7 @@ const BottomNavigator = () => {
   const { t } = useAppLanguage();
 
   return (
-    // <SafeAreaView className="flex-1 bg-[#020406]">
+    <SafeAreaView style={styles.root}>
 
     <View style={styles.root}>
       <Tab.Navigator
@@ -74,7 +74,7 @@ const BottomNavigator = () => {
           tabBarHideOnKeyboard: true,
           animation: "shift",
           sceneStyle: styles.scene,
-          height: 100,
+          // height: 100,
           backgroundColor: "red",
         }}
       >
@@ -149,7 +149,7 @@ const BottomNavigator = () => {
         />
       </Tab.Navigator>
     </View>
-    // {/* </SafeAreaView> */}
+    </SafeAreaView>
 
   );
 };
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 12,
     right: 12,
-    bottom: 20,
+    // bottom: 20,
   },
   tabLabel: {
     fontSize: 11,

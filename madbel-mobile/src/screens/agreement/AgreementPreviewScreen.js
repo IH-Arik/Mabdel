@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   reviewHeader: { minHeight: responsiveHeight(6.5), paddingHorizontal: responsiveWidth(4), flexDirection: "row", alignItems: "center", gap: responsiveWidth(2), backgroundColor: "#1A2436" },
   reviewTitle: { color: "#E7EEF9", fontSize: 18 },
   reviewItem: { flexDirection: "row", gap: responsiveWidth(2.4), paddingHorizontal: responsiveWidth(4), paddingVertical: responsiveHeight(1) },
-  reviewItemTitle: { color: "#EAF2FF", fontWeight: "600", fontSize: 17 },
+  reviewItemTitle: { colosr: "#EAF2FF", fontWeight: "600", fontSize: 17 },
   reviewItemSub: { color: "#7F8BA0", fontSize: 15, marginTop: 2 },
   warningCard: { marginHorizontal: responsiveWidth(4), marginVertical: responsiveHeight(1), padding: responsiveWidth(3), borderRadius: 12, backgroundColor: "#391E2A", flexDirection: "row", gap: responsiveWidth(2.4) },
   warningTitle: { color: "#FF7287", fontWeight: "700", fontSize: 17 },
