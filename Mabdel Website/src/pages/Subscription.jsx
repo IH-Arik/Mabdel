@@ -114,11 +114,23 @@ const appointmentSlots = [
 export default function Subscription() {
   const navigate = useNavigate();
   const [isDemoOpen, setIsDemoOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(appointmentSlots[1]);
   const [activeSections, setActiveSections] = useState({
     starter: "included",
     growth: "included",
     pro: "included",
+  });
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    businessName: "",
+    businessAddress: "",
+    ownerDob: "",
+    phoneNo: "",
+    businessType: "",
   });
   const [demoForm, setDemoForm] = useState({
     firstName: "",
@@ -138,6 +150,58 @@ export default function Subscription() {
     if (section === "addons") return plan.addOns;
     if (section === "email") return plan.emailAddOns;
     return plan.features;
+  };
+
+  const handleOpenModal = (planAction) => {
+    setSelectedPlan(planAction);
+    setIsSubmitted(false);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setTimeout(() => {
+      setSelectedPlan(null);
+      setIsSubmitted(false);
+      setFormData({
+        fullName: "",
+        email: "",
+        businessName: "",
+        businessAddress: "",
+        ownerDob: "",
+        phoneNo: "",
+        businessType: "",
+      });
+    }, 300);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/auth/subscription-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: formData.fullName,
+          original_email: formData.email,
+          business_name: formData.businessName,
+          business_address: formData.businessAddress,
+          owner_dob: formData.ownerDob,
+          phone_no: formData.phoneNo,
+          business_type: formData.businessType,
+          plan: selectedPlan,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Signup failed");
+      }
+
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to request access. Please try again later.");
+    }
   };
 
   return (
@@ -160,7 +224,7 @@ export default function Subscription() {
           AI CRM <span className="bg-gradient-to-r from-cyan-400 to-teal-300 bg-clip-text text-transparent">Pricing Plans</span>
         </h1>
         <p className="text-lg text-gray-400">
-          Choose the right Mabdel AI plan for your team, then scale with usage-based add-ons when you need more.
+          Choose the right GoCustify plan for your team, then scale with usage-based add-ons when you need more.
         </p>
       </motion.div>
 
@@ -274,6 +338,7 @@ export default function Subscription() {
               <div className="mt-auto flex flex-col gap-3">
                 <button
                   type="button"
+                  onClick={() => handleOpenModal("subscribe")}
                   className={
                     isPopular
                       ? "flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 py-4 font-bold text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-cyan-500/20"
@@ -284,6 +349,7 @@ export default function Subscription() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => handleOpenModal("trial")}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700 bg-transparent py-3 font-bold text-gray-300 transition-all active:scale-[0.98] hover:bg-gray-800 hover:text-white"
                 >
                   Start Free Trial <ArrowRight size={18} />
@@ -314,6 +380,181 @@ export default function Subscription() {
       ) : null}
 
       <AnimatePresence>
+        {isModalOpen ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.96, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.96, y: 20 }}
+              className="relative w-full max-w-md overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 shadow-2xl"
+            >
+              <button
+                onClick={handleCloseModal}
+                className="absolute right-4 top-4 text-gray-400 transition-colors hover:text-white"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="p-8">
+                {isSubmitted ? (
+                  <div className="py-8 text-center">
+                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-900/30">
+                      <CheckCircle className="text-cyan-400" size={32} />
+                    </div>
+                    <h3 className="mb-3 text-2xl font-bold text-white">
+                      Request Received!
+                    </h3>
+                    <p className="mb-8 leading-relaxed text-gray-400">
+                      Thanks! Our team will review your request and email you login credentials shortly.
+                    </p>
+                    <button
+                      onClick={handleCloseModal}
+                      className="w-full rounded-xl bg-gray-800 py-3 font-semibold text-white transition-colors hover:bg-gray-700"
+                    >
+                      Close
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="mb-2 text-2xl font-bold">
+                      {selectedPlan === "trial" ? "Start Free Trial" : "Subscribe"}
+                    </h3>
+                    <p className="mb-6 text-sm text-gray-400">
+                      Please provide your details below. Our team will set up your workspace.
+                    </p>
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.fullName}
+                          onChange={(e) =>
+                            setFormData({ ...formData, fullName: e.target.value })
+                          }
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          placeholder="John Doe"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                          Work Email
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={formData.email}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          placeholder="john@company.com"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                          Business Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.businessName}
+                          onChange={(e) =>
+                            setFormData({ ...formData, businessName: e.target.value })
+                          }
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          placeholder="Acme Corp"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                          Business Address
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.businessAddress}
+                          onChange={(e) =>
+                            setFormData({ ...formData, businessAddress: e.target.value })
+                          }
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          placeholder="123 Business St, City, Country"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                            Phone Number
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            value={formData.phoneNo}
+                            onChange={(e) =>
+                              setFormData({ ...formData, phoneNo: e.target.value })
+                            }
+                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                            placeholder="+1 234 567 8900"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                            Owner Date of Birth
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            value={formData.ownerDob}
+                            onChange={(e) =>
+                              setFormData({ ...formData, ownerDob: e.target.value })
+                            }
+                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all [color-scheme:dark] focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                          Business Type / Industry
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.businessType}
+                          onChange={(e) =>
+                            setFormData({ ...formData, businessType: e.target.value })
+                          }
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          placeholder="e.g. Real Estate, E-commerce, Marketing"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 py-3.5 font-bold text-[#070a13] shadow-lg shadow-cyan-500/10 transition-all active:scale-[0.98] hover:shadow-cyan-500/25"
+                      >
+                        Request Access
+                      </button>
+                    </form>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+
         {isDemoOpen ? (
           <>
             <motion.div
@@ -336,7 +577,7 @@ export default function Subscription() {
                     Request a Demo
                   </p>
                   <h2 className="mt-2 text-2xl font-bold text-white">
-                    Talk to Mabdel AI
+                    Talk to GoCustify AI
                   </h2>
                 </div>
                 <button

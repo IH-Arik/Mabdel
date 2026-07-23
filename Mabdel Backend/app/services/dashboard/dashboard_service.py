@@ -6,6 +6,7 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.utils.helpers import utc_now
 from app.repositories.dashboard.dashboard_repository import DashboardRepository
+from app.services.content_service import ContentService
 from app.schemas.dashboard_schemas import (
     AILog,
     AIStats,
@@ -337,10 +338,32 @@ class DashboardService:
         return await self.repository.update_user_password(str(user["_id"]), hashed)
 
     async def get_settings_content(self, content_type: str) -> str:
-        return await self.repository.get_settings_content(content_type)
+        slug = self._normalize_settings_content_type(content_type)
+        return await ContentService(self.repository.db).get_page_text(slug)
 
     async def update_settings_content(self, data: SettingsContent) -> bool:
-        return await self.repository.update_settings_content(data.type, data.content)
+        slug = self._normalize_settings_content_type(data.type)
+        await ContentService(self.repository.db).upsert_page_text(slug, data.content)
+        return True
+
+    @staticmethod
+    def _normalize_settings_content_type(content_type: str) -> str:
+        normalized = (content_type or "").strip().lower()
+        aliases = {
+            "privacy_policy": "privacy-policy",
+            "privacy-policy": "privacy-policy",
+            "sms_messaging_policy": "sms-messaging-policy",
+            "sms-messaging-policy": "sms-messaging-policy",
+            "acceptable_use_policy": "acceptable-use-policy",
+            "acceptable-use-policy": "acceptable-use-policy",
+            "terms_conditions": "terms-and-conditions",
+            "terms-and-conditions": "terms-and-conditions",
+            "about_us": "about-us",
+            "about-us": "about-us",
+            "help_support": "help-support",
+            "help-support": "help-support",
+        }
+        return aliases.get(normalized, normalized)
 
     async def get_conversations(self) -> list[ChatConversation]:
         chats = await self.repository.get_all_chats()

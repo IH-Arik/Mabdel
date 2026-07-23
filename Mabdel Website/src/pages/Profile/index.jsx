@@ -1,21 +1,17 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Building2, Bell, CreditCard, Mic, TrendingUp, LifeBuoy, Cpu, Shield, Calendar } from 'lucide-react';
+import { User, Building2, Bell, CreditCard, Mic, LifeBuoy, Cpu, Shield } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 import ProfileTab from './tabs/ProfileTab';
 import BusinessProfileTab from './tabs/BusinessProfileTab';
 import VoiceHistoryTab from './tabs/VoiceHistoryTab';
-import EarningsTab from './tabs/EarningsTab';
 import NotificationsTab from './tabs/NotificationsTab';
 import SubscriptionTab from './tabs/SubscriptionTab';
-import PrivacyTab from './tabs/PrivacyTab';
 import SupportTab from './tabs/SupportTab';
 import AIConfigTab from './tabs/AIConfigTab';
 import SecurityTab from './tabs/SecurityTab';
-import HostedEventsTab from './tabs/HostedEventsTab';
-import EventParticipantsTab from './tabs/EventParticipantsTab';
-import AddBankTab from './tabs/AddBankTab';
+import AccountSettingsTab from './tabs/AccountSettingsTab';
 
 export default function Profile() {
   const location = useLocation();
@@ -24,14 +20,10 @@ export default function Profile() {
   const tabs = [
     { id: 'profile', label: 'Personal Info', icon: User },
     { id: 'business', label: 'Business Profile', icon: Building2 },
-    { id: 'bank', label: 'Bank Accounts', icon: CreditCard },
-    { id: 'earnings', label: 'Earnings', icon: TrendingUp },
-    { id: 'hosted', label: 'Hosted Events', icon: Calendar },
-    { id: 'participants', label: 'Event Participants', icon: Calendar },
     { id: 'subscription', label: 'Subscription', icon: CreditCard },
     { id: 'voice', label: 'Voice History', icon: Mic },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'privacy', label: 'Privacy', icon: Shield },
+    { id: 'account', label: 'Account Settings', icon: Shield },
     { id: 'support', label: 'Support', icon: LifeBuoy },
     { id: 'ai', label: 'AI Configuration', icon: Cpu },
     { id: 'security', label: 'Security', icon: Shield },
@@ -40,14 +32,10 @@ export default function Profile() {
   const components = {
     profile: ProfileTab,
     business: BusinessProfileTab,
-    bank: AddBankTab,
     notifications: NotificationsTab,
     subscription: SubscriptionTab,
     voice: VoiceHistoryTab,
-    earnings: EarningsTab,
-    hosted: HostedEventsTab,
-    participants: EventParticipantsTab,
-    privacy: PrivacyTab,
+    account: AccountSettingsTab,
     support: SupportTab,
     ai: AIConfigTab,
     security: SecurityTab,

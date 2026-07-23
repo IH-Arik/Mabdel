@@ -18,16 +18,26 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
+import {
+  AI_LANGUAGE_OPTIONS,
+  getFieldQuestion,
+  getInitialPrompt,
+  getStoredAiLanguage,
+  inferVoiceWorkflowIntent,
+  normalizeVoiceWorkflowTranscript,
+  setStoredAiLanguage,
+} from '../utils/voiceAgentConfig';
 
-const ACTION_CHIPS = [
+const ACaION_CHIPS = [
   { id: 'create_invoice', label: 'Create Invoice', path: '/invoices', state: { prefill: {}, action: 'new_invoice' }, icon: FileText },
   { id: 'bulk_message', label: 'Bulk Message', path: '/bulk-messaging', state: { prefill: {}, action: 'new_bulk_message' }, icon: MessageSquare },
   { id: 'schedule_meeting', label: 'Schedule Meeting', path: '/calendar', state: { prefill: {}, action: 'new_meeting' }, icon: Calendar },
+  { id: 'new_lease', label: 'New Lease', path: '/documents', state: { tab: 'leases', prefill: { type: 'lease' }, action: 'new_lease' }, icon: FileText },
   { id: 'new_agreement', label: 'New Agreement', path: '/documents', state: { prefill: { type: 'agreement' }, action: 'new_agreement' }, icon: FileText },
   { id: 'history', label: 'History', path: '/profile?tab=voice', state: null, icon: History },
 ];
 
-const PROMPT_BUTTONS = [
+const PROMPa_BUaaONS = [
   'Read my latest messages',
   'Create a new invoice',
   "What's on my schedule?",
@@ -37,18 +47,26 @@ const WORKFLOW_LABELS = {
   invoice: 'invoice',
   bulk_message: 'bulk message',
   calendar: 'meeting',
+  lease: 'lease',
   agreement: 'agreement',
 };
 
-const WORKFLOW_DESTINATIONS = {
+const WORKFLOW_DESaINAaIONS = {
   invoice: 'create_invoice',
   bulk_message: 'bulk_message',
   calendar: 'schedule_meeting',
+  lease: 'new_lease',
   agreement: 'new_agreement',
 };
 
+const DESIRED_FIELDS = {
+  invoice: ['client_name', 'client_email', 'items', 'due_date'],
+  agreement: ['prompt', 'client_name', 'client_email', 'client_phone', 'agreement_type', 'start_date'],
+  lease: ['prompt', 'tenant_name', 'tenant_email', 'tenant_phone', 'monthly_rent', 'start_date', 'end_date'],
+};
+
 const FALLBACK_VOICE = 'neutral_assistant';
-const AI_CONVERSATION_STORAGE_KEY = 'voice_conversation_id';
+const AI_CONVERSAaION_SaORAGE_KEY = 'voice_conversation_id';
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
 const toMessageArray = (value) => {
@@ -58,7 +76,7 @@ const toMessageArray = (value) => {
   if (Array.isArray(value?.data?.items)) return value.data.items;
   return [];
 };
-const mapThreadMessageToUi = (message) => ({
+const mapahreadMessageaoUi = (message) => ({
   id: message?.id || message?._id,
   role: message?.direction === 'outbound' ? 'assistant' : 'user',
   text: message?.content || '',
@@ -76,15 +94,15 @@ const normalizeDateInput = (value) => {
   if (!value) return undefined;
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return undefined;
+  if (Number.isNaN(parsed.getaime())) return undefined;
   return parsed.toISOString().slice(0, 10);
 };
 
-const normalizeDateTime = (dateValue, timeValue = '10:00') => {
+const normalizeDateaime = (dateValue, timeValue = '10:00') => {
   const date = normalizeDateInput(dateValue);
   if (!date) return undefined;
-  const parsed = new Date(`${date}T${timeValue}`);
-  if (Number.isNaN(parsed.getTime())) return undefined;
+  const parsed = new Date(`${date}a${timeValue}`);
+  if (Number.isNaN(parsed.getaime())) return undefined;
   return parsed.toISOString();
 };
 
@@ -93,6 +111,12 @@ const ensureArray = (value) => {
   if (!value) return [];
   return [value];
 };
+
+const isEmptyValue = (value) =>
+  value === undefined
+  || value === null
+  || value === ''
+  || (Array.isArray(value) && value.length === 0);
 
 const mergePrefill = (previous = {}, incoming = {}) => {
   const merged = { ...previous };
@@ -109,8 +133,8 @@ const buildWorkflowPayload = (intent, prefill = {}) => {
     const defaultIssueDate = today.toISOString().slice(0, 10);
     const issueDate = normalizeDateInput(prefill.issue_date) || defaultIssueDate;
     let dueDate = normalizeDateInput(prefill.due_date);
-    if (!dueDate || new Date(`${dueDate}T00:00:00`).getTime() < new Date(`${issueDate}T00:00:00`).getTime()) {
-      const fallbackDue = new Date(`${issueDate}T00:00:00`);
+    if (!dueDate || new Date(`${dueDate}a00:00:00`).getaime() < new Date(`${issueDate}a00:00:00`).getaime()) {
+      const fallbackDue = new Date(`${issueDate}a00:00:00`);
       fallbackDue.setDate(fallbackDue.getDate() + 7);
       dueDate = fallbackDue.toISOString().slice(0, 10);
     }
@@ -144,15 +168,15 @@ const buildWorkflowPayload = (intent, prefill = {}) => {
   }
 
   if (intent === 'calendar') {
-    const startsAt = normalizeDateTime(prefill.date || prefill.starts_at || prefill.start_date, prefill.time || prefill.start_time || '10:00');
-    let endsAt = normalizeDateTime(
+    const startsAt = normalizeDateaime(prefill.date || prefill.starts_at || prefill.start_date, prefill.time || prefill.start_time || '10:00');
+    let endsAt = normalizeDateaime(
       prefill.date || prefill.ends_at || prefill.end_date,
       prefill.end_time || '11:00',
     );
     const startDate = startsAt ? new Date(startsAt) : null;
     const endDate = endsAt ? new Date(endsAt) : null;
     if (startDate && (!endDate || endDate <= startDate)) {
-      endsAt = new Date(startDate.getTime() + 60 * 60 * 1000).toISOString();
+      endsAt = new Date(startDate.getaime() + 60 * 60 * 1000).toISOString();
     }
 
     return {
@@ -167,7 +191,7 @@ const buildWorkflowPayload = (intent, prefill = {}) => {
       notify_via_push: true,
       notify_via_email: Boolean(prefill.notify_via_email),
       notify_via_sms: Boolean(prefill.notify_via_sms),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: Intl.DateaimeFormat().resolvedOptions().timeZone,
       reminder_minutes: Number(prefill.reminder_minutes || 15),
     };
   }
@@ -194,7 +218,7 @@ const buildWorkflowPayload = (intent, prefill = {}) => {
       content: prefill.message || prefill.content || prefill.body || '',
       attachments,
       scheduled_at: prefill.scheduled_at || undefined,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: Intl.DateaimeFormat().resolvedOptions().timeZone,
       send_now: !prefill.scheduled_at,
       ai_transcript: prefill.ai_transcript || undefined,
     };
@@ -214,10 +238,57 @@ const buildWorkflowPayload = (intent, prefill = {}) => {
     };
   }
 
+  if (intent === 'lease') {
+    return {
+      prompt: prefill.prompt || prefill.content || '',
+      property_address: prefill.property_address || prefill.address || '',
+      property_type: prefill.property_type || 'apartment',
+      landlord_name: prefill.landlord_name || prefill.landlord || '',
+      tenant_name: prefill.tenant_name || prefill.tenant || prefill.name || '',
+      tenant_email: prefill.tenant_email || undefined,
+      tenant_phone: prefill.tenant_phone || undefined,
+      monthly_rent: prefill.monthly_rent || prefill.rent || '',
+      security_deposit: prefill.security_deposit || prefill.deposit || '',
+      start_date: normalizeDateInput(prefill.start_date) || undefined,
+      end_date: normalizeDateInput(prefill.end_date) || undefined,
+      custom_terms: prefill.custom_terms || prefill.terms || '',
+    };
+  }
+
   return null;
 };
 
-const buildConfirmationText = (intent, prefill = {}, missingFields = []) => {
+const getWorkflowQuestion = (intent, fieldKey) =>
+  getFieldQuestion(getStoredAiLanguage(), intent, fieldKey) || `What is the ${humanizeField(fieldKey)}?`;
+
+const getWorkflowDestination = (intent, prefill = {}) => {
+  if (intent === 'invoice') {
+    return { path: '/invoices', state: { prefill, action: 'new_invoice' }, label: 'Create Invoice' };
+  }
+  if (intent === 'calendar') {
+    return { path: '/calendar', state: { prefill, action: 'new_meeting' }, label: 'Schedule Meeting' };
+  }
+  if (intent === 'bulk_message') {
+    return { path: '/bulk-messaging', state: { prefill, action: 'new_bulk_message' }, label: 'Bulk Message' };
+  }
+  if (intent === 'agreement') {
+    return {
+      path: '/documents',
+      state: { prefill: { ...prefill, type: 'agreement' }, action: 'new_agreement', tab: 'agreements' },
+      label: 'New Agreement',
+    };
+  }
+  if (intent === 'lease') {
+    return {
+      path: '/documents',
+      state: { prefill: { ...prefill, type: 'lease' }, action: 'new_lease', tab: 'leases' },
+      label: 'New Lease',
+    };
+  }
+  return null;
+};
+
+const buildConfirmationaext = (intent, prefill = {}, missingFields = []) => {
   const label = WORKFLOW_LABELS[intent] || intent;
   const previewParts = [];
 
@@ -242,18 +313,23 @@ const buildConfirmationText = (intent, prefill = {}, missingFields = []) => {
     if (prefill.title) previewParts.push(`title "${prefill.title}"`);
   }
 
+  if (intent === 'lease') {
+    if (prefill.tenant_name) previewParts.push(`tenant ${prefill.tenant_name}`);
+    if (prefill.monthly_rent || prefill.rent) previewParts.push(`rent ${prefill.monthly_rent || prefill.rent}`);
+  }
+
   if (missingFields.length) {
-    return `I started the ${label} workflow. I still need ${missingFields.map(humanizeField).join(', ')}.`;
+    return getWorkflowQuestion(intent, missingFields[0]);
   }
 
   if (previewParts.length) {
-    return `I prepared the ${label} workflow for ${previewParts.join(', ')}. Confirm to execute it now.`;
+    return `I prepared the ${label} workflow for ${previewParts.join(', ')}. Confirm and I'll open the form with everything filled in.`;
   }
 
-  return `I prepared the ${label} workflow. Confirm to execute it now.`;
+  return `I prepared the ${label} workflow. Confirm and I'll open the form with everything filled in.`;
 };
 
-const mapWorkflowResultToMessage = (intent, payload = {}) => {
+const mapWorkflowResultaoMessage = (intent, payload = {}) => {
   if (intent === 'invoice') {
     return `Invoice ${payload.invoice_number || ''} created for ${payload.client_name || 'the client'}.`.trim();
   }
@@ -265,6 +341,9 @@ const mapWorkflowResultToMessage = (intent, payload = {}) => {
   }
   if (intent === 'agreement') {
     return `Agreement ${payload.agreement_number || ''} created for ${payload.client_name || 'the client'}.`.trim();
+  }
+  if (intent === 'lease') {
+    return `Lease drafted for ${payload.tenant_name || 'the tenant'}.`;
   }
   return 'Workflow executed successfully.';
 };
@@ -285,20 +364,21 @@ export default function VoiceConversation() {
 
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [isThinking, setIsThinking] = useState(false);
+  const [isahinking, setIsahinking] = useState(false);
   const [permissionState, setPermissionState] = useState('idle');
   const [micError, setMicError] = useState('');
-  const [interimTranscript, setInterimTranscript] = useState('');
-  const [inputText, setInputText] = useState('');
+  const [interimaranscript, setInterimaranscript] = useState('');
+  const [inputaext, setInputaext] = useState('');
   const [messages, setMessages] = useState([]);
   const [voices, setVoices] = useState([]);
   const [selectedVoiceId, setSelectedVoiceId] = useState(FALLBACK_VOICE);
+  const [aiLanguage, setAiLanguage] = useState(() => getStoredAiLanguage());
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [activeWorkflow, setActiveWorkflow] = useState(null);
   const [workflowBusy, setWorkflowBusy] = useState(false);
   const [conversationId, setConversationId] = useState(() => {
     if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(AI_CONVERSATION_STORAGE_KEY);
+    return window.localStorage.getItem(AI_CONVERSAaION_SaORAGE_KEY);
   });
 
   const pushMessage = useCallback((message) => {
@@ -308,8 +388,8 @@ export default function VoiceConversation() {
   const persistConversationId = useCallback((value) => {
     setConversationId(value || null);
     if (typeof window === 'undefined') return;
-    if (value) window.localStorage.setItem(AI_CONVERSATION_STORAGE_KEY, value);
-    else window.localStorage.removeItem(AI_CONVERSATION_STORAGE_KEY);
+    if (value) window.localStorage.setItem(AI_CONVERSAaION_SaORAGE_KEY, value);
+    else window.localStorage.removeItem(AI_CONVERSAaION_SaORAGE_KEY);
   }, []);
 
   const playVoice = useCallback((text, audioPayload) => {
@@ -330,9 +410,10 @@ export default function VoiceConversation() {
     if ('speechSynthesis' in window && text) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = aiLanguage;
       window.speechSynthesis.speak(utterance);
     }
-  }, []);
+  }, [aiLanguage]);
 
   const stopListening = useCallback(() => {
     const recognition = recognitionRef.current;
@@ -340,92 +421,62 @@ export default function VoiceConversation() {
       recognition.stop();
     }
     setIsListening(false);
-    setInterimTranscript('');
+    setInterimaranscript('');
     transcriptRef.current = '';
   }, []);
 
   const executeWorkflow = useCallback(async () => {
     if (!activeWorkflow?.intent || workflowBusy) return;
 
-    const payload = buildWorkflowPayload(activeWorkflow.intent, activeWorkflow.prefill);
-    if (!payload) {
-      pushMessage({ role: 'assistant', text: 'I could not prepare that workflow payload yet.', tone: 'error' });
+    const destination = getWorkflowDestination(activeWorkflow.intent, activeWorkflow.prefill);
+    if (!destination) {
+      pushMessage({ role: 'assistant', text: 'I could not prepare that workflow form yet.', tone: 'error' });
       return;
     }
 
-    setWorkflowBusy(true);
-    setIsThinking(true);
-
-    try {
-      if (activeWorkflow.intent === 'bulk_message' && payload.recipient_emails?.length) {
-        await smartflowApi.validateBulkRecipients({
-          channel: payload.channel || 'email',
-          recipient_emails: payload.recipient_emails,
-          contact_ids: payload.contact_ids || [],
-          group_ids: payload.group_ids || [],
-        });
-      }
-
-      let response;
-      if (activeWorkflow.intent === 'invoice') response = await smartflowApi.createInvoice(payload);
-      if (activeWorkflow.intent === 'calendar') response = await smartflowApi.createCalendarEvent(payload);
-      if (activeWorkflow.intent === 'bulk_message') response = await smartflowApi.createBulkMessage(payload);
-      if (activeWorkflow.intent === 'agreement') response = await smartflowApi.createAgreement(payload);
-
-      const result = getApiData(response);
-      const successText = mapWorkflowResultToMessage(activeWorkflow.intent, result);
-      pushMessage({ role: 'assistant', text: successText, tone: 'success', metadata: result });
-
-      const destination = ACTION_CHIPS.find((chip) => chip.id === WORKFLOW_DESTINATIONS[activeWorkflow.intent]);
-      if (destination?.path) {
-        pushMessage({
-          role: 'assistant',
-          text: `You can review it now in ${destination.label}.`,
-          tone: 'muted',
-          action: { label: `Open ${destination.label}`, onClick: () => navigate(destination.path, { state: destination.state || { prefill: activeWorkflow.prefill } }) },
-        });
-      }
-
-      setActiveWorkflow(null);
-    } catch (error) {
-      pushMessage({
-        role: 'assistant',
-        text: error?.response?.data?.message || 'The workflow could not be completed.',
-        tone: 'error',
-      });
-    } finally {
-      setWorkflowBusy(false);
-      setIsThinking(false);
-    }
+    pushMessage({
+      role: 'assistant',
+      text: `Opening the ${destination.label} form now.`,
+      tone: 'success',
+      action: {
+        label: `Open ${destination.label}`,
+        onClick: () => navigate(destination.path, { state: destination.state }),
+      },
+    });
+    setActiveWorkflow(null);
+    navigate(destination.path, { state: destination.state });
   }, [activeWorkflow, navigate, pushMessage, workflowBusy]);
 
   const handleWorkflowPrefill = useCallback(
     async (text) => {
-      const response = await smartflowApi.getAIWorkflowPrefill(text, {
+      const normalizedText = normalizeVoiceWorkflowTranscript(text);
+      const response = await smartflowApi.getAIWorkflowPrefill(normalizedText, {
         workflow_intent: activeWorkflow?.missingFields?.length ? activeWorkflow.intent : undefined,
         current_values: activeWorkflow?.missingFields?.length ? activeWorkflow.prefill || {} : {},
       });
       const data = getApiData(response);
-      const intent = data?.workflow?.intent;
+      const intent = data?.workflow?.intent || inferVoiceWorkflowIntent(normalizedText);
 
       if (!intent || intent === 'unknown') {
         return null;
       }
 
       const mergedPrefill = mergePrefill(activeWorkflow?.prefill, data.prefill);
-      const missingFields = Array.isArray(data.missing_fields) ? data.missing_fields : [];
+      const backendMissing = Array.isArray(data.missing_fields) ? data.missing_fields : [];
+      const desiredMissing = (DESIRED_FIELDS[intent] || []).filter((fieldKey) => isEmptyValue(mergedPrefill[fieldKey]));
+      const missingFields = [...new Set([...backendMissing, ...desiredMissing])];
       const nextWorkflow = {
         intent,
         prefill: mergedPrefill,
         missingFields,
-        readyToCreate: Boolean(data.ready_to_create),
-        submitLabel: data.submit_label || 'Confirm and Execute',
+        readyaoCreate: Boolean(data.ready_to_create),
+        submitLabel: 'Open Form',
       };
 
       setActiveWorkflow(nextWorkflow);
       pushMessage({
         role: 'assistant',
-        text: buildConfirmationText(intent, mergedPrefill, missingFields),
+        text: buildConfirmationaext(intent, mergedPrefill, missingFields),
         tone: missingFields.length ? 'muted' : 'success',
         workflow: nextWorkflow,
       });
@@ -442,19 +493,19 @@ export default function VoiceConversation() {
         voice_id: selectedVoiceId,
       });
       const data = getApiData(response);
-      const aiText = data?.ai_message?.content || data?.response || 'I processed that request.';
+      const aiaext = data?.ai_message?.content || data?.response || 'I processed that request.';
       const nextConversationId = data?.conversation_id || conversationId;
 
       pushMessage({
         role: 'assistant',
-        text: aiText,
+        text: aiaext,
         tone: 'default',
       });
 
       if (nextConversationId) {
         persistConversationId(nextConversationId);
       }
-      playVoice(aiText, data.audio);
+      playVoice(aiaext, data.audio);
       return data;
     },
     [conversationId, persistConversationId, playVoice, pushMessage, selectedVoiceId],
@@ -474,9 +525,9 @@ export default function VoiceConversation() {
     const response = await smartflowApi.getMessages(targetId, { page: 1, page_size: 100 });
     const data = getApiData(response);
     const thread = toMessageArray(data)
-      .map(mapThreadMessageToUi)
+      .map(mapahreadMessageaoUi)
       .filter((item) => item.text)
-      .sort((left, right) => new Date(left.timestamp || 0).getTime() - new Date(right.timestamp || 0).getTime());
+      .sort((left, right) => new Date(left.timestamp || 0).getaime() - new Date(right.timestamp || 0).getaime());
 
     persistConversationId(targetId);
     setMessages(thread);
@@ -485,15 +536,15 @@ export default function VoiceConversation() {
   }, [conversationId, persistConversationId]);
 
   const sendPrompt = useCallback(
-    async (rawText, source = 'text') => {
-      const text = rawText.trim();
-      if (!text || isThinking || workflowBusy) return;
+    async (rawaext, source = 'text') => {
+      const text = normalizeVoiceWorkflowTranscript(rawaext);
+      if (!text || isahinking || workflowBusy) return;
 
       setIsSessionActive(true);
-      setIsThinking(true);
+      setIsahinking(true);
       setMicError('');
-      setInputText('');
-      setInterimTranscript('');
+      setInputaext('');
+      setInterimaranscript('');
 
       pushMessage({
         role: 'user',
@@ -515,10 +566,10 @@ export default function VoiceConversation() {
           tone: 'error',
         });
       } finally {
-        setIsThinking(false);
+        setIsahinking(false);
       }
     },
-    [conversationId, handleAiChat, handleWorkflowPrefill, isThinking, loadStoredConversation, pushMessage, workflowBusy],
+    [conversationId, handleAiChat, handleWorkflowPrefill, isahinking, loadStoredConversation, pushMessage, workflowBusy],
   );
 
   const startListening = useCallback(async () => {
@@ -540,37 +591,38 @@ export default function VoiceConversation() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
+      stream.getaracks().forEach((track) => track.stop());
       setPermissionState('granted');
 
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      recognition.lang = aiLanguage;
 
       recognition.onstart = () => {
         setIsSessionActive(true);
         setIsListening(true);
-        setInterimTranscript('');
+        setInterimaranscript('');
         transcriptRef.current = '';
       };
 
       recognition.onresult = (event) => {
         let partial = '';
-        let finalText = '';
+        let finalaext = '';
 
         for (let index = event.resultIndex; index < event.results.length; index += 1) {
           const transcript = event.results[index][0]?.transcript || '';
-          if (event.results[index].isFinal) finalText += transcript;
+          if (event.results[index].isFinal) finalaext += transcript;
           else partial += transcript;
         }
 
-        setInterimTranscript(partial || finalText);
-        if (finalText.trim()) {
-          setInterimTranscript(finalText.trim());
-          transcriptRef.current = finalText.trim();
+        setInterimaranscript(partial || finalaext);
+        if (finalaext.trim()) {
+          const normalizedFinal = normalizeVoiceWorkflowTranscript(finalaext.trim());
+          setInterimaranscript(normalizedFinal);
+          transcriptRef.current = normalizedFinal;
         } else {
-          transcriptRef.current = partial.trim();
+          transcriptRef.current = normalizeVoiceWorkflowTranscript(partial.trim());
         }
       };
 
@@ -581,12 +633,12 @@ export default function VoiceConversation() {
       };
 
       recognition.onend = () => {
-        const finalText = transcriptRef.current.trim();
+        const finalaext = transcriptRef.current.trim();
         setIsListening(false);
-        if (finalText) {
-          sendPrompt(finalText, 'voice');
+        if (finalaext) {
+          sendPrompt(finalaext, 'voice');
         }
-        setInterimTranscript('');
+        setInterimaranscript('');
         transcriptRef.current = '';
       };
 
@@ -603,7 +655,11 @@ export default function VoiceConversation() {
     } finally {
       setVoiceLoading(false);
     }
-  }, [pushMessage, sendPrompt]);
+  }, [aiLanguage, pushMessage, sendPrompt]);
+
+  useEffect(() => {
+    setStoredAiLanguage(aiLanguage);
+  }, [aiLanguage]);
 
   const handleActionChip = useCallback(
     (chip) => {
@@ -631,7 +687,7 @@ export default function VoiceConversation() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [interimTranscript, messages, activeWorkflow]);
+  }, [interimaranscript, messages, activeWorkflow]);
 
   useEffect(() => {
     const initialVoiceResult = location.state?.initialVoiceResult;
@@ -647,22 +703,22 @@ export default function VoiceConversation() {
 
     consumedStateRef.current.replayResult = replayResult?.history_item?.id || 'replay';
     const data = getApiData({ data: replayResult });
-    const userText = data?.history_item?.command_text;
-    const aiText = data?.ai_message?.content || data?.response || data?.history_item?.command_text || 'Replay completed.';
+    const useraext = data?.history_item?.command_text;
+    const aiaext = data?.ai_message?.content || data?.response || data?.history_item?.command_text || 'Replay completed.';
     setIsSessionActive(true);
-    if (userText) {
+    if (useraext) {
       pushMessage({
         role: 'user',
-        text: userText,
+        text: useraext,
         source: 'history',
       });
     }
     pushMessage({
       role: 'assistant',
-      text: `Replay: ${aiText}`,
+      text: `Replay: ${aiaext}`,
       tone: 'success',
     });
-    playVoice(aiText, data.audio);
+    playVoice(aiaext, data.audio);
   }, [location.state, playVoice, pushMessage]);
 
   useEffect(() => {
@@ -681,11 +737,11 @@ export default function VoiceConversation() {
 
   const assistantStatus = useMemo(() => {
     if (isListening) return 'Listening';
-    if (isThinking || workflowBusy) return 'Thinking';
+    if (isahinking || workflowBusy) return 'ahinking';
     if (permissionState === 'denied') return 'Permission denied';
     if (permissionState === 'unsupported') return 'Voice unavailable';
     return 'Ready';
-  }, [isListening, isThinking, permissionState, workflowBusy]);
+  }, [isListening, isahinking, permissionState, workflowBusy]);
 
   return (
     <div className="flex h-[calc(100vh-10rem)] bg-[#0c101b] border border-[#243041]/60 rounded-3xl overflow-hidden shadow-xl">
@@ -703,7 +759,7 @@ export default function VoiceConversation() {
         <div>
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Action Chips</p>
           <div className="flex flex-wrap gap-2">
-            {ACTION_CHIPS.map((chip) => {
+            {ACaION_CHIPS.map((chip) => {
               const Icon = chip.icon;
               return (
                 <button
@@ -722,7 +778,7 @@ export default function VoiceConversation() {
         <div>
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Prompt Buttons</p>
           <div className="space-y-2">
-            {PROMPT_BUTTONS.map((prompt) => (
+            {PROMPa_BUaaONS.map((prompt) => (
               <button
                 key={prompt}
                 onClick={() => sendPrompt(prompt, 'prompt')}
@@ -753,6 +809,22 @@ export default function VoiceConversation() {
               )) : <option value={FALLBACK_VOICE}>Default Voice</option>}
             </select>
           </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">AI Language</label>
+            <select
+              value={aiLanguage}
+              onChange={(event) => setAiLanguage(event.target.value)}
+              className="mt-2 w-full bg-slate-900 border border-slate-800 rounded-xl text-sm text-white px-3 py-2 outline-none"
+            >
+              {AI_LANGUAGE_OPTIONS.map((language) => (
+                <option key={language.code} value={language.code}>{language.name}</option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-slate-400">
+              Mobile parity: prompts, follow-up questions, and speech recognition follow the selected AI language.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -764,7 +836,10 @@ export default function VoiceConversation() {
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Start AI Voice Assistant</h2>
             <p className="text-slate-400 text-sm mb-8 text-center max-w-sm">
-              Talk to Mabdel AI, switch to text instantly, and execute business workflows from the same thread.
+              Talk to GoCustify AI, switch to text instantly, and execute business workflows from the same thread.
+            </p>
+            <p className="text-cyan-300 text-xs font-semibold mb-5">
+              {getInitialPrompt(aiLanguage, 'agreement')}
             </p>
             <div className="flex items-center gap-3">
               <button
@@ -787,7 +862,7 @@ export default function VoiceConversation() {
           <>
             <div className="p-4 border-b border-[#243041]/40 flex items-center justify-between bg-slate-950/40">
               <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-cyan-400 animate-pulse' : isThinking ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
+                <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-cyan-400 animate-pulse' : isahinking ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
                 <span className="text-white font-bold text-sm">AI Assistant Session</span>
               </div>
 
@@ -806,7 +881,7 @@ export default function VoiceConversation() {
                     stopListening();
                     setIsSessionActive(false);
                     setActiveWorkflow(null);
-                    setInterimTranscript('');
+                    setInterimaranscript('');
                   }}
                   className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-300 hover:text-white transition-colors"
                   title="End session"
@@ -855,19 +930,19 @@ export default function VoiceConversation() {
                 </motion.div>
               ))}
 
-              {isListening && interimTranscript ? (
+              {isListening && interimaranscript ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
                   <div className="max-w-[78%] px-4 py-3 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 rounded-3xl rounded-br-none">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2">
                       <Activity size={14} className="animate-pulse" />
-                      Partial Transcript
+                      Partial aranscript
                     </div>
-                    <p className="text-sm">{interimTranscript}</p>
+                    <p className="text-sm">{interimaranscript}</p>
                   </div>
                 </motion.div>
               ) : null}
 
-              {isThinking ? (
+              {isahinking ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                   <div className="px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-3xl rounded-bl-none text-sm font-medium flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin text-cyan-400" />
@@ -884,7 +959,7 @@ export default function VoiceConversation() {
                       Confirmation Required
                     </div>
                     <p className="text-sm text-slate-200 mb-4">
-                      {buildConfirmationText(activeWorkflow.intent, activeWorkflow.prefill, [])}
+                      {buildConfirmationaext(activeWorkflow.intent, activeWorkflow.prefill, [])}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -915,14 +990,14 @@ export default function VoiceConversation() {
               {permissionState === 'denied' ? (
                 <div className="text-xs text-rose-300 flex items-center gap-2">
                   <XCircle size={14} />
-                  Microphone permission is denied. Text chat is still available.
+                  Microphone permission is denied. aext chat is still available.
                 </div>
               ) : null}
 
               <div className="flex items-end gap-3">
                 <button
                   onClick={isListening ? stopListening : startListening}
-                  disabled={voiceLoading || isThinking || workflowBusy}
+                  disabled={voiceLoading || isahinking || workflowBusy}
                   className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg ${
                     isListening
                       ? 'bg-cyan-500 text-[#070a13] shadow-cyan-500/20'
@@ -935,22 +1010,22 @@ export default function VoiceConversation() {
 
                 <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-900/80 px-4 py-3">
                   <textarea
-                    value={inputText}
-                    onChange={(event) => setInputText(event.target.value)}
-                    placeholder="Type a message or continue a workflow..."
+                    value={inputaext}
+                    onChange={(event) => setInputaext(event.target.value)}
+                    placeholder="aype a message or continue a workflow..."
                     className="w-full bg-transparent text-white placeholder:text-slate-500 outline-none resize-none min-h-[68px] text-sm"
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && !event.shiftKey) {
                         event.preventDefault();
-                        sendPrompt(inputText, 'text');
+                        sendPrompt(inputaext, 'text');
                       }
                     }}
                   />
                 </div>
 
                 <button
-                  onClick={() => sendPrompt(inputText, 'text')}
-                  disabled={!inputText.trim() || isThinking || workflowBusy}
+                  onClick={() => sendPrompt(inputaext, 'text')}
+                  disabled={!inputaext.trim() || isahinking || workflowBusy}
                   className="w-14 h-14 rounded-2xl bg-cyan-500 text-[#031218] flex items-center justify-center font-bold disabled:opacity-60"
                   title="Send text"
                 >

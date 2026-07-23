@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import Depends, Query, Response, status
 
-from app.dependencies import get_current_user
+from app.dependencies import require_permission
 from app.schemas.smartflow import (
     AgreementSendSignatureRequest,
     AgreementSignRequest,
@@ -22,7 +22,7 @@ from ._router import router
 
 @router.get("/leases/metadata")
 async def get_lease_metadata(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     return success_response(data=service.lease_metadata(), message="Lease metadata fetched successfully.")
@@ -31,7 +31,7 @@ async def get_lease_metadata(
 @router.post("/leases/generate")
 async def generate_lease_draft(
     payload: LeaseGenerateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "create")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.generate_lease_draft(str(current_user["_id"]), payload.model_dump(exclude_none=True))
@@ -41,7 +41,7 @@ async def generate_lease_draft(
 @router.post("/leases/enhance-terms")
 async def enhance_lease_terms(
     payload: LeaseEnhanceTermsRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "create")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.enhance_lease_terms(str(current_user["_id"]), payload.model_dump(exclude_none=True))
@@ -51,7 +51,7 @@ async def enhance_lease_terms(
 @router.post("/leases/review")
 async def review_lease_draft(
     payload: LeaseReviewRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "create")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.review_lease_draft(str(current_user["_id"]), payload.model_dump(exclude_none=True))
@@ -95,7 +95,7 @@ async def list_leases(
     page_size: int = Query(default=20, ge=1, le=100),
     search: str | None = None,
     status_filter: str | None = Query(default=None, alias="status"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.list_leases(str(current_user["_id"]), page, page_size, search, status_filter)
@@ -105,7 +105,7 @@ async def list_leases(
 @router.post("/leases", status_code=status.HTTP_201_CREATED)
 async def create_lease(
     payload: LeaseCreateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "create")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.create_lease(str(current_user["_id"]), payload.model_dump(exclude_none=True))
@@ -115,7 +115,7 @@ async def create_lease(
 @router.get("/leases/{lease_id}")
 async def get_lease(
     lease_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.get_lease(str(current_user["_id"]), lease_id)
@@ -126,7 +126,7 @@ async def get_lease(
 async def update_lease(
     lease_id: str,
     payload: LeaseUpdateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "edit")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.update_lease(str(current_user["_id"]), lease_id, payload.model_dump(exclude_unset=True, exclude_none=True))
@@ -136,7 +136,7 @@ async def update_lease(
 @router.delete("/leases/{lease_id}")
 async def delete_lease(
     lease_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "delete")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     await service.delete_lease(str(current_user["_id"]), lease_id)
@@ -146,7 +146,7 @@ async def delete_lease(
 @router.post("/leases/{lease_id}/review")
 async def review_lease(
     lease_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "edit")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.review_lease(str(current_user["_id"]), lease_id)
@@ -157,7 +157,7 @@ async def review_lease(
 async def enhance_saved_lease_terms(
     lease_id: str,
     payload: LeaseEnhanceTermsRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "edit")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.enhance_saved_lease_terms(str(current_user["_id"]), lease_id, payload.model_dump(exclude_none=True))
@@ -168,7 +168,7 @@ async def enhance_saved_lease_terms(
 async def send_lease_for_signature(
     lease_id: str,
     payload: AgreementSendSignatureRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "edit")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.send_lease_for_signature(str(current_user["_id"]), lease_id, payload.model_dump(exclude_unset=True))
@@ -179,7 +179,7 @@ async def send_lease_for_signature(
 async def sign_lease(
     lease_id: str,
     payload: AgreementSignRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "edit")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.sign_lease(str(current_user["_id"]), lease_id, payload.model_dump())
@@ -190,7 +190,7 @@ async def sign_lease(
 async def renew_lease(
     lease_id: str,
     payload: LeaseRenewRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "edit")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.renew_lease(str(current_user["_id"]), lease_id, payload.model_dump(exclude_unset=True, exclude_none=True))
@@ -200,7 +200,7 @@ async def renew_lease(
 @router.get("/leases/{lease_id}/pdf")
 async def download_lease_pdf(
     lease_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("leases", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> Response:
     pdf_bytes = await service.generate_lease_pdf(str(current_user["_id"]), lease_id)

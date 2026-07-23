@@ -124,6 +124,8 @@
 | Edit event | ✅ |
 | Delete event | ✅ |
 | Share event | ✅ |
+google calander sync
+apple calander sync
 
 ---
 

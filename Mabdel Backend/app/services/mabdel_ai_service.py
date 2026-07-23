@@ -238,6 +238,35 @@ class MabdelAIService:
                 "error": str(exc)[:240],
             }
 
+    def improve_text(self, text: str) -> str | None:
+        if not settings.OPENAI_API_KEY:
+            return None
+
+        try:
+            from openai import OpenAI
+        except ImportError:
+            return None
+
+        system_prompt = (
+            "You rewrite business broadcast messages (email/SMS) to be clearer, more engaging, "
+            "and more professional, while preserving the original meaning and intent. "
+            "Keep any personalization variables exactly as written, such as {name}, {phone}, or {date}. "
+            "Return ONLY the rewritten message text - no preamble, no quotation marks, no explanation."
+        )
+        try:
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            response = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text},
+                ],
+            )
+            improved = response.choices[0].message.content.strip()
+            return improved or None
+        except Exception:
+            return None
+
     def _generate_with_openai(self, user_text: str, history: Iterable[dict] | None) -> str | None:
         if not settings.OPENAI_API_KEY:
             return None

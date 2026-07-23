@@ -8,6 +8,13 @@ export const useAuthStore = create((set) => ({
   isLoading: false,
   error: null,
 
+  setUser: (nextUser) => set((state) => ({
+    user: {
+      ...(state.user || {}),
+      ...(nextUser || {}),
+    },
+  })),
+
   login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {

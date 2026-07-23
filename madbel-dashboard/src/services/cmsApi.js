@@ -36,6 +36,30 @@ export const upsertTermsAndConditions = (body) =>
     body: { type: "terms-and-conditions", content: body.content || "" }
   });
 
+export const getSmsMessagingPolicy = async () => {
+  const res = await apiRequest("/admin/settings/content", { query: { type: "sms-messaging-policy" } });
+  const data = res?.data ?? res ?? "";
+  return { content: typeof data === "string" ? data : (data?.content ?? "") };
+};
+
+export const upsertSmsMessagingPolicy = (body) =>
+  apiRequest("/admin/settings/content", {
+    method: "POST",
+    body: { type: "sms-messaging-policy", content: body.content || "" }
+  });
+
+export const getAcceptableUsePolicy = async () => {
+  const res = await apiRequest("/admin/settings/content", { query: { type: "acceptable-use-policy" } });
+  const data = res?.data ?? res ?? "";
+  return { content: typeof data === "string" ? data : (data?.content ?? "") };
+};
+
+export const upsertAcceptableUsePolicy = (body) =>
+  apiRequest("/admin/settings/content", {
+    method: "POST",
+    body: { type: "acceptable-use-policy", content: body.content || "" }
+  });
+
 export const getPageBySlug = ({ slug }) =>
   apiRequest(createPath("/cms/pages/:slug", { slug }), { auth: false });
 

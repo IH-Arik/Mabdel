@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { message } from "antd";
-import brandlogo from "../../../assets/image/stone-logo.png";
+import brandlogo from "../../../assets/image/gocustify-mark.png";
 import { forgotPassword, verifyOtp } from "../../../services/authApi";
 
 const VerifyCode = () => {

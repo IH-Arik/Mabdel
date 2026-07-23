@@ -240,7 +240,7 @@ async def get_user_roles(
 @router.post("/roles/create-subordinate", response_model=ApiResponse)
 async def create_subordinate_account(
     body: SubordinateAccountCreate,
-    current_user: dict = Depends(require_role(["owner"])),
+    current_user: dict = Depends(require_role(["owner", "manager"])),
     rbac: Any = Depends(get_dashboard_rbac_service),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):

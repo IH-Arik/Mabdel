@@ -10,14 +10,25 @@ import {
   unbanTeamMember,
   createSubordinate,
 } from "../../services/ownerApi";
+import { getAdminRole } from "../../utils/auth";
 
 const ROLE_LABELS = {
+  owner:     { label: "Owner",     color: "bg-slate-200 text-slate-700" },
   manager:   { label: "Manager",   color: "bg-indigo-100 text-indigo-700" },
   staff:     { label: "Staff",     color: "bg-emerald-100 text-emerald-700" },
   assistant: { label: "Assistant", color: "bg-amber-100 text-amber-700" },
 };
 
+const ROLE_HIERARCHY = { owner: 60, manager: 40, staff: 20, assistant: 10 };
+
 const TeamManagement = () => {
+  const currentRole = getAdminRole();
+  const isManagerViewer = currentRole === "manager";
+  const viewerHierarchy = ROLE_HIERARCHY[currentRole] ?? 0;
+  const assignableRoles = isManagerViewer
+    ? [{ value: "staff", label: "Staff" }, { value: "assistant", label: "Assistant" }]
+    : [{ value: "manager", label: "Manager" }, { value: "staff", label: "Staff" }, { value: "assistant", label: "Assistant" }];
+
   const [members, setMembers] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -246,10 +257,13 @@ const TeamManagement = () => {
                 onChange={(e) => setNewMemberForm({ ...newMemberForm, role: e.target.value })}
                 className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#17b4c9] focus:ring-1 focus:ring-[#17b4c9]"
               >
-                <option value="manager">Manager</option>
-                <option value="staff">Staff</option>
-                <option value="assistant">Assistant</option>
+                {assignableRoles.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
               </select>
+              {isManagerViewer && (
+                <p className="mt-1 text-xs text-slate-400">Managers can add Staff or Assistant members.</p>
+              )}
             </div>
           </div>
           
@@ -313,6 +327,7 @@ const TeamManagement = () => {
                   const badge = ROLE_LABELS[m.role_slug] || { label: m.role_slug, color: "bg-slate-100 text-slate-600" };
                   const hasRestrictions = Array.isArray(m.allowed_permissions) && m.allowed_permissions.length > 0;
                   const isBanned = m.status === "blocked";
+                  const canManage = (ROLE_HIERARCHY[m.role_slug] ?? 0) < viewerHierarchy;
                   return (
                     <tr key={m.assignment_id} className={`transition-colors ${isBanned ? "bg-red-50/40" : "hover:bg-slate-50"}`}>
                       <td className="px-5 py-3.5">
@@ -348,33 +363,37 @@ const TeamManagement = () => {
                         {m.assigned_at ? new Date(m.assigned_at).toLocaleDateString() : "—"}
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            title="Manage Permissions"
-                            onClick={() => handlePermOpen(m)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:text-[#17b4c9] hover:bg-cyan-50 transition-colors"
-                          >
-                            <Settings className="w-4 h-4" />
-                          </button>
-                          <button
-                            title={isBanned ? "Unban member" : "Ban member"}
-                            onClick={() => handleBanToggle(m)}
-                            className={`rounded-lg p-1.5 transition-colors ${
-                              isBanned
-                                ? "text-emerald-500 hover:bg-emerald-50"
-                                : "text-slate-400 hover:text-amber-500 hover:bg-amber-50"
-                            }`}
-                          >
-                            {isBanned ? <ShieldCheck className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
-                          </button>
-                          <button
-                            title="Remove"
-                            onClick={() => handleRevoke(m)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        {canManage ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              title="Manage Permissions"
+                              onClick={() => handlePermOpen(m)}
+                              className="rounded-lg p-1.5 text-slate-400 hover:text-[#17b4c9] hover:bg-cyan-50 transition-colors"
+                            >
+                              <Settings className="w-4 h-4" />
+                            </button>
+                            <button
+                              title={isBanned ? "Unban member" : "Ban member"}
+                              onClick={() => handleBanToggle(m)}
+                              className={`rounded-lg p-1.5 transition-colors ${
+                                isBanned
+                                  ? "text-emerald-500 hover:bg-emerald-50"
+                                  : "text-slate-400 hover:text-amber-500 hover:bg-amber-50"
+                              }`}
+                            >
+                              {isBanned ? <ShieldCheck className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+                            </button>
+                            <button
+                              title="Remove"
+                              onClick={() => handleRevoke(m)}
+                              className="rounded-lg p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-right text-xs text-slate-300">—</div>
+                        )}
                       </td>
                     </tr>
                   );

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
+import { DatePickerInput } from '../components/ui/DateTimeInputs';
 
 const IMPORT_HEADERS = ['name', 'first_name', 'last_name', 'email', 'phone', 'address', 'notes', 'company', 'job_title'];
 
@@ -1212,15 +1213,12 @@ export default function Contacts() {
               {/* DOB */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Date of Birth (DOB)</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <input 
-                    type="date" 
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-750"
-                    value={dob}
-                    onChange={(e) => setDob(e.target.value)}
-                  />
-                </div>
+                <DatePickerInput
+                  value={dob}
+                  onChange={setDob}
+                  placeholder="mm/dd/yyyy"
+                  className="!py-2.5 !text-xs !font-semibold"
+                />
               </div>
 
               {/* Lead Status select */}

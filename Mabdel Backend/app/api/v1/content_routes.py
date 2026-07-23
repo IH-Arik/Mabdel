@@ -44,6 +44,18 @@ async def get_privacy_policy(service: ContentService = Depends(get_content_servi
     return success_response(data=page.model_dump(), message="Privacy policy fetched successfully.")
 
 
+@router.get("/sms-messaging-policy", response_model=ApiResponse[ContentPageResponse])
+async def get_sms_messaging_policy(service: ContentService = Depends(get_content_service)) -> dict:
+    page = await service.get_page("sms-messaging-policy")
+    return success_response(data=page.model_dump(), message="SMS messaging policy fetched successfully.")
+
+
+@router.get("/acceptable-use-policy", response_model=ApiResponse[ContentPageResponse])
+async def get_acceptable_use_policy(service: ContentService = Depends(get_content_service)) -> dict:
+    page = await service.get_page("acceptable-use-policy")
+    return success_response(data=page.model_dump(), message="Acceptable use policy fetched successfully.")
+
+
 @router.get("/help-support", response_model=ApiResponse[ContentPageResponse])
 async def get_help_support(service: ContentService = Depends(get_content_service)) -> dict:
     page = await service.get_page("help-support")

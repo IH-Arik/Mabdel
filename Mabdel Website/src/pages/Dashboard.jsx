@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bell,
   Bot,
   CalendarCheck2,
   FileText,
@@ -15,6 +14,7 @@ import {
 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
 import { useAuthStore } from '../store/useAuthStore';
+import { useNotificationStore } from '../store/useNotificationStore';
 
 const HOME_DOC_ITEMS = [
   { id: 'agreement', title: 'Agreement', icon: FileText, action: { path: '/documents', state: { tab: 'agreements' } } },
@@ -210,6 +210,7 @@ function SectionCard({ children, className = '', onClick }) {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const syncUnreadCount = useNotificationStore((state) => state.syncUnreadCount);
   const [isLoading, setIsLoading] = useState(true);
   const [threads, setThreads] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -264,6 +265,10 @@ export default function Dashboard() {
       console.error('Failed to fetch dashboard data:', error);
     });
   }, [fetchAll]);
+
+  useEffect(() => {
+    syncUnreadCount().catch(() => {});
+  }, [syncUnreadCount]);
 
   useEffect(() => {
     const handleCallSync = () => {
@@ -364,7 +369,6 @@ export default function Dashboard() {
   const openContacts = () => navigate('/contacts');
   const openScheduleMeeting = () => navigate('/calendar');
   const openSocialIntegrations = () => navigate('/integrations');
-  const openNotifications = () => navigate('/notifications');
   const openCallHistory = () => navigate('/calls');
 
   if (isLoading) {
@@ -374,48 +378,40 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto space-y-5 pb-12 text-white">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-[30px] leading-tight font-bold tracking-tight text-[#F3F8FF] max-w-[60%]">
+        <h1 className="text-[30px] leading-tight font-bold tracking-tight text-[#F3F8FF]">
           Good Morning, {displayName}
         </h1>
-        <button
-          type="button"
-          onClick={openNotifications}
-          className="w-11 h-11 rounded-full flex items-center justify-center text-[#F4F9FF] hover:bg-[#0D131D] transition-colors"
-          aria-label="Notifications"
-        >
-          <Bell size={23} strokeWidth={2.1} />
-        </button>
       </div>
 
       <button
         type="button"
         onClick={openVoiceAssistant}
-        className="w-full bg-[#131A24] border border-[#243041] px-5 py-4 rounded-[26px] flex items-center justify-between shadow-lg hover:border-[#11D1ED]/30 cursor-pointer active:scale-[0.99] transition-all text-left"
+        className="w-full bg-[#131A24] border border-[#243041] px-5 py-4 rounded-[26px] flex items-center justify-between shadow-lg hover:border-[#3B82F6]/30 cursor-pointer active:scale-[0.99] transition-all text-left"
       >
         <div className="flex items-center gap-4">
-          <Mic size={22} className="text-[#11D1ED]" />
+          <Mic size={22} className="text-[#60A5FA]" />
           <span className="text-sm font-semibold text-[#A4B0B7]">
             Tap to ask SmartFlow
           </span>
         </div>
-        <span className="text-xl font-bold text-[#11D1ED]">...</span>
+        <span className="text-xl font-bold text-[#60A5FA]">...</span>
       </button>
 
       <button
         type="button"
         onClick={openBulkMessaging}
-        className="w-full rounded-[18px] border border-[#1B5E6E]/60 bg-[#0C2028] min-h-[50px] px-5 py-3 flex items-center justify-between cursor-pointer hover:border-[#11C7E5]/40 active:scale-[0.99] transition-all text-left"
+        className="w-full rounded-[18px] border border-[#244C7A]/60 bg-[#102033] min-h-[50px] px-5 py-3 flex items-center justify-between cursor-pointer hover:border-[#3B82F6]/40 active:scale-[0.99] transition-all text-left"
       >
         <div className="flex items-center gap-3">
-          <Megaphone size={18} className="text-[#13D0EC]" />
+          <Megaphone size={18} className="text-[#60A5FA]" />
           <span className="text-sm font-bold text-[#EAF8FF]">Bulk Messaging</span>
         </div>
-        <span className="text-xs font-bold text-[#78B7C7]">Open</span>
+        <span className="text-xs font-bold text-[#93C5FD]">Open</span>
       </button>
 
       <SectionCard>
         <div className="flex justify-between items-center">
-          <div className="bg-[#123B4A] text-[#11C7E5] font-extrabold px-3 py-1 rounded-[6px] tracking-wider uppercase text-[10px]">
+          <div className="bg-[#13263D] text-[#60A5FA] font-extrabold px-3 py-1 rounded-[6px] tracking-wider uppercase text-[10px]">
             Inbox
           </div>
           <span className="text-xs text-[#8093AC] font-semibold">
@@ -430,20 +426,20 @@ export default function Dashboard() {
 
         <div className="flex items-center justify-between mt-6 pt-2">
           <AvatarStack avatars={inboxAvatars} countText={inboxCountText} />
-          <button
-            type="button"
-            onClick={openUnifiedConversations}
+            <button
+              type="button"
+              onClick={openUnifiedConversations}
             className="px-6 py-2.5 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#11C7E5]/10 cursor-pointer"
-          >
-            View All
-          </button>
+            >
+              View All
+            </button>
         </div>
       </SectionCard>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.95fr)] gap-5">
         <SectionCard onClick={openContacts} className="min-h-[260px]">
           <div className="w-12 h-12 rounded-2xl bg-[#0D1822] flex items-center justify-center">
-            <Users size={24} className="text-[#12D2ED]" />
+            <Users size={24} className="text-[#60A5FA]" />
           </div>
           <div className="mt-5 flex items-center justify-between gap-3">
             <h3 className="text-xl font-bold text-white">Contacts</h3>
@@ -469,7 +465,7 @@ export default function Dashboard() {
           <SectionCard onClick={openScheduleMeeting}>
             <div className="flex justify-between items-center">
               <span className="text-[10px] font-bold text-[#8093AC] tracking-wider uppercase">Upcoming</span>
-              <CalendarCheck2 size={23} className="text-[#12D2ED]" />
+              <CalendarCheck2 size={23} className="text-[#60A5FA]" />
             </div>
             <h3 className="text-xl font-bold text-white mt-3">Calendar</h3>
             <div className="mt-4 min-h-[52px] text-left">
@@ -528,9 +524,9 @@ export default function Dashboard() {
               type="button"
               key={item.id}
               onClick={() => navigate(item.action.path, item.action.state ? { state: item.action.state } : undefined)}
-              className="bg-[#12303F] border border-[#214457] rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#11C7E5]/40 active:scale-95 transition-all text-center min-h-[112px]"
+              className="bg-[#122437] border border-[#254669] rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#3B82F6]/40 active:scale-95 transition-all text-center min-h-[112px]"
             >
-              <div className="w-11 h-11 rounded-2xl bg-[#0e2a38] flex items-center justify-center text-[#12D2ED]">
+              <div className="w-11 h-11 rounded-2xl bg-[#13263D] flex items-center justify-center text-[#60A5FA]">
                 <item.icon size={22} />
               </div>
               <span className="text-xs font-bold text-[#E9F2FF] leading-tight">{item.title}</span>

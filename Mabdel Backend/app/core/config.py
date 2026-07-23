@@ -58,6 +58,15 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str | None = None
     GOOGLE_REDIRECT_URI: str | None = None
     GOOGLE_MOBILE_CLIENT_ID: str | None = None
+    DOCUSIGN_CLIENT_ID: str | None = None
+    DOCUSIGN_CLIENT_SECRET: str | None = None
+    DOCUSIGN_ACCOUNT_ID: str | None = None
+    DOCUSIGN_USER_ID: str | None = None
+    DOCUSIGN_AUTH_SERVER: str = "https://account-d.docusign.com"
+    DOCUSIGN_REDIRECT_URI: str | None = None
+    DOCUSIGN_RETURN_URL: str | None = None
+    DOCUSIGN_CONNECT_SECRET: str | None = None
+    DOCUSIGN_ENVIRONMENT: str = "demo"
     META_CLIENT_ID: str | None = None
     META_CLIENT_SECRET: str | None = None
     META_REDIRECT_URI: str | None = None
@@ -160,6 +169,12 @@ class Settings(BaseSettings):
         if os.getenv("VERCEL") and media_root in {"uploads", "./uploads"}:
             media_root = default_media_root()
         return str(Path(media_root).expanduser())
+
+    @field_validator("PUBLIC_BACKEND_URL", mode="before")
+    @classmethod
+    def normalize_public_backend_url(cls, value: str | None) -> str:
+        normalized = str(value or "").strip().rstrip("/")
+        return normalized or "http://127.0.0.1:8000"
 
     @field_validator("DEBUG", mode="before")
     @classmethod

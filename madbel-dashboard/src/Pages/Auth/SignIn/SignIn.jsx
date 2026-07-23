@@ -2,7 +2,7 @@ import { Checkbox, Form, Input, message } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
-import brandlogo from "../../../assets/image/stone-logo.png";
+import brandlogo from "../../../assets/image/gocustify-mark.png";
 import { isAdminAuthenticated, setAdminSession } from "../../../utils/auth";
 import { loginAdmin } from "../../../services/authApi";
 

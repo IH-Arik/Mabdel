@@ -3,7 +3,12 @@ from __future__ import annotations
 import asyncio
 from datetime import timedelta
 
+from bson import ObjectId
+
 from app.utils.helpers import utc_now
+
+
+from app.tests.conftest import grant_owner_role
 
 
 def _get_latest_otp(db, email: str, purpose: str) -> dict:
@@ -30,6 +35,8 @@ def _auth_headers(client, mock_db, email: str = "bulk@example.com") -> dict[str,
         json={"email": email, "code": otp["code"], "purpose": "signup"},
     )
     assert verify_response.status_code == 200
+
+    grant_owner_role(mock_db, email)
 
     login_response = client.post(
         "/api/v1/auth/login",
@@ -158,6 +165,13 @@ def test_bulk_sms_send_uses_phone_recipients(client, mock_db):
     headers = _auth_headers(client, mock_db, email="bulk-sms@example.com")
     alex_id = _create_contact(client, headers, name="Alex Johnson", email="alex@example.com", phone="+8801711111111")
 
+    from app.services.call_service import CallService
+
+    async def fake_send_sms(self, *, to_number: str, message: str) -> dict:
+        return {"sid": "SM_TEST", "to": to_number, "body": message}
+
+    CallService.send_sms = fake_send_sms
+
     response = client.post(
         "/api/v1/smartflow/bulk-messages",
         headers=headers,
@@ -173,3 +187,66 @@ def test_bulk_sms_send_uses_phone_recipients(client, mock_db):
     assert payload["status"] == "sent"
     assert payload["segment_count"] == 1
     assert payload["deliveries"][0]["target"] == "+8801711111111"
+
+
+def test_bulk_sms_validation_accepts_manual_phone_recipients(client, mock_db):
+    headers = _auth_headers(client, mock_db, email="bulk-sms-raw@example.com")
+
+    response = client.post(
+        "/api/v1/smartflow/bulk-messages/recipients/validate",
+        headers=headers,
+        json={
+            "channel": "sms",
+            "recipient_emails": ["+1 (555) 555-1234", "invalid-phone", "+1 (555) 555-1234"],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["valid_count"] == 1
+    assert payload["invalid_count"] == 1
+    assert payload["duplicate_count"] >= 1
+    assert payload["recipients"][0]["phone"] == "+15555551234"
+
+
+def test_bulk_scheduled_dispatcher_processes_due_campaign(client, mock_db):
+    headers = _auth_headers(client, mock_db, email="bulk-scheduled@example.com")
+
+    from app.services.call_service import CallService
+    from app.services.smartflow.bulk_message_service import BulkMessageService
+
+    async def fake_send_sms(self, *, to_number: str, message: str) -> dict:
+        return {"sid": "SM_SCHEDULED", "to": to_number, "body": message}
+
+    CallService.send_sms = fake_send_sms
+
+    create_response = client.post(
+        "/api/v1/smartflow/bulk-messages",
+        headers=headers,
+        json={
+            "channel": "sms",
+            "recipient_emails": ["+15555551234"],
+            "content": "Scheduled SMS update.",
+            "send_now": False,
+            "scheduled_at": (utc_now() + timedelta(minutes=5)).isoformat(),
+        },
+    )
+    assert create_response.status_code == 201
+    campaign = create_response.json()["data"]
+    assert campaign["status"] == "scheduled"
+
+    bulk_service = BulkMessageService(mock_db)
+    asyncio.run(
+        mock_db.bulk_messages.update_one(
+            {"_id": ObjectId(campaign["id"])},
+            {"$set": {"scheduled_at": utc_now() - timedelta(seconds=1)}},
+        )
+    )
+    processed = asyncio.run(bulk_service.dispatch_due_scheduled_messages())
+    assert processed == 1
+
+    updated = asyncio.run(mock_db.bulk_messages.find_one({"_id": ObjectId(campaign["id"])}))
+    assert updated is not None
+    assert updated["status"] == "sent"
+    assert updated["sent_count"] == 1
+    assert updated["deliveries"][0]["target"] == "+15555551234"

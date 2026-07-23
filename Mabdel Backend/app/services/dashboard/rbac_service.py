@@ -320,10 +320,10 @@ class RBACService:
                 message="Cannot create an account with a role equal to or higher than your own."
             )
 
-        if creator_role == "owner":
+        if creator_role in ("owner", "manager"):
             org_id = current_user.get("organization_id")
             if not org_id:
-                raise AppException(status_code=400, code="MISSING_ORGANIZATION", message="Owner must belong to an organization.")
+                raise AppException(status_code=400, code="MISSING_ORGANIZATION", message=f"{creator_role.capitalize()} must belong to an organization.")
         else:
             org_id = payload.organization_id
 

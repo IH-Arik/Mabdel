@@ -11,7 +11,8 @@ from ._base import SmartFlowBase
 
 class ContactService(SmartFlowBase):
     async def list_contacts(self, user_id: str, page: int, page_size: int, search: str | None) -> dict:
-        filters = {"user_id": user_id}
+        team_ids = await self._resolve_team_user_ids(user_id)
+        filters = {"user_id": {"$in": team_ids}}
         if search:
             filters["$or"] = [
                 {"name": {"$regex": search, "$options": "i"}},
@@ -25,11 +26,11 @@ class ContactService(SmartFlowBase):
             ]
         page_result = await self._paginate(self.db.contacts, filters, page, page_size, "updated_at")
         page_result["items"] = await self._attach_membership_flags([self._serialize_contact(item) for item in page_result["items"]])
-        page_result["summary"] = await self._contact_summary(user_id)
+        page_result["summary"] = await self._contact_summary(team_ids)
         return page_result
 
     async def get_contact(self, user_id: str, contact_id: str) -> dict:
-        contact = await self._get_owned_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
+        contact = await self._get_team_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
         items = await self._attach_membership_flags([self._serialize_contact(contact)])
         return items[0]
 
@@ -60,7 +61,7 @@ class ContactService(SmartFlowBase):
         return items[0]
 
     async def update_contact(self, user_id: str, contact_id: str, updates: dict) -> dict:
-        contact = await self._get_owned_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
+        contact = await self._get_team_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
         clean_updates = {key: value for key, value in updates.items() if value is not None}
         if {"name", "first_name", "last_name"} & set(clean_updates):
             name_payload = {**contact, **clean_updates}
@@ -97,9 +98,9 @@ class ContactService(SmartFlowBase):
                 continue
             normalized_entries.append(normalized)
 
+        team_ids = await self._resolve_team_user_ids(user_id)
         candidate_emails = [entry["email"] for entry in normalized_entries if entry.get("email")]
         candidate_phones = [entry["phone"] for entry in normalized_entries if entry.get("phone")]
-        existing_filters = [{"user_id": user_id}]
         or_filters = []
         if candidate_emails:
             or_filters.append({"email": {"$in": candidate_emails}})
@@ -108,27 +109,28 @@ class ContactService(SmartFlowBase):
         existing_contacts = []
         if or_filters:
             existing_contacts = await self.db.contacts.find(
-                {"user_id": user_id, "$or": or_filters},
+                {"user_id": {"$in": team_ids}, "$or": or_filters},
                 {"email": 1, "phone": 1},
             ).to_list(length=1000)
 
         existing_emails = {self._normalize_email(item.get("email")) for item in existing_contacts if self._normalize_email(item.get("email"))}
-        existing_phones = {self._normalize_phone(item.get("phone")) for item in existing_contacts if self._normalize_phone(item.get("phone"))}
+        existing_phones = {self._phone_dedupe_key(item.get("phone")) for item in existing_contacts if self._phone_dedupe_key(item.get("phone"))}
         seen_emails: set[str] = set()
         seen_phones: set[str] = set()
 
         for entry in normalized_entries:
             email = entry.get("email")
             phone = entry.get("phone")
+            phone_key = self._phone_dedupe_key(phone)
             if email and (email in existing_emails or email in seen_emails):
                 duplicate_entries.append(self._import_result_entry(entry, reason="Duplicate email"))
                 continue
-            if phone and (phone in existing_phones or phone in seen_phones):
+            if phone_key and (phone_key in existing_phones or phone_key in seen_phones):
                 duplicate_entries.append(self._import_result_entry(entry, reason="Duplicate phone"))
                 continue
 
             seen_emails.update([email] if email else [])
-            seen_phones.update([phone] if phone else [])
+            seen_phones.update([phone_key] if phone_key else [])
 
             document = {
                 "user_id": user_id,
@@ -166,11 +168,11 @@ class ContactService(SmartFlowBase):
         }
 
     async def delete_contact(self, user_id: str, contact_id: str) -> None:
-        contact = await self._get_owned_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
+        contact = await self._get_team_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
         await self.db.contacts.delete_one({"_id": contact["_id"]})
 
     async def store_contact_avatar(self, user_id: str, contact_id: str, file_bytes: bytes, content_type: str | None, filename: str | None) -> dict:
-        contact = await self._get_owned_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
+        contact = await self._get_team_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
         avatar_url = self._store_image_file(
             user_id=user_id,
             folder="contact_avatars",
@@ -326,6 +328,15 @@ class ContactService(SmartFlowBase):
         if raw.strip().startswith("+"):
             return f"+{digits_only}"
         return digits_only
+
+    @staticmethod
+    def _phone_dedupe_key(value: str | None) -> str | None:
+        """Digits-only key, trimmed to the last 10 digits so the same number
+        with and without a country code still collides."""
+        digits_only = re.sub(r"\D", "", str(value or ""))
+        if not digits_only:
+            return None
+        return digits_only[-10:] if len(digits_only) > 10 else digits_only
 
     @staticmethod
     def _is_valid_import_phone(value: str | None) -> bool:

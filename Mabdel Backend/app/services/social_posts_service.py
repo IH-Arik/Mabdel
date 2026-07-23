@@ -9,7 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.crypto import decrypt_value
 from app.core.exceptions import AppException
-from app.utils.helpers import serialize_mongo_document, utc_now
+from app.utils.helpers import resolve_team_user_ids, serialize_mongo_document, utc_now
 
 META_GRAPH_VERSION = "v19.0"
 META_GRAPH_BASE = f"https://graph.facebook.com/{META_GRAPH_VERSION}"
@@ -32,6 +32,7 @@ class SocialPostsService:
         scheduled_at: datetime | None = payload.get("scheduled_at")
 
         results: list[dict] = []
+        team_ids = await resolve_team_user_ids(self.db, user_id)
 
         for platform in platforms:
             if scheduled_at and scheduled_at > utc_now():
@@ -40,6 +41,8 @@ class SocialPostsService:
 
             integration = await self.db.social_integrations.find_one(
                 {"user_id": user_id, "platform": platform, "status": "connected"}
+            ) or await self.db.social_integrations.find_one(
+                {"user_id": {"$in": team_ids}, "platform": platform, "status": "connected"}
             )
             if not integration:
                 results.append({"platform": platform, "status": "not_connected", "post_id": None, "error": f"No connected {platform} account."})
@@ -86,9 +89,10 @@ class SocialPostsService:
         return serialize_mongo_document(doc)
 
     async def list_posts(self, user_id: str, page: int = 1, page_size: int = 20) -> dict:
+        team_ids = await resolve_team_user_ids(self.db, user_id)
         skip = (page - 1) * page_size
-        total = await self.db.social_posts.count_documents({"user_id": user_id})
-        docs = await self.db.social_posts.find({"user_id": user_id}).sort("created_at", -1).skip(skip).limit(page_size).to_list(length=page_size)
+        total = await self.db.social_posts.count_documents({"user_id": {"$in": team_ids}})
+        docs = await self.db.social_posts.find({"user_id": {"$in": team_ids}}).sort("created_at", -1).skip(skip).limit(page_size).to_list(length=page_size)
         return {
             "items": [serialize_mongo_document(d) for d in docs],
             "total": total,
@@ -101,7 +105,8 @@ class SocialPostsService:
             oid = ObjectId(post_id)
         except Exception:
             raise AppException(status_code=400, code="INVALID_POST_ID", message="Invalid post ID.")
-        doc = await self.db.social_posts.find_one({"_id": oid, "user_id": user_id})
+        team_ids = await resolve_team_user_ids(self.db, user_id)
+        doc = await self.db.social_posts.find_one({"_id": oid, "user_id": {"$in": team_ids}})
         if not doc:
             raise AppException(status_code=404, code="POST_NOT_FOUND", message="Social post not found.")
         return serialize_mongo_document(doc)

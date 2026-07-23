@@ -277,6 +277,14 @@ class SmartFlowService(SmartFlowBase):
     # ==================================================================
     # Bulk messages (delegated)
     # ==================================================================
+    async def store_bulk_message_attachment(self, user_id, *, file_bytes, content_type, filename):
+        return await self.bulk_message_service.store_bulk_message_attachment(
+            user_id, file_bytes=file_bytes, content_type=content_type, filename=filename
+        )
+
+    async def improve_bulk_message_content(self, user_id, content):
+        return await self.bulk_message_service.improve_bulk_message_content(user_id, content)
+
     async def validate_bulk_recipients(self, user_id, payload):
         return await self.bulk_message_service.validate_bulk_recipients(user_id, payload)
 
@@ -376,6 +384,18 @@ class SmartFlowService(SmartFlowBase):
     async def send_agreement_for_signature(self, user_id, agreement_id, payload):
         return await self.agreement_service.send_agreement_for_signature(user_id, agreement_id, payload)
 
+    async def get_docusign_status(self, user_id):
+        return await self.agreement_service.get_docusign_status(user_id)
+
+    async def start_docusign_oauth(self, user_id):
+        return await self.agreement_service.start_docusign_oauth(user_id)
+
+    async def complete_docusign_oauth(self, code, state):
+        return await self.agreement_service.complete_docusign_oauth(code, state)
+
+    async def handle_docusign_webhook(self, raw_body, payload):
+        return await self.agreement_service.handle_docusign_webhook(raw_body, payload)
+
     async def sign_agreement(self, user_id, agreement_id, payload):
         return await self.agreement_service.sign_agreement(user_id, agreement_id, payload)
 
@@ -390,6 +410,12 @@ class SmartFlowService(SmartFlowBase):
 
     async def generate_agreement_pdf(self, user_id, agreement_id):
         return await self.agreement_service.generate_agreement_pdf(user_id, agreement_id)
+
+    async def download_signed_agreement_pdf(self, user_id, agreement_id):
+        return await self.agreement_service.download_signed_agreement_pdf(user_id, agreement_id)
+
+    async def download_agreement_completion_certificate(self, user_id, agreement_id):
+        return await self.agreement_service.download_agreement_completion_certificate(user_id, agreement_id)
 
     async def generate_public_agreement_pdf(self, signature_token):
         return await self.agreement_service.generate_public_agreement_pdf(signature_token)

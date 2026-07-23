@@ -4,6 +4,7 @@ import asyncio
 
 from app.core.config import settings
 from app.core.security import create_access_token, hash_password
+from app.tests.conftest import grant_owner_role
 
 
 async def _create_user(mock_db, email: str = "webhook@example.com") -> str:
@@ -192,6 +193,7 @@ def test_whatsapp_webhook_integration(client, mock_db, monkeypatch):
     monkeypatch.setattr(settings, "WEBHOOK_SHARED_SECRET", "super-secret")
     monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
     user_id = asyncio.run(_create_user(mock_db, email="whatsapp-user@example.com"))
+    grant_owner_role(mock_db, "whatsapp-user@example.com")
 
     # 1. Connect WhatsApp manual integration
     connect_payload = {

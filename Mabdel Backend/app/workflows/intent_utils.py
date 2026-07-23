@@ -41,7 +41,8 @@ _INTENT_PATTERNS: list[tuple[str, tuple[re.Pattern[str], ...]]] = [
     )),
     ("bulk_message", (
         re.compile(r"\bbulk\s+message\b", re.I),
-        re.compile(r"\bmass\s+message\b", re.I),
+        re.compile(r"\bbulk\s+(?:e-?mail|mail|sms)\b", re.I),
+        re.compile(r"\bmass\s+(?:message|e-?mail|mail|sms)\b", re.I),
         re.compile(r"\bbroadcast\b", re.I),
     )),
     ("calendar", (

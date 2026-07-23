@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import tempfile
 from contextlib import asynccontextmanager
@@ -17,9 +18,11 @@ from app.core.config import settings
 from app.core.database import close_database_connection, mongo_manager
 from app.core.exceptions import register_exception_handlers
 from app.core.http import AuthRateLimitMiddleware, MutationRateLimitMiddleware, RequestContextMiddleware
+from app.services.smartflow.bulk_message_service import BulkMessageService
 from app.utils.responses import success_response
 
 logger = logging.getLogger(__name__)
+_BULK_DISPATCH_POLL_SECONDS = 5
 
 API_DESCRIPTION = (
     "Backend API for Mabdel client applications. "
@@ -44,6 +47,22 @@ OPENAPI_TAGS = [
 ]
 
 
+async def _scheduled_bulk_dispatcher(stop_event: asyncio.Event) -> None:
+    while not stop_event.is_set():
+        try:
+            database = mongo_manager.database
+            if database is not None:
+                processed = await BulkMessageService(database).dispatch_due_scheduled_messages()
+                if processed:
+                    logger.info("Bulk scheduler dispatched %s scheduled campaign(s).", processed)
+        except Exception:  # pragma: no cover - background loop logging path
+            logger.exception("Bulk scheduler loop failed.")
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=_BULK_DISPATCH_POLL_SECONDS)
+        except asyncio.TimeoutError:
+            continue
+
+
 def mount_media(app: FastAPI) -> None:
     media_root = Path(settings.MEDIA_ROOT)
     try:
@@ -60,11 +79,20 @@ def mount_media(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    stop_event = asyncio.Event()
+    scheduler_task: asyncio.Task | None = None
     try:
         await mongo_manager.connect()
+        scheduler_task = asyncio.create_task(_scheduled_bulk_dispatcher(stop_event))
     except Exception as exc:  # pragma: no cover - startup log path
         logger.warning("MongoDB connection could not be established at startup: %s", exc)
     yield
+    stop_event.set()
+    if scheduler_task is not None:
+        try:
+            await scheduler_task
+        except Exception:  # pragma: no cover - shutdown log path
+            logger.exception("Bulk scheduler task failed during shutdown.")
     await close_database_connection()
 
 

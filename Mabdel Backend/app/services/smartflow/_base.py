@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import html as html_lib
+import logging
 import re
 import secrets
 import json
@@ -22,14 +24,18 @@ from app.core.crypto import decrypt_value, encrypt_value
 from app.core.exceptions import AppException
 from app.core.realtime import conversation_realtime_hub, inbox_realtime_hub
 from app.core.security import hash_password, verify_password
+from app.models.rbac_models import ROLE_HIERARCHY
 from app.services.call_service import CallService
 from app.services.email_service import EmailService
 from app.services.mabdel_ai_service import MabdelAIService
 from app.services.media_storage_service import MediaStorageService
 from app.services.push_notification_service import PushNotificationService
+from app.services.rbac_service import RBACService
 from app.services.social_provider_adapters import get_social_provider_adapter
-from app.utils.helpers import serialize_mongo_document, serialize_mongo_documents, utc_now
+from app.utils.helpers import resolve_team_user_ids, serialize_mongo_document, serialize_mongo_documents, utc_now
 from app.workflows.graph import run_assistant_workflow
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_SUBSCRIPTION_PLANS: list[dict] = [
@@ -100,6 +106,7 @@ class SmartFlowBase:
         self.ai_service = MabdelAIService()
         self.call_service = CallService()
         self.media_storage = MediaStorageService()
+        self.rbac_service = RBACService(db)
 
     # ------------------------------------------------------------------
     # Shared public methods (used across many domains)
@@ -213,6 +220,23 @@ class SmartFlowBase:
             raise AppException(status_code=404, code=code, message="Requested resource was not found.")
         return document
 
+    async def _resolve_team_user_ids(self, user_id: str) -> list[str]:
+        """Every user_id that shares CRM data visibility with this user (their
+        organization), or just themselves if unscoped. Used to broaden contacts/
+        invoices/leases/agreements from per-creator to org-wide."""
+        return await resolve_team_user_ids(self.db, user_id)
+
+    async def _get_team_document(self, collection, user_id: str, document_id: str, code: str) -> dict:
+        """Like _get_owned_document, but visible/editable by anyone in the same
+        organization as the creator — not just the creator themselves."""
+        if not ObjectId.is_valid(document_id):
+            raise AppException(status_code=404, code=code, message="Requested resource was not found.")
+        team_ids = await self._resolve_team_user_ids(user_id)
+        document = await collection.find_one({"_id": ObjectId(document_id), "user_id": {"$in": team_ids}})
+        if not document:
+            raise AppException(status_code=404, code=code, message="Requested resource was not found.")
+        return document
+
     async def _get_user_document(self, user_id: str) -> dict:
         if not ObjectId.is_valid(user_id):
             raise AppException(status_code=404, code="USER_NOT_FOUND", message="Requested resource was not found.")
@@ -293,11 +317,12 @@ class SmartFlowBase:
             raise AppException(status_code=422, code="CONTACT_NAME_REQUIRED", message="Contact name is required.")
         return {"name": name, "first_name": first_name or None, "last_name": last_name or None}
 
-    async def _contact_summary(self, user_id: str) -> dict:
-        total = await self.db.contacts.count_documents({"user_id": user_id})
-        online = await self.db.contacts.count_documents({"user_id": user_id, "presence": "online"})
-        with_email = await self.db.contacts.count_documents({"user_id": user_id, "email": {"$nin": [None, ""]}})
-        with_phone = await self.db.contacts.count_documents({"user_id": user_id, "phone": {"$nin": [None, ""]}})
+    async def _contact_summary(self, user_ids: list[str]) -> dict:
+        base = {"user_id": {"$in": user_ids}}
+        total = await self.db.contacts.count_documents(base)
+        online = await self.db.contacts.count_documents({**base, "presence": "online"})
+        with_email = await self.db.contacts.count_documents({**base, "email": {"$nin": [None, ""]}})
+        with_phone = await self.db.contacts.count_documents({**base, "phone": {"$nin": [None, ""]}})
         return {
             "total_contacts": total,
             "online_contacts": online,
@@ -1118,6 +1143,86 @@ class SmartFlowBase:
             normalized.append(member_id)
         return normalized
 
+    ROLE_GROUP_SLUGS = {"manager", "staff", "assistant"}
+
+    async def _resolve_group_member_user_id(self, member_id: str) -> str | None:
+        """Resolve a group member_id (which may be a contact or a user) to a real platform user id.
+
+        Group members are usually picked from the Contacts list in the UI, so member_id is
+        typically a contact _id, not a user _id. RBAC only applies to real accounts, so a
+        contact is treated as "linked" when its email matches a registered user's email.
+        """
+        if not ObjectId.is_valid(member_id):
+            return None
+        direct_user = await self.db.users.find_one({"_id": ObjectId(member_id)})
+        if direct_user:
+            return str(direct_user["_id"])
+        contact = await self.db.contacts.find_one({"_id": ObjectId(member_id)})
+        contact_email = (contact or {}).get("email")
+        if not contact_email:
+            return None
+        linked_user = await self.db.users.find_one({"email": contact_email})
+        return str(linked_user["_id"]) if linked_user else None
+
+    async def _sync_role_group_membership(
+        self,
+        owner_user_id: str,
+        role_slug: str | None,
+        added_member_ids: list[str],
+        removed_member_ids: list[str],
+    ) -> None:
+        """Keep RBAC role assignments in sync with membership of a role-linked group.
+
+        Groups tagged with a role_slug (manager/staff/assistant) mirror their membership
+        into RBAC role assignments for any member that resolves to a registered platform
+        user (contacts with no matching account are skipped - RBAC only applies to real accounts).
+        """
+        if not role_slug or role_slug not in self.ROLE_GROUP_SLUGS:
+            return
+        if not added_member_ids and not removed_member_ids:
+            return
+
+        owner = await self._get_user_document(owner_user_id)
+        owner_role_slugs = await self.rbac_service.get_user_role_slugs(
+            owner_user_id, (owner or {}).get("role", "user")
+        )
+        assigner_role = (
+            max(owner_role_slugs, key=lambda slug: ROLE_HIERARCHY.get(slug, 0))
+            if owner_role_slugs
+            else "user"
+        )
+
+        for member_id in dict.fromkeys(added_member_ids):
+            target_user_id = await self._resolve_group_member_user_id(member_id)
+            if not target_user_id:
+                continue
+            try:
+                await self.rbac_service.assign_role_to_user(
+                    user_id=target_user_id,
+                    role_slug=role_slug,
+                    assigned_by=owner_user_id,
+                    assigned_by_role=assigner_role,
+                )
+            except AppException as exc:
+                logger.warning(
+                    "Skipped RBAC role sync (assign %s -> %s): %s", target_user_id, role_slug, exc.message
+                )
+
+        for member_id in dict.fromkeys(removed_member_ids):
+            target_user_id = await self._resolve_group_member_user_id(member_id)
+            if not target_user_id:
+                continue
+            try:
+                await self.rbac_service.revoke_role_from_user(
+                    user_id=target_user_id,
+                    role_slug=role_slug,
+                    revoked_by_role=assigner_role,
+                )
+            except AppException as exc:
+                logger.warning(
+                    "Skipped RBAC role sync (revoke %s -> %s): %s", target_user_id, role_slug, exc.message
+                )
+
     @staticmethod
     def _normalize_group_admin_ids(member_ids: list[str], admin_ids: list[str]) -> list[str]:
         valid_members = set(member_ids)
@@ -1407,8 +1512,11 @@ class SmartFlowBase:
         safe["message_sync_enabled"] = bool(safe.get("message_sync_enabled", adapter.supports_webhooks or adapter.supports_recent_sync))
         safe["webhook_status"] = safe.get("webhook_status") or ("configured" if connected and adapter.supports_webhooks else "not_configured")
         safe["external_account_name"] = safe.get("external_account_name")
+        needs_reauth = connected and safe.get("sync_status") == "needs_reauth"
         if not meta["is_configured"]:
             health_status = "misconfigured"
+        elif needs_reauth:
+            health_status = "needs_reauth"
         elif connected and safe.get("sync_status") == "error":
             health_status = "error"
         elif connected:
@@ -1416,7 +1524,12 @@ class SmartFlowBase:
         else:
             health_status = "disconnected"
         safe["health_status"] = health_status
-        safe["cta_label"] = "Connected" if connected else ("Connect" if meta["is_configured"] else "Unavailable")
+        if needs_reauth:
+            safe["cta_label"] = "Reconnect"
+        elif connected:
+            safe["cta_label"] = "Connected"
+        else:
+            safe["cta_label"] = "Connect" if meta["is_configured"] else "Unavailable"
         return safe
 
     def _integration_metadata(self, platform: str | None) -> dict:
@@ -1824,12 +1937,37 @@ class SmartFlowBase:
                 continue
 
             if document["channel"] == "email":
+                text_body = document["content"]
+                html_body = f"<p>{html_lib.escape(document['content'])}</p>"
+                attachments = document.get("attachments") or []
+                if attachments:
+                    text_body += "\n\nAttachments:\n" + "\n".join(
+                        f"- {attachment.get('label') or attachment.get('url')}: {attachment.get('url')}"
+                        for attachment in attachments
+                    )
+                    html_body += "<p><strong>Attachments:</strong></p><ul>" + "".join(
+                        f'<li><a href="{html_lib.escape(attachment.get("url") or "")}">{html_lib.escape(attachment.get("label") or attachment.get("url") or "")}</a></li>'
+                        for attachment in attachments
+                    ) + "</ul>"
                 try:
                     await EmailService().send_invoice_email(
                         email=target,
                         subject=document.get("subject") or "Mabdel bulk message",
-                        text=document["content"],
-                        html=f"<p>{document['content']}</p>",
+                        text=text_body,
+                        html=html_body,
+                    )
+                    status = "sent"
+                    error = None
+                    sent_count += 1
+                except Exception as exc:
+                    status = "failed"
+                    error = str(exc)
+                    failed_count += 1
+            elif document["channel"] == "sms":
+                try:
+                    await self.call_service.send_sms(
+                        to_number=target,
+                        message=document["content"],
                     )
                     status = "sent"
                     error = None
@@ -1839,9 +1977,9 @@ class SmartFlowBase:
                     error = str(exc)
                     failed_count += 1
             else:
-                status = "sent"
-                error = None
-                sent_count += 1
+                status = "failed"
+                error = f"Unsupported bulk channel: {document['channel']}"
+                failed_count += 1
 
             deliveries.append(
                 {
@@ -1902,11 +2040,20 @@ class SmartFlowBase:
         seen_raw_inputs: set[str] = set()
 
         def add_recipient(entry: dict, *, raw_key: str | None = None) -> None:
-            target = (entry.get("email") if channel == "email" else entry.get("phone")) or ""
-            normalized_target = target.strip().lower()
+            if channel == "email":
+                target = (entry.get("email") or "").strip().lower()
+                normalized_target = target
+                entry["email"] = target or None
+            else:
+                target = self._normalize_phone_value(entry.get("phone"))
+                normalized_target = target
+                entry["phone"] = target or None
             if not normalized_target:
                 if raw_key:
                     invalid_entries.append(raw_key)
+                return
+            if channel == "sms" and not self._is_valid_phone(normalized_target):
+                invalid_entries.append(raw_key or normalized_target)
                 return
             if normalized_target in seen_targets:
                 duplicate_entries.append(raw_key or normalized_target)
@@ -1914,32 +2061,56 @@ class SmartFlowBase:
             seen_targets.add(normalized_target)
             recipients.append(entry)
 
-        for raw_email in payload.get("recipient_emails", []):
-            if not isinstance(raw_email, str):
+        for raw_input in payload.get("recipient_emails", []):
+            if not isinstance(raw_input, str):
                 continue
-            normalized = raw_email.strip().lower()
+            normalized = raw_input.strip()
             if not normalized:
                 continue
-            if normalized in seen_raw_inputs:
-                duplicate_entries.append(normalized)
-                continue
-            seen_raw_inputs.add(normalized)
-            if not self._is_valid_email(normalized):
+            raw_seen_key = normalized.lower() if channel == "email" else self._normalize_phone_value(normalized)
+            if not raw_seen_key:
                 invalid_entries.append(normalized)
                 continue
+            if raw_seen_key in seen_raw_inputs:
+                duplicate_entries.append(normalized)
+                continue
             if channel == "email":
+                normalized_email = normalized.lower()
+                seen_raw_inputs.add(raw_seen_key)
+                if not self._is_valid_email(normalized_email):
+                    invalid_entries.append(normalized)
+                    continue
                 add_recipient(
                     {
                         "id": None,
-                        "name": normalized,
-                        "email": normalized,
+                        "name": normalized_email,
+                        "email": normalized_email,
                         "phone": None,
                         "avatar_url": None,
-                        "initials": self._contact_initials(normalized),
+                        "initials": self._contact_initials(normalized_email),
                         "source": "raw_email",
                     },
-                    raw_key=normalized,
+                    raw_key=normalized_email,
                 )
+                continue
+
+            normalized_phone = self._normalize_phone_value(normalized)
+            seen_raw_inputs.add(raw_seen_key)
+            if not self._is_valid_phone(normalized_phone):
+                invalid_entries.append(normalized)
+                continue
+            add_recipient(
+                {
+                    "id": None,
+                    "name": normalized_phone,
+                    "email": None,
+                    "phone": normalized_phone,
+                    "avatar_url": None,
+                    "initials": self._contact_initials(normalized_phone),
+                    "source": "raw_phone",
+                },
+                raw_key=normalized_phone,
+            )
 
         for contact_id in list(dict.fromkeys(payload.get("contact_ids", []))):
             if not ObjectId.is_valid(contact_id):
@@ -2028,6 +2199,25 @@ class SmartFlowBase:
     def _is_valid_email(value: str) -> bool:
         return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value))
 
+    @staticmethod
+    def _normalize_phone_value(value: str | None) -> str:
+        if not isinstance(value, str):
+            return ""
+        cleaned = re.sub(r"[^\d+]", "", value.strip())
+        if cleaned.count("+") > 1:
+            return ""
+        if "+" in cleaned and not cleaned.startswith("+"):
+            return ""
+        if cleaned.startswith("00"):
+            cleaned = f"+{cleaned[2:]}"
+        if cleaned and not cleaned.startswith("+"):
+            cleaned = f"+{cleaned}"
+        return cleaned
+
+    def _is_valid_phone(self, value: str) -> bool:
+        normalized = self._normalize_phone_value(value)
+        return bool(re.fullmatch(r"\+[1-9]\d{7,14}", normalized))
+
     # ------------------------------------------------------------------
     # Agreement / lease shared helpers
     # ------------------------------------------------------------------
@@ -2050,9 +2240,10 @@ class SmartFlowBase:
         return f"LD-{date.today().year}-{int(counter['seq']):04d}"
 
     async def _expire_stale_agreements(self, user_id: str) -> None:
+        team_ids = await self._resolve_team_user_ids(user_id)
         await self.db.agreements.update_many(
             {
-                "user_id": user_id,
+                "user_id": {"$in": team_ids},
                 "status": {"$in": ["draft", "pending_signature"]},
                 "end_date": {"$lt": date.today().isoformat()},
             },
@@ -2060,9 +2251,10 @@ class SmartFlowBase:
         )
 
     async def _expire_stale_leases(self, user_id: str) -> None:
+        team_ids = await self._resolve_team_user_ids(user_id)
         await self.db.agreements.update_many(
             {
-                "user_id": user_id,
+                "user_id": {"$in": team_ids},
                 "agreement_type": "lease",
                 "status": {"$nin": ["expired", "cancelled"]},
                 "end_date": {"$lt": date.today().isoformat()},
@@ -2092,13 +2284,13 @@ class SmartFlowBase:
         return lease
 
     async def _get_owned_lease(self, user_id: str, lease_id: str) -> dict:
-        lease = await self._get_owned_document(self.db.agreements, user_id, lease_id, "LEASE_NOT_FOUND")
+        lease = await self._get_team_document(self.db.agreements, user_id, lease_id, "LEASE_NOT_FOUND")
         if lease.get("agreement_type") != "lease":
             raise AppException(status_code=404, code="LEASE_NOT_FOUND", message="Requested lease was not found.")
         return lease
 
-    def _lease_list_filters(self, user_id: str, search: str | None, status: str | None) -> dict:
-        filters: dict = {"user_id": user_id, "agreement_type": "lease"}
+    def _lease_list_filters(self, user_ids: list[str], search: str | None, status: str | None) -> dict:
+        filters: dict = {"user_id": {"$in": user_ids}, "agreement_type": "lease"}
         and_clauses: list[dict] = []
         today = date.today().isoformat()
         if status and status != "all":
@@ -2112,17 +2304,36 @@ class SmartFlowBase:
             elif status in {"draft", "cancelled"}:
                 and_clauses.append({"status": status})
         if search:
+            escaped_search = re.escape(search)
+            normalized_search = str(search).strip().lower().replace(" ", "_")
+            search_clauses = [
+                {"title": {"$regex": escaped_search, "$options": "i"}},
+                {"client_name": {"$regex": escaped_search, "$options": "i"}},
+                {"client_email": {"$regex": escaped_search, "$options": "i"}},
+                {"agreement_number": {"$regex": escaped_search, "$options": "i"}},
+                {"metadata.lease.tenant_name": {"$regex": escaped_search, "$options": "i"}},
+                {"metadata.lease.landlord_name": {"$regex": escaped_search, "$options": "i"}},
+                {"metadata.lease.property_address": {"$regex": escaped_search, "$options": "i"}},
+                {"client_phone": {"$regex": escaped_search, "$options": "i"}},
+                {"metadata.lease.tenant_phone": {"$regex": escaped_search, "$options": "i"}},
+                {"status": {"$regex": escaped_search, "$options": "i"}},
+            ]
+            if normalized_search == "active":
+                search_clauses.append({"status": "signed"})
+            elif normalized_search == "pending_signature":
+                search_clauses.append({"status": "pending_signature"})
+            elif normalized_search == "draft":
+                search_clauses.append({"status": "draft"})
+            elif normalized_search == "cancelled":
+                search_clauses.append({"status": "cancelled"})
+            elif normalized_search == "expired":
+                search_clauses.extend([
+                    {"status": "expired"},
+                    {"end_date": {"$lt": today}},
+                ])
             and_clauses.append(
                 {
-                    "$or": [
-                        {"title": {"$regex": search, "$options": "i"}},
-                        {"client_name": {"$regex": search, "$options": "i"}},
-                        {"client_email": {"$regex": search, "$options": "i"}},
-                        {"agreement_number": {"$regex": search, "$options": "i"}},
-                        {"metadata.lease.tenant_name": {"$regex": search, "$options": "i"}},
-                        {"metadata.lease.landlord_name": {"$regex": search, "$options": "i"}},
-                        {"metadata.lease.property_address": {"$regex": search, "$options": "i"}},
-                    ]
+                    "$or": search_clauses
                 }
             )
         if and_clauses:
@@ -2289,8 +2500,10 @@ class SmartFlowBase:
         safe["property_type"] = details["property_type"]
         safe["property_type_label"] = self._lease_property_type_label(details["property_type"])
         safe["monthly_rent_cents"] = details["monthly_rent_cents"]
+        safe["monthly_rent"] = round((details["monthly_rent_cents"] or 0) / 100, 2)
         safe["monthly_rent_label"] = self._money_label(details["monthly_rent_cents"], details["currency"], suffix="/mo")
         safe["security_deposit_cents"] = details["security_deposit_cents"]
+        safe["security_deposit"] = round((details["security_deposit_cents"] or 0) / 100, 2)
         safe["security_deposit_label"] = self._money_label(details["security_deposit_cents"], details["currency"])
         safe["currency"] = details["currency"]
         safe["rent_due_day"] = details["rent_due_day"]
@@ -2320,6 +2533,10 @@ class SmartFlowBase:
             "label": safe["duration_label"],
         }
         safe["created_date_label"] = self._date_label(safe.get("created_at"))
+        safe["renewed_from_lease_id"] = lease.get("renewed_from_lease_id") or (lease.get("metadata") or {}).get("renewed_from_lease_id")
+        safe["renewed_from_lease_number"] = lease.get("renewed_from_lease_number") or (lease.get("metadata") or {}).get("renewed_from_lease_number")
+        safe["renewed_to_lease_id"] = lease.get("renewed_to_lease_id") or (lease.get("metadata") or {}).get("renewed_to_lease_id")
+        safe["renewed_to_lease_number"] = lease.get("renewed_to_lease_number") or (lease.get("metadata") or {}).get("renewed_to_lease_number")
         existing_review = lease.get("ai_review") or []
         safe["ai_review"] = existing_review if any(item.get("key") == "duration" for item in existing_review) else self._review_lease_content(lease.get("content", ""), details)
         safe["actions"] = self._lease_actions(lease_status, lease)
@@ -2686,12 +2903,20 @@ class SmartFlowBase:
         safe.pop("user_id", None)
         agreement_id = safe["id"]
         status = self._derive_agreement_status(safe)
+        docusign = safe.get("docusign") or {}
         safe["status"] = status
         safe["agreement_type_label"] = self._agreement_type_label(safe.get("agreement_type"))
         safe["status_label"] = self._agreement_status_label(status)
         safe["status_tone"] = self._agreement_status_tone(status)
         safe["smart_fields"] = self._normalize_agreement_smart_fields(safe.get("smart_fields"))
         safe["ai_review"] = safe.get("ai_review") or self._review_agreement_content(safe.get("content", ""), safe.get("agreement_type", "contract"))
+        safe["signature_provider"] = safe.get("signature_provider") or ("docusign" if docusign.get("envelope_id") else "native")
+        safe["provider_status"] = docusign.get("provider_status")
+        safe["provider_envelope_id"] = docusign.get("envelope_id")
+        safe["provider_error"] = docusign.get("last_error")
+        safe["provider_signing_url"] = docusign.get("recipient_view_url")
+        safe["signed_pdf_url"] = self._agreement_signed_pdf_url(agreement_id) if docusign.get("signed_pdf_public_path") else None
+        safe["completion_certificate_url"] = self._agreement_certificate_url(agreement_id) if docusign.get("certificate_public_path") else None
         safe["signature_request_url"] = self._agreement_signature_url(safe["signature_request_token"]) if safe.get("signature_request_token") else None
         safe["pdf_url"] = self._agreement_pdf_url(agreement_id)
         safe["actions"] = self._agreement_actions(status)
@@ -2752,6 +2977,14 @@ class SmartFlowBase:
     @staticmethod
     def _agreement_pdf_url(agreement_id: str) -> str:
         return f"/api/v1/smartflow/agreements/{agreement_id}/pdf"
+
+    @staticmethod
+    def _agreement_signed_pdf_url(agreement_id: str) -> str:
+        return f"/api/v1/smartflow/agreements/{agreement_id}/signed-pdf"
+
+    @staticmethod
+    def _agreement_certificate_url(agreement_id: str) -> str:
+        return f"/api/v1/smartflow/agreements/{agreement_id}/completion-certificate"
 
     @staticmethod
     def _agreement_signature_url(token: str) -> str:

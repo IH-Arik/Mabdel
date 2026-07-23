@@ -51,6 +51,10 @@ export const smartflowApi = {
 
 
   // Bulk Messaging
+  uploadBulkMessageAttachment: (formData) => client.post('/api/v1/smartflow/bulk-messages/attachments', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  improveBulkMessageContent: (content) => client.post('/api/v1/smartflow/bulk-messages/improve-content', { content }),
   validateBulkRecipients: (data) => client.post('/api/v1/smartflow/bulk-messages/recipients/validate', data),
   getBulkMessages: (params) => client.get('/api/v1/smartflow/bulk-messages', { params }),
   createBulkMessage: (data) => client.post('/api/v1/smartflow/bulk-messages', data),
@@ -61,12 +65,12 @@ export const smartflowApi = {
   getDocuments: () => client.get('/api/v1/smartflow/documents'),
   createDocument: (data) => client.post('/api/v1/smartflow/documents', data),
   deleteDocument: (id) => client.delete(`/api/v1/smartflow/documents/${id}`),
-  getLeases: () => client.get('/api/v1/smartflow/leases'),
+  getLeases: (params) => client.get('/api/v1/smartflow/leases', { params }),
   createLease: (data) => client.post('/api/v1/smartflow/leases', data),
   generateLease: (data) => client.post('/api/v1/smartflow/leases/generate', data),
   enhanceLeaseTerms: (data) => client.post('/api/v1/smartflow/leases/enhance-terms', data),
   reviewLease: (data) => client.post('/api/v1/smartflow/leases/review', data),
-  getAgreements: () => client.get('/api/v1/smartflow/agreements'),
+  getAgreements: (params) => client.get('/api/v1/smartflow/agreements', { params }),
   createAgreement: (data) => client.post('/api/v1/smartflow/agreements', data),
   generateAgreement: (data) => client.post('/api/v1/smartflow/agreements/generate', data),
   reviewAgreement: (data) => client.post('/api/v1/smartflow/agreements/review', data),
@@ -123,6 +127,13 @@ export const smartflowApi = {
   getSupportSession: () => client.get('/api/v1/smartflow/support/session'),
   getSupportMessages: (params) => client.get('/api/v1/smartflow/support/messages', { params }),
   sendSupportMessage: (data) => client.post('/api/v1/smartflow/support/messages', data),
+  getContentPage: (slug) => client.get(`/api/v1/content/pages/${slug}`),
+  getAboutUs: () => client.get('/api/v1/content/about-us'),
+  getTermsAndConditions: () => client.get('/api/v1/content/terms-and-conditions'),
+  getPrivacyPolicy: () => client.get('/api/v1/content/privacy-policy'),
+  getSmsMessagingPolicy: () => client.get('/api/v1/content/sms-messaging-policy'),
+  getAcceptableUsePolicy: () => client.get('/api/v1/content/acceptable-use-policy'),
+  getHelpSupportContent: () => client.get('/api/v1/content/help-support'),
 
   // Shop
   listShopProducts: (params) => client.get('/api/v1/shop/products', { params }),
@@ -140,6 +151,11 @@ export const smartflowApi = {
   // Voice History (alias for AI history in settings)
   getVoiceHistory: () => client.get('/api/v1/smartflow/ai/history'),
   replayVoiceHistory: (id) => client.post(`/api/v1/smartflow/ai/history/${id}/replay`),
+  getTwilioStatus: () => client.get('/api/v1/twilio/status'),
+  provisionTwilio: () => client.post('/api/v1/twilio/provision'),
+  releaseTwilio: () => client.delete('/api/v1/twilio/release'),
+  saveCustomTwilio: (data) => client.post('/api/v1/twilio/custom', data),
+  removeCustomTwilio: () => client.delete('/api/v1/twilio/custom'),
   getTwilioVoiceToken: () => client.get('/api/v1/twilio/voice/token'),
   setTwilioVoiceRegistration: (data) => client.post('/api/v1/twilio/voice/registration', data),
   syncTwilioVoiceSession: (data) => client.post('/api/v1/twilio/voice/session-sync', data),
@@ -189,7 +205,13 @@ export const smartflowApi = {
   agreementSign: (id, data) => client.post(`/api/v1/smartflow/agreements/${id}/sign`, data),
   agreementRenew: (id, data) => client.post(`/api/v1/smartflow/agreements/${id}/renew`, data),
   downloadAgreementPdf: (id) => client.get(`/api/v1/smartflow/agreements/${id}/pdf`, { responseType: 'blob' }),
+  downloadSignedAgreementPdf: (id) => client.get(`/api/v1/smartflow/agreements/${id}/signed-pdf`, { responseType: 'blob' }),
+  downloadAgreementCompletionCertificate: (id) => client.get(`/api/v1/smartflow/agreements/${id}/completion-certificate`, { responseType: 'blob' }),
   improveAgreementDraft: (data) => client.post('/api/v1/smartflow/agreements/improve', data),
+  getPublicSigningAgreement: (token) => client.get(`/api/v1/smartflow/agreements/signing/${token}`),
+  signPublicAgreement: (token, data) => client.post(`/api/v1/smartflow/agreements/signing/${token}`, data),
+  getAgreementDocusignStatus: () => client.get('/api/v1/smartflow/agreements/signature-providers/docusign/status'),
+  startAgreementDocusignOAuth: () => client.get('/api/v1/smartflow/agreements/signature-providers/docusign/oauth/start'),
 
   // ── Messages extras ───────────────────────────────────────────────────────────
   replyToMessage: (id, data) => client.post(`/api/v1/smartflow/messages/${id}/reply`, data),
@@ -249,6 +271,14 @@ export const smartflowApi = {
     fd.append('audio_file', blob, 'voice.webm');
     fd.append('response_mode', 'text');
     return client.post('/api/v1/smartflow/ai/voice-chat-upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  transcribeAudio: (blob) => {
+    const fd = new FormData();
+    fd.append('audio_file', blob, 'voice.webm');
+    fd.append('response_mode', 'text');
+    return client.post('/api/v1/smartflow/ai/voice-chat-upload', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
   },
 
   // ── Reports ───────────────────────────────────────────────────────────────────

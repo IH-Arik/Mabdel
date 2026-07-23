@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Mail, MessageCircle, MessageSquare, Trash2 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
+import { useNotificationStore } from '../store/useNotificationStore';
 
 const FILTER_OPTIONS = [
   { key: 'all', label: 'All' },
@@ -63,14 +65,57 @@ function mapNotifications(apiResponse) {
       isNew: Boolean(item.unread),
       avatar,
       channel,
+      type: item.type || 'message',
+      actionUrl: item.action_url || null,
+      displayTimeLabel: item.display_time_label || '',
+      primaryAction: item.primary_action || null,
+      metadata: item.metadata || {},
     };
   });
 }
 
+function getSummary(response) {
+  return response?.data?.data?.summary || response?.data?.summary || {};
+}
+
+function resolveNotificationTarget(item) {
+  if (item.actionUrl && item.actionUrl.startsWith('/')) {
+    return { path: item.actionUrl };
+  }
+
+  if (item.primaryAction === 'open_conversation' || item.type === 'message') {
+    return { path: '/conversations' };
+  }
+
+  if (item.type === 'calendar') {
+    return { path: '/calendar' };
+  }
+
+  if (item.type === 'missed_call' || item.type === 'scheduled_call') {
+    return { path: '/calls' };
+  }
+
+  if (item.type === 'invoice') {
+    return { path: '/invoices' };
+  }
+
+  if (['agreement', 'lease', 'document'].includes(item.type)) {
+    return { path: '/documents' };
+  }
+
+  if (item.type === 'ai_task') {
+    return { path: '/voice-conversation' };
+  }
+
+  return null;
+}
+
 export default function Notifications() {
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
+  const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
 
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
@@ -80,13 +125,16 @@ export default function Notifications() {
         page_size: 100,
       });
       setNotifications(mapNotifications(response));
+      const summary = getSummary(response);
+      setUnreadCount(summary.unread_count ?? summary.new_count ?? 0);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
       setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setUnreadCount]);
 
   useEffect(() => {
     fetchNotifications();
@@ -94,24 +142,53 @@ export default function Notifications() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await smartflowApi.markAllNotificationsRead();
+      const response = await smartflowApi.markAllNotificationsRead();
       setNotifications((prev) => prev.map((item) => ({ ...item, isNew: false })));
+      const summary = getSummary(response);
+      setUnreadCount(summary.unread_count ?? summary.new_count ?? 0);
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
     }
   };
 
+  const handleMarkAsRead = useCallback(async (id) => {
+    try {
+      await smartflowApi.markNotificationRead(id);
+      const next = notifications.map((item) => (item.id === id ? { ...item, isNew: false } : item));
+      setNotifications(next);
+      setUnreadCount(next.filter((item) => item.isNew).length);
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  }, [notifications, setUnreadCount]);
+
   const handleDelete = async (id) => {
     const previous = notifications;
-    setNotifications((prev) => prev.filter((item) => item.id !== id));
+    const next = notifications.filter((item) => item.id !== id);
+    setNotifications(next);
+    setUnreadCount(next.filter((item) => item.isNew).length);
 
     try {
-      await smartflowApi.deleteNotification(id);
+      const response = await smartflowApi.deleteNotification(id);
+      const summary = getSummary(response);
+      setUnreadCount(summary.unread_count ?? summary.new_count ?? next.filter((item) => item.isNew).length);
     } catch (error) {
       console.error('Failed to delete notification:', error);
       setNotifications(previous);
+      setUnreadCount(previous.filter((item) => item.isNew).length);
     }
   };
+
+  const handleOpenNotification = useCallback(async (item) => {
+    if (item.isNew) {
+      await handleMarkAsRead(item.id);
+    }
+
+    const target = resolveNotificationTarget(item);
+    if (target?.path) {
+      navigate(target.path, target.state ? { state: target.state } : undefined);
+    }
+  }, [handleMarkAsRead, navigate]);
 
   const filteredNotifications = useMemo(() => {
     return notifications.filter((item) => {
@@ -180,11 +257,20 @@ export default function Notifications() {
             return (
               <div
                 key={item.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleOpenNotification(item)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleOpenNotification(item);
+                  }
+                }}
                 className={`rounded-[24px] border p-4 md:p-5 flex items-center justify-between gap-4 ${
                   showHighlight
                     ? 'bg-[#101C25] border-[#17485A]'
                     : 'bg-[#131A24] border-[#243041]'
-                }`}
+                } cursor-pointer transition-colors hover:border-[#16CBEA]/35`}
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="relative shrink-0">
@@ -210,12 +296,20 @@ export default function Notifications() {
                       {item.isNew ? <div className="w-2 h-2 rounded-full bg-[#16CBEA] shrink-0" /> : null}
                     </div>
                     <p className="text-sm text-[#A4B0B7] mt-1 line-clamp-2">{item.description}</p>
+                    {item.displayTimeLabel ? (
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#688198] mt-2">
+                        {item.displayTimeLabel}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => handleDelete(item.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleDelete(item.id);
+                  }}
                   className="w-11 h-11 rounded-2xl shrink-0 border border-[#3A2430] bg-[#241017] text-rose-300 hover:text-white hover:border-rose-500/40 transition-colors flex items-center justify-center cursor-pointer"
                   aria-label="Delete notification"
                 >

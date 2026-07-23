@@ -2,7 +2,7 @@ import { FiLogOut } from "react-icons/fi";
 import { BiChevronDown } from "react-icons/bi";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { MdDashboard } from "react-icons/md";
-import brandlogo from "../../assets/image/stone-logo.png";
+import brandlogo from "../../assets/image/gocustify-mark.png";
 import {
   AlignCenterVertical,
   CalendarCog,
@@ -83,8 +83,12 @@ const Sidebar = ({ closeDrawer }) => {
 
   return (
     <div className="flex flex-col h-full p-4 bg-white w-72">
-      <div className="mx-auto">
-        <img src={brandlogo} alt="logo" className="w-40 h-40" />
+      <div className="mx-auto pt-4 text-center">
+        <img src={brandlogo} alt="GoCustify logo" className="w-24 h-24 mx-auto" />
+        <div className="mt-3">
+          <p className="text-xl font-extrabold tracking-tight text-slate-900">GoCustify</p>
+          <p className="text-[10px] font-semibold tracking-[0.22em] text-cyan-500 uppercase">Admin Console</p>
+        </div>
       </div>
 
       {role && !["super_admin", "admin"].includes(role) && (

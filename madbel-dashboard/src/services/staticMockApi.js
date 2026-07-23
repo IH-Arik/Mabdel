@@ -179,7 +179,7 @@ const products = Array.from({ length: 10 }, (_, index) => ({
 
 const aboutContent = {
   "about-us":
-    "<h2>About Madbel AI</h2><p>Madbel AI Dashboard is used to manage users, subscriptions, reports, and communications from one place.</p>",
+    "<h2>About GoCustify</h2><p>GoCustify Dashboard is used to manage users, subscriptions, reports, and communications from one place.</p>",
   "privacy-policy":
     "<h2>Privacy Policy</h2><p>Data shown in this environment is dummy content for UI testing only.</p>",
   "terms-and-conditions":

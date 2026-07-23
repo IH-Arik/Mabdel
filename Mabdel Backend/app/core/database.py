@@ -141,6 +141,8 @@ class MongoConnectionManager:
         await self.database.invoices.create_index("share_token", unique=True, sparse=True)
         await self.database.invoices.create_index([("owner_user_id", 1), ("client_name", 1)])
         await self.database.invoices.create_index([("owner_user_id", 1), ("due_date", 1)])
+        await self.database.bulk_messages.create_index([("user_id", 1), ("updated_at", -1)])
+        await self.database.bulk_messages.create_index([("status", 1), ("scheduled_at", 1)])
         await self.database.counters.create_index("_id")
         # ── RBAC ──────────────────────────────────────────────────────────────
         await self.database.rbac_permissions.create_index([("module", 1), ("action", 1)], unique=True)

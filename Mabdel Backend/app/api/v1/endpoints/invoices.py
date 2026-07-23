@@ -144,7 +144,8 @@ async def download_invoice_pdf(
     service: InvoiceService = Depends(get_invoice_service),
 ) -> Response:
     pdf_bytes = await service.generate_pdf(str(current_user["_id"]), invoice_id)
-    filename = f"invoice-{invoice_id}.pdf"
+    invoice = await service.get_invoice(str(current_user["_id"]), invoice_id)
+    filename = f"{invoice.invoice_number}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -157,5 +158,11 @@ async def download_shared_invoice_pdf(
     share_token: str,
     service: InvoiceService = Depends(get_invoice_service),
 ) -> Response:
+    invoice = await service.get_shared_invoice(share_token)
     pdf_bytes = await service.generate_shared_pdf(share_token)
-    return Response(content=pdf_bytes, media_type="application/pdf")
+    filename = f"{invoice['invoice_number']}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

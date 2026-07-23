@@ -4,6 +4,7 @@ import httpx
 from urllib.parse import parse_qs, urlparse
 
 from app.core.config import settings
+from app.tests.conftest import grant_owner_role as _grant_owner_role
 from app.tests.test_auth import _register_user, _verify_signup_otp
 
 
@@ -85,6 +86,7 @@ def test_integration_catalog_returns_supported_platform_cards_with_status(client
     email = "catalog@example.com"
     _register_user(client, email=email)
     _verify_signup_otp(client, mock_db, email=email)
+    _grant_owner_role(mock_db, email)
     token = _login_and_get_token(client, email)
 
     monkeypatch.setattr(settings, "META_CLIENT_ID", "meta-client-id")
@@ -143,6 +145,7 @@ def test_integration_status_and_sync_report_provider_access_limits(client, mock_
     email = "integration-status@example.com"
     _register_user(client, email=email)
     _verify_signup_otp(client, mock_db, email=email)
+    _grant_owner_role(mock_db, email)
     token = _login_and_get_token(client, email)
 
     connect_response = client.post(
@@ -170,6 +173,7 @@ def test_snapchat_catalog_and_sync_require_allowlisted_provider_access(client, m
     email = "snapchat-status@example.com"
     _register_user(client, email=email)
     _verify_signup_otp(client, mock_db, email=email)
+    _grant_owner_role(mock_db, email)
     token = _login_and_get_token(client, email)
 
     monkeypatch.setattr(settings, "SNAPCHAT_CLIENT_ID", "snap-client-id")
@@ -200,6 +204,7 @@ def test_telegram_manual_connect_registers_webhook_and_stores_secret(client, moc
     email = "telegram-manual@example.com"
     _register_user(client, email=email)
     _verify_signup_otp(client, mock_db, email=email)
+    _grant_owner_role(mock_db, email)
     token = _login_and_get_token(client, email)
 
     monkeypatch.setattr(settings, "PUBLIC_BACKEND_URL", "https://api.example.com")
