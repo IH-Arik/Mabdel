@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import logoImg from '../assets/logo.png';
+import logoImg from '../assets/gocustify-mark.png';
 
 export default function Begin() {
   const navigate = useNavigate();
@@ -29,15 +29,15 @@ export default function Begin() {
       <div className="flex flex-col items-center gap-6 z-10 animate-fade-in">
         <img 
           src={logoImg} 
-          alt="Mabdel Logo" 
+          alt="GoCustify logo" 
           className="w-40 h-40 object-contain drop-shadow-[0_0_35px_rgba(17,199,229,0.3)] animate-pulse"
         />
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#11C7E5] uppercase drop-shadow-[0_2px_10px_rgba(17,199,229,0.2)]">
-            SmartFlow
+            GoCustify
           </h1>
           <p className="text-xs font-bold tracking-[0.4em] text-[#11C7E5]/80 uppercase pl-1.5">
-            AUTOMATING FUTURE
+            AI CRM PLATFORM
           </p>
         </div>
       </div>

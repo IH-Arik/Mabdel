@@ -3,7 +3,7 @@ import { FaRegEyeSlash } from "react-icons/fa";
 import { FaRegEye } from "react-icons/fa6";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import brandlogo from "../../../assets/image/stone-logo.png";
+import brandlogo from "../../../assets/image/gocustify-mark.png";
 import { resetPassword } from "../../../services/authApi";
 
 const NewPass = () => {

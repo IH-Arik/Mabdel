@@ -29,6 +29,7 @@ from app.schemas.invoice import (
 )
 from app.schemas.pagination import PaginationMeta
 from app.services.email_service import EmailService
+from app.utils.helpers import resolve_team_user_ids
 
 
 class InvoiceService:
@@ -92,7 +93,8 @@ class InvoiceService:
         search: str | None = None,
         status: str | None = None,
     ) -> InvoiceListResponse:
-        all_invoices = await self.db.invoices.find({"owner_user_id": owner_user_id}).sort("created_at", -1).to_list(length=1000)
+        team_ids = await resolve_team_user_ids(self.db, owner_user_id)
+        all_invoices = await self.db.invoices.find({"owner_user_id": {"$in": team_ids}}).sort("created_at", -1).to_list(length=1000)
         filtered = [invoice for invoice in all_invoices if self._matches_search(invoice, search) and self._matches_status(invoice, status)]
         total = len(filtered)
         slice_start = (page - 1) * page_size
@@ -286,10 +288,17 @@ class InvoiceService:
             raise AppException(status_code=404, code="INVOICE_NOT_FOUND", message="Shared invoice was not found.")
         return self._generate_pdf_bytes(invoice)
 
+    async def get_shared_invoice(self, share_token: str) -> dict:
+        invoice = await self.db.invoices.find_one({"share_token": share_token})
+        if not invoice:
+            raise AppException(status_code=404, code="INVOICE_NOT_FOUND", message="Shared invoice was not found.")
+        return invoice
+
     async def _load_invoice(self, owner_user_id: str, invoice_id: str) -> dict:
         if not ObjectId.is_valid(invoice_id):
             raise AppException(status_code=404, code="INVOICE_NOT_FOUND", message="Invoice was not found.")
-        invoice = await self.db.invoices.find_one({"_id": ObjectId(invoice_id), "owner_user_id": owner_user_id})
+        team_ids = await resolve_team_user_ids(self.db, owner_user_id)
+        invoice = await self.db.invoices.find_one({"_id": ObjectId(invoice_id), "owner_user_id": {"$in": team_ids}})
         if not invoice:
             raise AppException(status_code=404, code="INVOICE_NOT_FOUND", message="Invoice was not found.")
         return invoice
@@ -476,6 +485,9 @@ class InvoiceService:
             return "sent"
         return "draft"
 
+    def _outstanding_amount(self, invoice: dict) -> float:
+        return 0.0 if self._display_status(invoice) == "paid" else float(invoice.get("total_amount", 0) or 0)
+
     def _append_event(self, invoice: dict, event_type: str, title: str, description: str | None = None, channel: str | None = None) -> None:
         timeline = invoice.setdefault("timeline", [])
         timeline.append(
@@ -490,7 +502,7 @@ class InvoiceService:
         )
 
     def _share_url(self, invoice: dict) -> str:
-        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}/api/v1/invoices/shared/{invoice['share_token']}/pdf"
+        return f"{settings.PUBLIC_BACKEND_URL}/api/v1/invoices/shared/{invoice['share_token']}/pdf"
 
     async def _log_history(
         self,
@@ -576,6 +588,7 @@ class InvoiceService:
         """
 
     def _generate_pdf_bytes(self, invoice: dict) -> bytes:
+        outstanding_amount = self._outstanding_amount(invoice)
         lines = [
             f"Invoice {invoice['invoice_number']}",
             f"Client: {invoice['client_name']}",
@@ -594,6 +607,7 @@ class InvoiceService:
                 f"Subtotal: {invoice['currency']} {invoice['subtotal']:.2f}",
                 f"Tax ({invoice.get('tax_rate', 0):.2f}%): {invoice['currency']} {invoice['tax_amount']:.2f}",
                 f"Total: {invoice['currency']} {invoice['total_amount']:.2f}",
+                f"Outstanding: {invoice['currency']} {outstanding_amount:.2f}",
             ]
         )
         return self._build_simple_pdf(lines)

@@ -16,7 +16,7 @@ from app.repositories.dashboard.dashboard_repository import DashboardRepository
 
 router = APIRouter()
 
-OWNER_ALLOWED_ROLES = {"super_admin", "admin", "owner"}
+OWNER_ALLOWED_ROLES = {"super_admin", "admin", "owner", "manager"}
 ASSIGNABLE_ROLES = {"manager", "staff", "assistant"}
 TEAM_MEMBER_ROLES = {"manager", "staff", "assistant"}
 
@@ -50,6 +50,55 @@ async def _resolve_owner_role(current_user: dict, db: AsyncIOMotorDatabase) -> s
     return max(allowed, key=lambda s: ROLE_HIERARCHY.get(s, 0))
 
 
+def _actor_org_id(current_user: dict) -> str | None:
+    return current_user.get("organization_id")
+
+
+async def _team_scope_query(current_user: dict, db: AsyncIOMotorDatabase) -> dict:
+    """Base filter for 'my organization's team' — org-wide for owner AND manager,
+    falling back to assigned_by-only if the actor has no organization_id on record."""
+    uid = _user_id(current_user)
+    org_id = _actor_org_id(current_user)
+    if org_id:
+        return {"organization_id": org_id, "user_id": {"$ne": uid}}
+    return {"assigned_by": uid}
+
+
+async def _find_team_assignment(user_id: str, current_user: dict, db: AsyncIOMotorDatabase) -> dict | None:
+    """Find the target's role assignment, scoped to the actor's organization (or
+    falling back to assigned_by if the actor has no organization_id)."""
+    org_id = _actor_org_id(current_user)
+    if org_id:
+        assignment = await db.rbac_user_roles.find_one({"user_id": user_id, "organization_id": org_id})
+        if assignment:
+            return assignment
+    uid = _user_id(current_user)
+    return await db.rbac_user_roles.find_one({"user_id": user_id, "assigned_by": uid})
+
+
+async def _assert_can_manage_target(
+    user_id: str, actor_role: str, current_user: dict, db: AsyncIOMotorDatabase
+) -> dict:
+    """Verify the target belongs to the actor's team AND is hierarchically below the
+    actor (e.g. a manager can manage staff/assistants org-wide but never another
+    manager or the owner). Returns the target's role assignment doc."""
+    from app.models.rbac_models import ROLE_HIERARCHY
+
+    assignment = await _find_team_assignment(user_id, current_user, db)
+    if not assignment:
+        raise AppException(status_code=403, code="NOT_YOUR_TEAM", message="This user is not in your team.")
+
+    actor_hierarchy = ROLE_HIERARCHY.get(actor_role, 0)
+    target_hierarchy = ROLE_HIERARCHY.get(assignment.get("role_slug"), 0)
+    if actor_hierarchy <= target_hierarchy and actor_role != "super_admin":
+        raise AppException(
+            status_code=403,
+            code="INSUFFICIENT_HIERARCHY",
+            message="You cannot manage a team member with an equal or higher role.",
+        )
+    return assignment
+
+
 # ─── GET /owner/me ────────────────────────────────────────────────────────────
 
 @router.get("/me")
@@ -60,16 +109,11 @@ async def owner_me(
     uid = _user_id(current_user)
     role = await _resolve_owner_role(current_user, db)
 
-    # Count team members assigned by this owner per role
-    manager_count = await db.rbac_user_roles.count_documents(
-        {"assigned_by": uid, "role_slug": "manager"}
-    )
-    staff_count = await db.rbac_user_roles.count_documents(
-        {"assigned_by": uid, "role_slug": "staff"}
-    )
-    assistant_count = await db.rbac_user_roles.count_documents(
-        {"assigned_by": uid, "role_slug": "assistant"}
-    )
+    # Count org-wide team members per role (not just accounts this actor personally created)
+    base_query = await _team_scope_query(current_user, db)
+    manager_count = await db.rbac_user_roles.count_documents({**base_query, "role_slug": "manager"})
+    staff_count = await db.rbac_user_roles.count_documents({**base_query, "role_slug": "staff"})
+    assistant_count = await db.rbac_user_roles.count_documents({**base_query, "role_slug": "assistant"})
 
     return {
         "success": True,
@@ -95,13 +139,13 @@ async def list_team(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     role_filter: str | None = Query(None),
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     uid = _user_id(current_user)
     await _resolve_owner_role(current_user, db)
 
-    query: dict = {"assigned_by": uid}
+    query = await _team_scope_query(current_user, db)
     if role_filter and role_filter in ASSIGNABLE_ROLES:
         query["role_slug"] = role_filter
 
@@ -115,9 +159,10 @@ async def list_team(
         if not user_doc:
             continue
 
-        # Get restrictions for this user
+        # Restrictions may have been set by whoever originally assigned this member —
+        # not necessarily the current viewer — so look them up by user_id alone.
         restriction = await db.rbac_user_restrictions.find_one(
-            {"user_id": a["user_id"], "owner_id": uid}
+            {"user_id": a["user_id"]}, sort=[("updated_at", -1)]
         )
 
         members.append({
@@ -148,7 +193,7 @@ async def list_team(
 @router.get("/search")
 async def search_users(
     q: str = Query(..., min_length=2),
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     await _resolve_owner_role(current_user, db)
@@ -184,7 +229,7 @@ async def search_users(
 @router.post("/assign")
 async def assign_team_role(
     body: dict = Body(...),
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     uid = _user_id(current_user)
@@ -201,6 +246,13 @@ async def assign_team_role(
             status_code=400,
             code="INVALID_ROLE",
             message=f"Owners can only assign: {', '.join(sorted(ASSIGNABLE_ROLES))} roles.",
+        )
+
+    if owner_role == "manager" and role_slug == "manager":
+        raise AppException(
+            status_code=403,
+            code="MANAGER_CANNOT_ASSIGN_MANAGER",
+            message="Managers can only assign Staff or Assistant roles.",
         )
 
     # Verify target user exists
@@ -222,19 +274,30 @@ async def assign_team_role(
         # Revoke the old role before assigning the new one
         await db.rbac_user_roles.delete_many({"user_id": target_user_id, "assigned_by": uid})
 
+    # Fall back to the owner's own user_id as their organization identity if they
+    # don't have an explicit organization_id yet (legacy accounts) — and persist it
+    # so subsequent requests (team listing, dashboards) stay consistent.
+    org_id = _actor_org_id(current_user)
+    if not org_id:
+        org_id = uid
+        await db.users.update_one({"_id": ObjectId(uid) if ObjectId.is_valid(uid) else uid}, {"$set": {"organization_id": org_id}})
+        current_user["organization_id"] = org_id
+
     rbac = await _get_rbac(db)
     await rbac.assign_role_to_user(
         user_id=target_user_id,
         role_slug=role_slug,
         assigned_by=uid,
         assigned_by_role=owner_role,
+        organization_id=org_id,
     )
 
-    # Update user's role field too
-    await db.users.update_one(
-        {"_id": target_oid},
-        {"$set": {"role": role_slug, "primary_role": role_slug, "updated_at": datetime.utcnow()}},
-    )
+    # Update user's role field too, and keep them tagged with the org so team
+    # visibility (list_team etc.) stays consistent org-wide for owner + manager.
+    user_update: dict = {"role": role_slug, "primary_role": role_slug, "updated_at": datetime.utcnow()}
+    if org_id and not target_user.get("organization_id"):
+        user_update["organization_id"] = org_id
+    await db.users.update_one({"_id": target_oid}, {"$set": user_update})
 
     # Store permission restrictions — use provided list or auto-populate from role defaults
     allowed_permissions = body.get("allowed_permissions")
@@ -251,11 +314,12 @@ async def assign_team_role(
             allowed_permissions = []
 
     await db.rbac_user_restrictions.update_one(
-        {"user_id": target_user_id, "owner_id": uid},
+        {"user_id": target_user_id},
         {
             "$set": {
                 "allowed_permissions": allowed_permissions,
                 "role_slug": role_slug,
+                "owner_id": uid,
                 "updated_at": datetime.utcnow(),
             },
             "$setOnInsert": {"created_at": datetime.utcnow()},
@@ -275,7 +339,7 @@ async def assign_team_role(
 @router.delete("/revoke")
 async def revoke_team_role(
     body: dict = Body(...),
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     uid = _user_id(current_user)
@@ -287,6 +351,11 @@ async def revoke_team_role(
     if not target_user_id or not role_slug:
         raise AppException(status_code=400, code="INVALID_INPUT", message="user_id and role_slug are required.")
 
+    # Target must be in the actor's organization AND hierarchically below the actor
+    # (org-wide for owner/manager, not just accounts the actor personally created —
+    # a manager still can never touch another manager or the owner).
+    await _assert_can_manage_target(target_user_id, owner_role, current_user, db)
+
     rbac = await _get_rbac(db)
     await rbac.revoke_role_from_user(
         user_id=target_user_id,
@@ -295,7 +364,7 @@ async def revoke_team_role(
     )
 
     # Remove restrictions
-    await db.rbac_user_restrictions.delete_many({"user_id": target_user_id, "owner_id": uid})
+    await db.rbac_user_restrictions.delete_many({"user_id": target_user_id})
 
     # Reset user role if this was their primary role
     target_oid = ObjectId(target_user_id) if ObjectId.is_valid(target_user_id) else target_user_id
@@ -312,20 +381,20 @@ async def revoke_team_role(
 @router.get("/team/{user_id}/permissions")
 async def get_user_permissions(
     user_id: str,
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
-    uid = _user_id(current_user)
-    await _resolve_owner_role(current_user, db)
+    owner_role = await _resolve_owner_role(current_user, db)
+    await _assert_can_manage_target(user_id, owner_role, current_user, db)
 
     restriction = await db.rbac_user_restrictions.find_one(
-        {"user_id": user_id, "owner_id": uid}
+        {"user_id": user_id}, sort=[("updated_at", -1)]
     )
 
     # Only expose CRM modules — platform-level perms are not relevant for team members
     CRM_MODULES = {
         "contacts", "messages", "calls", "appointments",
-        "invoices", "bulk_messaging", "social_media",
+        "invoices", "leases", "agreements", "bulk_messaging", "social_media",
         "ai_tools", "chat_groups", "integrations",
     }
 
@@ -348,7 +417,7 @@ async def get_user_permissions(
     crm_keys = {f"{p['module']}:{p['action']}" for p in all_perms}
 
     # Get the role slug for this member
-    assignment = await db.rbac_user_roles.find_one({"user_id": user_id, "assigned_by": uid})
+    assignment = await _find_team_assignment(user_id, current_user, db)
     role_slug = (
         restriction.get("role_slug") if restriction
         else assignment.get("role_slug") if assignment
@@ -395,30 +464,25 @@ async def get_user_permissions(
 async def set_user_permissions(
     user_id: str,
     body: dict = Body(...),
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     uid = _user_id(current_user)
-    await _resolve_owner_role(current_user, db)
+    owner_role = await _resolve_owner_role(current_user, db)
 
     allowed_permissions = body.get("allowed_permissions")
     if not isinstance(allowed_permissions, list):
         raise AppException(status_code=400, code="INVALID_INPUT", message="allowed_permissions must be an array.")
 
-    # Verify this user is actually assigned by this owner
-    assignment = await db.rbac_user_roles.find_one({"user_id": user_id, "assigned_by": uid})
-    if not assignment:
-        raise AppException(
-            status_code=403,
-            code="NOT_YOUR_TEAM",
-            message="This user is not in your team.",
-        )
+    # Target must be in the actor's organization AND hierarchically below the actor.
+    await _assert_can_manage_target(user_id, owner_role, current_user, db)
 
     await db.rbac_user_restrictions.update_one(
-        {"user_id": user_id, "owner_id": uid},
+        {"user_id": user_id},
         {
             "$set": {
                 "allowed_permissions": allowed_permissions,
+                "owner_id": uid,
                 "updated_at": datetime.utcnow(),
             },
             "$setOnInsert": {"created_at": datetime.utcnow()},
@@ -437,7 +501,7 @@ async def set_user_permissions(
 
 @router.get("/modules")
 async def list_permission_modules(
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     await _resolve_owner_role(current_user, db)
@@ -462,16 +526,13 @@ async def list_permission_modules(
 @router.post("/team/{user_id}/ban")
 async def ban_team_member(
     user_id: str,
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
-    uid = _user_id(current_user)
-    await _resolve_owner_role(current_user, db)
+    owner_role = await _resolve_owner_role(current_user, db)
 
-    # Verify this user is in the owner's team
-    assignment = await db.rbac_user_roles.find_one({"user_id": user_id, "assigned_by": uid})
-    if not assignment:
-        raise AppException(status_code=403, code="NOT_YOUR_TEAM", message="This user is not in your team.")
+    # Target must be in the actor's organization AND hierarchically below the actor.
+    await _assert_can_manage_target(user_id, owner_role, current_user, db)
 
     repo = DashboardRepository(db)
     success = await repo.update_user_status(user_id, "blocked")
@@ -486,15 +547,13 @@ async def ban_team_member(
 @router.post("/team/{user_id}/unban")
 async def unban_team_member(
     user_id: str,
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
-    uid = _user_id(current_user)
-    await _resolve_owner_role(current_user, db)
+    owner_role = await _resolve_owner_role(current_user, db)
 
-    assignment = await db.rbac_user_roles.find_one({"user_id": user_id, "assigned_by": uid})
-    if not assignment:
-        raise AppException(status_code=403, code="NOT_YOUR_TEAM", message="This user is not in your team.")
+    # Target must be in the actor's organization AND hierarchically below the actor.
+    await _assert_can_manage_target(user_id, owner_role, current_user, db)
 
     repo = DashboardRepository(db)
     success = await repo.update_user_status(user_id, "active")
@@ -508,14 +567,14 @@ async def unban_team_member(
 
 @router.get("/team/dashboard")
 async def owner_team_dashboard(
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
-    uid = _user_id(current_user)
     await _resolve_owner_role(current_user, db)
 
-    # Get all team member user_ids assigned by this owner
-    assignments = await db.rbac_user_roles.find({"assigned_by": uid}).to_list(None)
+    # Get all org-wide team member user_ids (not just accounts this actor personally created)
+    team_query = await _team_scope_query(current_user, db)
+    assignments = await db.rbac_user_roles.find(team_query).to_list(None)
     team_ids = [a["user_id"] for a in assignments]
 
     if not team_ids:
@@ -696,7 +755,7 @@ async def my_dashboard(
 @router.get("/team/analysis")
 async def owner_team_analysis(
     days: int = 30,
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     """
@@ -707,14 +766,14 @@ async def owner_team_analysis(
     """
     import datetime as dt
 
-    uid = _user_id(current_user)
     await _resolve_owner_role(current_user, db)
 
     days = min(max(days, 1), 90)
     since = dt.datetime.utcnow() - dt.timedelta(days=days)
 
-    # ── Team members ─────────────────────────────────────────────────────────
-    assignments = await db.rbac_user_roles.find({"assigned_by": uid}).to_list(None)
+    # ── Team members (org-wide) ──────────────────────────────────────────────
+    team_query = await _team_scope_query(current_user, db)
+    assignments = await db.rbac_user_roles.find(team_query).to_list(None)
     if not assignments:
         return {"success": True, "data": {
             "period_days": days,
@@ -841,17 +900,16 @@ async def owner_team_analysis(
 async def member_analysis(
     user_id: str,
     days: int = Query(30, ge=1, le=90),
-    current_user: dict = Depends(require_role(["super_admin", "admin", "owner"])),
+    current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     """Individual CRM activity analysis for a single team member."""
     import datetime as dt
 
-    uid = _user_id(current_user)
     await _resolve_owner_role(current_user, db)
 
-    # Verify member belongs to this owner
-    assignment = await db.rbac_user_roles.find_one({"user_id": user_id, "assigned_by": uid})
+    # Verify member belongs to this actor's organization (org-wide visibility)
+    assignment = await _find_team_assignment(user_id, current_user, db)
     if not assignment:
         raise AppException(status_code=403, code="NOT_YOUR_TEAM", message="This user is not in your team.")
 

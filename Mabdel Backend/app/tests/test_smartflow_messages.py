@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from app.core.realtime import conversation_realtime_hub, inbox_realtime_hub
+from app.tests.conftest import grant_owner_role
 
 
 def _get_latest_otp(db, email: str, purpose: str) -> dict:
@@ -29,6 +30,8 @@ def _auth_headers(client, mock_db, email: str = "messages@example.com") -> dict[
         json={"email": email, "code": otp["code"], "purpose": "signup"},
     )
     assert verify_response.status_code == 200
+
+    grant_owner_role(mock_db, email)
 
     login_response = client.post(
         "/api/v1/auth/login",
@@ -446,7 +449,7 @@ def test_ai_workflow_prefill_dynamic_quantity_and_date(client, mock_db):
 
 
 def test_ai_workflow_prefill_merges_ai_extraction_for_natural_language(client, mock_db, monkeypatch):
-    from app.services.smartflow_service import SmartFlowService
+    from app.services.smartflow._base import SmartFlowBase
 
     headers = _auth_headers(client, mock_db, email="smart-ai-prefill@example.com")
 
@@ -460,7 +463,9 @@ def test_ai_workflow_prefill_merges_ai_extraction_for_natural_language(client, m
             "items": [{"description": "homepage copy", "quantity": 1, "unit_price": 500.0}],
         }
 
-    monkeypatch.setattr(SmartFlowService, "_extract_workflow_prefill_with_ai", fake_ai_extract)
+    # Patch the base class: the orchestrator delegates prefill to WorkflowService,
+    # so patching SmartFlowService directly would not reach the executing instance.
+    monkeypatch.setattr(SmartFlowBase, "_extract_workflow_prefill_with_ai", fake_ai_extract)
 
     response = client.post(
         "/api/v1/smartflow/ai/workflow-prefill",
@@ -835,11 +840,13 @@ def test_leave_and_delete_group_endpoints_behave_for_group_lifecycle(client, moc
     assert leave_group_response.status_code == 201
     leave_group_id = leave_group_response.json()["data"]["id"]
 
+    # The group owner is blocked from leaving; they must delete the group instead.
     leave_response = client.post(f"/api/v1/smartflow/groups/{leave_group_id}/leave", headers=headers)
-    assert leave_response.status_code == 200
+    assert leave_response.status_code == 400
+    assert leave_response.json()["error"]["code"] == "GROUP_OWNER_CANNOT_LEAVE"
     list_after_leave = client.get("/api/v1/smartflow/groups", headers=headers)
     assert list_after_leave.status_code == 200
-    assert all(item["id"] != leave_group_id for item in list_after_leave.json()["data"]["items"])
+    assert any(item["id"] == leave_group_id for item in list_after_leave.json()["data"]["items"])
 
     delete_group_response = client.post(
         "/api/v1/smartflow/groups",

@@ -37,6 +37,7 @@ AgreementType = Literal["contract", "lease", "legal", "vendor", "service", "nda"
 AgreementPriority = Literal["standard", "high", "urgent"]
 AgreementStatus = Literal["draft", "pending_signature", "signed", "expired", "cancelled"]
 AgreementDeliveryChannel = Literal["email", "link", "manual"]
+AgreementSignatureProvider = Literal["native", "docusign"]
 AgreementSmartFieldType = Literal["signature", "date", "text", "checkbox"]
 LeasePropertyType = Literal["apartment", "house", "office_space", "shop", "warehouse", "land", "other"]
 LeaseStatus = Literal["draft", "active", "pending_signature", "expired", "cancelled"]
@@ -263,7 +264,7 @@ class BulkMessageRecipientRef(BaseModel):
     phone: str | None = None
     avatar_url: str | None = None
     initials: str | None = None
-    source: Literal["contact", "group_member", "raw_email"]
+    source: Literal["contact", "group_member", "raw_email", "raw_phone"]
 
 
 class BulkMessageAttachment(BaseModel):
@@ -288,6 +289,10 @@ class BulkRecipientValidationResponse(BaseModel):
     duplicate_entries: list[str] = Field(default_factory=list)
     unavailable_contact_ids: list[str] = Field(default_factory=list)
     unavailable_group_ids: list[str] = Field(default_factory=list)
+
+
+class BulkMessageImproveRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=5000)
 
 
 class BulkMessageCreateRequest(BaseModel):
@@ -681,6 +686,13 @@ class AgreementSendSignatureRequest(BaseModel):
     recipient_email: EmailStr | None = None
     channel: AgreementDeliveryChannel = "link"
     message: str | None = Field(default=None, max_length=1000)
+    provider: AgreementSignatureProvider = "native"
+    signing_order: int | None = Field(default=1, ge=1, le=99)
+    return_url: str | None = Field(default=None, max_length=1000)
+    embedded_signing: bool = False
+    signer_name: str | None = Field(default=None, min_length=2, max_length=120)
+    signer_email: EmailStr | None = None
+    signers: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AgreementSignRequest(BaseModel):
@@ -853,6 +865,13 @@ class AgreementResponse(BaseModel):
     end_date: date | None = None
     smart_fields: list[AgreementSmartField] = Field(default_factory=list)
     ai_review: list[AgreementReviewFinding] = Field(default_factory=list)
+    signature_provider: AgreementSignatureProvider | None = None
+    provider_status: str | None = None
+    provider_envelope_id: str | None = None
+    provider_error: str | None = None
+    provider_signing_url: str | None = None
+    signed_pdf_url: str | None = None
+    completion_certificate_url: str | None = None
     signature_request_url: str | None = None
     pdf_url: str
     actions: list[str] = Field(default_factory=list)
@@ -861,6 +880,18 @@ class AgreementResponse(BaseModel):
     expired_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class AgreementProviderStatusResponse(BaseModel):
+    provider: AgreementSignatureProvider
+    connected: bool = False
+    connection_status: Literal["connected", "disconnected", "needs_reauth", "misconfigured", "error"] = "disconnected"
+    account_id: str | None = None
+    account_name: str | None = None
+    base_uri: str | None = None
+    auth_url: str | None = None
+    last_error: str | None = None
+    connected_at: datetime | None = None
 
 
 class AgreementSummaryResponse(BaseModel):
@@ -1105,6 +1136,7 @@ class GroupCreateRequest(BaseModel):
     admin_ids: list[str] = Field(default_factory=list)
     avatar_url: str | None = Field(default=None, max_length=1000)
     description: str | None = Field(default=None, max_length=500)
+    role_slug: Literal["manager", "staff", "assistant"] | None = None
 
 
 class GroupUpdateRequest(BaseModel):
@@ -1113,6 +1145,7 @@ class GroupUpdateRequest(BaseModel):
     admin_ids: list[str] | None = None
     avatar_url: str | None = Field(default=None, max_length=1000)
     description: str | None = Field(default=None, max_length=500)
+    role_slug: Literal["manager", "staff", "assistant"] | None = None
 
 
 class GroupMemberResponse(BaseModel):
@@ -1164,6 +1197,7 @@ class GroupResponse(BaseModel):
     name: str
     avatar_url: str | None = None
     description: str | None = None
+    role_slug: Literal["manager", "staff", "assistant"] | None = None
     member_ids: list[str] = Field(default_factory=list)
     admin_ids: list[str] = Field(default_factory=list)
     members: list[GroupMemberResponse] = Field(default_factory=list)

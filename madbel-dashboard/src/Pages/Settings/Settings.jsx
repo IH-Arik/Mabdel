@@ -30,13 +30,23 @@ const Settings = () => {
     },
     {
       icon: <MdPrivacyTip className="w-5 h-5" />,
+      label: "Terms & Conditions",
+      link: "/settings/terms-and-conditions",
+    },
+    {
+      icon: <MdPrivacyTip className="w-5 h-5" />,
       label: "Privacy Policy",
       link: "/settings/privacy-policy",
     },
     {
       icon: <RiTerminalWindowLine className="w-5 h-5" />,
-      label: "Terms & Conditions",
-      link: "/settings/terms-condition",
+      label: "SMS Messaging Policy",
+      link: "/settings/sms-messaging-policy",
+    },
+    {
+      icon: <RiTerminalWindowLine className="w-5 h-5" />,
+      label: "Acceptable Use Policy",
+      link: "/settings/acceptable-use-policy",
     },
   ];
 

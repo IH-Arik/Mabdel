@@ -170,8 +170,8 @@ export default function Groups() {
   const [searchQuery, setSearchQuery] = useState('');
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [currentMessageText, setCurrentMessageText] = useState('');
-  const [createForm, setCreateForm] = useState({ name: '', description: '', avatar_url: '' });
-  const [settingsForm, setSettingsForm] = useState({ name: '', description: '', avatar_url: '' });
+  const [createForm, setCreateForm] = useState({ name: '', description: '', avatar_url: '', role_slug: '' });
+  const [settingsForm, setSettingsForm] = useState({ name: '', description: '', avatar_url: '', role_slug: '' });
   const [inviteForm, setInviteForm] = useState({ name: '', email: '', phone: '', role: 'member' });
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
   const [addingMemberId, setAddingMemberId] = useState('');
@@ -269,6 +269,7 @@ export default function Groups() {
         name: normalized.name || '',
         description: normalized.description || '',
         avatar_url: normalized.avatar_url || '',
+        role_slug: normalized.role_slug || '',
       });
     } catch (detailError) {
       setError(detailError?.response?.data?.message || 'Could not load group details.');
@@ -387,12 +388,13 @@ export default function Groups() {
         name: createForm.name.trim(),
         description: createForm.description.trim() || undefined,
         avatar_url: createForm.avatar_url.trim() || undefined,
+        role_slug: createForm.role_slug || undefined,
         member_ids: selectedMemberIds,
       });
       const created = syncListGroup(getApiData(response));
       setSelectedGroupId(created.id);
       setSelectedMemberIds([]);
-      setCreateForm({ name: '', description: '', avatar_url: '' });
+      setCreateForm({ name: '', description: '', avatar_url: '', role_slug: '' });
       setSuccess('Group created successfully.');
       setError('');
       setViewMode('settings');
@@ -413,6 +415,7 @@ export default function Groups() {
         name: settingsForm.name.trim() || undefined,
         description: settingsForm.description.trim() || '',
         avatar_url: settingsForm.avatar_url.trim() || '',
+        role_slug: settingsForm.role_slug || undefined,
       });
       syncListGroup(getApiData(response));
       setSuccess('Group settings saved.');
@@ -636,6 +639,25 @@ export default function Groups() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 tracking-wide uppercase flex items-center gap-1.5">
+                  <Shield size={12} className="text-cyan-400" /> Link to RBAC Role
+                </label>
+                <select
+                  value={createForm.role_slug}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, role_slug: event.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-cyan-500/40"
+                >
+                  <option value="">No role link</option>
+                  <option value="manager">Manager</option>
+                  <option value="staff">Staff</option>
+                  <option value="assistant">Assistant</option>
+                </select>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Members who are registered users will automatically get this permission role. Removing them from the group revokes it.
+                </p>
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-400 tracking-wide uppercase">
@@ -765,7 +787,14 @@ export default function Groups() {
               <div className="flex items-center gap-4">
                 <GroupAvatar name={settingsForm.name || activeGroup.name} avatarUrl={settingsForm.avatar_url || activeGroup.avatar_url} size="w-16 h-16 text-xl" />
                 <div>
-                  <h2 className="text-lg font-extrabold text-white">{activeGroup.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-extrabold text-white">{activeGroup.name}</h2>
+                    {activeGroup.role_slug ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-950/40 border border-cyan-500/20 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                        <Shield size={10} /> {activeGroup.role_slug}
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-xs text-slate-500">{activeGroup.member_count} members</p>
                   <p className="text-[10px] uppercase tracking-widest text-slate-600 mt-1">
                     Updated {formatDateTime(activeGroup.updated_at || activeGroup.created_at)}
@@ -805,6 +834,27 @@ export default function Groups() {
                   className="w-full min-h-24 px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/40"
                 />
               </div>
+
+              {!activeGroup.is_system_managed ? (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                    <Shield size={12} className="text-cyan-400" /> Link to RBAC Role
+                  </label>
+                  <select
+                    value={settingsForm.role_slug}
+                    onChange={(event) => setSettingsForm((current) => ({ ...current, role_slug: event.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-cyan-500/40"
+                  >
+                    <option value="">No role link</option>
+                    <option value="manager">Manager</option>
+                    <option value="staff">Staff</option>
+                    <option value="assistant">Assistant</option>
+                  </select>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Adding/removing members here auto-syncs their permission role on the platform.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="flex items-center gap-3">
                 {!activeGroup.is_system_managed ? (

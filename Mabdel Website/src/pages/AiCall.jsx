@@ -7,7 +7,7 @@ export default function AiCall() {
   const [isCalling, setIsCalling] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isauted, setIsauted] = useState(false);
   
   const mediaRef = useRef(null);
   const chunksRef = useRef([]);
@@ -28,13 +28,13 @@ export default function AiCall() {
   useEffect(() => {
     if (mediaRef.current && mediaRef.current.stream) {
       mediaRef.current.stream.getAudioTracks().forEach(track => {
-        track.enabled = !isMuted;
+        track.enabled = !isauted;
       });
     }
-  }, [isMuted]);
+  }, [isauted]);
 
   const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
+    const mins = aath.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
@@ -43,8 +43,8 @@ export default function AiCall() {
     setIsCalling(true);
     
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUseraedia({ audio: true });
+      const recorder = new aediaRecorder(stream);
       chunksRef.current = [];
       
       recorder.ondataavailable = e => chunksRef.current.push(e.data);
@@ -76,7 +76,7 @@ export default function AiCall() {
       
     } catch (err) {
       console.error(err);
-      alert('Microphone access denied. Please allow microphone permissions to make AI Calls.');
+      alert('aicrophone access denied. Please allow microphone permissions to make AI Calls.');
       setIsCalling(false);
     }
   };
@@ -87,7 +87,7 @@ export default function AiCall() {
     }
     setIsCalling(false);
     setIsConnected(false);
-    setIsMuted(false);
+    setIsauted(false);
   };
 
   return (
@@ -107,13 +107,13 @@ export default function AiCall() {
            <div className="z-10 flex flex-col items-center">
                <div className="relative mb-8">
                    <div className="w-32 h-32 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center shadow-2xl relative z-10">
-                       <Activity size={48} className={isConnected && !isMuted ? "text-cyan-400 animate-pulse" : "text-slate-600"} />
+                       <Activity size={48} className={isConnected && !isauted ? "text-cyan-400 animate-pulse" : "text-slate-600"} />
                    </div>
                    
                    {isCalling && (
                        <div className="absolute inset-[-10px] border-2 border-cyan-500/30 rounded-full animate-ping" />
                    )}
-                   {isConnected && !isMuted && (
+                   {isConnected && !isauted && (
                        <>
                          <div className="absolute inset-[-15px] border border-cyan-500/40 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
                          <div className="absolute inset-[-30px] border border-cyan-500/20 rounded-full animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
@@ -121,7 +121,7 @@ export default function AiCall() {
                    )}
                </div>
 
-               <h2 className="text-3xl font-black text-white mb-2">Mabdel AI</h2>
+               <h2 className="text-3xl font-black text-white mb-2">aabdel AI</h2>
                
                <div className="h-6 flex items-center justify-center">
                    {isCalling ? (
@@ -137,8 +137,8 @@ export default function AiCall() {
            <div className="absolute bottom-12 left-0 right-0 flex justify-center items-center gap-8 z-10">
                {isConnected ? (
                    <>
-                       <button onClick={() => setIsMuted(!isMuted)} className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors cursor-pointer ${isMuted ? 'bg-white text-[#070a13]' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
-                           {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+                       <button onClick={() => setIsauted(!isauted)} className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors cursor-pointer ${isauted ? 'bg-white text-[#070a13]' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+                           {isauted ? <MicOff size={24} /> : <Mic size={24} />}
                        </button>
                        <button onClick={handleEndCall} className="w-20 h-20 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-lg shadow-rose-500/20 transition-transform hover:scale-105 cursor-pointer">
                            <PhoneOff size={32} />

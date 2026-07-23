@@ -1,14 +1,51 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from pymongo import ReturnDocument
 
 from app.core.exceptions import AppException
+from app.services.mabdel_ai_service import MabdelAIService
 from app.utils.helpers import utc_now
 
 from ._base import SmartFlowBase
 
 
 class BulkMessageService(SmartFlowBase):
+    async def store_bulk_message_attachment(
+        self,
+        user_id: str,
+        *,
+        file_bytes: bytes,
+        content_type: str | None,
+        filename: str | None,
+    ) -> dict:
+        stored = self.media_storage.store_file(
+            owner_id=user_id,
+            folder="bulk_message_attachments",
+            file_bytes=file_bytes,
+            content_type=content_type,
+            filename=filename,
+            label="Attachment",
+        )
+        return {
+            "label": filename or Path(stored.filename).name,
+            "url": stored.url,
+        }
+
+    async def improve_bulk_message_content(self, user_id: str, content: str) -> dict:
+        clean_content = (content or "").strip()
+        if not clean_content:
+            raise AppException(status_code=422, code="CONTENT_REQUIRED", message="Write a message before using AI Improve.")
+        improved = MabdelAIService().improve_text(clean_content)
+        if not improved:
+            raise AppException(
+                status_code=503,
+                code="AI_IMPROVE_UNAVAILABLE",
+                message="AI improve is not available right now. Please try again shortly.",
+            )
+        return {"content": improved[:5000]}
+
     async def validate_bulk_recipients(self, user_id: str, payload: dict) -> dict:
         resolution = await self._resolve_bulk_recipients(user_id, payload)
         return {
@@ -170,6 +207,30 @@ class BulkMessageService(SmartFlowBase):
         )
         dispatched = await self._dispatch_bulk_message(updated)
         return self._serialize_bulk_message(dispatched)
+
+    async def dispatch_due_scheduled_messages(self, limit: int = 10) -> int:
+        processed = 0
+        while processed < limit:
+            now = utc_now()
+            document = await self.db.bulk_messages.find_one_and_update(
+                {
+                    "status": "scheduled",
+                    "scheduled_at": {"$lte": now},
+                },
+                {
+                    "$set": {
+                        "status": "processing",
+                        "updated_at": now,
+                    }
+                },
+                sort=[("scheduled_at", 1), ("created_at", 1)],
+                return_document=ReturnDocument.AFTER,
+            )
+            if not document:
+                break
+            await self._dispatch_bulk_message(document)
+            processed += 1
+        return processed
 
     async def cancel_bulk_message(self, user_id: str, bulk_message_id: str) -> dict:
         document = await self._get_owned_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")

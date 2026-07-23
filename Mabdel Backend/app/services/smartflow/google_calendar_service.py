@@ -11,7 +11,7 @@ from pymongo import ReturnDocument
 from app.core.config import settings
 from app.core.crypto import decrypt_value, encrypt_value
 from app.core.exceptions import AppException
-from app.utils.helpers import utc_now
+from app.utils.helpers import resolve_team_user_ids, utc_now
 
 
 class GoogleCalendarService:
@@ -23,18 +23,31 @@ class GoogleCalendarService:
         self.db = db
 
     async def get_connected_integration(self, user_id: str) -> dict | None:
-        return await self.db.social_integrations.find_one(
+        """Prefer the user's own connected Google Calendar; if they haven't connected
+        one themselves, fall back to any teammate's connected integration so the whole
+        organization shares a single calendar connection."""
+        own = await self.db.social_integrations.find_one(
             {"user_id": user_id, "platform": "google_business", "status": "connected"}
+        )
+        if own:
+            return own
+        team_ids = await resolve_team_user_ids(self.db, user_id)
+        if len(team_ids) <= 1:
+            return None
+        return await self.db.social_integrations.find_one(
+            {"user_id": {"$in": team_ids}, "platform": "google_business", "status": "connected"}
         )
 
     async def ensure_access_token(self, integration: dict) -> tuple[str, dict]:
-        access_token = decrypt_value(integration["access_token_encrypted"])
         expires_at = integration.get("access_token_expires_at")
-        if isinstance(expires_at, datetime):
-            threshold = utc_now() + timedelta(seconds=60)
-            comparable_threshold = threshold if expires_at.tzinfo else threshold.replace(tzinfo=None)
-            if expires_at <= comparable_threshold:
-                return await self.refresh_access_token(integration)
+        if not isinstance(expires_at, datetime):
+            # Unknown expiry (e.g. legacy record from before expiry tracking was added) - assume stale.
+            return await self.refresh_access_token(integration)
+        threshold = utc_now() + timedelta(seconds=60)
+        comparable_threshold = threshold if expires_at.tzinfo else threshold.replace(tzinfo=None)
+        if expires_at <= comparable_threshold:
+            return await self.refresh_access_token(integration)
+        access_token = decrypt_value(integration["access_token_encrypted"])
         return access_token, integration
 
     async def refresh_access_token(self, integration: dict) -> tuple[str, dict]:

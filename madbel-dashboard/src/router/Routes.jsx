@@ -1,9 +1,12 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "../Layout/Main/Main";
 import SignIn from "../Pages/Auth/SignIn/SignIn";
+import SSOBridge from "../Pages/Auth/SSO/SSOBridge";
 import AboutUs from "../Pages/Settings/AboutUS/AboutUs";
 import PrivacyPolicy from "../Pages/Settings/PrivacyPolicy/PrivacyPolicy";
 import TermsCondition from "../Pages/Settings/TermsCondition/TermsCondition";
+import AcceptableUsePolicy from "../Pages/Settings/AcceptableUsePolicy/AcceptableUsePolicy";
+import SmsMessagingPolicy from "../Pages/Settings/SmsMessagingPolicy/SmsMessagingPolicy";
 import PrivateRoute from "./PrivateRoute";
 import RoleRedirect from "./RoleRedirect";
 import Dashboard from "../Pages/Dashboard/Dashboard";
@@ -41,6 +44,10 @@ export const router = createBrowserRouter([
     element: <SignIn />,
   },
   {
+    path: "/sso",
+    element: <SSOBridge />,
+  },
+  {
     element: <PrivateRoute />,
     children: [
       // Standalone full-screen pages (no sidebar/header)
@@ -76,8 +83,10 @@ export const router = createBrowserRouter([
           { path: "/notifications", element: <Notifications /> },
           { path: "/settings", element: <Settings /> },
           { path: "/settings/about-us", element: <AboutUs /> },
+          { path: "/settings/terms-and-conditions", element: <TermsCondition /> },
           { path: "/settings/privacy-policy", element: <PrivacyPolicy /> },
-          { path: "/settings/terms-condition", element: <TermsCondition /> },
+          { path: "/settings/sms-messaging-policy", element: <SmsMessagingPolicy /> },
+          { path: "/settings/acceptable-use-policy", element: <AcceptableUsePolicy /> },
           { path: "/settings/profile", element: <ProfilePage /> },
           { path: "/settings/change-password", element: <ChangePass /> },
           { path: "/settings/billing", element: <BillingPage /> },

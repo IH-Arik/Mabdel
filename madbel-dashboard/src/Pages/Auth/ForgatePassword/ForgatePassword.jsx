@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Form, Input, message } from "antd";
 import { useNavigate } from "react-router-dom";
-import brandlogo from "../../../assets/image/stone-logo.png";
+import brandlogo from "../../../assets/image/gocustify-mark.png";
 import { forgotPassword } from "../../../services/authApi";
 
 const ForgatePassword = () => {

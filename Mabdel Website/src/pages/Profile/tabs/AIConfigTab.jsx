@@ -9,10 +9,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { smartflowApi } from '../../../api/services';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { INPUT, LABEL, Field, Badge, StatCard } from '../shared';
+import { AI_LANGUAGE_OPTIONS, getStoredAiLanguage, setStoredAiLanguage } from '../../../utils/voiceAgentConfig';
 
 function AIConfigTab() {
   const [voices, setVoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [aiLanguage, setAiLanguage] = useState(() => getStoredAiLanguage());
 
   useEffect(() => {
     smartflowApi.getAIVoices()
@@ -21,8 +23,28 @@ function AIConfigTab() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    setStoredAiLanguage(aiLanguage);
+  }, [aiLanguage]);
+
   return (
     <div className="space-y-5">
+      <div className="bg-[#0A1019] border border-[#243041] rounded-2xl p-5">
+        <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Globe size={16} className="text-[#11C7E5]"/>AI Voice Language</h3>
+        <select
+          value={aiLanguage}
+          onChange={(event) => setAiLanguage(event.target.value)}
+          className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none"
+        >
+          {AI_LANGUAGE_OPTIONS.map((language) => (
+            <option key={language.code} value={language.code}>{language.name}</option>
+          ))}
+        </select>
+        <p className="text-[#A4B0B7] text-xs mt-3">
+          This matches the mobile AI language setting for voice prompts, follow-up questions, and speech recognition.
+        </p>
+      </div>
+
       <div className="bg-[#0A1019] border border-[#243041] rounded-2xl p-5">
         <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Mic size={16} className="text-[#11C7E5]"/>Available AI Voices</h3>
         {loading ? <div className="flex items-center justify-center h-24"><Loader2 className="animate-spin text-[#11C7E5]"/></div>

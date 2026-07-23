@@ -22,3 +22,9 @@ class ContentPageResponse(BaseModel):
     version: str = "1.0"
     blocks: list[ContentBlock]
     updated_at: datetime
+
+
+class ContentPageTextUpdateRequest(BaseModel):
+    slug: str
+    title: str | None = Field(default=None, max_length=160)
+    content: str = Field(min_length=1, max_length=50000)

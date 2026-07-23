@@ -4,6 +4,9 @@ import asyncio
 from datetime import date, timedelta
 
 
+from app.tests.conftest import grant_owner_role
+
+
 def _get_latest_otp(db, email: str, purpose: str) -> dict:
     otp = asyncio.run(db.otp_codes.find_one({"email": email, "purpose": purpose}, sort=[("created_at", -1)]))
     assert otp is not None
@@ -20,6 +23,8 @@ def _auth_headers(client, mock_db, email: str = "agreements@example.com") -> dic
     otp = _get_latest_otp(mock_db, email=email, purpose="signup")
     verify_response = client.post("/api/v1/auth/verify-otp", json={"email": email, "code": otp["code"], "purpose": "signup"})
     assert verify_response.status_code == 200
+
+    grant_owner_role(mock_db, email)
 
     login_response = client.post("/api/v1/auth/login", json={"email": email, "password": "SecurePass2024!"})
     assert login_response.status_code == 200
@@ -87,7 +92,11 @@ def test_agreement_creator_preview_signature_and_pdf_flow(client, mock_db) -> No
     )
     assert send_response.status_code == 200
     signature_url = send_response.json()["data"]["signature_request_url"]
-    signature_path = signature_url.replace("http://127.0.0.1:8000", "")
+    # The shared link points straight at the PDF view; the JSON preview and
+    # sign endpoints live at the same path without the /pdf suffix.
+    assert signature_url.endswith("/pdf")
+    pdf_path = signature_url.replace("http://127.0.0.1:8000", "")
+    signature_path = pdf_path[: -len("/pdf")]
 
     pending_response = client.get("/api/v1/smartflow/agreements?status=pending_signature", headers=headers)
     assert pending_response.status_code == 200

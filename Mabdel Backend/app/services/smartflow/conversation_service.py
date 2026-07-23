@@ -581,6 +581,7 @@ class ConversationService(SmartFlowBase):
             "description": payload.get("description"),
             "member_ids": member_ids,
             "admin_ids": admin_ids,
+            "role_slug": payload.get("role_slug"),
             "pending_invites": [],
             "is_active": True,
             "conversation_id": conversation["id"],
@@ -589,6 +590,7 @@ class ConversationService(SmartFlowBase):
         }
         result = await self.db.groups.insert_one(group)
         group["_id"] = result.inserted_id
+        await self._sync_role_group_membership(user_id, group.get("role_slug"), member_ids, [])
         return await self._serialize_group(group)
 
     async def get_group(self, user_id: str, group_id: str) -> dict:
@@ -633,6 +635,8 @@ class ConversationService(SmartFlowBase):
 
     async def update_group(self, user_id: str, group_id: str, updates: dict) -> dict:
         group = await self._get_active_group_for_admin(user_id, group_id)
+        old_member_ids = set(group.get("member_ids", []))
+        old_role_slug = group.get("role_slug")
         clean_updates = {key: value for key, value in updates.items() if value is not None}
         if "member_ids" in clean_updates:
             clean_updates["member_ids"] = await self._normalize_group_member_ids(user_id, clean_updates["member_ids"])
@@ -649,10 +653,24 @@ class ConversationService(SmartFlowBase):
             return_document=ReturnDocument.AFTER,
         )
         await self._sync_group_conversation(updated, rename_only=not any(key in updates for key in {"member_ids", "admin_ids"}))
+
+        new_member_ids = set(updated.get("member_ids", []))
+        new_role_slug = updated.get("role_slug")
+        if old_role_slug != new_role_slug:
+            if old_role_slug:
+                await self._sync_role_group_membership(user_id, old_role_slug, [], list(old_member_ids))
+            if new_role_slug:
+                await self._sync_role_group_membership(user_id, new_role_slug, list(new_member_ids), [])
+        elif new_role_slug:
+            added = list(new_member_ids - old_member_ids)
+            removed = list(old_member_ids - new_member_ids)
+            await self._sync_role_group_membership(user_id, new_role_slug, added, removed)
+
         return await self._serialize_group(updated)
 
     async def add_group_members(self, user_id: str, group_id: str, payload: dict) -> dict:
         group = await self._get_active_group_for_admin(user_id, group_id)
+        existing_member_ids = set(group.get("member_ids", []))
         member_ids = await self._normalize_group_member_ids(
             user_id,
             [*group.get("member_ids", []), *payload.get("member_ids", [])],
@@ -667,6 +685,8 @@ class ConversationService(SmartFlowBase):
             return_document=ReturnDocument.AFTER,
         )
         await self._sync_group_conversation(updated)
+        newly_added = [member_id for member_id in member_ids if member_id not in existing_member_ids]
+        await self._sync_role_group_membership(user_id, group.get("role_slug"), newly_added, [])
         return await self._serialize_group(updated)
 
     async def update_group_member_role(self, user_id: str, group_id: str, member_id: str, role: str) -> dict:
@@ -697,6 +717,7 @@ class ConversationService(SmartFlowBase):
             return_document=ReturnDocument.AFTER,
         )
         await self._sync_group_conversation(updated)
+        await self._sync_role_group_membership(user_id, group.get("role_slug"), [], [member_id])
         return await self._serialize_group(updated)
 
     async def invite_group_member(self, user_id: str, group_id: str, payload: dict) -> dict:
@@ -1084,6 +1105,9 @@ class ConversationService(SmartFlowBase):
 
     async def delete_group(self, user_id: str, group_id: str) -> None:
         group = await self._get_active_group_for_admin(user_id, group_id)
+        await self._sync_role_group_membership(
+            user_id, group.get("role_slug"), [], list(group.get("member_ids", []))
+        )
         await self.db.groups.delete_one({"_id": group["_id"]})
         conversation_id = group.get("conversation_id")
         if conversation_id and ObjectId.is_valid(conversation_id):

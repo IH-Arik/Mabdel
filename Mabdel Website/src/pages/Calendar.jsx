@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { smartflowApi } from '../api/services';
+import { DatePickerInput, TimePickerInput } from '../components/ui/DateTimeInputs';
 
 const INPUT = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors text-sm placeholder:text-[#4A5568]';
 const LABEL = 'block text-[#A4B0B7] text-xs font-semibold uppercase tracking-wider mb-1.5';
@@ -275,13 +276,13 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Field label="Date">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={INPUT} />
+          <DatePickerInput value={date} onChange={setDate} className="focus:border-[#11C7E5]/50" />
         </Field>
         <Field label="Start Time">
-          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={INPUT} />
+          <TimePickerInput value={startTime} onChange={setStartTime} className="focus:border-[#11C7E5]/50" />
         </Field>
         <Field label="End Time">
-          <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={INPUT} />
+          <TimePickerInput value={endTime} onChange={setEndTime} className="focus:border-[#11C7E5]/50" />
         </Field>
       </div>
 
@@ -370,7 +371,7 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel }) {
           className="flex-1 py-4 bg-[#11C7E5] text-[#02080B] hover:bg-[#0fd0f0] rounded-xl font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
         >
           {saving ? <Loader2 size={18} className="animate-spin" /> : <CalendarDays size={18} />}
-          {saving ? (isEditing ? 'Saving...' : 'Scheduling...') : (isEditing ? 'Save Changes' : 'Schedule Meeting')}
+          {saving ? (isEditing ? 'Saving...' : 'Adding...') : (isEditing ? 'Save Changes' : 'Add to Calendar')}
         </button>
       </div>
     </form>
@@ -732,7 +733,8 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved }) {
   );
 }
 
-function CalendarSyncPanel({ googleConnected, integrationsLoading, onConnectGoogle }) {
+function CalendarSyncPanel({ googleConnected, googleNeedsReauth, integrationsLoading, onConnectGoogle }) {
+  const label = googleNeedsReauth ? 'Reconnect Google Calendar' : googleConnected ? 'Google Connected' : 'Connect Google Calendar';
   return (
     <div className={`${PANEL} p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4`}>
       <div>
@@ -746,10 +748,18 @@ function CalendarSyncPanel({ googleConnected, integrationsLoading, onConnectGoog
           type="button"
           onClick={onConnectGoogle}
           disabled={integrationsLoading}
-          className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+          className={`px-4 py-3 rounded-xl bg-[#0A1019] border font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60 ${googleNeedsReauth ? 'border-amber-500/40 text-amber-300' : 'border-[#243246] text-white'}`}
         >
-          {integrationsLoading ? <Loader2 size={15} className="animate-spin" /> : googleConnected ? <CheckCircle2 size={15} className="text-emerald-400" /> : <Link2 size={15} />}
-          {googleConnected ? 'Google Connected' : 'Connect Google Calendar'}
+          {integrationsLoading ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : googleNeedsReauth ? (
+            <AlertTriangle size={15} className="text-amber-400" />
+          ) : googleConnected ? (
+            <CheckCircle2 size={15} className="text-emerald-400" />
+          ) : (
+            <Link2 size={15} />
+          )}
+          {label}
         </button>
         <div className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-[#A4B0B7] text-sm">
           Apple Calendar: `.ics` export
@@ -771,6 +781,7 @@ export default function Calendar() {
   const [prefillData, setPrefillData] = useState(null);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleNeedsReauth, setGoogleNeedsReauth] = useState(false);
   const [integrationsLoading, setIntegrationsLoading] = useState(true);
 
   useEffect(() => {
@@ -817,8 +828,10 @@ export default function Calendar() {
       const items = normalizeListPayload(response);
       const google = items.find((item) => item.platform === 'google_business');
       setGoogleConnected(Boolean(google?.connected));
+      setGoogleNeedsReauth(google?.health_status === 'needs_reauth' || google?.sync_status === 'needs_reauth');
     } catch {
       setGoogleConnected(false);
+      setGoogleNeedsReauth(false);
     } finally {
       setIntegrationsLoading(false);
     }
@@ -911,7 +924,7 @@ export default function Calendar() {
           className="px-5 py-3 bg-[#11C7E5] text-[#02080B] hover:bg-[#0fd0f0] rounded-xl font-extrabold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shrink-0"
         >
           {showCreate ? <X size={18} /> : <Plus size={18} />}
-          {showCreate ? 'Close' : 'Schedule Meeting'}
+          {showCreate ? 'Close' : 'Add to Calendar'}
         </button>
       </div>
 
@@ -923,6 +936,7 @@ export default function Calendar() {
 
       <CalendarSyncPanel
         googleConnected={googleConnected}
+        googleNeedsReauth={googleNeedsReauth}
         integrationsLoading={integrationsLoading}
         onConnectGoogle={handleGoogleConnect}
       />

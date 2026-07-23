@@ -478,7 +478,7 @@ async def logout(
 @router.get("/settings/content", response_model=BaseResponse[str])
 async def get_settings_page_content(
     type: str, # privacy_policy, terms_conditions, about_us
-    current_user: dict = Depends(require_permission("settings", "view")),
+    current_user: dict = Depends(require_role(["super_admin", "admin"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -491,7 +491,7 @@ async def get_settings_page_content(
 @router.post("/settings/content", response_model=BaseResponse[bool])
 async def update_settings_page_content(
     data: SettingsContent,
-    current_user: dict = Depends(require_permission("settings", "edit")),
+    current_user: dict = Depends(require_role(["super_admin", "admin"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """

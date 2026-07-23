@@ -3,6 +3,9 @@ from __future__ import annotations
 import asyncio
 
 
+from app.tests.conftest import grant_owner_role
+
+
 def _get_latest_otp(db, email: str, purpose: str) -> dict:
     otp = asyncio.run(db.otp_codes.find_one({"email": email, "purpose": purpose}, sort=[("created_at", -1)]))
     assert otp is not None
@@ -19,6 +22,8 @@ def _auth_headers(client, mock_db, email: str = "call-history@example.com") -> d
     otp = _get_latest_otp(mock_db, email=email, purpose="signup")
     verify_response = client.post("/api/v1/auth/verify-otp", json={"email": email, "code": otp["code"], "purpose": "signup"})
     assert verify_response.status_code == 200
+
+    grant_owner_role(mock_db, email)
 
     login_response = client.post("/api/v1/auth/login", json={"email": email, "password": "SecurePass2024!"})
     assert login_response.status_code == 200

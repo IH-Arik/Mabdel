@@ -27,6 +27,7 @@ import VoiceConversation from './pages/VoiceConversation';
 import AiCall from './pages/AiCall';
 import JoinEvent from './pages/JoinEvent';
 import CreatePost from './pages/CreatePost';
+import ContentPage from './pages/ContentPage';
 
 function App() {
   const { isAuthenticated, checkAuth } = useAuthStore();
@@ -41,6 +42,12 @@ function App() {
         <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Landing />} />
         <Route path="/subscription" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Subscription />} />
         <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/privacy-policy" element={<ContentPage forcedSlug="privacy-policy" />} />
+        <Route path="/terms-and-conditions" element={<ContentPage forcedSlug="terms-and-conditions" />} />
+        <Route path="/sms-messaging-policy" element={<ContentPage forcedSlug="sms-messaging-policy" />} />
+        <Route path="/acceptable-use-policy" element={<ContentPage forcedSlug="acceptable-use-policy" />} />
+        <Route path="/about-us" element={<ContentPage forcedSlug="about-us" />} />
+        <Route path="/help-support" element={<ContentPage forcedSlug="help-support" />} />
         <Route path="/begin" element={<Begin />} />
         <Route path="/onboarding" element={<Onboarding />} />
 

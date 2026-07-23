@@ -27,12 +27,17 @@ class IntegrationService(SmartFlowBase):
         self.google_calendar_service = GoogleCalendarService(db)
 
     async def list_integrations(self, user_id: str) -> list[dict]:
-        docs = await self.db.social_integrations.find({"user_id": user_id}).sort("platform", 1).to_list(length=20)
+        team_ids = await self._resolve_team_user_ids(user_id)
+        docs = await self.db.social_integrations.find({"user_id": {"$in": team_ids}}).sort("platform", 1).to_list(length=20)
         return [self._serialize_integration(doc) for doc in docs]
 
     async def get_integration_catalog(self, user_id: str) -> list[dict]:
-        docs = await self.db.social_integrations.find({"user_id": user_id}).to_list(length=50)
-        existing = {doc["platform"]: doc for doc in docs}
+        team_ids = await self._resolve_team_user_ids(user_id)
+        docs = await self.db.social_integrations.find({"user_id": {"$in": team_ids}}).to_list(length=50)
+        # If multiple teammates connected the same platform, prefer the caller's own
+        # connection in the catalog view, then fall back to the first teammate's.
+        docs.sort(key=lambda d: 0 if d.get("user_id") == user_id else 1)
+        existing = {doc["platform"]: doc for doc in reversed(docs)}
         items: list[dict] = []
         for metadata in self._integration_catalog_metadata():
             platform = metadata["platform"]
@@ -336,7 +341,12 @@ class IntegrationService(SmartFlowBase):
 
     async def complete_integration_oauth(self, platform: str, code: str, state: str) -> dict:
         state_doc = await self.db.oauth_states.find_one({"state": state})
-        if not state_doc or state_doc.get("expires_at") < utc_now():
+        expires_at = state_doc.get("expires_at") if state_doc else None
+        now = utc_now()
+        if expires_at is not None and expires_at.tzinfo is None:
+            # Mongo returns BSON datetimes as naive UTC
+            now = now.replace(tzinfo=None)
+        if not state_doc or expires_at is None or expires_at < now:
             raise AppException(status_code=400, code="OAUTH_STATE_INVALID", message="OAuth state is invalid or expired.")
         platform = state_doc["platform"]
 

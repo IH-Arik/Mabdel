@@ -59,7 +59,7 @@ const OnboardingPage = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 mb-4">
             <Sparkles className="w-8 h-8 text-cyan-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome to Mabdel</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">eelcome to Mabdel</h1>
           <p className="text-slate-400 text-base">
             Your all-in-one CRM & communication platform.
             <br />
@@ -99,7 +99,7 @@ const OnboardingPage = () => {
               Unlock full access with a paid plan. Billed monthly or annually.
             </p>
             <span className="mt-4 text-xs font-medium bg-white/20 px-3 py-1 rounded-full">
-              Upgrade →
+              Upgrade â†’
             </span>
           </button>
 
@@ -120,9 +120,9 @@ const OnboardingPage = () => {
               Try all features free for 7 days. No credit card required.
             </p>
             {loading === "trial" ? (
-              <span className="mt-4 text-xs font-medium text-cyan-400">Starting trial…</span>
+              <span className="mt-4 text-xs font-medium text-cyan-400">Starting trialâ€¦</span>
             ) : (
-              <span className="mt-4 text-xs font-medium text-cyan-400">Start now →</span>
+              <span className="mt-4 text-xs font-medium text-cyan-400">Start now â†’</span>
             )}
           </button>
         </div>
@@ -135,10 +135,10 @@ const OnboardingPage = () => {
             className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-200 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Eye className="w-4 h-4" />
-            {loading === "explore" ? "Loading…" : "Explore without subscribing"}
+            {loading === "explore" ? "Loadingâ€¦" : "Explore without subscribing"}
           </button>
           <p className="text-slate-600 text-xs mt-1">
-            View-only mode — write actions require an active subscription.
+            View-only mode â€” write actions require an active subscription.
           </p>
         </div>
 

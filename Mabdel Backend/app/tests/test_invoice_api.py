@@ -19,6 +19,9 @@ class FakeEmailService:
         return None
 
 
+from app.tests.conftest import grant_owner_role
+
+
 def _get_latest_otp(db, email: str, purpose: str) -> dict:
     otp = asyncio.run(
         db.otp_codes.find_one(
@@ -43,6 +46,8 @@ def _auth_headers(client: TestClient, mock_db, email: str = "invoice-api@example
         json={"email": email, "code": otp["code"], "purpose": "signup"},
     )
     assert verify_response.status_code == 200
+
+    grant_owner_role(mock_db, email)
 
     login_response = client.post(
         "/api/v1/auth/login",

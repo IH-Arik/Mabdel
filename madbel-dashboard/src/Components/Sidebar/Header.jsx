@@ -126,7 +126,7 @@ const Header = ({ showDrawer }) => {
           />
           <div>
             <h2 className="font-semibold text-gray-800 text-md">
-              Welcome, Madbel AI Admin
+              Welcome, GoCustify Admin
             </h2>
             <p className="text-sm text-gray-500">Have a nice day!</p>
           </div>

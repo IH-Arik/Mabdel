@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from fastapi import Depends, Query, status
+from fastapi import Depends, File, Query, UploadFile, status
 
 from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
     BulkMessageCreateRequest,
+    BulkMessageImproveRequest,
     BulkMessageUpdateRequest,
     BulkRecipientValidationRequest,
 )
@@ -23,6 +24,33 @@ async def validate_bulk_recipients(
 ) -> dict:
     data = await service.validate_bulk_recipients(str(current_user["_id"]), payload.model_dump())
     return success_response(data=data, message="Bulk recipients validated successfully.")
+
+
+@router.post("/bulk-messages/attachments", status_code=status.HTTP_201_CREATED)
+async def upload_bulk_message_attachment(
+    attachment_file: UploadFile = File(...),
+    current_user: dict = Depends(require_permission("bulk_messaging", "create")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    file_bytes = await attachment_file.read()
+    data = await service.store_bulk_message_attachment(
+        str(current_user["_id"]),
+        file_bytes=file_bytes,
+        content_type=attachment_file.content_type,
+        filename=attachment_file.filename,
+    )
+    return success_response(data=data, message="Attachment uploaded successfully.")
+
+
+@router.post("/bulk-messages/improve-content")
+async def improve_bulk_message_content(
+    payload: BulkMessageImproveRequest,
+    current_user: dict = Depends(require_permission("bulk_messaging", "create")),
+    _: dict = Depends(require_subscription),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.improve_bulk_message_content(str(current_user["_id"]), payload.content)
+    return success_response(data=data, message="Message improved successfully.")
 
 
 @router.get("/bulk-messages")

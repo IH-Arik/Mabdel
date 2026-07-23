@@ -77,7 +77,11 @@ class CalendarService(SmartFlowBase):
         await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"])
         if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
             payload["meeting_link"] = self._generate_meeting_link()
-        google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
+        try:
+            google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
+        except AppException:
+            google_event = None
+            payload["sync_status"] = "error"
         if google_event:
             payload["google_event_id"] = google_event.get("id")
             payload["sync_status"] = "synced"
@@ -119,13 +123,17 @@ class CalendarService(SmartFlowBase):
             merged["meeting_link"] = clean_updates["meeting_link"]
         google_event = None
         google_event_id = event.get("google_event_id")
-        if google_event_id:
-            google_event = await self.google_calendar_service.update_remote_event(user_id, google_event_id, merged)
-        else:
-            google_event = await self.google_calendar_service.create_remote_event(user_id, merged)
-            if google_event:
-                clean_updates["google_event_id"] = google_event.get("id")
-                google_event_id = google_event.get("id")
+        try:
+            if google_event_id:
+                google_event = await self.google_calendar_service.update_remote_event(user_id, google_event_id, merged)
+            else:
+                google_event = await self.google_calendar_service.create_remote_event(user_id, merged)
+                if google_event:
+                    clean_updates["google_event_id"] = google_event.get("id")
+                    google_event_id = google_event.get("id")
+        except AppException:
+            google_event = None
+            clean_updates["sync_status"] = "error"
         if google_event:
             clean_updates["sync_status"] = "synced"
             clean_updates["calendar_source"] = "mabdel_google_sync"

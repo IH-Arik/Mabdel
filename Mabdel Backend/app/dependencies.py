@@ -110,6 +110,16 @@ _PERMISSION_MESSAGES: dict[str, str] = {
     "invoices:view":   "Invoice access is restricted. Please contact your administrator to request access.",
     "invoices:create": "Creating invoices is not enabled for your account. Please contact your administrator.",
     "invoices:edit":   "Editing invoices requires elevated access. Please contact your administrator.",
+    # Leases
+    "leases:view":   "Lease access is restricted. Please contact your administrator to request access.",
+    "leases:create": "Creating leases is not enabled for your account. Please contact your administrator.",
+    "leases:edit":   "Editing leases requires elevated access. Please contact your administrator.",
+    "leases:delete": "Deleting leases requires elevated access. Please contact your administrator.",
+    # Agreements
+    "agreements:view":   "Agreement access is restricted. Please contact your administrator to request access.",
+    "agreements:create": "Creating agreements is not enabled for your account. Please contact your administrator.",
+    "agreements:edit":   "Editing agreements requires elevated access. Please contact your administrator.",
+    "agreements:delete": "Deleting agreements requires elevated access. Please contact your administrator.",
     # Bulk messaging
     "bulk_messaging:view":   "Bulk messaging campaigns are not accessible with your current permissions.",
     "bulk_messaging:create": "Creating bulk campaigns is not enabled for your account. Please contact your administrator.",

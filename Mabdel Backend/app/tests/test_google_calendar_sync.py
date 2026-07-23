@@ -6,6 +6,7 @@ from datetime import datetime
 import httpx
 
 from app.core.config import settings
+from app.tests.conftest import grant_owner_role
 from app.tests.test_auth import _register_user, _verify_signup_otp
 
 
@@ -25,6 +26,7 @@ def test_google_oauth_callback_imports_calendar_events(client, mock_db, monkeypa
     email = "google-calendar@example.com"
     _register_user(client, email=email)
     _verify_signup_otp(client, mock_db, email=email)
+    grant_owner_role(mock_db, email)
     token = _login_token(client, email)
 
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "google-client-id")
@@ -118,6 +120,7 @@ def test_google_connected_calendar_event_crud_syncs_provider(client, mock_db, mo
     email = "google-calendar-crud@example.com"
     _register_user(client, email=email)
     _verify_signup_otp(client, mock_db, email=email)
+    grant_owner_role(mock_db, email)
     token = _login_token(client, email)
 
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "google-client-id")

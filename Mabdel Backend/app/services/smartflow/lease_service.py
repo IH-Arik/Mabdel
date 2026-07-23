@@ -60,11 +60,12 @@ class LeaseService(SmartFlowBase):
         status: str | None,
     ) -> dict:
         await self._expire_stale_leases(user_id)
-        filters = self._lease_list_filters(user_id, search, status)
+        team_ids = await self._resolve_team_user_ids(user_id)
+        filters = self._lease_list_filters(team_ids, search, status)
         total = await self.db.agreements.count_documents(filters)
         cursor = self.db.agreements.find(filters).sort("updated_at", -1).skip((page - 1) * page_size).limit(page_size)
         items = [self._serialize_lease(item, include_content=False) for item in await cursor.to_list(length=page_size)]
-        all_leases = await self.db.agreements.find({"user_id": user_id, "agreement_type": "lease"}).to_list(length=1000)
+        all_leases = await self.db.agreements.find({"user_id": {"$in": team_ids}, "agreement_type": "lease"}).to_list(length=1000)
         return {
             "items": items,
             "summary": self._lease_summary(all_leases),
@@ -190,12 +191,17 @@ class LeaseService(SmartFlowBase):
             "title": payload.get("title") or self._infer_lease_title(details),
             "lease_number": None,
             "tenant_name": details["tenant_name"],
+            "landlord_name": details["landlord_name"],
+            "tenant_email": details.get("tenant_email"),
+            "tenant_phone": details.get("tenant_phone"),
             "property_address": details["property_address"],
             "property_type": details["property_type"],
             "property_type_label": self._lease_property_type_label(details["property_type"]),
             "monthly_rent_cents": details["monthly_rent_cents"],
+            "monthly_rent": round((details["monthly_rent_cents"] or 0) / 100, 2),
             "monthly_rent_label": self._money_label(details["monthly_rent_cents"], details["currency"], suffix="/mo"),
             "security_deposit_cents": details["security_deposit_cents"],
+            "security_deposit": round((details["security_deposit_cents"] or 0) / 100, 2),
             "currency": details["currency"],
             "rent_due_day": details["rent_due_day"],
             "duration_months": self._lease_duration_months(details.get("start_date"), details.get("end_date")),
@@ -316,34 +322,84 @@ class LeaseService(SmartFlowBase):
             details["monthly_rent_cents"] = self._amount_to_cents(payload.get("monthly_rent_cents"), payload.get("monthly_rent"))
         details["start_date"] = self._agreement_date_to_iso(payload.get("start_date") or date.today())
         details["end_date"] = self._agreement_date_to_iso(payload.get("end_date") or details.get("end_date"))
-        metadata = dict(lease.get("metadata") or {})
-        metadata["lease"] = details
-        updates = {
-            "status": "draft",
+        self._validate_agreement_dates(
+            {
+                **lease,
+                "start_date": details["start_date"],
+                "end_date": details["end_date"],
+            }
+        )
+        now = utc_now()
+        source_metadata = dict(lease.get("metadata") or {})
+        source_metadata["renewed_to_pending"] = True
+        renewal_metadata = dict(lease.get("metadata") or {})
+        renewal_metadata["lease"] = details
+        renewal_metadata["renewed_from_lease_id"] = str(lease["_id"])
+        renewal_metadata["renewed_from_lease_number"] = lease.get("agreement_number")
+        renewal_document = {
+            "user_id": user_id,
+            "agreement_number": await self._next_lease_number(),
+            "title": (lease.get("title") or self._infer_lease_title(details)).strip(),
+            "client_name": details["tenant_name"],
+            "client_email": lease.get("client_email"),
+            "client_phone": lease.get("client_phone"),
+            "agreement_type": "lease",
+            "priority": lease.get("priority", "standard"),
             "start_date": details["start_date"],
             "end_date": details["end_date"],
-            "metadata": metadata,
-            "expired_at": None,
-            "revision": int(lease.get("revision", 1)) + 1,
-            "updated_at": utc_now(),
-        }
-        if payload.get("reset_signature", True):
-            updates.update(
+            "content": self._generate_lease_content(
                 {
-                    "sent_at": None,
-                    "signed_at": None,
-                    "signature": None,
-                    "signature_request_token": None,
-                    "signature_request_expires_at": None,
+                    "title": lease.get("title"),
+                    "property_address": details["property_address"],
+                    "property_type": details["property_type"],
+                    "landlord_name": details["landlord_name"],
+                    "tenant_name": details["tenant_name"],
+                    "monthly_rent_cents": details["monthly_rent_cents"],
+                    "security_deposit_cents": details["security_deposit_cents"],
+                    "currency": details["currency"],
+                    "rent_due_day": details["rent_due_day"],
+                    "start_date": details["start_date"],
+                    "end_date": details["end_date"],
+                    "custom_terms": details.get("custom_terms"),
+                    "signature_fields": details.get("signature_fields"),
                 }
-            )
-            await self.db.signature_requests.delete_many({"agreement_id": str(lease["_id"]), "user_id": user_id})
-        merged = {**lease, **updates}
-        self._validate_agreement_dates(merged)
-        updated = await self.db.agreements.find_one_and_update(
+            ).strip(),
+            "status": "draft",
+            "smart_fields": self._lease_smart_fields(details),
+            "metadata": renewal_metadata,
+            "ai_review": [],
+            "sent_at": None,
+            "signed_at": None,
+            "expired_at": None,
+            "signature_request_token": None,
+            "signature_request_expires_at": None,
+            "signature": None,
+            "signature_provider": "native",
+            "docusign": {},
+            "revision": int(lease.get("revision", 1)) + 1,
+            "renewed_from_lease_id": str(lease["_id"]),
+            "renewed_from_lease_number": lease.get("agreement_number"),
+            "created_at": now,
+            "updated_at": now,
+        }
+        renewal_document["ai_review"] = self._review_lease_content(renewal_document["content"], details)
+        renewal_document["status"] = self._derive_agreement_status(renewal_document)
+        result = await self.db.agreements.insert_one(renewal_document)
+        renewal_document["_id"] = result.inserted_id
+        await self.db.agreements.update_one(
             {"_id": lease["_id"]},
-            {"$set": updates},
-            return_document=ReturnDocument.AFTER,
+            {
+                "$set": {
+                    "renewed_to_lease_id": str(result.inserted_id),
+                    "renewed_to_lease_number": renewal_document["agreement_number"],
+                    "metadata": {
+                        **source_metadata,
+                        "renewed_to_lease_id": str(result.inserted_id),
+                        "renewed_to_lease_number": renewal_document["agreement_number"],
+                    },
+                    "updated_at": now,
+                }
+            },
         )
         await self.log_ai_command(
             user_id=user_id,
@@ -351,10 +407,13 @@ class LeaseService(SmartFlowBase):
             command_type="agreement",
             status="completed",
             is_replayable=True,
-            related_resource={"type": "lease", "id": str(lease["_id"]), "lease_number": lease["agreement_number"]},
-            preview_payload={"revision": updates["revision"]},
+            related_resource={"type": "lease", "id": str(result.inserted_id), "lease_number": renewal_document["agreement_number"]},
+            preview_payload={
+                "revision": renewal_document["revision"],
+                "renewed_from_lease_number": lease.get("agreement_number"),
+            },
         )
-        return self._serialize_lease(updated, include_content=True)
+        return self._serialize_lease(renewal_document, include_content=True)
 
     async def generate_lease_pdf(self, user_id: str, lease_id: str) -> bytes:
         lease = await self._get_owned_lease(user_id, lease_id)

@@ -20,7 +20,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import client from '../api/client';
 import { useNavigate } from 'react-router-dom';
-import logoImg from '../assets/logo.png';
+import logoImg from '../assets/gocustify-mark.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -153,11 +153,6 @@ export default function LoginPage() {
     setAuthMode('choose_method');
   };
 
-  const handleGoogleLogin = () => {
-    setLocalError(null);
-    setLocalMessage("Google Authentication is not configured for this environment. Please log in using your email and password.");
-  };
-
   // Dispatch OTP code request
   const handleSendVerificationCode = async () => {
     setLocalError(null);
@@ -286,8 +281,8 @@ export default function LoginPage() {
                     setLocalError(null);
                     setLocalMessage(null);
                   }}>
-                    <img src={logoImg} alt="Mabdel Logo" className="w-12 h-12 object-contain drop-shadow-[0_0_15px_rgba(17,199,229,0.2)]" />
-                    <span className="text-xs font-black tracking-[0.2em] text-[#11C7E5] uppercase">SmartFlow</span>
+                    <img src={logoImg} alt="GoCustify logo" className="w-12 h-12 object-contain drop-shadow-[0_0_15px_rgba(17,199,229,0.2)]" />
+                    <span className="text-xs font-black tracking-[0.2em] text-[#11C7E5] uppercase">GoCustify</span>
                   </div>
                 </div>
               )}
@@ -313,7 +308,7 @@ export default function LoginPage() {
                 <div>
                   <div className="text-center mb-8">
                     <h2 className="text-3xl font-bold text-white tracking-tight">Welcome Back</h2>
-                    <p className="text-gray-400 mt-2 text-sm">Log In to your SmartFlow business assistant.</p>
+                    <p className="text-gray-400 mt-2 text-sm">Log in to your GoCustify workspace.</p>
                   </div>
 
                   <form onSubmit={handleLogin} className="space-y-5">
@@ -351,7 +346,7 @@ export default function LoginPage() {
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                         <input 
                           type={showPass ? "text" : "password"} 
-                          placeholder="••••••••"
+                          placeholder="Enter your password"
                           className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
@@ -380,21 +375,6 @@ export default function LoginPage() {
                     </button>
                   </form>
 
-                  <div className="relative my-8 text-center">
-                    <hr className="border-gray-900" />
-                    <span className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 px-4 bg-[#0c101b] text-xs font-bold text-gray-600 tracking-wider">OR</span>
-                  </div>
-
-                  <button 
-                    onClick={handleGoogleLogin}
-                    className="w-full py-3.5 border border-gray-900 hover:border-gray-800 bg-[#121625]/30 hover:bg-[#121625]/60 text-gray-300 font-semibold rounded-xl flex items-center justify-center gap-3 transition-all active:scale-[0.99] cursor-pointer"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24">
-                      <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.187 4.114-3.41 0-6.19-2.78-6.19-6.19s2.78-6.19 6.19-6.19c1.7 0 3.25.69 4.39 1.81l3.09-3.09C19.25 2.11 15.93 1 12.24 1 6.04 1 1 6.04 1 12.24s5.04 11.24 11.24 11.24c5.89 0 10.84-4.22 11.59-9.84H12.24z"/>
-                    </svg>
-                    Continue with Google
-                  </button>
-
                   <p className="mt-8 text-center text-gray-400 text-sm">
                     Don't have an account?{' '}
                     <button 
@@ -416,7 +396,7 @@ export default function LoginPage() {
                 <div>
                   <div className="text-center mb-8">
                     <h2 className="text-3xl font-bold text-white tracking-tight">Create Account</h2>
-                    <p className="text-gray-400 mt-2 text-sm">Join SmartFlow's AI business assistant.</p>
+                    <p className="text-gray-400 mt-2 text-sm">Create your GoCustify account and get started.</p>
                   </div>
 
                   <form onSubmit={handleRegisterSubmit} className="space-y-5">
@@ -470,7 +450,7 @@ export default function LoginPage() {
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                         <input 
                           type={showPass ? "text" : "password"} 
-                          placeholder="••••••••"
+                          placeholder="Enter your password"
                           className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
@@ -489,7 +469,7 @@ export default function LoginPage() {
                     <div className="flex items-start gap-2.5 pt-1">
                       <input type="checkbox" id="agree" required className="mt-1 rounded bg-[#121625]/60 border border-gray-900 text-cyan-500 focus:ring-cyan-500/20" />
                       <label htmlFor="agree" className="text-xs text-gray-400 leading-normal font-medium cursor-pointer">
-                        I agree to the <a href="#" className="text-cyan-400 hover:underline">Terms & Conditions</a> and <a href="#" className="text-cyan-400 hover:underline">Privacy Policy</a>.
+                        I agree to the <a href="/terms-and-conditions" className="text-cyan-400 hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" className="text-cyan-400 hover:underline">Privacy Policy</a>.
                       </label>
                     </div>
 
@@ -500,21 +480,6 @@ export default function LoginPage() {
                       Sign Up
                     </button>
                   </form>
-
-                  <div className="relative my-8 text-center">
-                    <hr className="border-gray-900" />
-                    <span className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 px-4 bg-[#0c101b] text-xs font-bold text-gray-600 tracking-wider">OR CONTINUE WITH</span>
-                  </div>
-
-                  <button 
-                    onClick={handleGoogleLogin}
-                    className="w-full py-3.5 border border-gray-900 hover:border-gray-800 bg-[#121625]/30 hover:bg-[#121625]/60 text-gray-300 font-semibold rounded-xl flex items-center justify-center gap-3 transition-all active:scale-[0.99]"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24">
-                      <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.187 4.114-3.41 0-6.19-2.78-6.19-6.19s2.78-6.19 6.19-6.19c1.7 0 3.25.69 4.39 1.81l3.09-3.09C19.25 2.11 15.93 1 12.24 1 6.04 1 1 6.04 1 12.24s5.04 11.24 11.24 11.24c5.89 0 10.84-4.22 11.59-9.84H12.24z"/>
-                    </svg>
-                    Google
-                  </button>
 
                   <p className="mt-8 text-center text-gray-400 text-sm">
                     Already have an account?{' '}
@@ -617,8 +582,8 @@ export default function LoginPage() {
                 <div>
                   <div className="text-center mb-8 flex flex-col items-center">
                     <div className="flex items-center gap-1.5 justify-center mb-4">
-                      <div className="w-6 h-6 rounded bg-cyan-500 flex items-center justify-center text-[#070a13] font-bold">∞</div>
-                      <span className="text-sm font-bold text-white">SmartFlow</span>
+                      <img src={logoImg} alt="GoCustify logo" className="w-6 h-6 object-contain" />
+                      <span className="text-sm font-bold text-white">GoCustify</span>
                     </div>
                     <h2 className="text-3xl font-bold text-white tracking-tight">Enter Verification Code</h2>
                     <p className="text-gray-400 mt-2 text-sm max-w-xs mx-auto">
@@ -757,7 +722,7 @@ export default function LoginPage() {
                 <div>
                   <div className="text-center mb-8">
                     <h2 className="text-3xl font-bold text-white tracking-tight">Set New Password</h2>
-                    <p className="text-gray-400 mt-2 text-sm">Create a secure password for your SmartFlow account.</p>
+                    <p className="text-gray-400 mt-2 text-sm">Create a secure password for your GoCustify account.</p>
                   </div>
 
                   <form onSubmit={handleResetPassword} className="space-y-5">
@@ -913,11 +878,10 @@ export default function LoginPage() {
 
       {/* Login Screen Footer */}
       <footer className="w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 py-6 text-xs text-gray-600 font-bold border-t border-slate-900 mt-12 bg-transparent select-none z-10">
-        <p>© 2026 Mabdel AI. Quantum Secured.</p>
+        <p>© 2026 GoCustify. All rights reserved.</p>
         <div className="flex items-center gap-6">
-          <a href="#" className="hover:text-gray-400 transition-colors">Privacy Policy</a>
-          <a href="#" className="hover:text-gray-400 transition-colors">Terms of Service</a>
-          <a href="#" className="hover:text-gray-400 transition-colors">Security Architecture</a>
+          <a href="/privacy-policy" className="hover:text-gray-400 transition-colors">Privacy Policy</a>
+          <a href="/terms-and-conditions" className="hover:text-gray-400 transition-colors">Terms & Conditions</a>
         </div>
       </footer>
 

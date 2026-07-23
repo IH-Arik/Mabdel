@@ -1,26 +1,27 @@
+import { useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
+import {
+  LayoutDashboard,
+  MessageSquare,
   Users2,
-  Settings, 
+  Settings,
   LogOut,
-  Bell,
   Mic,
   ArrowLeft,
-  Search,
-  Grid,
   Contact,
   FileText,
-  PhoneCall
+  PhoneCall,
+  ExternalLink
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import logoImg from '../assets/logo.png';
+import logoImg from '../assets/gocustify-mark.png';
 import { TwilioVoiceProvider, useTwilioVoice } from '../context/TwilioVoiceContext';
 import IncomingCallOverlay from '../components/Calls/IncomingCallOverlay';
 import ActiveCallOverlay from '../components/Calls/ActiveCallOverlay';
+import NotificationBellButton from '../components/NotificationBellButton';
+import { useNotificationStore } from '../store/useNotificationStore';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -37,6 +38,11 @@ const primaryNavItems = [
   { name: 'Groups', icon: Users2, path: '/groups' },
   { name: 'Profile', icon: Settings, path: '/profile' },
 ];
+
+// Team Management dashboard is a separate app (madbel-dashboard) shared with
+// Owner/Manager only - Admin/Super Admin use their own dedicated dashboard login.
+const TEAM_DASHBOARD_ROLES = new Set(['owner', 'manager']);
+const TEAM_DASHBOARD_URL = import.meta.env.VITE_DASHBOARD_URL || 'http://localhost:5174';
 
 function CallOverlayHost() {
   const {
@@ -90,9 +96,19 @@ function CallOverlayHost() {
 }
 
 export default function MainLayout() {
-  const { user, logout } = useAuthStore();
+  const { user, token, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const syncUnreadCount = useNotificationStore((state) => state.syncUnreadCount);
+  const showTeamDashboardLink = TEAM_DASHBOARD_ROLES.has(user?.role || user?.primary_role);
+
+  const openTeamDashboard = () => {
+    const ssoUrl = token
+      ? `${TEAM_DASHBOARD_URL}/sso?token=${encodeURIComponent(token)}`
+      : `${TEAM_DASHBOARD_URL}/sign-in`;
+    window.open(ssoUrl, '_blank', 'noopener,noreferrer');
+  };
 
   const path = location.pathname;
   
@@ -116,6 +132,10 @@ export default function MainLayout() {
     }
   };
 
+  useEffect(() => {
+    syncUnreadCount().catch(() => {});
+  }, [syncUnreadCount]);
+
   return (
     <TwilioVoiceProvider>
     <div className="flex h-screen bg-[#02080B] text-white font-sans overflow-hidden">
@@ -129,15 +149,15 @@ export default function MainLayout() {
           <div className="flex items-center gap-3">
             <img 
               src={logoImg} 
-              alt="Mabdel Logo" 
+              alt="GoCustify logo" 
               className="w-9 h-9 object-contain drop-shadow-[0_0_15px_rgba(17,199,229,0.2)]" 
             />
             <div className="text-left">
               <h1 className="text-sm font-black text-white tracking-tight leading-none uppercase">
-                Mabdel <span className="text-[#11C7E5]">AI</span>
+                GoCustify
               </h1>
               <p className="text-[7.5px] font-bold text-[#11C7E5]/80 tracking-[0.2em] uppercase mt-1">
-                AUTOMATING FUTURE
+                AI CRM PLATFORM
               </p>
             </div>
           </div>
@@ -152,7 +172,7 @@ export default function MainLayout() {
               className={({ isActive }) => cn(
                 "group flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 border border-transparent font-semibold text-sm text-left",
                 isActive 
-                  ? "bg-[#11C7E5]/10 text-white border-[#11C7E5]/20 shadow-[inset_1px_1px_2px_rgba(17,199,229,0.05)]" 
+                  ? "bg-[#17324A] text-white border-[#3B82F6]/25 shadow-[inset_1px_1px_2px_rgba(59,130,246,0.08)]" 
                   : "text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white"
               )}
             >
@@ -162,7 +182,7 @@ export default function MainLayout() {
                     size={18} 
                     className={cn(
                       "transition-colors", 
-                      isActive ? "text-[#11C7E5]" : "text-[#A4B0B7] group-hover:text-slate-200"
+                      isActive ? "text-[#60A5FA]" : "text-[#A4B0B7] group-hover:text-slate-200"
                     )} 
                   />
                   <span>{item.name}</span>
@@ -174,9 +194,19 @@ export default function MainLayout() {
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-[#243041]/40 space-y-3">
-          {/* Support and Logout */}
+          {/* Team Dashboard, Support and Logout */}
           <div className="space-y-1">
-            <button 
+            {showTeamDashboardLink && (
+              <button
+                type="button"
+                onClick={openTeamDashboard}
+                className="flex items-center gap-3.5 px-4 py-2.5 w-full rounded-xl text-xs font-bold text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white transition-all text-left cursor-pointer"
+              >
+                <ExternalLink size={16} />
+                <span>Team Dashboard</span>
+              </button>
+            )}
+            <button
               onClick={logout}
               className="flex items-center gap-3.5 px-4 py-2.5 w-full rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-950/20 hover:text-rose-300 transition-all text-left"
             >
@@ -218,15 +248,15 @@ export default function MainLayout() {
           <div className="flex items-center gap-6">
             
             {/* Notification Bell */}
-            <button 
+            <NotificationBellButton
+              count={unreadCount}
+              active={path === '/notifications'}
               onClick={() => navigate('/notifications')}
-              className={cn(
-                "hover:text-white transition-colors relative cursor-pointer",
-                path === '/notifications' ? "text-[#11C7E5]" : "text-slate-400"
-              )}
-            >
-              <Bell size={18} />
-            </button>
+              size={24}
+              strokeWidth={2.75}
+              buttonClassName="hover:text-white transition-colors relative cursor-pointer"
+              className={cn(path === '/notifications' ? 'text-[#11C7E5]' : 'text-slate-200')}
+            />
 
             {/* Profile Avatar */}
             <div 

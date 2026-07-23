@@ -1,0 +1,12 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gocustifyGradient" x1="40" y1="32" x2="208" y2="224" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#39A5FF"/>
+      <stop offset="0.55" stop-color="#4B6BFF"/>
+      <stop offset="1" stop-color="#9134FF"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="124" fill="#040B23"/>
+  <path d="M129.95 41C94.45 41 65 69.6 65 106.53C65 143.98 94.88 172.06 132.57 172.06C144.39 172.06 155.76 169.41 165.89 164.16L149.37 136.12C144.06 138.33 138.24 139.47 132.2 139.47C112.48 139.47 96.78 125.4 96.78 106.53C96.78 87.87 111.9 73.67 129.95 73.67C140.5 73.67 150.17 78.37 156.61 86.34L130.34 113.31H184.72L201 49.76L175.46 66.18C163.89 50.5 147.92 41 129.95 41Z" fill="url(#gocustifyGradient)"/>
+  <path d="M171.63 98.4C171.63 149.61 144.32 191.08 101.41 209.9C92.93 213.62 83.6 215.9 73.77 216.43V182.85C98.93 181.18 119.74 166.1 128.86 144.53L171.63 98.4Z" fill="url(#gocustifyGradient)"/>
+</svg>

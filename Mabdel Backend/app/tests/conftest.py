@@ -36,6 +36,26 @@ def _reset_auth_rate_limiter(middleware) -> None:
 async def _seed_defaults(db) -> None:
     await AppConfigRepository(db).ensure_defaults()
     await OnboardingRepository(db).ensure_default_slides()
+    from scripts.seed_rbac import seed_database
+    await seed_database(db)
+
+
+def grant_owner_role(db, email: str) -> None:
+    """Self-signup users get the permissionless 'user' role; most CRM endpoints need owner."""
+    from app.repositories.rbac_repository import RBACRepository
+
+    async def _grant() -> None:
+        user = await db.users.find_one({"email": email})
+        role = await db.rbac_roles.find_one({"slug": "owner"})
+        assert user is not None and role is not None
+        await RBACRepository(db).assign_role(
+            user_id=str(user["_id"]),
+            role_id=str(role["_id"]),
+            role_slug="owner",
+            assigned_by="test",
+        )
+
+    asyncio.run(_grant())
 
 
 @pytest.fixture(scope="function")

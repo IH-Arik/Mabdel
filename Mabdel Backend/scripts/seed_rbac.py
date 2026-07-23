@@ -120,6 +120,16 @@ PERMISSIONS: list[tuple[str, str, str, str]] = [
     ("invoices",      "create",  "Create Invoices",      "Create new invoices"),
     ("invoices",      "edit",    "Edit/Send Invoices",   "Edit, send, remind, and update invoice status"),
 
+    ("leases",        "view",    "View Leases",          "View lease agreements and their status"),
+    ("leases",        "create",  "Create Leases",        "Draft and generate new lease agreements"),
+    ("leases",        "edit",    "Edit Leases",          "Edit, send for signature, and renew leases"),
+    ("leases",        "delete",  "Delete Leases",        "Delete lease agreements"),
+
+    ("agreements",    "view",    "View Agreements",      "View agreements and their status"),
+    ("agreements",    "create",  "Create Agreements",    "Draft and generate new agreements"),
+    ("agreements",    "edit",    "Edit Agreements",      "Edit, send for signature, and renew agreements"),
+    ("agreements",    "delete",  "Delete Agreements",    "Delete agreements"),
+
     ("bulk_messaging","view",    "View Bulk Campaigns",  "View bulk message campaigns"),
     ("bulk_messaging","create",  "Create Bulk Campaigns","Create and edit bulk message drafts"),
     ("bulk_messaging","send",    "Send Bulk Campaigns",  "Send and cancel bulk message campaigns"),
@@ -210,6 +220,14 @@ ROLES: list[dict] = [
             ("invoices",     "view"),
             ("invoices",     "create"),
             ("invoices",     "edit"),
+            ("leases",       "view"),
+            ("leases",       "create"),
+            ("leases",       "edit"),
+            ("leases",       "delete"),
+            ("agreements",   "view"),
+            ("agreements",   "create"),
+            ("agreements",   "edit"),
+            ("agreements",   "delete"),
             ("bulk_messaging","view"),
             ("bulk_messaging","create"),
             ("bulk_messaging","send"),
@@ -241,6 +259,10 @@ ROLES: list[dict] = [
             ("appointments",  "cancel"),
             ("invoices",      "view"),
             ("invoices",      "edit"),
+            ("leases",        "view"),
+            ("leases",        "edit"),
+            ("agreements",    "view"),
+            ("agreements",    "edit"),
             ("bulk_messaging","view"),
             ("bulk_messaging","create"),
             ("bulk_messaging","send"),
@@ -273,6 +295,10 @@ ROLES: list[dict] = [
             ("appointments",  "edit"),
             ("invoices",      "view"),
             ("invoices",      "edit"),
+            ("leases",        "view"),
+            ("leases",        "edit"),
+            ("agreements",    "view"),
+            ("agreements",    "edit"),
             ("bulk_messaging","view"),
             ("social_media",  "view"),
             ("social_media",  "post"),
@@ -299,6 +325,10 @@ ROLES: list[dict] = [
             ("appointments",  "edit"),
             ("invoices",      "view"),
             ("invoices",      "edit"),
+            ("leases",        "view"),
+            ("leases",        "edit"),
+            ("agreements",    "view"),
+            ("agreements",    "edit"),
             ("social_media",  "view"),
             ("social_media",  "post"),
             ("ai_tools",      "use"),
@@ -308,12 +338,8 @@ ROLES: list[dict] = [
 ]
 
 
-async def seed() -> None:
-    client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
-    db = client[DATABASE_NAME]
-
-    print(f"Connected to MongoDB: {DATABASE_NAME}")
-
+async def seed_database(db) -> None:
+    """Upsert all system permissions and roles into the given database."""
     await db.rbac_permissions.create_index([("module", 1), ("action", 1)], unique=True)
     await db.rbac_roles.create_index("slug", unique=True)
 
@@ -330,9 +356,8 @@ async def seed() -> None:
             return_document=True,
         )
         perm_lookup[(module, action)] = str(result["_id"])
-        print(f"  Permission: {module}:{action}")
 
-    print(f"\nSeeded {len(perm_lookup)} permissions.")
+    print(f"Seeded {len(perm_lookup)} permissions.")
 
     all_perm_ids = list(perm_lookup.values())
 
@@ -369,8 +394,14 @@ async def seed() -> None:
         print(f"  Role: {slug} (level={role_def['hierarchy_level']}, perms={len(perm_ids)})")
 
     print(f"\nSeeded {len(ROLES)} roles.")
-    print("\nRBAC seed complete. ✓")
+    print("\nRBAC seed complete.")
 
+
+async def seed() -> None:
+    client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+    db = client[DATABASE_NAME]
+    print(f"Connected to MongoDB: {DATABASE_NAME}")
+    await seed_database(db)
     client.close()
 
 
