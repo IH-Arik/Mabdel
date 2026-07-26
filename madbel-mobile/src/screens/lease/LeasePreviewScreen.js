@@ -340,11 +340,14 @@ const LeasePreviewScreen = () => {
         Alert.alert(t("pdf_unavailable"), t("could_not_generate_pdf_link"));
         return;
       }
-      await downloadAndOpenProtectedPdf({
+      const localUri = await downloadAndOpenProtectedPdf({
         url: pdfUrl,
         accessToken,
         filePrefix: `lease-${leaseId}`,
       });
+      if (localUri) {
+        await Linking.openURL(localUri);
+      }
       Alert.alert("Downloaded", "Lease PDF downloaded successfully.");
     } catch (error) {
       Alert.alert(
