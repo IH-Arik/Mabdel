@@ -95,26 +95,6 @@ const resolveAuthUrl = (response) =>
   response?.auth_url ||
   null;
 
-const resolveAgreementPublicPdfUrl = (agreement) => {
-  // These signing-token PDF routes are only served by the backend while the
-  // signature request is still pending; once signed/expired/never-sent, they
-  // 404 (SIGNATURE_REQUEST_NOT_FOUND) or require auth, so only use them in
-  // that window. Otherwise fall through to the authenticated download.
-  if (String(agreement?.status || "").toLowerCase() !== "pending_signature") return null;
-
-  const publicUrl = normalizeProtectedFileUrl(agreement?.signature_request_url);
-  if (publicUrl) return publicUrl;
-
-  const signingToken = resolveSigningToken(agreement);
-  if (signingToken) {
-    return normalizeProtectedFileUrl(
-      `/api/v1/smartflow/agreements/signing/${signingToken}/pdf`,
-    );
-  }
-
-  return null;
-};
-
 const AgreementPreviewScreen = () => {
   const { t } = useAppLanguage();
   const navigation = useNavigation();
@@ -132,6 +112,7 @@ const AgreementPreviewScreen = () => {
       { skip: !agreementId },
     );
   const agreement = agreementResponse?.data || routeAgreement;
+  const isSigned = String(agreement?.status || "").toLowerCase() === "signed";
   const signingProvider =
     agreement?.signing_provider || routeAgreement?.signing_provider;
   const tone =
@@ -273,25 +254,19 @@ const AgreementPreviewScreen = () => {
     if (!agreementId) return;
     try {
       setDownloadingPdf(true);
-      const publicPdfUrl = resolveAgreementPublicPdfUrl(agreement);
-      if (publicPdfUrl) {
-        const canOpen = await Linking.canOpenURL(publicPdfUrl);
-        if (canOpen) {
-          await Linking.openURL(publicPdfUrl);
-          return;
-        }
-      }
-
       const pdfUrl =
         normalizeProtectedFileUrl(agreement?.pdf_url) ||
         normalizeProtectedFileUrl(
           `/api/v1/smartflow/agreements/${agreementId}/pdf`,
         );
-      await downloadAndOpenProtectedPdf({
+      const localUri = await downloadAndOpenProtectedPdf({
         url: pdfUrl,
         accessToken,
         filePrefix: `agreement-${agreementId}`,
       });
+      if (localUri) {
+        await Linking.openURL(localUri);
+      }
     } catch (error) {
       Alert.alert(
         "PDF failed",
@@ -325,11 +300,13 @@ const AgreementPreviewScreen = () => {
             <Text style={styles.headerTitle}>{t("agreement_preview")}</Text>
           </View>
           <View style={styles.headerActions}>
-            <Pressable style={styles.editBtn} onPress={handleEditAgreement}>
-              <Text style={styles.editBtnText}>
-                {t("edit_agreement", "Edit Agreement")}
-              </Text>
-            </Pressable>
+            {!isSigned && (
+              <Pressable style={styles.editBtn} onPress={handleEditAgreement}>
+                <Text style={styles.editBtnText}>
+                  {t("edit_agreement", "Edit Agreement")}
+                </Text>
+              </Pressable>
+            )}
             <Pressable onPress={openPdf} disabled={downloadingPdf}>
               {downloadingPdf ? (
                 <ActivityIndicator color="#D7E8FF" />
@@ -370,20 +347,25 @@ const AgreementPreviewScreen = () => {
             <Text style={styles.docBody}>
               {agreement?.content || "No agreement content available."}
             </Text>
-            <View style={styles.signatureBox}>
+            {/* <View style={styles.signatureBox}>
               <Text style={styles.signatureTag}>{t("signature_required")}</Text>
               <Text style={styles.signatureHint}>{t("click_to_sign")}</Text>
-            </View>
+            </View> */}
           </View>
 
-          <Pressable style={styles.sendBtn} onPress={() => setShowModal(true)}>
-            <Text style={styles.sendBtnText}>{t("send_for_signature")}</Text>
+          <Pressable
+            style={styles.sendBtn}
+            onPress={isSigned ? openPdf : () => setShowModal(true)}
+          >
+            <Text style={styles.sendBtnText}>
+              {isSigned ? t("download_pdf") : t("send_for_signature")}
+            </Text>
           </Pressable>
         </ScrollView>
       </View>
 
       <Modal
-        visible={showModal}
+        visible={showModal && !isSigned}
         transparent
         animationType="fade"
         onRequestClose={() => setShowModal(false)}

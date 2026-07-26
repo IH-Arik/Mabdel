@@ -1,4 +1,5 @@
-import * as FileSystem from "expo-file-system";
+import * as LegacyFileSystem from "expo-file-system/legacy";
+import { Directory, File, Paths } from "expo-file-system";
 import { API_BASE_URL } from "../redux/apiUtils";
 
 export const normalizeProtectedFileUrl = (value) => {
@@ -30,13 +31,23 @@ export const downloadAndOpenProtectedPdf = async ({
     throw new Error("Authentication token is missing.");
   }
 
-  const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+  const baseDir =
+    Paths.cache?.uri ||
+    Paths.document?.uri ||
+    LegacyFileSystem.cacheDirectory ||
+    LegacyFileSystem.documentDirectory;
   if (!baseDir) {
     throw new Error("Local file storage is unavailable.");
   }
 
-  const targetUri = `${baseDir}${filePrefix}-${Date.now()}.pdf`;
-  const result = await FileSystem.downloadAsync(normalizedUrl, targetUri, {
+  const downloadDir = new Directory(baseDir, "downloads");
+  downloadDir.create({ intermediates: true, idempotent: true });
+
+  const targetFile = new File(
+    downloadDir,
+    `${filePrefix}-${Date.now()}.pdf`
+  );
+  const result = await File.downloadFileAsync(normalizedUrl, targetFile, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/pdf",
@@ -44,7 +55,7 @@ export const downloadAndOpenProtectedPdf = async ({
     },
   });
 
-  const localUri = result?.uri || targetUri;
+  const localUri = result?.uri || targetFile.uri;
   if (!localUri) {
     throw new Error("PDF download did not return a file.");
   }
