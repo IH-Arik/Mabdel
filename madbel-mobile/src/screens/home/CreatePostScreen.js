@@ -1,17 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  ActivityIndicator,
-  Alert,
-  Share,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator, Alert, Share } from "react-native";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -172,7 +162,7 @@ const CreatePostScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -332,7 +322,7 @@ const CreatePostScreen = () => {
           handleSchedulePost(date);
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

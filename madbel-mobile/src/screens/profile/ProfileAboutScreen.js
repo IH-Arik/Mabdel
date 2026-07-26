@@ -1,7 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft } from "lucide-react-native";
 import {
   responsiveHeight,
@@ -20,7 +19,7 @@ const ProfileAboutScreen = () => {
   const blocks = aboutResponse?.data?.blocks || [];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
@@ -44,7 +43,7 @@ const ProfileAboutScreen = () => {
           </ScrollView>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,19 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  View,
-} from "react-native";
+  ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from "react-native";
 import { Controller, useFormContext } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -86,7 +74,7 @@ const NewPasswordScreen = () => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
           <LinearGradient colors={["#02080B", "#010406"]} style={styles.screen}>
             <ScrollView
               contentContainerStyle={styles.content}
@@ -130,8 +118,6 @@ const NewPasswordScreen = () => {
                   },
                 }}
               />
-
-
 
               <ControllerTextInput
                 name="newConfirmPassword"
@@ -196,7 +182,7 @@ const NewPasswordScreen = () => {
               </Text> */}
             </ScrollView>
           </LinearGradient>
-        </SafeAreaView>
+        </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );

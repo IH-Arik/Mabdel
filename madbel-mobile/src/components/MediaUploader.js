@@ -1,12 +1,7 @@
 import React from "react";
 import { useAppLanguage } from "../context/LanguageContext";
 import {
-  Alert,
-  Image,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+  Alert, Image, Pressable, Text, View } from "react-native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { Controller } from "react-hook-form";
 import { ImagePlus, Trash2, Video } from "lucide-react-native";

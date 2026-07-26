@@ -1,33 +1,14 @@
 import React, { useState } from "react";
 import { useAppLanguage } from "../../context/LanguageContext";
 import {
-  ActivityIndicator,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  View,
-} from "react-native";
+  ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from "react-native";
 import { Controller, useFormContext } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
 import {
-  Check,
-  Eye,
-  EyeOff,
-  LockKeyhole,
-  MailIcon,
-  User2,
-} from "lucide-react-native";
+  Check, Eye, EyeOff, LockKeyhole, MailIcon, User2, } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRegisterMutation } from "../../redux/slices/authSlice";
 import ControllerTextInput from "../../components/ControllerTextInput";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { responsiveFontSize , responsiveWidth} from "react-native-responsive-dimensions";
 
 const colors = {
@@ -89,7 +70,7 @@ const RegisterScreen = () => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
           <LinearGradient colors={["#02080B", "#010406"]} style={styles.screen}>
             <ScrollView
               contentContainerStyle={styles.content}
@@ -200,17 +181,6 @@ const RegisterScreen = () => {
                 )}
               </Pressable>
 
-              {/* <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>{t("or_continue_with")}</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <Pressable style={styles.googleButton}>
-                <Text style={styles.googleG}>{t("g")}</Text>
-                <Text style={styles.googleText}>{t("continue_with_google")}</Text>
-              </Pressable> */}
-
               {errors?.root?.type === "register" && (
                 <Text style={styles.errorTextCenter}>
                   {errors?.root?.message}
@@ -225,7 +195,7 @@ const RegisterScreen = () => {
               </View>
             </ScrollView>
           </LinearGradient>
-        </SafeAreaView>
+        </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
@@ -343,43 +313,6 @@ const styles = StyleSheet.create({
     color: "#EAF5F8",
     fontSize: responsiveFontSize(2),
     fontWeight: "700",
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 18,
-    marginBottom: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#2A3038",
-  },
-  dividerText: {
-    color: "#C2C7CC",
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: 1,
-  },
-  googleButton: {
-    height: 78,
-    borderRadius: 20,
-    backgroundColor: colors.card,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 12,
-  },
-  googleG: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#EA4335",
-  },
-  googleText: {
-    color: colors.textPrimary,
-    fontSize: 22 / 2,
-    fontWeight: "600",
   },
   errorTextCenter: {
     color: "#FF5D6E",

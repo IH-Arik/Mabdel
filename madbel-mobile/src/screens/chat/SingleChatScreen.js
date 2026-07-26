@@ -5,49 +5,22 @@
 // //   useRef,
 // //   useState,
 // // } from "react";
-// // import {
-// //   View,
-// //   Text,
-// //   FlatList,
-// //   Modal,
-// //   Pressable,
-// //   TextInput,
-// //   Image,
-// //   KeyboardAvoidingView,
-// //   Platform,
-// //   ActivityIndicator,
-// //   Alert,
-// // } from "react-native";
-// // import { SafeAreaView } from "react-native-safe-area-context";
+// // import { // //   View, // //   Text, // //   FlatList, // //   Modal, // //   Pressable, // //   TextInput, // //   Image, // //   KeyboardAvoidingView, // //   Platform, // //   ActivityIndicator, // //   Alert, // //, View } from "react-native";
 // // import { ChevronLeft, Ellipsis, Send, Mic, MicOff } from "lucide-react-native";
 // // import {
-// //   RecordingPresets,
-// //   requestRecordingPermissionsAsync,
-// //   setAudioModeAsync,
-// //   useAudioRecorder,
-// //   useAudioRecorderState,
-// // } from "expo-audio";
+// //   RecordingPresets, // //   requestRecordingPermissionsAsync, // //   setAudioModeAsync, // //   useAudioRecorder, // //   useAudioRecorderState, // // } from "expo-audio";
 // // import * as FileSystem from "expo-file-system";
 // // import { useNavigation, useRoute } from "@react-navigation/native";
 // // import { useSelector } from "react-redux";
 // // import MessageBubble from "../../components/MessageBubble";
 // // import { useAppLanguage } from "../../context/LanguageContext";
 // // import {
-// //   responsiveHeight,
-// //   responsiveWidth,
-// // } from "react-native-responsive-dimensions";
+// //   responsiveHeight, // //   responsiveWidth, // // } from "react-native-responsive-dimensions";
 // // import {
-// //   useFetchConversationsQuery,
-// //   useFetchMessagesQuery,
-// //   useMarkThreadSeenMutation,
-// //   useSendMessageMutation,
-// // } from "../../redux/slices/chat/chatSlice";
+// //   useFetchConversationsQuery, // //   useFetchMessagesQuery, // //   useMarkThreadSeenMutation, // //   useSendMessageMutation, // // } from "../../redux/slices/chat/chatSlice";
 // // import { useMadbelTranscribeVoiceMutation } from "../../redux/slices/madbelApiSlice";
 // // import {
-// //   useMadbelSetTypingStateMutation,
-// //   useMadbelReplyToMessageMutation,
-// //   useMadbelForwardMessageMutation,
-// // } from "../../redux/slices/madbelSmartflowSlice";
+// //   useMadbelSetTypingStateMutation, // //   useMadbelReplyToMessageMutation, // //   useMadbelForwardMessageMutation, // // } from "../../redux/slices/madbelSmartflowSlice";
 // // import { addEventListener, removeEventListener } from "../../utils/socket";
 // // import useSocket from "../../hooks/useSocket";
 
@@ -60,12 +33,7 @@
 
 // // const getMessageSortTime = (message) => {
 // //   const candidates = [
-// //     message?.raw?.createdAt,
-// //     message?.raw?.created_at,
-// //     message?.raw?.timestamp,
-// //     message?.raw?.updatedAt,
-// //     message?.raw?.updated_at,
-// //   ];
+// //     message?.raw?.createdAt, // //     message?.raw?.created_at, // //     message?.raw?.timestamp, // //     message?.raw?.updatedAt, // //     message?.raw?.updated_at, // //   ];
 
 // //   for (const value of candidates) {
 // //     if (!value) continue;
@@ -80,35 +48,23 @@
 // //   const senderId = String(message?.senderUserId || "");
 // //   const isSelf = Boolean(message?.sender_is_self || message?.senderIsSelf);
 // //   return {
-// //     id: message?._id || message?.id || `${Date.now()}-${Math.random()}`,
-// //     text: message?.text || message?.content || "",
-// //     time: formatTime(
+// //     id: message?._id || message?.id || `${Date.now()}-${Math.random()}`, // //     text: message?.text || message?.content || "", // //     time: formatTime(
 // //       message?.createdAt ||
 // //         message?.created_at ||
 // //         message?.timestamp ||
 // //         message?.updatedAt ||
-// //         message?.updated_at,
-// //     ),
-// //     sender: isSelf || senderId === String(myUserId || "") ? "me" : "them",
-// //     senderUserId: senderId,
-// //     status: message?.status || message?.delivery_status || null,
-// //     raw: message,
-// //   };
+// //         message?.updated_at, // //     ), // //     sender: isSelf || senderId === String(myUserId || "") ? "me" : "them", // //     senderUserId: senderId, // //     status: message?.status || message?.delivery_status || null, // //     raw: message, // //   };
 // // };
 
 // // const upsertMessages = (prev, nextMessage) => {
 // //   if (!nextMessage?.id) return prev;
 // //   const exists = prev.some(
-// //     (item) => String(item.id) === String(nextMessage.id),
-// //   );
+// //     (item) => String(item.id) === String(nextMessage.id), // //   );
 // //   if (exists) return prev;
 // //   return [...prev, nextMessage];
 // // };
 // // const ADMIN_SUPPORT_SUGGESTIONS = [
-// //   "billing_issue",
-// //   "technical_help",
-// //   "account_problem",
-// // ];
+// //   "billing_issue", // //   "technical_help", // //   "account_problem", // // ];
 
 // // const SingleChatScreen = () => {
 // //   const navigation = useNavigation();
@@ -129,8 +85,7 @@
 // //   const [messages, setMessages] = useState([]);
 // //   const [peerIsTyping, setPeerIsTyping] = useState(false);
 // //   const [peerIsOnline, setPeerIsOnline] = useState(
-// //     Boolean(conversation?.isOnline),
-// //   );
+// //     Boolean(conversation?.isOnline), // //   );
 // //   const [replyToMessage, setReplyToMessage] = useState(null);
 // //   const [forwardMessage, setForwardMessage] = useState(null);
 // //   const [forwardModalVisible, setForwardModalVisible] = useState(false);
@@ -151,33 +106,23 @@
 // //     useMadbelTranscribeVoiceMutation();
 
 // //   const {
-// //     data: threadMessagesData,
-// //     isFetching: isLoadingMessages,
-// //     isError: isThreadError,
-// //   } = useFetchMessagesQuery(threadId, { skip: !threadId });
+// //     data: threadMessagesData, // //     isFetching: isLoadingMessages, // //     isError: isThreadError, // //   } = useFetchMessagesQuery(threadId, { skip: !threadId });
 
 // //   useSocket({
-// //     threadId,
-// //     enabled: Boolean(threadId),
-// //     onMessage: (incoming) => {
+// //     threadId, // //     enabled: Boolean(threadId), // //     onMessage: (incoming) => {
 // //       const normalized = toUiMessage(incoming, myUserId);
 // //       setMessages((prev) => upsertMessages(prev, normalized));
-// //     },
-// //   });
+// //     }, // //   });
 
 // //   const flatListRef = useRef(null);
 // //   const scrollTimeoutRef = useRef(null);
 
 // //   const defaultConversation = {
-// //     name: t("chat"),
-// //     avatar: "https://robohash.org/user.png",
-// //   };
+// //     name: t("chat"), // //     avatar: "https://robohash.org/user.png", // //   };
 
 // //   const groupConversation = group
 // //     ? {
-// //         name: group?.name || t("group_chat"),
-// //         avatar: group?.avatar || "https://robohash.org/group.png",
-// //       }
+// //         name: group?.name || t("group_chat"), // //         avatar: group?.avatar || "https://robohash.org/group.png", // //       }
 // //     : null;
 
 // //   const currentConversation =
@@ -185,9 +130,7 @@
 
 // //   const orderedMessages = useMemo(
 // //     () =>
-// //       [...messages].sort((a, b) => getMessageSortTime(a) - getMessageSortTime(b)),
-// //     [messages],
-// //   );
+// //       [...messages].sort((a, b) => getMessageSortTime(a) - getMessageSortTime(b)), // //     [messages], // //   );
 
 // //   useEffect(() => {
 // //     const apiMessages = threadMessagesData?.messages || [];
@@ -215,9 +158,7 @@
 // //           clearTimeout(peerTypingTimeoutRef.current);
 // //         }
 // //         peerTypingTimeoutRef.current = setTimeout(
-// //           () => setPeerIsTyping(false),
-// //           8000,
-// //         );
+// //           () => setPeerIsTyping(false), // //           8000, // //         );
 // //       }
 // //     };
 // //     addEventListener("chat:typing:updated", handler);
@@ -246,10 +187,7 @@
 // //       if (text.length > 0 && !isSelfTypingRef.current) {
 // //         isSelfTypingRef.current = true;
 // //         setTypingState({
-// //           conversation_id: threadId,
-// //           is_typing: true,
-// //           actor_type: "user",
-// //         }).catch(() => null);
+// //           conversation_id: threadId, // //           is_typing: true, // //           actor_type: "user", // //         }).catch(() => null);
 // //       }
 // //       if (selfTypingTimeoutRef.current) {
 // //         clearTimeout(selfTypingTimeoutRef.current);
@@ -257,14 +195,9 @@
 // //       selfTypingTimeoutRef.current = setTimeout(() => {
 // //         isSelfTypingRef.current = false;
 // //         setTypingState({
-// //           conversation_id: threadId,
-// //           is_typing: false,
-// //           actor_type: "user",
-// //         }).catch(() => null);
+// //           conversation_id: threadId, // //           is_typing: false, // //         }).catch(() => null);
 // //       }, 3000);
-// //     },
-// //     [threadId, setTypingState],
-// //   );
+// //     }, // //     [threadId, setTypingState], // //   );
 
 // //   useEffect(() => {
 // //     if (!flatListRef.current || orderedMessages.length === 0) return undefined;
@@ -292,9 +225,7 @@
 // //       if (scrollTimeoutRef.current) {
 // //         clearTimeout(scrollTimeoutRef.current);
 // //       }
-// //     },
-// //     [],
-// //   );
+// //     }, // //     [], // //   );
 
 // //   const sendMessage = async () => {
 // //     const text = message.trim();
@@ -309,33 +240,23 @@
 // //         clearTimeout(selfTypingTimeoutRef.current);
 // //       }
 // //       setTypingState({
-// //         conversation_id: threadId,
-// //         is_typing: false,
-// //         actor_type: "user",
-// //       }).catch(() => null);
+// //         conversation_id: threadId, // //         is_typing: false, // //         actor_type: "user", // //       }).catch(() => null);
 // //     }
 
 // //     try {
 // //       let created;
 // //       if (pendingReply) {
 // //         const result = await replyToMessageMutation({
-// //           message_id: pendingReply.id,
-// //           content: text,
-// //           platform: "ai",
-// //         }).unwrap();
+// //           message_id: pendingReply.id, // //           content: text, // //           platform: "ai", // //         }).unwrap();
 // //         created = result?.message || result;
 // //       } else {
 // //         const result = await sendMessageMutation({
-// //           threadId,
-// //           type: "text",
-// //           text,
-// //         }).unwrap();
+// //           threadId, // //           type: "text", // //           text, // //         }).unwrap();
 // //         created = result?.message || result;
 // //       }
 // //       if (created?._id || created?.id) {
 // //         setMessages((prev) =>
-// //           upsertMessages(prev, toUiMessage(created, myUserId)),
-// //         );
+// //           upsertMessages(prev, toUiMessage(created, myUserId)), // //         );
 // //       }
 // //     } catch {
 // //       setMessage(text);
@@ -346,27 +267,14 @@
 // //   const handleLongPressMessage = useCallback(
 // //     (item) => {
 // //       Alert.alert(
-// //         t("message_actions"),
-// //         null,
-// //         [
+// //         t("message_actions"), // //         null, // //         [
 // //           {
-// //             text: t("reply"),
-// //             onPress: () => setReplyToMessage(item),
-// //           },
-// //           {
-// //             text: t("forward"),
-// //             onPress: () => {
+// //             text: t("reply"), // //             onPress: () => setReplyToMessage(item), // //           }, // //           {
+// //             text: t("forward"), // //             onPress: () => {
 // //               setForwardMessage(item);
 // //               setForwardModalVisible(true);
-// //             },
-// //           },
-// //           { text: t("cancel"), style: "cancel" },
-// //         ],
-// //         { cancelable: true },
-// //       );
-// //     },
-// //     [t],
-// //   );
+// //             }, // //           { text: t("cancel"), style: "cancel" }, // //         ], // //         { cancelable: true }, // //       );
+// //     }, // //     [t], // //   );
 
 // //   const handleForwardTo = useCallback(
 // //     async (targetThreadId) => {
@@ -374,17 +282,12 @@
 // //       setForwardModalVisible(false);
 // //       try {
 // //         await forwardMessageMutation({
-// //           message_id: forwardMessage.id,
-// //           conversation_id: targetThreadId,
-// //           platform: "ai",
-// //         }).unwrap();
+// //           message_id: forwardMessage.id, // //           conversation_id: targetThreadId, // //         }).unwrap();
 // //       } catch {
 // //         Alert.alert(t("error"), t("could_not_forward_message"));
 // //       }
 // //       setForwardMessage(null);
-// //     },
-// //     [forwardMessage, forwardMessageMutation, t],
-// //   );
+// //     }, // //     [forwardMessage, forwardMessageMutation, t], // //   );
 
 // //   const handleRecordButtonPress = async () => {
 // //     if (recorderState?.isRecording) {
@@ -397,16 +300,13 @@
 
 // //           const audioBase64 = await new Promise((resolve, reject) => {
 // //             const reader = new FileReader();
-// //             reader.onload = () => resolve(reader.result.split(",")[1]);
+// //             reader.onload = () => resolve(reader.result.split(", ")[1]);
 // //             reader.onerror = reject;
 // //             reader.readAsDataURL(blob);
 // //           });
 
 // //           const result = await transcribeVoice({
-// //             audio_base64: audioBase64,
-// //             audio_filename: `mabdel-transcribe-${Date.now()}.m4a`,
-// //             audio_mime_type: "audio/m4a",
-// //           }).unwrap();
+// //             audio_base64: audioBase64, // //             audio_filename: `mabdel-transcribe-${Date.now()}.m4a`, // //             audio_mime_type: "audio/m4a", // //           }).unwrap();
 
 // //           const transcriptData = result?.data || result;
 // //           const t = transcriptData?.transcript;
@@ -420,12 +320,7 @@
 // //         const permission = await requestRecordingPermissionsAsync();
 // //         if (!permission.granted) return;
 // //         await setAudioModeAsync({
-// //           allowsRecording: true,
-// //           playsInSilentMode: true,
-// //           interruptionMode: "doNotMix",
-// //           shouldPlayInBackground: false,
-// //           shouldRouteThroughEarpiece: false,
-// //         });
+// //           allowsRecording: true, // //           playsInSilentMode: true, // //           interruptionMode: "doNotMix", // //           shouldPlayInBackground: false, // //           shouldRouteThroughEarpiece: false, // //         });
 // //         await recorder.prepareToRecordAsync();
 // //         recorder.record();
 // //       } catch (error) {}
@@ -456,9 +351,7 @@
 // //                 ? `${t("today")}, ${item.time}`
 // //                 : new Date(item?.raw?.createdAt || 0)
 // //                     .toLocaleDateString([], {
-// //                       month: "short",
-// //                       day: "numeric",
-// //                     })
+// //                       month: "short", // //                       day: "numeric", // //                     })
 // //                     .toUpperCase()}
 // //             </Text>
 // //           </View>
@@ -480,11 +373,7 @@
 // //   const renderEmptyComponent = () => (
 // //     <View
 // //       style={{
-// //         flex: 1,
-// //         justifyContent: "center",
-// //         alignItems: "center",
-// //         paddingHorizontal: 32,
-// //       }}
+// //         flex: 1, // //         justifyContent: "center", // //         alignItems: "center", // //         paddingHorizontal: 32, // //       }}
 // //     >
 // //       {currentConversation.avatar ? (
 // //         <Image
@@ -494,11 +383,7 @@
 // //       ) : null}
 // //       <Text
 // //         style={{
-// //           fontSize: 18,
-// //           fontWeight: "600",
-// //           color: "#F8FAFC",
-// //           marginBottom: 4,
-// //         }}
+// //           fontSize: 18, // //           fontWeight: "600", // //           color: "#F8FAFC", // //           marginBottom: 4, // //         }}
 // //       >
 // //         {currentConversation.name}
 // //       </Text>
@@ -507,11 +392,7 @@
 // //       </Text>
 // //       <Text
 // //         style={{
-// //           color: "#3D4A58",
-// //           fontSize: 14,
-// //           textAlign: "center",
-// //           marginTop: 4,
-// //         }}
+// //           color: "#3D4A58", // //           fontSize: 14, // //           textAlign: "center", // //           marginTop: 4, // //         }}
 // //       >
 // //         {t("send_message_to_start")}
 // //       </Text>
@@ -521,26 +402,17 @@
 // //   const inputDisabled = !threadId || isSending;
 
 // //   const headerName = useMemo(
-// //     () => currentConversation?.name || t("chat"),
-// //     [currentConversation?.name, t],
-// //   );
+// //     () => currentConversation?.name || t("chat"), // //     [currentConversation?.name, // //   );
 // //   const shouldShowSuggestions =
 // //     String(headerName || "").toLowerCase() === "live support";
 // //   const isGroupChat = Boolean(group);
 
 // //   return (
-// //     <SafeAreaView style={{ flex: 1, backgroundColor: "#020406" }}>
+// //     <View style={{ flex: 1, backgroundColor: "#020406" }}>
 // //       {/* Header */}
 // //       <View
 // //         style={{
-// //           flexDirection: "row",
-// //           alignItems: "center",
-// //           justifyContent: "space-between",
-// //           paddingHorizontal: responsiveWidth(2),
-// //           paddingVertical: responsiveHeight(1),
-// //           borderBottomWidth: 1,
-// //           borderBottomColor: "#141820",
-// //         }}
+// //           flexDirection: "row", // //           alignItems: "center", // //           justifyContent: "space-between", // //           paddingHorizontal: responsiveWidth(2), // //           paddingVertical: responsiveHeight(1), // //           borderBottomWidth: 1, // //           borderBottomColor: "#141820", // //         }}
 // //       >
 // //         <Pressable onPress={() => navigation.goBack()} style={{ padding: 8 }}>
 // //           <ChevronLeft size={26} color="#F8FAFC" />
@@ -553,24 +425,16 @@
 // //             </Text>
 // //             <View
 // //               style={{
-// //                 width: 9,
-// //                 height: 9,
-// //                 borderRadius: 5,
-// //                 backgroundColor: peerIsOnline ? "#22C55E" : "#5D6A7A",
-// //               }}
+// //                 width: 9, // //                 height: 9, // //                 borderRadius: 5, // //                 backgroundColor: peerIsOnline ? "#22C55E" : "#5D6A7A", // //               }}
 // //             />
 // //           </View>
 // //           <Text
 // //             style={{
-// //               fontSize: 13,
-// //               color: peerIsTyping
+// //               fontSize: 13, // //               color: peerIsTyping
 // //                 ? "#17CBE8"
 // //                 : peerIsOnline
 // //                   ? "#22C55E"
-// //                   : "#5D6A7A",
-// //               fontWeight: "600",
-// //               marginTop: 1,
-// //             }}
+// //                   : "#5D6A7A", // //               fontWeight: "600", // //               marginTop: 1, // //             }}
 // //           >
 // //             {peerIsTyping
 // //               ? t("typing")
@@ -611,10 +475,7 @@
 // //               keyExtractor={(item) => String(item.id)}
 // //               showsVerticalScrollIndicator={false}
 // //               contentContainerStyle={{
-// //                 flexGrow: 1,
-// //                 paddingHorizontal: 16,
-// //                 paddingVertical: 16,
-// //               }}
+// //                 flexGrow: 1, // //                 paddingHorizontal: 16, // //                 paddingVertical: 16, // //               }}
 // //               ListEmptyComponent={renderEmptyComponent}
 // //             />
 // //           )}
@@ -622,37 +483,18 @@
 
 // //         <View
 // //           style={{
-// //             backgroundColor: "#0D1520",
-// //             borderTopWidth: 1,
-// //             borderTopColor: "#141820",
-// //             paddingHorizontal: responsiveWidth(3),
-// //             paddingTop: responsiveHeight(1),
-// //             paddingBottom: responsiveHeight(10),
-// //           }}
+// //             backgroundColor: "#0D1520", // //             borderTopWidth: 1, // //             borderTopColor: "#141820", // //             paddingHorizontal: responsiveWidth(3), // //             paddingTop: responsiveHeight(1), // //             paddingBottom: responsiveHeight(10), // //           }}
 // //         >
 // //           {/* Reply preview bar */}
 // //           {replyToMessage ? (
 // //             <View
 // //               style={{
-// //                 flexDirection: "row",
-// //                 alignItems: "center",
-// //                 backgroundColor: "#1A2435",
-// //                 borderRadius: 12,
-// //                 paddingHorizontal: responsiveWidth(3),
-// //                 paddingVertical: responsiveHeight(0.8),
-// //                 marginBottom: responsiveHeight(0.8),
-// //                 borderLeftWidth: 3,
-// //                 borderLeftColor: "#17CBE8",
-// //               }}
+// //                 flexDirection: "row", // //                 alignItems: "center", // //                 backgroundColor: "#1A2435", // //                 borderRadius: 12, // //                 paddingHorizontal: responsiveWidth(3), // //                 paddingVertical: responsiveHeight(0.8), // //                 marginBottom: responsiveHeight(0.8), // //                 borderLeftWidth: 3, // //                 borderLeftColor: "#17CBE8", // //               }}
 // //             >
 // //               <View style={{ flex: 1 }}>
 // //                 <Text
 // //                   style={{
-// //                     color: "#17CBE8",
-// //                     fontSize: 12,
-// //                     fontWeight: "700",
-// //                     marginBottom: 2,
-// //                   }}
+// //                     color: "#17CBE8", // //                     fontSize: 12, // //                     fontWeight: "700", // //                     marginBottom: 2, // //                   }}
 // //                 >
 // //                   {t("replying_to")}{" "}
 // //                   {replyToMessage.sender === "me"
@@ -682,34 +524,18 @@
 // //           {shouldShowSuggestions && (
 // //             <View
 // //               style={{
-// //                 flexDirection: "row",
-// //                 gap: responsiveWidth(2),
-// //                 marginBottom: responsiveHeight(1.1),
-// //               }}
+// //                 flexDirection: "row", // //                 gap: responsiveWidth(2), // //                 marginBottom: responsiveHeight(1.1), // //               }}
 // //             >
 // //               {ADMIN_SUPPORT_SUGGESTIONS.map((item) => (
 // //                 <Pressable
 // //                   key={item}
 // //                   onPress={() => setMessage(item)}
 // //                   style={{
-// //                     flex: 1,
-// //                     minHeight: responsiveHeight(4.8),
-// //                     borderRadius: 999,
-// //                     borderWidth: 1,
-// //                     borderColor: "#2E3545",
-// //                     backgroundColor: "#111826",
-// //                     alignItems: "center",
-// //                     justifyContent: "center",
-// //                     paddingHorizontal: responsiveWidth(1.5),
-// //                   }}
+// //                     flex: 1, // //                     minHeight: responsiveHeight(4.8), // //                     borderRadius: 999, // //                     borderWidth: 1, // //                     borderColor: "#2E3545", // //                     backgroundColor: "#111826", // //                     alignItems: "center", // //                     justifyContent: "center", // //                     paddingHorizontal: responsiveWidth(1.5), // //                   }}
 // //                 >
 // //                   <Text
 // //                     style={{
-// //                       color: "#D5DEE9",
-// //                       fontSize: 13,
-// //                       fontWeight: "500",
-// //                       textAlign: "center",
-// //                     }}
+// //                       color: "#D5DEE9", // //                       fontSize: 13, // //                       fontWeight: "500", // //                       textAlign: "center", // //                     }}
 // //                   >
 // //                     {t(item)}
 // //                   </Text>
@@ -721,22 +547,12 @@
 // //           {/* My avatar + input row */}
 // //           <View
 // //             style={{
-// //               flexDirection: "row",
-// //               alignItems: "flex-end",
-// //               gap: responsiveWidth(2),
-// //             }}
+// //               flexDirection: "row", // //               alignItems: "flex-end", // //               gap: responsiveWidth(2), // //             }}
 // //           >
 // //             {/* User avatar */}
 // //             <View
 // //               style={{
-// //                 width: 36,
-// //                 height: 36,
-// //                 borderRadius: 18,
-// //                 backgroundColor: "#1B2A3B",
-// //                 alignItems: "center",
-// //                 justifyContent: "center",
-// //                 overflow: "hidden",
-// //               }}
+// //                 width: 36, // //                 height: 36, // //                 borderRadius: 18, // //                 backgroundColor: "#1B2A3B", // //                 justifyContent: "center", // //                 overflow: "hidden", // //               }}
 // //             >
 // //               {authUser?.avatar || authUser?.profile_image ? (
 // //                 <Image
@@ -748,8 +564,7 @@
 // //                   style={{ color: "#17CBE8", fontWeight: "700", fontSize: 14 }}
 // //                 >
 // //                   {String(
-// //                     authUser?.full_name || authUser?.name || "M",
-// //                   )[0].toUpperCase()}
+// //                     authUser?.full_name || authUser?.name || "M", // //                   )[0].toUpperCase()}
 // //                 </Text>
 // //               )}
 // //             </View>
@@ -757,26 +572,11 @@
 // //             {/* Input + mic + send */}
 // //             <View
 // //               style={{
-// //                 flex: 1,
-// //                 flexDirection: "row",
-// //                 alignItems: "flex-end",
-// //                 backgroundColor: "#1A2435",
-// //                 borderRadius: 24,
-// //                 paddingHorizontal: responsiveWidth(4),
-// //                 paddingVertical: responsiveHeight(0.8),
-// //                 borderWidth: 1,
-// //                 borderColor: "#232A34",
-// //                 gap: 8,
-// //               }}
+// //                 flex: 1, // //                 flexDirection: "row", // //                 alignItems: "flex-end", // //                 borderRadius: 24, // //                 paddingHorizontal: responsiveWidth(4), // //                 borderWidth: 1, // //                 borderColor: "#232A34", // //                 gap: 8, // //               }}
 // //             >
 // //               <TextInput
 // //                 style={{
-// //                   flex: 1,
-// //                   color: "#E8EFF7",
-// //                   fontSize: 15,
-// //                   maxHeight: 100,
-// //                   paddingVertical: 6,
-// //                 }}
+// //                   flex: 1, // //                   color: "#E8EFF7", // //                   fontSize: 15, // //                   maxHeight: 100, // //                   paddingVertical: 6, // //                 }}
 // //                 placeholder={
 // //                   threadId ? t("type_message") : t("chat_unavailable")
 // //                 }
@@ -808,16 +608,8 @@
 // //               disabled={!message.trim() || inputDisabled}
 // //               style={{
 // //                 backgroundColor:
-// //                   message.trim() && !inputDisabled ? "#17CBE8" : "#1A2435",
-// //                 borderRadius: 24,
-// //                 paddingHorizontal: responsiveWidth(5),
-// //                 paddingVertical: responsiveHeight(1.3),
-// //                 borderWidth: 1,
-// //                 borderColor:
-// //                   message.trim() && !inputDisabled ? "#17CBE8" : "#232A34",
-// //                 alignItems: "center",
-// //                 justifyContent: "center",
-// //               }}
+// //                   message.trim() && !inputDisabled ? "#17CBE8" : "#1A2435", // //                 paddingHorizontal: responsiveWidth(5), // //                 paddingVertical: responsiveHeight(1.3), // //                 borderColor:
+// //                   message.trim() && !inputDisabled ? "#17CBE8" : "#232A34", // //               }}
 // //             >
 // //               {isSending ? (
 // //                 <ActivityIndicator size="small" color="#020406" />
@@ -825,10 +617,7 @@
 // //                 <Text
 // //                   style={{
 // //                     color:
-// //                       message.trim() && !inputDisabled ? "#020406" : "#5D6A7A",
-// //                     fontWeight: "700",
-// //                     fontSize: 15,
-// //                   }}
+// //                       message.trim() && !inputDisabled ? "#020406" : "#5D6A7A", // //                     fontSize: 15, // //                   }}
 // //                 >
 // //                   {t("send")}
 // //                 </Text>
@@ -847,31 +636,17 @@
 // //       >
 // //         <Pressable
 // //           style={{
-// //             flex: 1,
-// //             backgroundColor: "rgba(0,0,0,0.6)",
-// //             justifyContent: "flex-end",
-// //           }}
+// //             flex: 1, // //             backgroundColor: "rgba(0, 0, 0.6)", // //             justifyContent: "flex-end", // //           }}
 // //           onPress={() => setForwardModalVisible(false)}
 // //         >
 // //           <Pressable
 // //             style={{
-// //               backgroundColor: "#0D1520",
-// //               borderTopLeftRadius: 20,
-// //               borderTopRightRadius: 20,
-// //               paddingTop: 16,
-// //               paddingBottom: responsiveHeight(6),
-// //               maxHeight: responsiveHeight(60),
-// //             }}
+// //               backgroundColor: "#0D1520", // //               borderTopLeftRadius: 20, // //               borderTopRightRadius: 20, // //               paddingTop: 16, // //               paddingBottom: responsiveHeight(6), // //               maxHeight: responsiveHeight(60), // //             }}
 // //             onPress={(e) => e.stopPropagation()}
 // //           >
 // //             <Text
 // //               style={{
-// //                 color: "#F8FAFC",
-// //                 fontSize: 17,
-// //                 fontWeight: "700",
-// //                 textAlign: "center",
-// //                 marginBottom: 14,
-// //               }}
+// //                 color: "#F8FAFC", // //                 fontSize: 17, // //                 fontWeight: "700", // //                 textAlign: "center", // //                 marginBottom: 14, // //               }}
 // //             >
 // //               {t("forward_to")}
 // //             </Text>
@@ -881,44 +656,24 @@
 // //               renderItem={({ item }) => (
 // //                 <Pressable
 // //                   style={{
-// //                     flexDirection: "row",
-// //                     alignItems: "center",
-// //                     paddingHorizontal: 20,
-// //                     paddingVertical: 13,
-// //                     borderBottomWidth: 1,
-// //                     borderBottomColor: "#141820",
-// //                     gap: 12,
-// //                   }}
+// //                     flexDirection: "row", // //                     paddingHorizontal: 20, // //                     paddingVertical: 13, // //                     borderBottomWidth: 1, // //                     borderBottomColor: "#141820", // //                     gap: 12, // //                   }}
 // //                   onPress={() => handleForwardTo(item._id || item.id)}
 // //                 >
 // //                   <View
 // //                     style={{
-// //                       width: 40,
-// //                       height: 40,
-// //                       borderRadius: 20,
-// //                       backgroundColor: "#1B2A3B",
-// //                       alignItems: "center",
-// //                       justifyContent: "center",
-// //                     }}
+// //                       width: 40, // //                       height: 40, // //                       borderRadius: 20, // //                       backgroundColor: "#1B2A3B", // //                       alignItems: "center", // //                       justifyContent: "center", // //                     }}
 // //                   >
 // //                     <Text
 // //                       style={{
-// //                         color: "#17CBE8",
-// //                         fontWeight: "700",
-// //                         fontSize: 16,
-// //                       }}
+// //                         color: "#17CBE8", // //                         fontWeight: "700", // //                         fontSize: 16, // //                       }}
 // //                     >
 // //                       {String(
-// //                         item.directPeer?.fullName || item.name || "?",
-// //                       )[0].toUpperCase()}
+// //                         item.directPeer?.fullName || item.name || "?", // //                       )[0].toUpperCase()}
 // //                     </Text>
 // //                   </View>
 // //                   <Text
 // //                     style={{
-// //                       color: "#E8EFF7",
-// //                       fontSize: 15,
-// //                       fontWeight: "600",
-// //                     }}
+// //                       color: "#E8EFF7", // //                       fontSize: 15, // //                       fontWeight: "600", // //                     }}
 // //                   >
 // //                     {item.directPeer?.fullName ||
 // //                       item.name ||
@@ -929,10 +684,7 @@
 // //               ListEmptyComponent={
 // //                 <Text
 // //                   style={{
-// //                     color: "#5D6A7A",
-// //                     textAlign: "center",
-// //                     paddingVertical: 24,
-// //                   }}
+// //                     color: "#5D6A7A", // //                     textAlign: "center", // //                     paddingVertical: 24, // //                   }}
 // //                 >
 // //                   {t("no_other_conversations")}
 // //                 </Text>
@@ -941,64 +693,32 @@
 // //           </Pressable>
 // //         </Pressable>
 // //       </Modal>
-// //     </SafeAreaView>
+// //     </View>
 // //   );
 // // };
 
 // // export default SingleChatScreen;
 
-
-
 // import React, {
-//   useCallback,
-//   useEffect,
-//   useMemo,
-//   useRef,
-//   useState,
-// } from "react";
+//   useCallback, //   useEffect, //   useMemo, //   useRef, //   useState, // } from "react";
 // import {
-//   View,
-//   Text,
-//   FlatList,
-//   Modal,
-//   Pressable,
-//   TextInput,
-//   Image,
-//   KeyboardAvoidingView,
-//   Platform,
-//   ActivityIndicator,
-//   Alert,
-// } from "react-native";
-// import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+//   View, //   Text, //   FlatList, //   Modal, //   Pressable, //   TextInput, //   Image, //   KeyboardAvoidingView, //   Platform, //   ActivityIndicator, //   Alert, //, View } from "react-native";
+// import { useSafeAreaInsets } from "react-native-safe-area-context";
 // import { ChevronLeft, Ellipsis, Send, Mic, MicOff } from "lucide-react-native";
 // import {
-//   RecordingPresets,
-//   requestRecordingPermissionsAsync,
-//   setAudioModeAsync,
-//   useAudioRecorder,
-//   useAudioRecorderState,
-// } from "expo-audio";
+//   RecordingPresets, //   requestRecordingPermissionsAsync, //   setAudioModeAsync, //   useAudioRecorder, //   useAudioRecorderState, // } from "expo-audio";
 // import * as FileSystem from "expo-file-system";
 // import { useNavigation, useRoute } from "@react-navigation/native";
 // import { useSelector } from "react-redux";
 // import MessageBubble from "../../components/MessageBubble";
 // import { useAppLanguage } from "../../context/LanguageContext";
 // import {
-//   responsiveHeight,
-//   responsiveWidth,
-// } from "react-native-responsive-dimensions";
+//   responsiveHeight, //   responsiveWidth, // } from "react-native-responsive-dimensions";
 // import {
-//   useFetchConversationsQuery,
-//   useFetchMessagesQuery,
-//   useMarkThreadSeenMutation,
-//   useSendMessageMutation,
-// } from "../../redux/slices/chat/chatSlice";
+//   useFetchConversationsQuery, //   useFetchMessagesQuery, //   useMarkThreadSeenMutation, //   useSendMessageMutation, // } from "../../redux/slices/chat/chatSlice";
 // import { useMadbelTranscribeVoiceMutation } from "../../redux/slices/madbelApiSlice";
 // import {
-//   useMadbelSetTypingStateMutation,
-//   useMadbelReplyToMessageMutation,
-//   useMadbelForwardMessageMutation,
-// } from "../../redux/slices/madbelSmartflowSlice";
+//   useMadbelSetTypingStateMutation, //   useMadbelReplyToMessageMutation, //   useMadbelForwardMessageMutation, // } from "../../redux/slices/madbelSmartflowSlice";
 // import { addEventListener, removeEventListener } from "../../utils/socket";
 // import useSocket from "../../hooks/useSocket";
 
@@ -1011,12 +731,7 @@
 
 // const getMessageSortTime = (message) => {
 //   const candidates = [
-//     message?.raw?.createdAt,
-//     message?.raw?.created_at,
-//     message?.raw?.timestamp,
-//     message?.raw?.updatedAt,
-//     message?.raw?.updated_at,
-//   ];
+//     message?.raw?.createdAt, //     message?.raw?.created_at, //     message?.raw?.timestamp, //     message?.raw?.updatedAt, //     message?.raw?.updated_at, //   ];
 
 //   for (const value of candidates) {
 //     if (!value) continue;
@@ -1031,36 +746,24 @@
 //   const senderId = String(message?.senderUserId || "");
 //   const isSelf = Boolean(message?.sender_is_self || message?.senderIsSelf);
 //   return {
-//     id: message?._id || message?.id || `${Date.now()}-${Math.random()}`,
-//     text: message?.text || message?.content || "",
-//     time: formatTime(
+//     id: message?._id || message?.id || `${Date.now()}-${Math.random()}`, //     text: message?.text || message?.content || "", //     time: formatTime(
 //       message?.createdAt ||
 //         message?.created_at ||
 //         message?.timestamp ||
 //         message?.updatedAt ||
-//         message?.updated_at,
-//     ),
-//     sender: isSelf || senderId === String(myUserId || "") ? "me" : "them",
-//     senderUserId: senderId,
-//     status: message?.status || message?.delivery_status || null,
-//     raw: message,
-//   };
+//         message?.updated_at, //     ), //     sender: isSelf || senderId === String(myUserId || "") ? "me" : "them", //     senderUserId: senderId, //     status: message?.status || message?.delivery_status || null, //     raw: message, //   };
 // };
 
 // const upsertMessages = (prev, nextMessage) => {
 //   if (!nextMessage?.id) return prev;
 //   const exists = prev.some(
-//     (item) => String(item.id) === String(nextMessage.id),
-//   );
+//     (item) => String(item.id) === String(nextMessage.id), //   );
 //   if (exists) return prev;
 //   return [...prev, nextMessage];
 // };
 
 // const ADMIN_SUPPORT_SUGGESTIONS = [
-//   "billing_issue",
-//   "technical_help",
-//   "account_problem",
-// ];
+//   "billing_issue", //   "technical_help", //   "account_problem", // ];
 
 // // iOS/Android default header padding fallback used only until the header
 // // has actually measured itself via onLayout.
@@ -1086,8 +789,7 @@
 //   const [messages, setMessages] = useState([]);
 //   const [peerIsTyping, setPeerIsTyping] = useState(false);
 //   const [peerIsOnline, setPeerIsOnline] = useState(
-//     Boolean(conversation?.isOnline),
-//   );
+//     Boolean(conversation?.isOnline), //   );
 //   const [replyToMessage, setReplyToMessage] = useState(null);
 //   const [forwardMessage, setForwardMessage] = useState(null);
 //   const [forwardModalVisible, setForwardModalVisible] = useState(false);
@@ -1109,33 +811,22 @@
 //     useMadbelTranscribeVoiceMutation();
 
 //   const {
-//     data: threadMessagesData,
-//     isLoading: isInitialMessagesLoading,
-//     isFetching: isRefreshingMessages,
-//     isError: isThreadError,
-//   } = useFetchMessagesQuery(threadId, { skip: !threadId });
+//     data: threadMessagesData, //     isLoading: isInitialMessagesLoading, //     isFetching: isRefreshingMessages, //     isError: isThreadError, //   } = useFetchMessagesQuery(threadId, { skip: !threadId });
 
 //   useSocket({
-//     threadId,
-//     enabled: Boolean(threadId),
-//     onMessage: (incoming) => {
+//     threadId, //     enabled: Boolean(threadId), //     onMessage: (incoming) => {
 //       const normalized = toUiMessage(incoming, myUserId);
 //       setMessages((prev) => upsertMessages(prev, normalized));
-//     },
-//   });
+//     }, //   });
 
 //   const flatListRef = useRef(null);
 
 //   const defaultConversation = {
-//     name: t("chat"),
-//     avatar: "https://robohash.org/user.png",
-//   };
+//     name: t("chat"), //     avatar: "https://robohash.org/user.png", //   };
 
 //   const groupConversation = group
 //     ? {
-//         name: group?.name || t("group_chat"),
-//         avatar: group?.avatar || "https://robohash.org/group.png",
-//       }
+//         name: group?.name || t("group_chat"), //         avatar: group?.avatar || "https://robohash.org/group.png", //       }
 //     : null;
 
 //   const currentConversation =
@@ -1143,9 +834,7 @@
 
 //   const orderedMessages = useMemo(
 //     () =>
-//       [...messages].sort((a, b) => getMessageSortTime(a) - getMessageSortTime(b)),
-//     [messages],
-//   );
+//       [...messages].sort((a, b) => getMessageSortTime(a) - getMessageSortTime(b)), //     [messages], //   );
 
 //   useEffect(() => {
 //     const apiMessages = threadMessagesData?.messages || [];
@@ -1173,9 +862,7 @@
 //           clearTimeout(peerTypingTimeoutRef.current);
 //         }
 //         peerTypingTimeoutRef.current = setTimeout(
-//           () => setPeerIsTyping(false),
-//           8000,
-//         );
+//           () => setPeerIsTyping(false), //           8000, //         );
 //       }
 //     };
 //     addEventListener("chat:typing:updated", handler);
@@ -1204,10 +891,7 @@
 //       if (text.length > 0 && !isSelfTypingRef.current) {
 //         isSelfTypingRef.current = true;
 //         setTypingState({
-//           conversation_id: threadId,
-//           is_typing: true,
-//           actor_type: "user",
-//         }).catch(() => null);
+//           conversation_id: threadId, //           is_typing: true, //           actor_type: "user", //         }).catch(() => null);
 //       }
 //       if (selfTypingTimeoutRef.current) {
 //         clearTimeout(selfTypingTimeoutRef.current);
@@ -1215,14 +899,9 @@
 //       selfTypingTimeoutRef.current = setTimeout(() => {
 //         isSelfTypingRef.current = false;
 //         setTypingState({
-//           conversation_id: threadId,
-//           is_typing: false,
-//           actor_type: "user",
-//         }).catch(() => null);
+//           conversation_id: threadId, //           is_typing: false, //         }).catch(() => null);
 //       }, 3000);
-//     },
-//     [threadId, setTypingState],
-//   );
+//     }, //     [threadId, setTypingState], //   );
 
 //   useEffect(
 //     () => () => {
@@ -1232,9 +911,7 @@
 //       if (peerTypingTimeoutRef.current) {
 //         clearTimeout(peerTypingTimeoutRef.current);
 //       }
-//     },
-//     [],
-//   );
+//     }, //     [], //   );
 
 //   const sendMessage = async () => {
 //     const text = message.trim();
@@ -1249,33 +926,23 @@
 //         clearTimeout(selfTypingTimeoutRef.current);
 //       }
 //       setTypingState({
-//         conversation_id: threadId,
-//         is_typing: false,
-//         actor_type: "user",
-//       }).catch(() => null);
+//         conversation_id: threadId, //         is_typing: false, //         actor_type: "user", //       }).catch(() => null);
 //     }
 
 //     try {
 //       let created;
 //       if (pendingReply) {
 //         const result = await replyToMessageMutation({
-//           message_id: pendingReply.id,
-//           content: text,
-//           platform: "ai",
-//         }).unwrap();
+//           message_id: pendingReply.id, //           content: text, //           platform: "ai", //         }).unwrap();
 //         created = result?.message || result;
 //       } else {
 //         const result = await sendMessageMutation({
-//           threadId,
-//           type: "text",
-//           text,
-//         }).unwrap();
+//           threadId, //           type: "text", //           text, //         }).unwrap();
 //         created = result?.message || result;
 //       }
 //       if (created?._id || created?.id) {
 //         setMessages((prev) =>
-//           upsertMessages(prev, toUiMessage(created, myUserId)),
-//         );
+//           upsertMessages(prev, toUiMessage(created, myUserId)), //         );
 //       }
 //     } catch {
 //       setMessage(text);
@@ -1286,27 +953,14 @@
 //   const handleLongPressMessage = useCallback(
 //     (item) => {
 //       Alert.alert(
-//         t("message_actions"),
-//         null,
-//         [
+//         t("message_actions"), //         null, //         [
 //           {
-//             text: t("reply"),
-//             onPress: () => setReplyToMessage(item),
-//           },
-//           {
-//             text: t("forward"),
-//             onPress: () => {
+//             text: t("reply"), //             onPress: () => setReplyToMessage(item), //           }, //           {
+//             text: t("forward"), //             onPress: () => {
 //               setForwardMessage(item);
 //               setForwardModalVisible(true);
-//             },
-//           },
-//           { text: t("cancel"), style: "cancel" },
-//         ],
-//         { cancelable: true },
-//       );
-//     },
-//     [t],
-//   );
+//             }, //           { text: t("cancel"), style: "cancel" }, //         ], //         { cancelable: true }, //       );
+//     }, //     [t], //   );
 
 //   const handleForwardTo = useCallback(
 //     async (targetThreadId) => {
@@ -1314,17 +968,12 @@
 //       setForwardModalVisible(false);
 //       try {
 //         await forwardMessageMutation({
-//           message_id: forwardMessage.id,
-//           conversation_id: targetThreadId,
-//           platform: "ai",
-//         }).unwrap();
+//           message_id: forwardMessage.id, //           conversation_id: targetThreadId, //         }).unwrap();
 //       } catch {
 //         Alert.alert(t("error"), t("could_not_forward_message"));
 //       }
 //       setForwardMessage(null);
-//     },
-//     [forwardMessage, forwardMessageMutation, t],
-//   );
+//     }, //     [forwardMessage, forwardMessageMutation, t], //   );
 
 //   const handleRecordButtonPress = async () => {
 //     if (recorderState?.isRecording) {
@@ -1337,16 +986,13 @@
 
 //           const audioBase64 = await new Promise((resolve, reject) => {
 //             const reader = new FileReader();
-//             reader.onload = () => resolve(reader.result.split(",")[1]);
+//             reader.onload = () => resolve(reader.result.split(", ")[1]);
 //             reader.onerror = reject;
 //             reader.readAsDataURL(blob);
 //           });
 
 //           const result = await transcribeVoice({
-//             audio_base64: audioBase64,
-//             audio_filename: `mabdel-transcribe-${Date.now()}.m4a`,
-//             audio_mime_type: "audio/m4a",
-//           }).unwrap();
+//             audio_base64: audioBase64, //             audio_filename: `mabdel-transcribe-${Date.now()}.m4a`, //             audio_mime_type: "audio/m4a", //           }).unwrap();
 
 //           const transcriptData = result?.data || result;
 //           const transcript = transcriptData?.transcript;
@@ -1360,12 +1006,7 @@
 //         const permission = await requestRecordingPermissionsAsync();
 //         if (!permission.granted) return;
 //         await setAudioModeAsync({
-//           allowsRecording: true,
-//           playsInSilentMode: true,
-//           interruptionMode: "doNotMix",
-//           shouldPlayInBackground: false,
-//           shouldRouteThroughEarpiece: false,
-//         });
+//           allowsRecording: true, //           playsInSilentMode: true, //           interruptionMode: "doNotMix", //           shouldPlayInBackground: false, //           shouldRouteThroughEarpiece: false, //         });
 //         await recorder.prepareToRecordAsync();
 //         recorder.record();
 //       } catch (error) {}
@@ -1374,8 +1015,7 @@
 
 //   const renderMessageItem = ({ item, index }) => {
 //     const isMe = item.sender === "me";
-//     // FIX: lookback must use orderedMessages (the array actually rendered),
-//     // not the unsorted `messages` state — mismatched arrays caused avatars
+//     // FIX: lookback must use orderedMessages (the array actually rendered), //     // not the unsorted `messages` state — mismatched arrays caused avatars
 //     // to show/hide on the wrong bubbles when messages arrived out of order.
 //     const showAvatar =
 //       !isMe && (index === 0 || orderedMessages[index - 1]?.sender === "me");
@@ -1406,9 +1046,7 @@
 //                 ? `${t("today")}, ${item.time}`
 //                 : new Date(item.raw.createdAt)
 //                     .toLocaleDateString([], {
-//                       month: "short",
-//                       day: "numeric",
-//                     })
+//                       month: "short", //                       day: "numeric", //                     })
 //                     .toUpperCase()}
 //             </Text>
 //           </View>
@@ -1430,11 +1068,7 @@
 //   const renderEmptyComponent = () => (
 //     <View
 //       style={{
-//         flex: 1,
-//         justifyContent: "center",
-//         alignItems: "center",
-//         paddingHorizontal: 32,
-//       }}
+//         flex: 1, //         justifyContent: "center", //         alignItems: "center", //         paddingHorizontal: 32, //       }}
 //     >
 //       {currentConversation.avatar ? (
 //         <Image
@@ -1444,11 +1078,7 @@
 //       ) : null}
 //       <Text
 //         style={{
-//           fontSize: 18,
-//           fontWeight: "600",
-//           color: "#F8FAFC",
-//           marginBottom: 4,
-//         }}
+//           fontSize: 18, //           fontWeight: "600", //           color: "#F8FAFC", //           marginBottom: 4, //         }}
 //       >
 //         {currentConversation.name}
 //       </Text>
@@ -1457,11 +1087,7 @@
 //       </Text>
 //       <Text
 //         style={{
-//           color: "#3D4A58",
-//           fontSize: 14,
-//           textAlign: "center",
-//           marginTop: 4,
-//         }}
+//           color: "#3D4A58", //           fontSize: 14, //           textAlign: "center", //           marginTop: 4, //         }}
 //       >
 //         {t("send_message_to_start")}
 //       </Text>
@@ -1471,27 +1097,18 @@
 //   const inputDisabled = !threadId || isSending;
 
 //   const headerName = useMemo(
-//     () => currentConversation?.name || t("chat"),
-//     [currentConversation?.name, t],
-//   );
+//     () => currentConversation?.name || t("chat"), //     [currentConversation?.name, //   );
 //   const shouldShowSuggestions =
 //     String(headerName || "").toLowerCase() === "live support";
 //   const isGroupChat = Boolean(group);
 
 //   return (
-//     <SafeAreaView style={{ flex: 1, backgroundColor: "#020406" }}>
+//     <View style={{ flex: 1, backgroundColor: "#020406" }}>
 //       {/* Header */}
 //       <View
 //         onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
 //         style={{
-//           flexDirection: "row",
-//           alignItems: "center",
-//           justifyContent: "space-between",
-//           paddingHorizontal: responsiveWidth(2),
-//           paddingVertical: responsiveHeight(1),
-//           borderBottomWidth: 1,
-//           borderBottomColor: "#141820",
-//         }}
+//           flexDirection: "row", //           alignItems: "center", //           justifyContent: "space-between", //           paddingHorizontal: responsiveWidth(2), //           paddingVertical: responsiveHeight(1), //           borderBottomWidth: 1, //           borderBottomColor: "#141820", //         }}
 //       >
 //         <Pressable onPress={() => navigation.goBack()} style={{ padding: 8 }}>
 //           <ChevronLeft size={26} color="#F8FAFC" />
@@ -1504,24 +1121,16 @@
 //             </Text>
 //             <View
 //               style={{
-//                 width: 9,
-//                 height: 9,
-//                 borderRadius: 5,
-//                 backgroundColor: peerIsOnline ? "#22C55E" : "#5D6A7A",
-//               }}
+//                 width: 9, //                 height: 9, //                 borderRadius: 5, //                 backgroundColor: peerIsOnline ? "#22C55E" : "#5D6A7A", //               }}
 //             />
 //           </View>
 //           <Text
 //             style={{
-//               fontSize: 13,
-//               color: peerIsTyping
+//               fontSize: 13, //               color: peerIsTyping
 //                 ? "#17CBE8"
 //                 : peerIsOnline
 //                   ? "#22C55E"
-//                   : "#5D6A7A",
-//               fontWeight: "600",
-//               marginTop: 1,
-//             }}
+//                   : "#5D6A7A", //               fontWeight: "600", //               marginTop: 1, //             }}
 //           >
 //             {peerIsTyping
 //               ? t("typing")
@@ -1565,10 +1174,7 @@
 //               keyExtractor={(item) => String(item.id)}
 //               showsVerticalScrollIndicator={false}
 //               contentContainerStyle={{
-//                 flexGrow: 1,
-//                 paddingHorizontal: 16,
-//                 paddingVertical: 16,
-//               }}
+//                 flexGrow: 1, //                 paddingHorizontal: 16, //                 paddingVertical: 16, //               }}
 //               ListEmptyComponent={renderEmptyComponent}
 //               // FIX: replaces the arbitrary setTimeout(100) scroll-to-end.
 //               // onContentSizeChange fires once the list has actually laid
@@ -1584,40 +1190,21 @@
 
 //         <View
 //           style={{
-//             backgroundColor: "#0D1520",
-//             borderTopWidth: 1,
-//             borderTopColor: "#141820",
-//             paddingHorizontal: responsiveWidth(3),
-//             paddingTop: responsiveHeight(1),
-//             // FIX: was a hardcoded responsiveHeight(10) regardless of
+//             backgroundColor: "#0D1520", //             borderTopWidth: 1, //             borderTopColor: "#141820", //             paddingHorizontal: responsiveWidth(3), //             paddingTop: responsiveHeight(1), //             // FIX: was a hardcoded responsiveHeight(10) regardless of
 //             // device safe area / keyboard state. Now ties to the actual
 //             // bottom inset plus a small fixed cushion.
-//             paddingBottom: insets.bottom + responsiveHeight(6),
-//           }}
+//             paddingBottom: insets.bottom + responsiveHeight(6), //           }}
 //         >
 //           {/* Reply preview bar */}
 //           {replyToMessage ? (
 //             <View
 //               style={{
-//                 flexDirection: "row",
-//                 alignItems: "center",
-//                 backgroundColor: "#1A2435",
-//                 borderRadius: 12,
-//                 paddingHorizontal: responsiveWidth(3),
-//                 paddingVertical: responsiveHeight(0.8),
-//                 marginBottom: responsiveHeight(0.8),
-//                 borderLeftWidth: 3,
-//                 borderLeftColor: "#17CBE8",
-//               }}
+//                 flexDirection: "row", //                 alignItems: "center", //                 backgroundColor: "#1A2435", //                 borderRadius: 12, //                 paddingHorizontal: responsiveWidth(3), //                 paddingVertical: responsiveHeight(0.8), //                 marginBottom: responsiveHeight(0.8), //                 borderLeftWidth: 3, //                 borderLeftColor: "#17CBE8", //               }}
 //             >
 //               <View style={{ flex: 1 }}>
 //                 <Text
 //                   style={{
-//                     color: "#17CBE8",
-//                     fontSize: 12,
-//                     fontWeight: "700",
-//                     marginBottom: 2,
-//                   }}
+//                     color: "#17CBE8", //                     fontSize: 12, //                     fontWeight: "700", //                     marginBottom: 2, //                   }}
 //                 >
 //                   {t("replying_to")}{" "}
 //                   {replyToMessage.sender === "me"
@@ -1647,34 +1234,18 @@
 //           {shouldShowSuggestions && (
 //             <View
 //               style={{
-//                 flexDirection: "row",
-//                 gap: responsiveWidth(2),
-//                 marginBottom: responsiveHeight(1.1),
-//               }}
+//                 flexDirection: "row", //                 gap: responsiveWidth(2), //                 marginBottom: responsiveHeight(1.1), //               }}
 //             >
 //               {ADMIN_SUPPORT_SUGGESTIONS.map((item) => (
 //                 <Pressable
 //                   key={item}
 //                   onPress={() => setMessage(item)}
 //                   style={{
-//                     flex: 1,
-//                     minHeight: responsiveHeight(4.8),
-//                     borderRadius: 999,
-//                     borderWidth: 1,
-//                     borderColor: "#2E3545",
-//                     backgroundColor: "#111826",
-//                     alignItems: "center",
-//                     justifyContent: "center",
-//                     paddingHorizontal: responsiveWidth(1.5),
-//                   }}
+//                     flex: 1, //                     minHeight: responsiveHeight(4.8), //                     borderRadius: 999, //                     borderWidth: 1, //                     borderColor: "#2E3545", //                     backgroundColor: "#111826", //                     alignItems: "center", //                     justifyContent: "center", //                     paddingHorizontal: responsiveWidth(1.5), //                   }}
 //                 >
 //                   <Text
 //                     style={{
-//                       color: "#D5DEE9",
-//                       fontSize: 13,
-//                       fontWeight: "500",
-//                       textAlign: "center",
-//                     }}
+//                       color: "#D5DEE9", //                       fontSize: 13, //                       fontWeight: "500", //                       textAlign: "center", //                     }}
 //                   >
 //                     {t(item)}
 //                   </Text>
@@ -1686,22 +1257,12 @@
 //           {/* My avatar + input row */}
 //           <View
 //             style={{
-//               flexDirection: "row",
-//               alignItems: "flex-end",
-//               gap: responsiveWidth(2),
-//             }}
+//               flexDirection: "row", //               alignItems: "flex-end", //               gap: responsiveWidth(2), //             }}
 //           >
 //             {/* User avatar */}
 //             <View
 //               style={{
-//                 width: 36,
-//                 height: 36,
-//                 borderRadius: 18,
-//                 backgroundColor: "#1B2A3B",
-//                 alignItems: "center",
-//                 justifyContent: "center",
-//                 overflow: "hidden",
-//               }}
+//                 width: 36, //                 height: 36, //                 borderRadius: 18, //                 backgroundColor: "#1B2A3B", //                 justifyContent: "center", //                 overflow: "hidden", //               }}
 //             >
 //               {authUser?.avatar || authUser?.profile_image ? (
 //                 <Image
@@ -1713,8 +1274,7 @@
 //                   style={{ color: "#17CBE8", fontWeight: "700", fontSize: 14 }}
 //                 >
 //                   {String(
-//                     authUser?.full_name || authUser?.name || "M",
-//                   )[0].toUpperCase()}
+//                     authUser?.full_name || authUser?.name || "M", //                   )[0].toUpperCase()}
 //                 </Text>
 //               )}
 //             </View>
@@ -1722,32 +1282,11 @@
 //             {/* Input + mic + send */}
 //             <View
 //               style={{
-//                 flex: 1,
-//                 flexDirection: "row",
-//                 alignItems: "flex-end",
-//                 justifyContent: "flex-end",
-//                 backgroundColor: "#1A2435",
-//                 borderRadius: 24,
-//                 minHeight: 58,
-//                 paddingHorizontal: responsiveWidth(4),
-//                 paddingVertical: responsiveHeight(0.7),
-//                 borderWidth: 1,
-//                 borderColor: "#232A34",
-//                 gap: 8,
-//               }}
+//                 flex: 1, //                 flexDirection: "row", //                 alignItems: "flex-end", //                 justifyContent: "flex-end", //                 borderRadius: 24, //                 minHeight: 58, //                 paddingHorizontal: responsiveWidth(4), //                 paddingVertical: responsiveHeight(0.7), //                 borderWidth: 1, //                 borderColor: "#232A34", //                 gap: 8, //               }}
 //             >
 //               <TextInput
 //                 style={{
-//                   flex: 1,
-//                   color: "#E8EFF7",
-//                   fontSize: 15,
-//                   minHeight: 40,
-//                   maxHeight: 40,
-//                   paddingVertical: 0,
-//                   paddingTop: 0,
-//                   paddingBottom: 0,
-//                   textAlignVertical: "center",
-//                 }}
+//                   flex: 1, //                   color: "#E8EFF7", //                   fontSize: 15, //                   minHeight: 40, //                   maxHeight: 40, //                   paddingVertical: 0, //                   paddingTop: 0, //                   paddingBottom: 0, //                   textAlignVertical: "center", //                 }}
 //                 placeholder={
 //                   threadId ? t("type_message") : t("chat_unavailable")
 //                 }
@@ -1779,16 +1318,8 @@
 //               disabled={!message.trim() || inputDisabled}
 //               style={{
 //                 backgroundColor:
-//                   message.trim() && !inputDisabled ? "#17CBE8" : "#1A2435",
-//                 borderRadius: 24,
-//                 paddingHorizontal: responsiveWidth(5),
-//                 paddingVertical: responsiveHeight(1.3),
-//                 borderWidth: 1,
-//                 borderColor:
-//                   message.trim() && !inputDisabled ? "#17CBE8" : "#232A34",
-//                 alignItems: "center",
-//                 justifyContent: "center",
-//               }}
+//                   message.trim() && !inputDisabled ? "#17CBE8" : "#1A2435", //                 paddingHorizontal: responsiveWidth(5), //                 paddingVertical: responsiveHeight(1.3), //                 borderColor:
+//                   message.trim() && !inputDisabled ? "#17CBE8" : "#232A34", //               }}
 //             >
 //               {isSending ? (
 //                 <ActivityIndicator size="small" color="#020406" />
@@ -1796,10 +1327,7 @@
 //                 <Text
 //                   style={{
 //                     color:
-//                       message.trim() && !inputDisabled ? "#020406" : "#5D6A7A",
-//                     fontWeight: "700",
-//                     fontSize: 15,
-//                   }}
+//                       message.trim() && !inputDisabled ? "#020406" : "#5D6A7A", //                     fontSize: 15, //                   }}
 //                 >
 //                   {t("send")}
 //                 </Text>
@@ -1812,14 +1340,7 @@
 //       {isRefreshingMessages && orderedMessages.length > 0 ? (
 //         <View
 //           style={{
-//             position: "absolute",
-//             top: headerHeight + responsiveHeight(2),
-//             alignSelf: "center",
-//             backgroundColor: "rgba(18, 20, 26, 0.9)",
-//             borderRadius: 999,
-//             paddingHorizontal: 12,
-//             paddingVertical: 6,
-//           }}
+//             position: "absolute", //             top: headerHeight + responsiveHeight(2), //             alignSelf: "center", //             backgroundColor: "rgba(18, 20, 26, 0.9)", //             borderRadius: 999, //             paddingHorizontal: 12, //             paddingVertical: 6, //           }}
 //         >
 //           <Text style={{ color: "#8FA3B8", fontSize: 11 }}>Refreshing...</Text>
 //         </View>
@@ -1834,31 +1355,17 @@
 //       >
 //         <Pressable
 //           style={{
-//             flex: 1,
-//             backgroundColor: "rgba(0,0,0,0.6)",
-//             justifyContent: "flex-end",
-//           }}
+//             flex: 1, //             backgroundColor: "rgba(0, 0, 0.6)", //             justifyContent: "flex-end", //           }}
 //           onPress={() => setForwardModalVisible(false)}
 //         >
 //           <Pressable
 //             style={{
-//               backgroundColor: "#0D1520",
-//               borderTopLeftRadius: 20,
-//               borderTopRightRadius: 20,
-//               paddingTop: 16,
-//               paddingBottom: insets.bottom + responsiveHeight(2),
-//               maxHeight: responsiveHeight(60),
-//             }}
+//               backgroundColor: "#0D1520", //               borderTopLeftRadius: 20, //               borderTopRightRadius: 20, //               paddingTop: 16, //               paddingBottom: insets.bottom + responsiveHeight(2), //               maxHeight: responsiveHeight(60), //             }}
 //             onPress={(e) => e.stopPropagation()}
 //           >
 //             <Text
 //               style={{
-//                 color: "#F8FAFC",
-//                 fontSize: 17,
-//                 fontWeight: "700",
-//                 textAlign: "center",
-//                 marginBottom: 14,
-//               }}
+//                 color: "#F8FAFC", //                 fontSize: 17, //                 fontWeight: "700", //                 textAlign: "center", //                 marginBottom: 14, //               }}
 //             >
 //               {t("forward_to")}
 //             </Text>
@@ -1868,44 +1375,24 @@
 //               renderItem={({ item }) => (
 //                 <Pressable
 //                   style={{
-//                     flexDirection: "row",
-//                     alignItems: "center",
-//                     paddingHorizontal: 20,
-//                     paddingVertical: 13,
-//                     borderBottomWidth: 1,
-//                     borderBottomColor: "#141820",
-//                     gap: 12,
-//                   }}
+//                     flexDirection: "row", //                     paddingHorizontal: 20, //                     paddingVertical: 13, //                     borderBottomWidth: 1, //                     borderBottomColor: "#141820", //                     gap: 12, //                   }}
 //                   onPress={() => handleForwardTo(item._id || item.id)}
 //                 >
 //                   <View
 //                     style={{
-//                       width: 40,
-//                       height: 40,
-//                       borderRadius: 20,
-//                       backgroundColor: "#1B2A3B",
-//                       alignItems: "center",
-//                       justifyContent: "center",
-//                     }}
+//                       width: 40, //                       height: 40, //                       borderRadius: 20, //                       backgroundColor: "#1B2A3B", //                       alignItems: "center", //                       justifyContent: "center", //                     }}
 //                   >
 //                     <Text
 //                       style={{
-//                         color: "#17CBE8",
-//                         fontWeight: "700",
-//                         fontSize: 16,
-//                       }}
+//                         color: "#17CBE8", //                         fontWeight: "700", //                         fontSize: 16, //                       }}
 //                     >
 //                       {String(
-//                         item.directPeer?.fullName || item.name || "?",
-//                       )[0].toUpperCase()}
+//                         item.directPeer?.fullName || item.name || "?", //                       )[0].toUpperCase()}
 //                     </Text>
 //                   </View>
 //                   <Text
 //                     style={{
-//                       color: "#E8EFF7",
-//                       fontSize: 15,
-//                       fontWeight: "600",
-//                     }}
+//                       color: "#E8EFF7", //                       fontSize: 15, //                       fontWeight: "600", //                     }}
 //                   >
 //                     {item.directPeer?.fullName ||
 //                       item.name ||
@@ -1916,10 +1403,7 @@
 //               ListEmptyComponent={
 //                 <Text
 //                   style={{
-//                     color: "#5D6A7A",
-//                     textAlign: "center",
-//                     paddingVertical: 24,
-//                   }}
+//                     color: "#5D6A7A", //                     textAlign: "center", //                     paddingVertical: 24, //                   }}
 //                 >
 //                   {t("no_other_conversations")}
 //                 </Text>
@@ -1928,35 +1412,16 @@
 //           </Pressable>
 //         </Pressable>
 //       </Modal>
-//     </SafeAreaView>
+//     </View>
 //   );
 // };
 
 // export default SingleChatScreen;
 
-
-
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  Modal,
-  Pressable,
-  TextInput,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+  useCallback, useEffect, useMemo, useRef, useState, } from "react";
+import { View, Text, FlatList, Modal, Pressable, TextInput, Image, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ChevronLeft,
   Ellipsis,
@@ -2583,7 +2048,7 @@ const SingleChatScreen = () => {
     : recordedDurationMs;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#020406" }}>
+    <View style={{ flex: 1, backgroundColor: "#020406" }}>
       {/* Header */}
       <View
         onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
@@ -3146,7 +2611,7 @@ const SingleChatScreen = () => {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

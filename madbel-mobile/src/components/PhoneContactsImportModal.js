@@ -1,19 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppLanguage } from "../context/LanguageContext";
 import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  FlatList,
-  Linking,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  ActivityIndicator, Alert, AppState, FlatList, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Contacts from "expo-contacts";
 import { Check, Search, X } from "lucide-react-native";
 import { useMadbelCreateContactMutation } from "../redux/slices/madbelApiSlice";
@@ -185,7 +173,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
@@ -300,7 +288,7 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
             </View>
           )}
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };

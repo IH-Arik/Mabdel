@@ -1,17 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState, useCallback } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+  ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { ChevronLeft, Star, MessageSquare, Trash2, ChevronDown } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -224,7 +214,7 @@ const GoogleReviewsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -399,7 +389,7 @@ const GoogleReviewsScreen = () => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,16 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Image,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, Pressable, ScrollView, StyleSheet, Image, ActivityIndicator, Alert } from "react-native";
 import { ChevronLeft, Camera, Pen, Globe, Mail } from "lucide-react-native";
 import {
   responsiveHeight,
@@ -122,7 +112,7 @@ const ProfileBusinessEditScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
@@ -238,7 +228,7 @@ const ProfileBusinessEditScreen = () => {
           )}
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,18 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-  ScrollView,
-  Pressable,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ScrollView, Pressable, ActivityIndicator, StyleSheet } from "react-native";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -75,7 +63,7 @@ const ProfileChangePasswordScreen = () => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
           <View style={styles.container}>
             <View style={styles.header}>
               <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
@@ -206,7 +194,7 @@ const ProfileChangePasswordScreen = () => {
               <Text style={styles.errorTextCenter}>{errors?.root?.message}</Text>
             )}
           </View>
-        </SafeAreaView>
+        </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );

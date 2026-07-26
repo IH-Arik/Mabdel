@@ -1,9 +1,21 @@
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
-
 const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+
+let googleSigninModule = null;
+
+async function getGoogleSignin() {
+  if (googleSigninModule) return googleSigninModule;
+
+  try {
+    googleSigninModule = await import("@react-native-google-signin/google-signin");
+    return googleSigninModule;
+  } catch {
+    throw new Error("Google Calendar sign-in is not available in this build.");
+  }
+}
 
 export async function restoreGoogleCalendarConnection() {
   try {
+    const { GoogleSignin } = await getGoogleSignin();
     if (!GoogleSignin.hasPreviousSignIn()) {
       return null;
     }
@@ -21,6 +33,7 @@ export async function restoreGoogleCalendarConnection() {
 }
 
 export async function connectGoogleCalendar() {
+  const { GoogleSignin } = await getGoogleSignin();
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
   const restored = await restoreGoogleCalendarConnection();
@@ -69,6 +82,7 @@ export async function createGoogleCalendarEvent(accessToken, event) {
 }
 
 export async function disconnectGoogleCalendar() {
+  const { GoogleSignin } = await getGoogleSignin();
   try {
     await GoogleSignin.revokeAccess();
   } catch {

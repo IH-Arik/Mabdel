@@ -1,16 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  Image,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, Pressable, StyleSheet, ScrollView, Image, ActivityIndicator, Alert } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -212,7 +202,7 @@ const CreateGroupScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable
@@ -393,7 +383,7 @@ const CreateGroupScreen = () => {
           )}
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

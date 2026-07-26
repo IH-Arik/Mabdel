@@ -1,7 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import useCallTimer from "../../hooks/useCallTimer";
@@ -111,7 +110,7 @@ const AiCallScreen = () => {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         {/* Top Header Section */}
         <View style={styles.topRow}>
@@ -256,7 +255,7 @@ const AiCallScreen = () => {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

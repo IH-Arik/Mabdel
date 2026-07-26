@@ -1,17 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  Image,
-  Alert,
-  Linking,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Image, Alert, Linking } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -111,7 +100,7 @@ const InvoiceViewScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t("invoice")}</Text>
@@ -249,7 +238,7 @@ const InvoiceViewScreen = () => {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

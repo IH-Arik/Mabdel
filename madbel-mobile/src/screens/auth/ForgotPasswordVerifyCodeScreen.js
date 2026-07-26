@@ -1,17 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Controller, useFormContext } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
@@ -78,7 +68,7 @@ const ForgotPasswordVerifyCodeScreen = () => {
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <LinearGradient colors={["#02080B", "#010406"]} style={styles.screen}>
           {/* <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
             <ArrowLeft size={32} color={colors.textPrimary} strokeWidth={2.5} />
@@ -180,7 +170,7 @@ const ForgotPasswordVerifyCodeScreen = () => {
             </Pressable> */}
           </ScrollView>
         </LinearGradient>
-      </SafeAreaView>
+      </View>
     </KeyboardAvoidingView>
   );
 };

@@ -1,18 +1,8 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Image,
-  ActivityIndicator,
-  Alert,
-  Platform,
-} from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+  KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View, Image, ActivityIndicator, Alert, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -137,7 +127,6 @@ const AddContactScreen = () => {
   };
 console.log('LINE AT 151' , avatarUrl);
 
-
   const saveContact = async () => {
     const values = getValues();
     const firstName = values.firstName || "";
@@ -164,7 +153,6 @@ console.log('LINE AT 151' , avatarUrl);
     };
 
 console.log("LINE AT 177" , payload);
-
 
     try {
       if (currentContactId) {
@@ -218,7 +206,7 @@ console.log("LINE AT 177" , payload);
 
   return (
     <View style={styles.flex} >
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View style={styles.container}>
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -372,7 +360,7 @@ console.log("LINE AT 177" , payload);
             }}
           />
         </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 };

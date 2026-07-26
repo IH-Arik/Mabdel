@@ -1,7 +1,6 @@
 import { View, Text, StyleSheet, Image } from "react-native";
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -18,7 +17,7 @@ const BeginScreen = () => {
   }, [navigation]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <LinearGradient
         colors={["#031017", "#02080B", "#010304"]}
         start={{ x: 0, y: 0 }}
@@ -35,7 +34,7 @@ const BeginScreen = () => {
           <Text style={styles.brandSubTitle}>{t("automating_future")}</Text>
         </View>
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 };
 

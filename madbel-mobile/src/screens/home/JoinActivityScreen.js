@@ -1,15 +1,6 @@
 ﻿import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  Alert,
-  Image,
-  ActivityIndicator,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, ScrollView, Pressable, Alert, Image, ActivityIndicator } from "react-native";
 import {
   ChevronLeft,
   MapPin,
@@ -153,7 +144,7 @@ const JoinActivityScreen = ({ route }) => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white">
       <Image
         source={{ uri: item.heroImage }}
         className="w-full"
@@ -363,7 +354,7 @@ const JoinActivityScreen = ({ route }) => {
         confirmButtonColor="bg-red-500"
         type="warning"
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

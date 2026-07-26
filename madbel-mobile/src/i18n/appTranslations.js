@@ -522,10 +522,6 @@ export const APP_TRANSLATIONS = {
 
     unable_to_login: "Unable to login.",
 
-    google_sign_in_failed: "Google sign-in failed. Please try again.",
-
-    or_continue_with: "Or continue with",
-
     dont_have_account: "Don't have an account?",
 
     register: "Register",
@@ -581,8 +577,6 @@ export const APP_TRANSLATIONS = {
     terms_conditions: "Terms & Conditions",
 
     sign_up: "Sign Up",
-
-    continue_with_google: "Continue with Google",
 
     already_have_an_account: "Already have an account?",
 

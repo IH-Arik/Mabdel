@@ -1,7 +1,6 @@
 import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -56,7 +55,7 @@ const ProfileEarningsScreen = () => {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f3f4f6]">
+    <View className="flex-1 bg-[#f3f4f6]">
       <View
         style={{
           flex: 1,
@@ -184,7 +183,7 @@ const ProfileEarningsScreen = () => {
           Earnings will be transfered to your bank account{"\n"}within 3-5 business days
         </Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

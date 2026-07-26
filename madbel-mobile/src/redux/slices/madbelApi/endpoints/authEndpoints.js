@@ -116,23 +116,6 @@ export const buildAuthEndpoints = (builder) => ({
     invalidatesTags: [{ type: "MadbelAuthentication", id: "LIST" }],
   }),
 
-  madbelGoogleLogin: builder.mutation({
-    query: buildApiRequest({
-      path: "/api/v1/auth/google",
-      method: "POST",
-      hasBody: true,
-      skipAuth: true,
-    }),
-    async onQueryStarted(arg, { dispatch, getState, queryFulfilled }) {
-      try {
-        await storeAuthTokens(queryFulfilled, dispatch, getState);
-      } catch {
-        // The mutation result already carries the API error for the caller.
-      }
-    },
-    invalidatesTags: [{ type: "MadbelAuthentication", id: "LIST" }],
-  }),
-
   madbelMe: builder.query({
     query: buildApiRequest({
       path: "/api/v1/auth/me",

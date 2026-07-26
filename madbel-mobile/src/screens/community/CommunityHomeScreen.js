@@ -1,14 +1,6 @@
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  FlatList,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, TextInput, Pressable, FlatList, ActivityIndicator } from "react-native";
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -39,16 +31,16 @@ const CommunityHomeScreen = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center">
+      <View className="flex-1 bg-white items-center justify-center">
         <ActivityIndicator size="large" color="#D6EB69" />
         <Text className="text-gray-500 mt-3">{t("loading_events")}</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (isError && !events.length) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
+      <View className="flex-1 bg-white items-center justify-center px-6">
         <Text className="text-black text-lg font-semibold text-center">{t("failed_to_load_events")}</Text>
         <Text className="text-gray-500 text-center mt-2">
           {error?.data?.message || "Please check your connection and try again."}
@@ -60,12 +52,12 @@ const CommunityHomeScreen = () => {
         >
           <Text className="text-black font-bold">{t("retry")}</Text>
         </Pressable>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 justify-center bg-white"
       style={{
         paddingTop: responsiveWidth(5),
@@ -123,7 +115,6 @@ const CommunityHomeScreen = () => {
                   onChangeText={handleSearchChange}
                 />
 
-
               </View>
               <Pressable className="p-2 border border-black rounded-full">
      
@@ -151,7 +142,7 @@ const CommunityHomeScreen = () => {
         }
         contentContainerStyle={{ gap: responsiveHeight(2) }}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

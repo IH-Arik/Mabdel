@@ -1,17 +1,6 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator } from "react-native";
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Navbar from "../../components/Navbar";
 import {
   responsiveHeight,
@@ -57,7 +46,6 @@ const CreateActivityScreen = () => {
   };
 
   const handleCreateActivity = async (data) => {
-
 
     if (!selectedDate) {
       setError("root", {
@@ -123,7 +111,7 @@ const CreateActivityScreen = () => {
       //   keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <SafeAreaView
+        <View
           className="flex-1 justify-center  bg-white"
           style={{
             paddingTop: responsiveWidth(5),
@@ -288,7 +276,7 @@ const CreateActivityScreen = () => {
             autoClose={true}
             autoCloseTime={1500}
           />
-        </SafeAreaView>
+        </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );

@@ -1,7 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -256,7 +255,7 @@ const ProfileSubscriptionScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.headerIconWrap} onPress={() => navigation.goBack()}>
@@ -268,7 +267,7 @@ const ProfileSubscriptionScreen = () => {
 
         {renderContent()}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

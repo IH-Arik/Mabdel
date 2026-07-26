@@ -1,24 +1,13 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
-  Pressable,
-
-  StyleSheet,
-  Text,
-  View,
-  Image,
-  ActivityIndicator,
-  ScrollView,
-} from "react-native";
+  Pressable, StyleSheet, Text, View, Image, ActivityIndicator, ScrollView } from "react-native";
 import { Calendar, Timeline } from "react-native-calendars";
 import { ChevronLeft, Plus, Video } from "lucide-react-native";
 import {
-  responsiveHeight,
-  responsiveWidth,
-} from "react-native-responsive-dimensions";
+  responsiveHeight, responsiveWidth, } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
 import { useMadbelListCalendarEventsQuery } from "../../redux/slices/madbelApiSlice";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { formatMeetingTime } from "../../utils/formatDateTime";
 
 const INITIAL_DATE = new Date().toISOString().slice(0, 10);
@@ -36,7 +25,6 @@ const ScheduleMeetingScreen = () => {
     });
 
     console.log("Calendar Response:", calendarResponse);
-
 
   const apiEvents = calendarResponse?.data?.items || [];
   const allEventsByDate = useMemo(() => {
@@ -129,7 +117,7 @@ const ScheduleMeetingScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView style={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
@@ -209,7 +197,7 @@ const ScheduleMeetingScreen = () => {
       >
         <Plus size={44} color="#EAFDFF" />
       </Pressable>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -12,7 +12,6 @@ import ActiveCallScreen from "../screens/call/ActiveCallScreen";
 import AiCallScreen from "../screens/call/AiCallScreen";
 import * as Notifications from "expo-notifications";
 import { useMadbelRegisterPushTokenMutation } from "../redux/slices/madbelApiSlice";
-import { SafeAreaView } from "react-native-safe-area-context";
 import PublicSigningScreen from "../screens/signing/PublicSigningScreen";
 
 const Stack = createNativeStackNavigator();
@@ -76,11 +75,8 @@ const RootAppNavigator = () => {
     registerToken();
   }, [isAuthenticated]);
 
-
-
-
   return (
-    // <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+    // <View style={{ flex: 1 }} edges={["top", "left", "right"]}>
 
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
@@ -108,7 +104,7 @@ const RootAppNavigator = () => {
         <Stack.Screen name="Notification" component={NotificationScreen} />
       )}
     </Stack.Navigator>
-    // </SafeAreaView>
+    // </View>
 
   );
 };

@@ -2,25 +2,10 @@ import { useAppLanguage } from "../context/LanguageContext";
 import React, { useMemo, useState, useEffect } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-  ActivityIndicator,
-} from "react-native";
+  Image, Pressable, ScrollView, StyleSheet, Switch, Text, View, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import {
-  ArrowLeft,
-  Bell,
-  ChevronRight,
-  IdCard,
-  Mic,
-  ShieldCheck,
-} from "lucide-react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  ArrowLeft, Bell, ChevronRight, IdCard, Mic, ShieldCheck, } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { featureSlides } from "../../assets/data/data";
 import {
@@ -324,7 +309,7 @@ export default function OnboardingScreen() {
 
   if (showPermissionPage) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <LinearGradient
           colors={["#02080B", "#010405"]}
           start={{ x: 0, y: 0 }}
@@ -378,12 +363,12 @@ export default function OnboardingScreen() {
             </Pressable>
           </ScrollView>
         </LinearGradient>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <LinearGradient
         colors={["#031218", "#02080B", "#010406"]}
         start={{ x: 0, y: 0 }}
@@ -428,7 +413,7 @@ export default function OnboardingScreen() {
 
         <View style={styles.dotsRow}>{dots}</View>
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 }
 

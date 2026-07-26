@@ -1,7 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, TextInput, FlatList, ActivityIndicator, Alert, RefreshControl } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { ChevronLeft, Plus, Search, Eye, Trash2, Signature, UserRound, Building2, Shield, Phone, FileText } from "lucide-react-native";
@@ -51,6 +50,10 @@ const AgreementListScreen = () => {
     page_size: 100,
     search: query.trim() || undefined,
   });
+
+  // console.log('LINE AT 54' , data);
+  
+
   const [deleteAgreement, { isLoading: deletingAgreement }] = useMadbelDeleteAgreementMutation();
   const [sendForSignature, { isLoading: sendingSignature }] =
     useMadbelSendAgreementForSignatureMutation();
@@ -91,7 +94,7 @@ const AgreementListScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
@@ -181,7 +184,7 @@ const AgreementListScreen = () => {
           <Text style={styles.refresh}>{t("refreshing_agreements")}</Text>
         ) : null}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

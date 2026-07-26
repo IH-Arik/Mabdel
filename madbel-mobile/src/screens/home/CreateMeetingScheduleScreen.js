@@ -1,41 +1,17 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-  ActivityIndicator,
-  Alert,
-  Image,
-  Platform,
-} from "react-native";
+  KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, ActivityIndicator, Alert, Image, Platform } from "react-native";
 import {
-  CalendarDays,
-  ChevronLeft,
-  Mail,
-  MapPin,
-  Mic,
-  NotebookPen,
-  Phone,
-  Bell,
-} from "lucide-react-native";
+  CalendarDays, ChevronLeft, Mail, MapPin, Mic, NotebookPen, Phone, Bell, } from "lucide-react-native";
 import {
-  responsiveHeight,
-  responsiveWidth,
-} from "react-native-responsive-dimensions";
+  responsiveHeight, responsiveWidth, } from "react-native-responsive-dimensions";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import SystemCalendarModal from "../../components/SystemCalendarModal";
 import {
-  useMadbelCreateCalendarEventMutation,
-  useMadbelListContactsQuery,
-} from "../../redux/slices/madbelApiSlice";
+  useMadbelCreateCalendarEventMutation, useMadbelListContactsQuery, } from "../../redux/slices/madbelApiSlice";
 import { MEETING_REMINDERS } from "../../../assets/data/meetingMockData";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TimeSlotInput from "../../components/TimeSlotInput";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 import useKeyboard from "../../hooks/useKeyboard";
@@ -212,7 +188,7 @@ const CreateMeetingScheduleScreen = () => {
       if (error?.code === "SIGN_IN_CANCELLED") return;
       Alert.alert(
         t("error"),
-        error?.data?.message || error?.message || t("google_sign_in_failed"),
+        error?.data?.message || error?.message || "Google Calendar sign-in failed.",
       );
     } finally {
       setGoogleLoading(false);
@@ -331,7 +307,7 @@ const CreateMeetingScheduleScreen = () => {
 
   return (
     <View style={styles.flex}>
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
@@ -617,7 +593,7 @@ const CreateMeetingScheduleScreen = () => {
             )}
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 };

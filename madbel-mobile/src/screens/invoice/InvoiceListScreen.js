@@ -1,16 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-  TextInput,
-  RefreshControl,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, Pressable, StyleSheet, FlatList, ActivityIndicator, TextInput, RefreshControl } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -50,7 +40,7 @@ const InvoiceListScreen = () => {
   const summary = invoiceData?.summary;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <View style={styles.titleWrap}>
@@ -164,7 +154,7 @@ const InvoiceListScreen = () => {
           <Text style={styles.fetchingText}>{t("refreshing_invoices")}</Text>
         ) : null}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
