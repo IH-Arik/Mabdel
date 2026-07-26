@@ -744,14 +744,27 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
   );
 }
 
-function CalendarSyncPanel({ googleConnected, googleNeedsReauth, integrationsLoading, onConnectGoogle }) {
+function CalendarSyncPanel({
+  googleConnected,
+  googleNeedsReauth,
+  googleSyncMode,
+  integrationsLoading,
+  onConnectGoogle,
+  appleConnected,
+  appleUsername,
+  appleLoading,
+  onConnectApple,
+  onDisconnectApple,
+}) {
   const label = googleNeedsReauth ? 'Reconnect Google Calendar' : googleConnected ? 'Google Connected' : 'Connect Google Calendar';
   return (
     <div className={`${PANEL} p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4`}>
       <div>
         <h2 className="font-bold text-white text-base">Calendar Providers</h2>
         <p className="text-[#A4B0B7] text-sm mt-1">
-          Google uses the existing backend OAuth flow. Apple Calendar is supported as one-time `.ics` export from the meeting details panel.
+          {appleConnected
+            ? 'Apple Calendar is your primary synced calendar. Google stays connected only to generate Meet links.'
+            : 'Connect Google Calendar for full sync with real Meet links, or connect Apple Calendar for two-way sync via CalDAV.'}
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -771,10 +784,108 @@ function CalendarSyncPanel({ googleConnected, googleNeedsReauth, integrationsLoa
             <Link2 size={15} />
           )}
           {label}
+          {googleConnected && googleSyncMode === 'meet_link_only' ? (
+            <span className="text-[10px] font-normal text-[#6F8092] normal-case ml-1">(Meet links only)</span>
+          ) : null}
         </button>
-        <div className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-[#A4B0B7] text-sm">
-          Apple Calendar: `.ics` export
+        {appleConnected ? (
+          <button
+            type="button"
+            onClick={onDisconnectApple}
+            disabled={appleLoading}
+            className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+          >
+            {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} className="text-emerald-400" />}
+            Apple Connected{appleUsername ? ` (${appleUsername})` : ''}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onConnectApple}
+            disabled={appleLoading}
+            className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+          >
+            {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
+            Connect Apple Calendar
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AppleCalendarConnectModal({ onClose, onSubmit, submitting, error }) {
+  const [username, setUsername] = useState('');
+  const [appPassword, setAppPassword] = useState('');
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className={`${PANEL} w-full max-w-md p-6`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-bold text-lg">Connect Apple Calendar</h3>
+          <button type="button" onClick={onClose} className="text-[#A4B0B7] hover:text-white cursor-pointer">
+            <X size={18} />
+          </button>
         </div>
+        <p className="text-[#A4B0B7] text-sm mb-4">
+          Sign in with your Apple ID and an <strong className="text-white">app-specific password</strong> (not your regular
+          Apple ID password). Generate one at{' '}
+          <a
+            href="https://appleid.apple.com/account/manage"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#11C7E5] underline"
+          >
+            appleid.apple.com
+          </a>{' '}
+          under Sign-In and Security → App-Specific Passwords.
+        </p>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit({ username, app_password: appPassword });
+          }}
+          className="space-y-4"
+        >
+          <Field label="Apple ID email">
+            <input
+              type="email"
+              required
+              className={INPUT}
+              placeholder="you@icloud.com"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+            />
+          </Field>
+          <Field label="App-specific password">
+            <input
+              type="password"
+              required
+              className={INPUT}
+              placeholder="xxxx-xxxx-xxxx-xxxx"
+              value={appPassword}
+              onChange={(event) => setAppPassword(event.target.value)}
+            />
+          </Field>
+          {error ? <p className="text-rose-400 text-sm">{error}</p> : null}
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-4 py-3 rounded-xl bg-[#11C7E5] text-[#06131B] font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              {submitting ? <Loader2 size={15} className="animate-spin" /> : null}
+              Connect
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -793,7 +904,14 @@ export default function Calendar() {
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleNeedsReauth, setGoogleNeedsReauth] = useState(false);
+  const [googleSyncMode, setGoogleSyncMode] = useState('full');
   const [integrationsLoading, setIntegrationsLoading] = useState(true);
+  const [appleConnected, setAppleConnected] = useState(false);
+  const [appleUsername, setAppleUsername] = useState('');
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [showAppleModal, setShowAppleModal] = useState(false);
+  const [appleSubmitting, setAppleSubmitting] = useState(false);
+  const [appleError, setAppleError] = useState('');
 
   useEffect(() => {
     if (location.state?.prefill) {
@@ -840,6 +958,7 @@ export default function Calendar() {
       const google = items.find((item) => item.platform === 'google_business');
       setGoogleConnected(Boolean(google?.connected));
       setGoogleNeedsReauth(google?.health_status === 'needs_reauth' || google?.sync_status === 'needs_reauth');
+      setGoogleSyncMode(google?.sync_mode || 'full');
     } catch {
       setGoogleConnected(false);
       setGoogleNeedsReauth(false);
@@ -848,10 +967,53 @@ export default function Calendar() {
     }
   }, []);
 
+  const fetchAppleState = useCallback(async () => {
+    try {
+      setAppleLoading(true);
+      const response = await smartflowApi.getCalDAVStatus();
+      const data = response?.data?.data || response?.data || {};
+      setAppleConnected(Boolean(data.connected));
+      setAppleUsername(data.username || '');
+    } catch {
+      setAppleConnected(false);
+      setAppleUsername('');
+    } finally {
+      setAppleLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAll();
     fetchIntegrationState();
-  }, [fetchAll, fetchIntegrationState]);
+    fetchAppleState();
+  }, [fetchAll, fetchIntegrationState, fetchAppleState]);
+
+  async function handleAppleConnectSubmit(formValues) {
+    try {
+      setAppleSubmitting(true);
+      setAppleError('');
+      await smartflowApi.connectCalDAV(formValues);
+      setShowAppleModal(false);
+      await fetchAppleState();
+      await fetchIntegrationState();
+    } catch (err) {
+      setAppleError(err.response?.data?.message || 'Apple Calendar connection failed. Check your Apple ID and app-specific password.');
+    } finally {
+      setAppleSubmitting(false);
+    }
+  }
+
+  async function handleAppleDisconnect() {
+    try {
+      setAppleLoading(true);
+      await smartflowApi.disconnectCalDAV();
+      await fetchAppleState();
+    } catch (err) {
+      window.alert(err.response?.data?.message || 'Apple Calendar could not be disconnected.');
+    } finally {
+      setAppleLoading(false);
+    }
+  }
 
   async function handleGoogleConnect() {
     try {
@@ -861,7 +1023,7 @@ export default function Calendar() {
         window.alert('Did not receive authorization URL from server.');
         return;
       }
-      const popup = window.open(authUrl, 'mabdel-google-calendar', 'width=640,height=820,noopener,noreferrer');
+      const popup = window.open(authUrl, 'mabdel-google-calendar', 'width=640,height=820');
       const startedAt = Date.now();
       const timer = window.setInterval(async () => {
         const closed = !popup || popup.closed;
@@ -948,9 +1110,27 @@ export default function Calendar() {
       <CalendarSyncPanel
         googleConnected={googleConnected}
         googleNeedsReauth={googleNeedsReauth}
+        googleSyncMode={googleSyncMode}
         integrationsLoading={integrationsLoading}
         onConnectGoogle={handleGoogleConnect}
+        appleConnected={appleConnected}
+        appleUsername={appleUsername}
+        appleLoading={appleLoading}
+        onConnectApple={() => {
+          setAppleError('');
+          setShowAppleModal(true);
+        }}
+        onDisconnectApple={handleAppleDisconnect}
       />
+
+      {showAppleModal ? (
+        <AppleCalendarConnectModal
+          onClose={() => setShowAppleModal(false)}
+          onSubmit={handleAppleConnectSubmit}
+          submitting={appleSubmitting}
+          error={appleError}
+        />
+      ) : null}
 
       {!loading ? <CalendarStats events={events} /> : null}
 

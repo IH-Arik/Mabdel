@@ -17,3 +17,4 @@ resend==2.24.0
 streamlit==1.54.0
 celery[redis]==5.4.0
 redis==5.2.1
+icalendar==6.1.0

@@ -121,6 +121,10 @@ class IntegrationService(SmartFlowBase):
         if not integration:
             raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
         if platform == "google_business":
+            if integration.get("sync_mode") == "meet_link_only":
+                # Apple Calendar (CalDAV) is the primary synced calendar for this user;
+                # Google stays connected solely to mint Meet links, no inbound event pull.
+                return {"platform": platform, "sync_status": "meet_link_only", "imported_count": 0}
             await self.db.social_integrations.update_one(
                 {"_id": integration["_id"]},
                 {"$set": {"sync_status": "syncing", "updated_at": utc_now()}},
@@ -438,6 +442,13 @@ class IntegrationService(SmartFlowBase):
         )
         await self.db.oauth_states.delete_one({"_id": state_doc["_id"]})
         if platform == "google_business":
+            caldav_connection = await self.db.caldav_connections.find_one(
+                {"user_id": state_doc["user_id"], "status": "connected"}
+            )
+            await self.db.social_integrations.update_one(
+                {"_id": ObjectId(integration["id"])},
+                {"$set": {"sync_mode": "meet_link_only" if caldav_connection else "full"}},
+            )
             await self.sync_integration(state_doc["user_id"], platform)
         else:
             adapter = get_social_provider_adapter(platform)
