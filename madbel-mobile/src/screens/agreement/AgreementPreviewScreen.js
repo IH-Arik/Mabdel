@@ -95,7 +95,13 @@ const resolveAuthUrl = (response) =>
   response?.auth_url ||
   null;
 
-const resolveAgreementPublicPdfUrl = (agreement, agreementId) => {
+const resolveAgreementPublicPdfUrl = (agreement) => {
+  // These signing-token PDF routes are only served by the backend while the
+  // signature request is still pending; once signed/expired/never-sent, they
+  // 404 (SIGNATURE_REQUEST_NOT_FOUND) or require auth, so only use them in
+  // that window. Otherwise fall through to the authenticated download.
+  if (String(agreement?.status || "").toLowerCase() !== "pending_signature") return null;
+
   const publicUrl = normalizeProtectedFileUrl(agreement?.signature_request_url);
   if (publicUrl) return publicUrl;
 
@@ -106,10 +112,7 @@ const resolveAgreementPublicPdfUrl = (agreement, agreementId) => {
     );
   }
 
-  if (!agreementId) return null;
-  return normalizeProtectedFileUrl(
-    `/api/v1/smartflow/agreements/${agreementId}/pdf`,
-  );
+  return null;
 };
 
 const AgreementPreviewScreen = () => {
@@ -270,7 +273,7 @@ const AgreementPreviewScreen = () => {
     if (!agreementId) return;
     try {
       setDownloadingPdf(true);
-      const publicPdfUrl = resolveAgreementPublicPdfUrl(agreement, agreementId);
+      const publicPdfUrl = resolveAgreementPublicPdfUrl(agreement);
       if (publicPdfUrl) {
         const canOpen = await Linking.canOpenURL(publicPdfUrl);
         if (canOpen) {

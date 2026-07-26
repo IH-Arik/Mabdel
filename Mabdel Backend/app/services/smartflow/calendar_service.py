@@ -9,6 +9,7 @@ from app.utils.helpers import utc_now
 from pymongo import ReturnDocument
 
 from ._base import SmartFlowBase
+from .caldav_service import CalDAVService
 from .google_calendar_service import GoogleCalendarService
 
 
@@ -16,6 +17,29 @@ class CalendarService(SmartFlowBase):
     def __init__(self, db) -> None:
         super().__init__(db)
         self.google_calendar_service = GoogleCalendarService(db)
+        self.caldav_service = CalDAVService(db)
+
+    async def _is_caldav_primary(self, user_id: str) -> bool:
+        connection = await self.caldav_service.get_connection(user_id)
+        return bool(connection) and connection.get("status") == "connected"
+
+    async def _maybe_opportunistic_caldav_sync(self, user_id: str) -> None:
+        # Celery beat may not be running in every environment (e.g. local dev without
+        # Redis), so also nudge an inbound CalDAV sync inline when the calendar is
+        # viewed, throttled to once every 2 minutes per user.
+        connection = await self.caldav_service.get_connection(user_id)
+        if not connection or connection.get("status") != "connected":
+            return
+        last_synced_at = connection.get("last_synced_at")
+        if isinstance(last_synced_at, datetime):
+            threshold = utc_now()
+            comparable_threshold = threshold if last_synced_at.tzinfo else threshold.replace(tzinfo=None)
+            if (comparable_threshold - last_synced_at).total_seconds() < 120:
+                return
+        try:
+            await self.caldav_service.pull_changes(user_id)
+        except Exception:
+            pass
 
     async def list_calendar_events(
         self,
@@ -29,6 +53,7 @@ class CalendarService(SmartFlowBase):
         date_to: str | None = None,
         contact_id: str | None = None,
     ) -> dict:
+        await self._maybe_opportunistic_caldav_sync(user_id)
         filters: dict = {"user_id": user_id}
         if search:
             filters["title"] = {"$regex": search, "$options": "i"}
@@ -75,29 +100,40 @@ class CalendarService(SmartFlowBase):
     async def create_calendar_event(self, user_id: str, payload: dict) -> dict:
         self._validate_calendar_event_payload(payload)
         await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"])
+        caldav_primary = await self._is_caldav_primary(user_id)
         # Leave meeting_link empty for online meetings when a Google Calendar is
         # connected: _build_google_event_payload only requests a real Google Meet
         # conference when no link was provided, so pre-filling here would replace
         # the real Meet link with a local placeholder.
-        try:
-            google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
-        except AppException:
-            google_event = None
-            payload["sync_status"] = "error"
+        google_event = None
+        if not caldav_primary:
+            try:
+                google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
+            except AppException:
+                google_event = None
+                payload["sync_status"] = "error"
+        elif payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
+            # Apple Calendar is the primary synced calendar, but Google may still be
+            # connected purely to mint a real Meet link (meet_link_only mode).
+            try:
+                google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
+            except AppException:
+                google_event = None
         if google_event:
-            payload["google_event_id"] = google_event.get("id")
-            payload["sync_status"] = "synced"
-            payload["calendar_source"] = "mabdel_google_sync"
-            payload["provider_metadata"] = {
-                "integration_platform": "google_business",
-                "google_html_link": google_event.get("htmlLink"),
-                "google_status": google_event.get("status"),
-                "google_recurrence": google_event.get("recurrence") or [],
-                "google_updated": google_event.get("updated"),
-                "google_etag": google_event.get("etag"),
-            }
             if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
                 payload["meeting_link"] = self.google_calendar_service._extract_meeting_link(google_event)
+            if not caldav_primary:
+                payload["google_event_id"] = google_event.get("id")
+                payload["sync_status"] = "synced"
+                payload["calendar_source"] = "mabdel_google_sync"
+                payload["provider_metadata"] = {
+                    "integration_platform": "google_business",
+                    "google_html_link": google_event.get("htmlLink"),
+                    "google_status": google_event.get("status"),
+                    "google_recurrence": google_event.get("recurrence") or [],
+                    "google_updated": google_event.get("updated"),
+                    "google_etag": google_event.get("etag"),
+                }
         if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
             payload["meeting_link"] = self._generate_meeting_link()
         document = {
@@ -108,6 +144,16 @@ class CalendarService(SmartFlowBase):
             "created_at": utc_now(),
             "updated_at": utc_now(),
         }
+        if caldav_primary:
+            try:
+                caldav_uid = await self.caldav_service.push_event(user_id, document)
+            except AppException:
+                caldav_uid = None
+                document["sync_status"] = "error"
+            if caldav_uid:
+                document["caldav_uid"] = caldav_uid
+                document["sync_status"] = "synced"
+                document["calendar_source"] = "caldav_sync"
         result = await self.db.calendar_events.insert_one(document)
         document["_id"] = result.inserted_id
         await self._create_calendar_event_notifications(user_id, document, action="created")
@@ -124,40 +170,61 @@ class CalendarService(SmartFlowBase):
             merged["ends_at"],
             exclude_event_id=str(event["_id"]),
         )
+        caldav_primary = await self._is_caldav_primary(user_id)
         google_event = None
         google_event_id = event.get("google_event_id")
-        try:
-            if google_event_id:
-                google_event = await self.google_calendar_service.update_remote_event(user_id, google_event_id, merged)
-            else:
+        needs_meet_link = merged.get("meeting_mode") == "online" and not merged.get("meeting_link")
+        if not caldav_primary:
+            try:
+                if google_event_id:
+                    google_event = await self.google_calendar_service.update_remote_event(user_id, google_event_id, merged)
+                else:
+                    google_event = await self.google_calendar_service.create_remote_event(user_id, merged)
+                    if google_event:
+                        clean_updates["google_event_id"] = google_event.get("id")
+                        google_event_id = google_event.get("id")
+            except AppException:
+                google_event = None
+                clean_updates["sync_status"] = "error"
+        elif needs_meet_link:
+            try:
                 google_event = await self.google_calendar_service.create_remote_event(user_id, merged)
-                if google_event:
-                    clean_updates["google_event_id"] = google_event.get("id")
-                    google_event_id = google_event.get("id")
-        except AppException:
-            google_event = None
-            clean_updates["sync_status"] = "error"
+            except AppException:
+                google_event = None
         if google_event:
-            clean_updates["sync_status"] = "synced"
-            clean_updates["calendar_source"] = "mabdel_google_sync"
-            clean_updates["provider_metadata"] = {
-                "integration_platform": "google_business",
-                "google_html_link": google_event.get("htmlLink"),
-                "google_status": google_event.get("status"),
-                "google_recurrence": google_event.get("recurrence") or [],
-                "google_updated": google_event.get("updated"),
-                "google_etag": google_event.get("etag"),
-            }
-            if merged.get("meeting_mode") == "online" and not merged.get("meeting_link"):
+            if needs_meet_link:
                 real_link = self.google_calendar_service._extract_meeting_link(google_event)
                 if real_link:
                     clean_updates["meeting_link"] = real_link
                     merged["meeting_link"] = real_link
+            if not caldav_primary:
+                clean_updates["sync_status"] = "synced"
+                clean_updates["calendar_source"] = "mabdel_google_sync"
+                clean_updates["provider_metadata"] = {
+                    "integration_platform": "google_business",
+                    "google_html_link": google_event.get("htmlLink"),
+                    "google_status": google_event.get("status"),
+                    "google_recurrence": google_event.get("recurrence") or [],
+                    "google_updated": google_event.get("updated"),
+                    "google_etag": google_event.get("etag"),
+                }
         if merged.get("meeting_mode") == "online" and not merged.get("meeting_link"):
             clean_updates["meeting_link"] = self._generate_meeting_link()
             merged["meeting_link"] = clean_updates["meeting_link"]
-        if "google_event_id" in clean_updates:
+        if "google_event_id" in clean_updates and not caldav_primary:
             clean_updates["sync_status"] = "synced" if clean_updates["google_event_id"] else "local"
+        if caldav_primary:
+            try:
+                caldav_uid = await self.caldav_service.push_event(
+                    user_id, {**merged, **clean_updates, "caldav_uid": event.get("caldav_uid")}
+                )
+            except AppException:
+                caldav_uid = None
+                clean_updates["sync_status"] = "error"
+            if caldav_uid:
+                clean_updates["caldav_uid"] = caldav_uid
+                clean_updates["sync_status"] = "synced"
+                clean_updates["calendar_source"] = "caldav_sync"
         clean_updates["updated_at"] = utc_now()
         updated = await self.db.calendar_events.find_one_and_update(
             {"_id": event["_id"]},
@@ -197,4 +264,6 @@ class CalendarService(SmartFlowBase):
         event = await self._get_owned_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")
         if event.get("google_event_id"):
             await self.google_calendar_service.delete_remote_event(user_id, event.get("google_event_id"))
+        if event.get("caldav_uid"):
+            await self.caldav_service.delete_event(user_id, event.get("caldav_uid"))
         await self.db.calendar_events.delete_one({"_id": event["_id"]})

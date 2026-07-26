@@ -2372,7 +2372,9 @@ class SmartFlowBase:
         normalized = {
             "property_address": str(payload.get("property_address", details.get("property_address") or "Property address to be confirmed")).strip(),
             "property_type": payload.get("property_type", details.get("property_type") or "apartment"),
+            "self_role": payload.get("self_role", details.get("self_role") or "landlord"),
             "landlord_name": str(payload.get("landlord_name", details.get("landlord_name") or "Landlord")).strip(),
+            "landlord_email": payload.get("landlord_email", details.get("landlord_email")),
             "tenant_name": str(payload.get("tenant_name", details.get("tenant_name") or payload.get("client_name") or "Tenant")).strip(),
             "tenant_email": payload.get("tenant_email", details.get("tenant_email")),
             "tenant_phone": payload.get("tenant_phone", details.get("tenant_phone")),
@@ -2393,6 +2395,19 @@ class SmartFlowBase:
         self._validate_agreement_dates(normalized)
         return normalized
 
+    @staticmethod
+    def _lease_other_party(details: dict) -> dict:
+        """The counterparty of whichever role the website user plays (self_role)."""
+        if details.get("self_role") == "tenant":
+            return {"role": "landlord", "name": details.get("landlord_name"), "email": details.get("landlord_email"), "phone": None}
+        return {"role": "tenant", "name": details.get("tenant_name"), "email": details.get("tenant_email"), "phone": details.get("tenant_phone")}
+
+    @staticmethod
+    def _lease_self_party(details: dict) -> dict:
+        if details.get("self_role") == "tenant":
+            return {"role": "tenant", "name": details.get("tenant_name"), "email": details.get("tenant_email"), "phone": details.get("tenant_phone")}
+        return {"role": "landlord", "name": details.get("landlord_name"), "email": details.get("landlord_email"), "phone": None}
+
     def _lease_details_from_agreement(self, agreement: dict) -> dict:
         metadata = agreement.get("metadata") or {}
         details = metadata.get("lease") or {}
@@ -2400,7 +2415,9 @@ class SmartFlowBase:
             {
                 "property_address": details.get("property_address") or agreement.get("title"),
                 "property_type": details.get("property_type") or "apartment",
+                "self_role": details.get("self_role") or "landlord",
                 "landlord_name": details.get("landlord_name") or "Landlord",
+                "landlord_email": details.get("landlord_email"),
                 "tenant_name": details.get("tenant_name") or agreement.get("client_name"),
                 "tenant_email": details.get("tenant_email") or agreement.get("client_email"),
                 "tenant_phone": details.get("tenant_phone") or agreement.get("client_phone"),
@@ -2494,8 +2511,10 @@ class SmartFlowBase:
         safe["status_label"] = self._lease_status_label(lease_status)
         safe["status_tone"] = self._lease_status_tone(lease_status)
         safe["lease_number"] = safe.get("agreement_number")
+        safe["self_role"] = details["self_role"]
         safe["tenant_name"] = details["tenant_name"]
         safe["landlord_name"] = details["landlord_name"]
+        safe["landlord_email"] = details.get("landlord_email")
         safe["property_address"] = details["property_address"]
         safe["property_type"] = details["property_type"]
         safe["property_type_label"] = self._lease_property_type_label(details["property_type"])

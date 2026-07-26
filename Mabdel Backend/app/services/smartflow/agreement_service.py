@@ -34,8 +34,9 @@ class AgreementService(SmartFlowBase):
         filters: dict = {"user_id": {"$in": team_ids}}
         if status and status != "all":
             filters["status"] = status
-        if agreement_type:
-            filters["agreement_type"] = agreement_type
+        # Leases are stored in this same collection (agreement_type: "lease") but have
+        # their own dedicated tab/endpoint, so exclude them here unless explicitly requested.
+        filters["agreement_type"] = agreement_type if agreement_type else {"$ne": "lease"}
         if search:
             filters["$or"] = [
                 {"title": {"$regex": search, "$options": "i"}},
@@ -47,7 +48,9 @@ class AgreementService(SmartFlowBase):
         total = await self.db.agreements.count_documents(filters)
         cursor = self.db.agreements.find(filters).sort("updated_at", -1).skip((page - 1) * page_size).limit(page_size)
         items = [self._serialize_agreement(item, include_content=False) for item in await cursor.to_list(length=page_size)]
-        all_agreements = await self.db.agreements.find({"user_id": {"$in": team_ids}}).to_list(length=1000)
+        all_agreements = await self.db.agreements.find(
+            {"user_id": {"$in": team_ids}, "agreement_type": {"$ne": "lease"}}
+        ).to_list(length=1000)
         return {
             "items": items,
             "summary": self._agreement_summary(all_agreements),
@@ -280,13 +283,18 @@ class AgreementService(SmartFlowBase):
                 related_resource={"type": "agreement", "id": str(agreement["_id"]), "agreement_number": agreement["agreement_number"]},
                 preview_payload={"provider": "docusign", "envelope_id": envelope["envelope_id"]},
             )
+            recipients = envelope.get("recipients") or []
+            # The last recipient is the external counterparty (single-signer flows have
+            # only one entry; two-signer lease flows put the self-signer first).
+            last_recipient = recipients[-1] if recipients else {}
             return {
                 "agreement_id": str(agreement["_id"]),
                 "status": updated["status"],
                 "channel": payload.get("channel", "email"),
                 "provider": "docusign",
-                "recipient_name": (envelope.get("recipients") or [{}])[0].get("name") if envelope.get("recipients") else None,
-                "recipient_email": (envelope.get("recipients") or [{}])[0].get("email") if envelope.get("recipients") else None,
+                "recipients": recipients,
+                "recipient_name": last_recipient.get("name"),
+                "recipient_email": last_recipient.get("email"),
                 "signature_request_url": envelope.get("recipient_view_url"),
                 "provider_status": envelope.get("provider_status"),
                 "provider_envelope_id": envelope.get("envelope_id"),

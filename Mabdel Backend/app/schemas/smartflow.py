@@ -724,7 +724,9 @@ class LeaseBasePayload(BaseModel):
     prompt: str | None = Field(default=None, min_length=3, max_length=3000)
     property_address: str | None = Field(default=None, min_length=2, max_length=300)
     property_type: LeasePropertyType = "apartment"
+    self_role: Literal["landlord", "tenant"] = "landlord"
     landlord_name: str | None = Field(default=None, min_length=2, max_length=120)
+    landlord_email: EmailStr | None = None
     tenant_name: str | None = Field(default=None, min_length=2, max_length=120)
     tenant_email: EmailStr | None = None
     tenant_phone: str | None = Field(default=None, max_length=40)
@@ -765,7 +767,9 @@ class LeaseUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=2, max_length=200)
     property_address: str | None = Field(default=None, min_length=2, max_length=300)
     property_type: LeasePropertyType | None = None
+    self_role: Literal["landlord", "tenant"] | None = None
     landlord_name: str | None = Field(default=None, min_length=2, max_length=120)
+    landlord_email: EmailStr | None = None
     tenant_name: str | None = Field(default=None, min_length=2, max_length=120)
     tenant_email: EmailStr | None = None
     tenant_phone: str | None = Field(default=None, max_length=40)
@@ -1015,6 +1019,12 @@ class TelegramManualConnectResponse(BaseModel):
     webhook_url: str
     secret_token: str
     integration: SocialIntegrationResponse
+
+
+class CalDAVConnectRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=255)
+    app_password: str = Field(min_length=8, max_length=255)
+    server_url: str | None = Field(default=None, max_length=255)
 
 
 class WhatsAppManualConnectRequest(BaseModel):

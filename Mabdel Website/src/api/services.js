@@ -229,6 +229,9 @@ export const smartflowApi = {
   listSocialPosts: (params) => client.get('/api/v1/smartflow/social-posts', { params }),
   getSocialPost: (id) => client.get(`/api/v1/smartflow/social-posts/${id}`),
   disconnectIntegration: (platform) => client.delete(`/api/v1/smartflow/integrations/${platform}`),
+  getCalDAVStatus: () => client.get('/api/v1/smartflow/integrations/caldav/status'),
+  connectCalDAV: (data) => client.post('/api/v1/smartflow/integrations/caldav/connect', data),
+  disconnectCalDAV: () => client.delete('/api/v1/smartflow/integrations/caldav'),
 
   // ── Calendar extras ───────────────────────────────────────────────────────────
   shareCalendarEvent: (id, data) => client.post(`/api/v1/smartflow/calendar/events/${id}/share`, data),

@@ -8,6 +8,7 @@ from . import (  # noqa: F401
     ai,
     bulk_messages,
     calendar,
+    caldav,
     documents,
     leases,
     agreements,

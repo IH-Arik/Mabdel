@@ -116,10 +116,17 @@ const resolveAuthUrl = (response) =>
   response?.auth_url ||
   null;
 
-const resolveLeasePublicPdfUrl = (lease) =>
-  normalizeProtectedFileUrl(
-    lease?.signature_request_url || lease?.data?.signature_request_url || null,
+const resolveLeasePublicPdfUrl = (lease) => {
+  // The signing-token PDF route is only served by the backend while the
+  // signature request is still pending; once signed/expired it 404s
+  // (SIGNATURE_REQUEST_NOT_FOUND), so only use it in that window.
+  if (String(lease?.status || "").toLowerCase() !== "pending_signature") return null;
+  return normalizeProtectedFileUrl(
+    lease?.signature_request_url ||
+      lease?.data?.signature_request_url ||
+      null,
   );
+};
 
 const LeasePreviewScreen = () => {
   const { t } = useAppLanguage();

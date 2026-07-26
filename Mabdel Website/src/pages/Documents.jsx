@@ -350,7 +350,9 @@ function LeaseCreator({ onCreated, prefill }) {
   const [prompt, setPrompt]       = useState(prefill?.prompt || '');
   const [address, setAddress]     = useState(prefill?.address || prefill?.property_address || '');
   const [propType, setPropType]   = useState(prefill?.propType || prefill?.property_type || 'apartment');
+  const [selfRole, setSelfRole]   = useState(prefill?.self_role || 'landlord');
   const [landlord, setLandlord]   = useState(prefill?.landlord || prefill?.landlord_name || '');
+  const [landlordEmail, setLandlordEmail] = useState(prefill?.landlordEmail || prefill?.landlord_email || '');
   const [tenant, setTenant]       = useState(prefill?.tenant || prefill?.tenant_name || prefill?.name || '');
   const [tenantEmail, setTenantEmail] = useState(prefill?.tenantEmail || prefill?.tenant_email || '');
   const [tenantPhone, setTenantPhone] = useState(prefill?.tenantPhone || prefill?.tenant_phone || '');
@@ -383,7 +385,9 @@ function LeaseCreator({ onCreated, prefill }) {
   const buildPayload = () => ({
     property_address: address.trim(),
     property_type: propType.toLowerCase(),
+    self_role: selfRole,
     landlord_name: landlord.trim() || undefined,
+    landlord_email: landlordEmail.trim() || undefined,
     tenant_name: tenant.trim() || undefined,
     tenant_email: tenantEmail.trim() || undefined,
     tenant_phone: tenantPhone.trim() || undefined,
@@ -418,16 +422,17 @@ function LeaseCreator({ onCreated, prefill }) {
   }
 
   async function handleCreate() {
-    if (!address.trim() || !tenant.trim() || !rent) {
-      setError('Property address, tenant name, and monthly rent are required.'); return;
+    const otherPartyName = selfRole === 'landlord' ? tenant : landlord;
+    if (!address.trim() || !otherPartyName.trim() || !rent) {
+      setError(`Property address, ${selfRole === 'landlord' ? 'tenant' : 'landlord'} name, and monthly rent are required.`); return;
     }
     setError(''); setCreating(true);
     try {
       await smartflowApi.createLease(buildPayload());
       setSuccess('Lease created successfully!');
-      setPrompt(''); setAddress(''); setLandlord(''); setTenant('');
+      setPrompt(''); setAddress(''); setLandlord(''); setLandlordEmail(''); setTenant('');
       setTenantEmail(''); setTenantPhone(''); setRent(''); setDeposit('');
-      setStartDate(''); setEndDate(''); setTerms('');
+      setStartDate(''); setEndDate(''); setTerms(''); setSelfRole('landlord');
       onCreated?.();
     } catch (err) {
       setError(err.response?.data?.message || 'Could not create lease.');
@@ -511,14 +516,35 @@ function LeaseCreator({ onCreated, prefill }) {
       {/* Parties Info */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
         <SectionHeader icon={Users} title="Parties Info" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Landlord Full Name">
+        <Field label="I am signing this lease as">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setSelfRole('landlord')}
+              className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${selfRole === 'landlord' ? 'bg-[#11C7E5]/10 border-[#11C7E5] text-[#11C7E5]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
+            >
+              Landlord
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelfRole('tenant')}
+              className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${selfRole === 'tenant' ? 'bg-[#11C7E5]/10 border-[#11C7E5] text-[#11C7E5]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
+            >
+              Tenant
+            </button>
+          </div>
+        </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          <Field label={selfRole === 'landlord' ? 'Landlord Full Name (you)' : 'Landlord Full Name'}>
             <input value={landlord} onChange={e => setLandlord(e.target.value)} placeholder="e.g. John Doe" className={INPUT_CLS} />
           </Field>
-          <Field label="Tenant Full Name">
+          <Field label={selfRole === 'landlord' ? 'Landlord Email (leave blank to use your account email)' : 'Landlord Email'}>
+            <input value={landlordEmail} onChange={e => setLandlordEmail(e.target.value)} placeholder="email@example.com" className={INPUT_CLS} />
+          </Field>
+          <Field label={selfRole === 'tenant' ? 'Tenant Full Name (you)' : 'Tenant Full Name'}>
             <input value={tenant} onChange={e => setTenant(e.target.value)} placeholder="e.g. Jane Smith" className={INPUT_CLS} />
           </Field>
-          <Field label="Tenant Email">
+          <Field label={selfRole === 'tenant' ? 'Tenant Email (leave blank to use your account email)' : 'Tenant Email'}>
             <input value={tenantEmail} onChange={e => setTenantEmail(e.target.value)} placeholder="email@example.com" className={INPUT_CLS} />
           </Field>
           <Field label="Tenant Phone">
@@ -719,6 +745,9 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
 
   const record = detail || item;
   const reviewItems = record?.ai_review || [];
+  const otherParty = record.self_role === 'tenant'
+    ? { role: 'Landlord', name: record.landlord_name, email: record.landlord_email }
+    : { role: 'Tenant', name: record.tenant_name || record.client_name, email: record.tenant_email || record.client_email };
 
   useEffect(() => {
     setDetail(item);
@@ -848,17 +877,34 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
     setBusy('send-signature');
     setMsg('');
     try {
-      await smartflowApi.leaseSendSignature(record.id, {
-        recipient_name: recipientName.trim() || undefined,
-        recipient_email: recipientEmail.trim() || undefined,
-        recipient_phone: recipientPhone.trim() || undefined,
-        channel: recipientEmail.trim() ? 'email' : 'link',
-        provider: signatureProvider,
-      });
+      const res = await smartflowApi.leaseSendSignature(record.id, signatureProvider === 'docusign'
+        ? { provider: 'docusign', channel: 'email' }
+        : {
+            recipient_name: recipientName.trim() || undefined,
+            recipient_email: recipientEmail.trim() || undefined,
+            recipient_phone: recipientPhone.trim() || undefined,
+            channel: recipientEmail.trim() ? 'email' : 'link',
+            provider: signatureProvider,
+          });
+      const ownSigningUrl = res.data?.data?.signature_request_url;
       await refreshDetail();
       onRefresh?.();
       setShowSendPanel(false);
-      setMsg('Lease sent for signature successfully.');
+      if (signatureProvider === 'docusign' && ownSigningUrl) {
+        setMsg('Sent — sign your own copy now in the popup, then the other party will be emailed automatically.');
+        const popup = window.open(ownSigningUrl, 'mabdel-docusign-self-sign', 'width=800,height=900');
+        const startedAt = Date.now();
+        const timer = window.setInterval(async () => {
+          const closed = !popup || popup.closed;
+          const expired = Date.now() - startedAt > 20 * 60 * 1000;
+          if (!closed && !expired) return;
+          window.clearInterval(timer);
+          await refreshDetail();
+          onRefresh?.();
+        }, 1500);
+      } else {
+        setMsg('Lease sent for signature successfully.');
+      }
     } catch (err) {
       setMsg(err.response?.data?.message || 'Send signature failed.');
     } finally {
@@ -1090,15 +1136,38 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
 
                   {showSendPanel && (
                     <div className="grid gap-4 sm:grid-cols-2 rounded-xl border border-[#243246] bg-[#0A1019] p-4">
-                      <Field label="Recipient Name"><input value={recipientName} onChange={e => setRecipientName(e.target.value)} className={INPUT_CLS} /></Field>
-                      <Field label="Recipient Email"><input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} className={INPUT_CLS} /></Field>
-                      <Field label="Recipient Phone"><input value={recipientPhone} onChange={e => setRecipientPhone(e.target.value)} className={INPUT_CLS} /></Field>
                       <Field label="Signature Provider">
-                        <select value={signatureProvider} onChange={e => setSignatureProvider(e.target.value)} className={INPUT_CLS}>
-                          <option value="native">Native</option>
-                          <option value="docusign">DocuSign</option>
-                        </select>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setSignatureProvider('native')}
+                            className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${signatureProvider === 'native' ? 'bg-[#11C7E5]/10 border-[#11C7E5] text-[#11C7E5]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
+                          >
+                            Native (link)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSignatureProvider('docusign')}
+                            className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${signatureProvider === 'docusign' ? 'bg-[#11C7E5]/10 border-[#11C7E5] text-[#11C7E5]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
+                          >
+                            DocuSign
+                          </button>
+                        </div>
                       </Field>
+                      <div />
+                      {signatureProvider === 'docusign' ? (
+                        <div className="sm:col-span-2 rounded-xl border border-[#243246] bg-[#131A24] p-3 text-xs text-[#A4B0B7]">
+                          <p>You'll sign first (right here), then DocuSign automatically emails the {otherParty.role.toLowerCase()} to sign.</p>
+                          <p className="mt-1 text-white font-semibold">{otherParty.role}: {otherParty.name || '—'} · {otherParty.email || 'no email on file'}</p>
+                          {!otherParty.email && <p className="mt-1 text-amber-300">Add a {otherParty.role.toLowerCase()} email on this lease before sending with DocuSign.</p>}
+                        </div>
+                      ) : (
+                        <>
+                          <Field label="Recipient Name"><input value={recipientName} onChange={e => setRecipientName(e.target.value)} className={INPUT_CLS} /></Field>
+                          <Field label="Recipient Email"><input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} className={INPUT_CLS} /></Field>
+                          <Field label="Recipient Phone"><input value={recipientPhone} onChange={e => setRecipientPhone(e.target.value)} className={INPUT_CLS} /></Field>
+                        </>
+                      )}
                       {signatureProvider === 'docusign' && (
                         <div className="sm:col-span-2 rounded-xl border border-amber-500/20 bg-amber-950/20 p-3 text-xs text-amber-200">
                           <p>DocuSign status: {docusignStatus?.connection_status || 'disconnected'}</p>
@@ -1110,7 +1179,11 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                         </div>
                       )}
                       <div className="sm:col-span-2 flex justify-end">
-                        <button onClick={sendForSignature} disabled={!!busy} className="px-4 py-3 rounded-xl bg-[#11C7E5] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
+                        <button
+                          onClick={sendForSignature}
+                          disabled={!!busy || (signatureProvider === 'docusign' && !otherParty.email)}
+                          className="px-4 py-3 rounded-xl bg-[#11C7E5] text-[#02080B] font-bold cursor-pointer disabled:opacity-60"
+                        >
                           {busy === 'send-signature' ? 'Sending…' : 'Send Lease'}
                         </button>
                       </div>

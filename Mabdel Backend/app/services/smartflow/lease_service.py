@@ -82,19 +82,38 @@ class LeaseService(SmartFlowBase):
         lease = await self._refresh_lease_status(lease)
         return self._serialize_lease(lease, include_content=True)
 
+    async def _resolve_self_defaults(self, user_id: str, payload: dict) -> dict:
+        """Fill in the website-user's own name/email for whichever party
+        (landlord or tenant) they represent in this lease, when not explicitly
+        supplied. Lets the CRM account holder be either party."""
+        self_role = payload.get("self_role", "landlord")
+        name_key = "landlord_name" if self_role == "landlord" else "tenant_name"
+        email_key = "landlord_email" if self_role == "landlord" else "tenant_email"
+        if payload.get(name_key) and payload.get(email_key):
+            return payload
+        user = await self.db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else None
+        if not user:
+            return payload
+        resolved = dict(payload)
+        resolved.setdefault(name_key, user.get("full_name") or user.get("email"))
+        resolved.setdefault(email_key, user.get("email"))
+        return resolved
+
     async def create_lease(self, user_id: str, payload: dict) -> dict:
+        payload = await self._resolve_self_defaults(user_id, payload)
         details = self._normalize_lease_details(payload)
         content = (payload.get("content") or self._generate_lease_content({**payload, **details})).strip()
         now = utc_now()
         metadata = dict(payload.get("metadata") or {})
         metadata["lease"] = details
+        other_party = self._lease_other_party(details)
         document = {
             "user_id": user_id,
             "agreement_number": await self._next_lease_number(),
             "title": (payload.get("title") or self._infer_lease_title(details)).strip(),
-            "client_name": details["tenant_name"],
-            "client_email": payload.get("tenant_email"),
-            "client_phone": payload.get("tenant_phone"),
+            "client_name": other_party["name"],
+            "client_email": other_party["email"],
+            "client_phone": other_party["phone"],
             "agreement_type": "lease",
             "priority": "standard",
             "start_date": details.get("start_date"),
@@ -134,16 +153,18 @@ class LeaseService(SmartFlowBase):
             return self._serialize_lease(lease, include_content=True)
         regenerate_content = bool(updates.pop("regenerate_content", False))
         current_details = self._lease_details_from_agreement(lease)
+        updates = await self._resolve_self_defaults(user_id, {**current_details, **updates})
         next_details = self._normalize_lease_details(updates, existing=current_details)
         metadata = dict(lease.get("metadata") or {})
         if updates.get("metadata"):
             metadata.update(updates["metadata"])
         metadata["lease"] = next_details
+        other_party = self._lease_other_party(next_details)
         clean_updates: dict = {
             "metadata": metadata,
-            "client_name": next_details["tenant_name"],
-            "client_email": updates.get("tenant_email", lease.get("client_email")),
-            "client_phone": updates.get("tenant_phone", lease.get("client_phone")),
+            "client_name": other_party["name"],
+            "client_email": other_party["email"],
+            "client_phone": other_party["phone"],
             "start_date": next_details.get("start_date"),
             "end_date": next_details.get("end_date"),
             "smart_fields": self._lease_smart_fields(next_details),
@@ -286,6 +307,26 @@ class LeaseService(SmartFlowBase):
 
     async def send_lease_for_signature(self, user_id: str, lease_id: str, payload: dict) -> dict:
         lease = await self._get_owned_lease(user_id, lease_id)
+        payload = dict(payload)
+        if payload.get("provider") == "docusign" or payload.get("signing_provider") == "docusign":
+            details = self._lease_details_from_agreement(lease)
+            self_party = self._lease_self_party(details)
+            other_party = self._lease_other_party(details)
+            if not self_party.get("email"):
+                user = await self.db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else None
+                self_party["email"] = self_party.get("email") or (user or {}).get("email")
+                self_party["name"] = self_party.get("name") or (user or {}).get("full_name") or self_party["email"]
+            if not other_party.get("email"):
+                raise AppException(
+                    status_code=400,
+                    code="LEASE_RECIPIENT_EMAIL_REQUIRED",
+                    message=f"{other_party['role'].capitalize()} email is required to send this lease for signature.",
+                )
+            payload["signers"] = [
+                {"name": self_party["name"], "email": self_party["email"]},
+                {"name": other_party["name"], "email": other_party["email"]},
+            ]
+            payload.setdefault("embedded_signing", True)
         signature = await self.agreement_service.send_agreement_for_signature(user_id, str(lease["_id"]), payload)
         updated = await self.db.agreements.find_one({"_id": lease["_id"]})
         token = (updated or {}).get("signature_request_token")
