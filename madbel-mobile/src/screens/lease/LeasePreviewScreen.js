@@ -332,16 +332,8 @@ const LeasePreviewScreen = () => {
     }
     try {
       setDownloadingPdf(true);
-      const publicPdfUrl = resolveLeasePublicPdfUrl(lease);
-      if (publicPdfUrl) {
-        const canOpen = await Linking.canOpenURL(publicPdfUrl);
-        if (canOpen) {
-          await Linking.openURL(publicPdfUrl);
-          return;
-        }
-      }
-
       const pdfUrl =
+        resolveLeasePublicPdfUrl(lease) ||
         normalizeProtectedFileUrl(lease?.pdf_url) ||
         normalizeProtectedFileUrl(`/api/v1/smartflow/leases/${leaseId}/pdf`);
       if (!pdfUrl) {
@@ -353,6 +345,7 @@ const LeasePreviewScreen = () => {
         accessToken,
         filePrefix: `lease-${leaseId}`,
       });
+      Alert.alert("Downloaded", "Lease PDF downloaded successfully.");
     } catch (error) {
       Alert.alert(
         t("download_failed"),
@@ -795,7 +788,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  sendText: { color: "#EAF8FF", fontSize: 20 / 2, fontWeight: "700" },
+  sendText: { color: "#EAF8FF", fontSize: 19, fontWeight: "700" },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.55)",

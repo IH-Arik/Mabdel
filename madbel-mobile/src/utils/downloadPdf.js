@@ -1,4 +1,3 @@
-import { Linking, Platform } from "react-native";
 import * as FileSystem from "expo-file-system";
 import { API_BASE_URL } from "../redux/apiUtils";
 
@@ -50,14 +49,5 @@ export const downloadAndOpenProtectedPdf = async ({
     throw new Error("PDF download did not return a file.");
   }
 
-  let openUri = localUri;
-  if (
-    Platform.OS === "android" &&
-    typeof FileSystem.getContentUriAsync === "function"
-  ) {
-    openUri = await FileSystem.getContentUriAsync(localUri);
-  }
-
-  await Linking.openURL(openUri);
   return localUri;
 };
