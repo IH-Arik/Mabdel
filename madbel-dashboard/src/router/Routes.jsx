@@ -20,6 +20,8 @@ import UserList from "../Pages/UserList/UserList";
 import Earnings from "../Pages/Earnings/Earnings";
 import Categories from "../Pages/Categories/Categories";
 import Reports from "../Pages/Reports/Reports";
+import DemoRequests from "../Pages/DemoRequests/DemoRequests";
+import GoogleCalendar from "../Pages/Settings/GoogleCalendar/GoogleCalendar";
 import Settings from "../Pages/Settings/Settings";
 import AllMessages from "../Pages/Messages/AllMessages";
 import BlockedList from "../Pages/BlockedList/BlockedList";
@@ -76,6 +78,7 @@ export const router = createBrowserRouter([
           { path: "/client-management", element: <ClientManagement /> },
           { path: "/categories", element: <Categories /> },
           { path: "/reports", element: <Reports /> },
+          { path: "/demo-requests", element: <DemoRequests /> },
           { path: "/ads-setup", element: <AdsSetup /> },
           { path: "/activity&events", element: <ActivityEvents /> },
           { path: "/event-creator", element: <EventCreators /> },
@@ -87,6 +90,7 @@ export const router = createBrowserRouter([
           { path: "/settings/privacy-policy", element: <PrivacyPolicy /> },
           { path: "/settings/sms-messaging-policy", element: <SmsMessagingPolicy /> },
           { path: "/settings/acceptable-use-policy", element: <AcceptableUsePolicy /> },
+          { path: "/settings/google-calendar", element: <GoogleCalendar /> },
           { path: "/settings/profile", element: <ProfilePage /> },
           { path: "/settings/change-password", element: <ChangePass /> },
           { path: "/settings/billing", element: <BillingPage /> },

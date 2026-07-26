@@ -355,7 +355,11 @@ export default function Integrations() {
       const res = await smartflowApi.startIntegrationOAuth(item.platform);
       const url = res.data?.data?.auth_url || res.data?.auth_url;
       if (url) {
-        oauthWindowRef.current = window.open(url, '_blank', 'noopener,noreferrer');
+        // Deliberately no noopener/noreferrer here — the popup needs window.opener
+        // intact so the backend's OAuth callback page can postMessage back to us
+        // when it's done (and window.open() needs to return a real handle so the
+        // focus-based "popup closed" fallback below can work too).
+        oauthWindowRef.current = window.open(url, '_blank');
       } else {
         alert('Did not receive authorization URL from server.');
       }

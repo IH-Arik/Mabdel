@@ -779,6 +779,18 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
     return () => { ignore = true; };
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const onMessage = async (event) => {
+      if (event?.data?.type === 'mabdel-docusign-oauth') {
+        const res = await smartflowApi.getAgreementDocusignStatus();
+        setDocusignStatus(res.data?.data || null);
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [open]);
+
   async function refreshDetail() {
     const res = await smartflowApi.getLease(item.id);
     const next = res.data?.data || item;
@@ -793,8 +805,17 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       const res = await smartflowApi.startAgreementDocusignOAuth();
       const authUrl = res.data?.data?.auth_url;
       if (!authUrl) throw new Error('OAuth URL missing.');
-      window.open(authUrl, '_blank', 'noopener,noreferrer,width=720,height=840');
+      const popup = window.open(authUrl, 'mabdel-docusign-oauth', 'width=680,height=860');
       setMsg('DocuSign connection window opened.');
+      const startedAt = Date.now();
+      const timer = window.setInterval(async () => {
+        const closed = !popup || popup.closed;
+        const expired = Date.now() - startedAt > 10 * 60 * 1000;
+        if (!closed && !expired) return;
+        window.clearInterval(timer);
+        const statusRes = await smartflowApi.getAgreementDocusignStatus();
+        setDocusignStatus(statusRes.data?.data || null);
+      }, 1500);
     } catch (err) {
       setMsg(err.response?.data?.message || err.message || 'Could not start DocuSign connection.');
     } finally {
@@ -1324,7 +1345,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
         setMsg('Did not receive a DocuSign authorization URL from the server.');
         return;
       }
-      const popup = window.open(authUrl, 'mabdel-docusign-oauth', 'width=680,height=860,noopener,noreferrer');
+      const popup = window.open(authUrl, 'mabdel-docusign-oauth', 'width=680,height=860');
       const startedAt = Date.now();
       const timer = window.setInterval(async () => {
         const closed = !popup || popup.closed;

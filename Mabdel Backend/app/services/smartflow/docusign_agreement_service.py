@@ -86,6 +86,7 @@ class DocuSignAgreementService:
         if not self.is_configured():
             raise AppException(status_code=503, code="DOCUSIGN_NOT_CONFIGURED", message="DocuSign is not configured on the backend.")
         state = secrets.token_urlsafe(24)
+        code_verifier = secrets.token_urlsafe(48)
         expires_at = utc_now() + timedelta(minutes=10)
         await self.db.oauth_states.insert_one(
             {
@@ -93,6 +94,7 @@ class DocuSignAgreementService:
                 "platform": "docusign_agreements",
                 "provider": "docusign",
                 "state": state,
+                "code_verifier": code_verifier,
                 "expires_at": expires_at,
                 "created_at": utc_now(),
             }
@@ -103,6 +105,7 @@ class DocuSignAgreementService:
             "client_id": settings.DOCUSIGN_CLIENT_ID,
             "redirect_uri": self.redirect_uri(),
             "state": state,
+            **self._pkce_authorize_params(code_verifier),
         }
         return {
             "provider": "docusign",
@@ -115,10 +118,15 @@ class DocuSignAgreementService:
         if not self.is_configured():
             raise AppException(status_code=503, code="DOCUSIGN_NOT_CONFIGURED", message="DocuSign is not configured on the backend.")
         state_doc = await self.db.oauth_states.find_one({"state": state, "provider": "docusign"})
-        if not state_doc or state_doc.get("expires_at") < utc_now():
+        expires_at = state_doc.get("expires_at") if state_doc else None
+        now = utc_now()
+        if expires_at is not None and expires_at.tzinfo is None:
+            # Mongo returns BSON datetimes as naive UTC.
+            now = now.replace(tzinfo=None)
+        if not state_doc or expires_at is None or expires_at < now:
             raise AppException(status_code=400, code="DOCUSIGN_OAUTH_STATE_INVALID", message="DocuSign OAuth state is invalid or expired.")
 
-        token_data = await self._exchange_authorization_code(code)
+        token_data = await self._exchange_authorization_code(code, state_doc.get("code_verifier"))
         account_context = await self._fetch_userinfo(token_data["access_token"])
         account = self._pick_account(account_context.get("accounts") or [])
         if not account:
@@ -168,7 +176,11 @@ class DocuSignAgreementService:
         if not connection or connection.get("status") not in {"connected", "needs_reauth"}:
             raise AppException(status_code=409, code="DOCUSIGN_NOT_CONNECTED", message="Connect DocuSign before sending agreements with DocuSign.")
         expires_at = connection.get("access_token_expires_at")
-        if expires_at and expires_at <= utc_now() + timedelta(seconds=60):
+        threshold = utc_now() + timedelta(seconds=60)
+        if expires_at and expires_at.tzinfo is None:
+            # Mongo returns BSON datetimes as naive UTC.
+            threshold = threshold.replace(tzinfo=None)
+        if expires_at and expires_at <= threshold:
             return await self._refresh_connection(connection)
         return connection
 
@@ -361,11 +373,20 @@ class DocuSignAgreementService:
                 return open(path, "rb").read(), f'{agreement["agreement_number"]}-certificate.pdf'
         raise AppException(status_code=404, code="DOCUSIGN_CERTIFICATE_NOT_FOUND", message="DocuSign completion certificate is not available yet.")
 
-    async def _exchange_authorization_code(self, code: str) -> dict:
+    @staticmethod
+    def _pkce_authorize_params(code_verifier: str) -> dict[str, str]:
+        digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+        code_challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+        return {"code_challenge": code_challenge, "code_challenge_method": "S256"}
+
+    async def _exchange_authorization_code(self, code: str, code_verifier: str | None = None) -> dict:
+        token_payload = {"grant_type": "authorization_code", "code": code, "redirect_uri": self.redirect_uri()}
+        if code_verifier:
+            token_payload["code_verifier"] = code_verifier
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 self._token_url(),
-                data={"grant_type": "authorization_code", "code": code, "redirect_uri": self.redirect_uri()},
+                data=token_payload,
                 headers={"Accept": "application/json", "Authorization": self._basic_auth_header()},
             )
         if response.status_code >= 400:
