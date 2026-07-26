@@ -736,6 +736,22 @@ export const buildSmartflowEndpoints = (builder) => ({
       invalidatesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
     }),
 
+    madbelGetAgreementDocusignStatus: builder.query({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/agreements/signature-providers/docusign/status",
+        method: "GET",
+      }),
+      providesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
+    }),
+
+    madbelStartAgreementDocusignOauth: builder.query({
+      query: buildApiRequest({
+        path: "/api/v1/smartflow/agreements/signature-providers/docusign/oauth/start",
+        method: "GET",
+      }),
+      providesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
+    }),
+
     madbelSignAgreement: builder.mutation({
       query: buildApiRequest({
         path: "/api/v1/smartflow/agreements/{agreement_id}/sign",

@@ -1,16 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  TextInput,
-  StyleSheet,
-  Linking,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, Pressable, ScrollView, TextInput, StyleSheet, Linking, Alert } from "react-native";
 import { ChevronLeft, ChevronDown, ChevronUp, Mail, MessageCircle, Phone } from "lucide-react-native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
@@ -78,7 +68,7 @@ const ProfileSupportScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
@@ -138,7 +128,7 @@ const ProfileSupportScreen = () => {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

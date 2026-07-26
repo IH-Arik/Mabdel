@@ -1,4 +1,4 @@
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { CheckCircle2 } from "lucide-react-native";
@@ -10,7 +10,7 @@ const AccountSuccessScreen = () => {
   const navigation = useNavigation();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <LinearGradient colors={["#02080B", "#010406"]} style={styles.screen}>
         <View style={styles.content}>
           <View style={styles.iconCard}>
@@ -28,7 +28,7 @@ const AccountSuccessScreen = () => {
           </Pressable>
         </View>
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 };
 

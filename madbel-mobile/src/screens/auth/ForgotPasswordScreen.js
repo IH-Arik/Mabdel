@@ -1,19 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import {
-  ActivityIndicator,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  View,
-} from "react-native";
+  ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from "react-native";
 import { Controller, useFormContext } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -70,7 +58,7 @@ const ForgotPasswordScreen = () => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
           <LinearGradient colors={["#02080B", "#010406"]} style={styles.screen}>
             {/* <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
               <ArrowLeft size={32} color={colors.textPrimary} strokeWidth={2.5} />
@@ -92,7 +80,6 @@ const ForgotPasswordScreen = () => {
                 <Text style={styles.title}>{t("forgot_password")}</Text>
                 <Text style={styles.subtitle}>{t("enter_your_email_address_to_receive_a_4digit_verif")}</Text>
               </View>
-
 
               <ControllerTextInput
                 name="forgotEmail"
@@ -154,7 +141,7 @@ const ForgotPasswordScreen = () => {
              
             </ScrollView>
           </LinearGradient>
-        </SafeAreaView>
+        </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );

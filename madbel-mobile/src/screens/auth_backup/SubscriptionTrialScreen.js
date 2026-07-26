@@ -1,15 +1,7 @@
 import React, { useState } from "react";
 import { useAppLanguage } from "../../context/LanguageContext";
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
@@ -111,7 +103,7 @@ export default function SubscriptionTrialScreen() {
   const isAnyLoading = loading !== null;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <LinearGradient
         colors={["#031218", "#02080B", "#010406"]}
         start={{ x: 0, y: 0 }}
@@ -204,7 +196,7 @@ export default function SubscriptionTrialScreen() {
 
         </ScrollView>
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,7 +1,6 @@
 import { View, Text, ScrollView, Image, Pressable } from "react-native";
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -63,7 +62,7 @@ const EventParticipantsScreen = ({ route }) => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f3f4f6]">
+    <View className="flex-1 bg-[#f3f4f6]">
       <View
         style={{
           flex: 1,
@@ -147,7 +146,7 @@ const EventParticipantsScreen = ({ route }) => {
           ))}
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

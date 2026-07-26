@@ -1,15 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  FlatList,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, FlatList } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -75,7 +66,7 @@ const InvoiceDetailsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
@@ -91,7 +82,6 @@ const InvoiceDetailsScreen = () => {
           </View>
         ) : invoice ? (
         <>
-
 
         <FlatList
   data={timeline}
@@ -190,7 +180,7 @@ const InvoiceDetailsScreen = () => {
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,14 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ChevronRight, Check, Globe } from "lucide-react-native";
 import {
   responsiveHeight,
@@ -96,7 +88,7 @@ const ProfileHomeScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -151,23 +143,13 @@ const ProfileHomeScreen = () => {
             </Pressable>
           ))}
         </View>
-        {profileData?.auth_provider === "google" ? (
-          <Pressable
-            onPress={() => setShowLogoutModal(true)}
-            // disabled={logoutLoading}
-            style={styles.logoutBtn}
-          >
-            <Text style={styles.logoutText}>{t("logout")}</Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            onPress={() => !logoutLoading && setShowLogoutModal(true)}
-            disabled={logoutLoading}
-            style={styles.logoutBtn}
-          >
-            <Text style={styles.logoutText}>{t("logout")}</Text>
-          </Pressable>
-        )}
+        <Pressable
+          onPress={() => !logoutLoading && setShowLogoutModal(true)}
+          disabled={logoutLoading}
+          style={styles.logoutBtn}
+        >
+          <Text style={styles.logoutText}>{t("logout")}</Text>
+        </Pressable>
 
         {!!logoutError && <Text style={styles.errorText}>{logoutError}</Text>}
       </ScrollView>
@@ -238,7 +220,7 @@ const ProfileHomeScreen = () => {
         confirmButtonColor="bg-red-500"
         type="warning"
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

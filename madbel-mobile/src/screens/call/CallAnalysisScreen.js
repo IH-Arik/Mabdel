@@ -1,16 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View, Alert } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -33,7 +24,6 @@ import {
   useMadbelGetCallAiSummaryQuery,
   useMadbelCreateOutboundCallMutation,
 } from "../../redux/slices/madbelApiSlice";
-
 
 const WAVEFORM_HEIGHTS = [
   15, 25, 40, 20, 10, 30, 45, 55, 35, 15, 20, 35, 40, 25, 10, 20, 45, 50, 35, 15,
@@ -122,7 +112,7 @@ const CallAnalysisScreen = () => {
 
   if (!callId) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View style={styles.container}>
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -135,22 +125,22 @@ const CallAnalysisScreen = () => {
             <Text style={{ color: "#687588", fontSize: 16 }}>{t("no_call_selected")}</Text>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (isLogLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View style={styles.loaderWrap}>
           <ActivityIndicator size="large" color="#17CBE8" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -344,7 +334,7 @@ const CallAnalysisScreen = () => {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

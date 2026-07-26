@@ -1,19 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  ActivityIndicator,
-  Linking,
-  Alert,
-  Modal,
-  TextInput,
-  AppState,
-} from "react-native";
+  Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator, Linking, Alert, Modal, TextInput, AppState } from "react-native";
 import { CheckCircle2, ChevronLeft, AlertCircle } from "lucide-react-native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
@@ -283,7 +271,7 @@ const SocialIntegrationsScreen = () => {
   const isLoading = isStartingOauth || isDisconnecting || isConnectingWhatsApp;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -406,7 +394,7 @@ const SocialIntegrationsScreen = () => {
             </View>
           </View>
         </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

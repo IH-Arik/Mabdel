@@ -1,17 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  TextInput,
-  ScrollView,
-} from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View, Pressable, TextInput, ScrollView } from "react-native";
 import { ArrowLeft, Sparkles, Mic, Reply, Forward } from "lucide-react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -240,7 +231,7 @@ const MicConversationScreen = () => {
   const composerIconSize = responsiveWidth(5.3);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.screen}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -355,7 +346,7 @@ const MicConversationScreen = () => {
           </View>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,7 +1,7 @@
 ﻿import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Switch, Alert, ActivityIndicator, Linking } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { ChevronLeft, Mic, Sparkles, CircleAlert, CheckCircle2, AlertTriangle } from "lucide-react-native";
@@ -232,7 +232,7 @@ const AgreementCreateScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -403,7 +403,7 @@ const AgreementCreateScreen = () => {
           onSelectDate={setDate}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

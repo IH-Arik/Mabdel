@@ -1,14 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useAppLanguage } from "../context/LanguageContext";
 import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+  ActivityIndicator, FlatList, Modal, Pressable, Text, TextInput, View } from "react-native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { MapPin } from "lucide-react-native";
 import MapView, { Marker } from "react-native-maps";

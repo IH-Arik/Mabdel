@@ -11,7 +11,6 @@ import InvoiceViewScreen from "../screens/invoice/InvoiceViewScreen";
 import ContactsScreen from "../screens/home/ContactsScreen";
 import AddContactScreen from "../screens/home/AddContactScreen";
 import ScheduleMeetingScreen from "../screens/home/ScheduleMeetingScreen";
-import CreateMeetingScheduleScreen from "../screens/home/CreateMeetingScheduleScreen";
 import MeetingDetailsScreen from "../screens/home/MeetingDetailsScreen";
 import SocialIntegrationsScreen from "../screens/home/SocialIntegrationsScreen";
 import GoogleReviewsScreen from "../screens/home/GoogleReviewsScreen";
@@ -56,7 +55,9 @@ const HomeStack = () => {
       <Stack.Screen name="ScheduleMeeting" component={ScheduleMeetingScreen} />
       <Stack.Screen
         name="CreateMeetingSchedule"
-        component={CreateMeetingScheduleScreen}
+        getComponent={() =>
+          require("../screens/home/CreateMeetingScheduleScreen").default
+        }
       />
       <Stack.Screen name="MeetingDetails" component={MeetingDetailsScreen} />
       <Stack.Screen

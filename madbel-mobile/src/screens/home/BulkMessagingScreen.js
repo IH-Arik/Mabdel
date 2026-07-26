@@ -1,17 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, Alert, ActivityIndicator } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import {
@@ -281,7 +271,7 @@ const BulkMessagingScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.screen}>
         <View style={styles.headerRow}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -468,7 +458,7 @@ const BulkMessagingScreen = () => {
         onClose={() => setImagePickerVisible(false)}
         onPickGallery={handlePickAttachmentImage}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

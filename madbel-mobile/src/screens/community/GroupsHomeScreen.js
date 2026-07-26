@@ -1,7 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import { View, Text, Pressable, StyleSheet, FlatList, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -23,7 +22,7 @@ const GroupsHomeScreen = () => {
   const groups = groupsResponse?.data?.items || [];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
@@ -95,7 +94,7 @@ const GroupsHomeScreen = () => {
           <Plus size={36} color="#020406" strokeWidth={2.5} />
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,15 +1,7 @@
 import React, { useState } from "react";
 import { useAppLanguage } from "../context/LanguageContext";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from "react-native";
+  View, Text, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import {
   responsiveHeight,
   responsiveWidth,

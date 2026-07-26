@@ -1,17 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { ChevronLeft, Signature, CheckCircle2, AlertTriangle, Download, Sparkles } from "lucide-react-native";
@@ -169,16 +157,16 @@ const PublicSigningScreen = () => {
 
   if (loading && !document?.title && !document?.content) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View style={styles.center}>
           <ActivityIndicator color="#14C9E7" size="large" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -283,7 +271,7 @@ const PublicSigningScreen = () => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

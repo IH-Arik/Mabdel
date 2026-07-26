@@ -1,23 +1,65 @@
 import { useAppLanguage } from "../../context/LanguageContext";
-import React, { useMemo, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView, Modal, TextInput, ActivityIndicator, Alert, Linking } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  AppState,
+} from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
-import { ChevronLeft, ClipboardCheck, Sparkles, CheckCircle2, AlertTriangle, X, Download } from "lucide-react-native";
+import {
+  responsiveHeight,
+  responsiveWidth,
+} from "react-native-responsive-dimensions";
+import {
+  ChevronLeft,
+  ClipboardCheck,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  Download,
+} from "lucide-react-native";
 import { useSelector } from "react-redux";
 import {
+  useLazyMadbelGetAgreementDocusignStatusQuery,
+  useLazyMadbelStartAgreementDocusignOauthQuery,
   useMadbelGetAgreementQuery,
   useMadbelSendAgreementForSignatureMutation,
   useMadbelSignAgreementMutation,
 } from "../../redux/slices/madbelApiSlice";
-import { downloadAndOpenProtectedPdf, normalizeProtectedFileUrl } from "../../utils/downloadPdf";
+import {
+  downloadAndOpenProtectedPdf,
+  normalizeProtectedFileUrl,
+} from "../../utils/downloadPdf";
 
 const STATUS_TONE_MAP = {
-  pending_signature: { text: "PENDING SIGNATURE", color: "#F6D32B", border: "#796A05", bg: "#302C13" },
-  signed: { text: "SIGNED", color: "#37E088", border: "#1B6F4D", bg: "#0F3426" },
+  pending_signature: {
+    text: "PENDING SIGNATURE",
+    color: "#F6D32B",
+    border: "#796A05",
+    bg: "#302C13",
+  },
+  signed: {
+    text: "SIGNED",
+    color: "#37E088",
+    border: "#1B6F4D",
+    bg: "#0F3426",
+  },
   draft: { text: "DRAFT", color: "#9EC4FF", border: "#40506A", bg: "#253041" },
-  expired: { text: "EXPIRED", color: "#FF5E74", border: "#703341", bg: "#3A1920" },
+  expired: {
+    text: "EXPIRED",
+    color: "#FF5E74",
+    border: "#703341",
+    bg: "#3A1920",
+  },
 };
 
 const resolveSigningUrl = (response) =>
@@ -44,6 +86,15 @@ const resolveSigningToken = (response) =>
   response?.data?.data?.signingToken ||
   null;
 
+const resolveDocusignStatus = (response) =>
+  response?.data?.data || response?.data || response || null;
+
+const resolveAuthUrl = (response) =>
+  response?.data?.data?.auth_url ||
+  response?.data?.auth_url ||
+  response?.auth_url ||
+  null;
+
 const resolveAgreementPublicPdfUrl = (agreement, agreementId) => {
   const publicUrl = normalizeProtectedFileUrl(agreement?.signature_request_url);
   if (publicUrl) return publicUrl;
@@ -56,7 +107,9 @@ const resolveAgreementPublicPdfUrl = (agreement, agreementId) => {
   }
 
   if (!agreementId) return null;
-  return normalizeProtectedFileUrl(`/api/v1/smartflow/agreements/${agreementId}/pdf`);
+  return normalizeProtectedFileUrl(
+    `/api/v1/smartflow/agreements/${agreementId}/pdf`,
+  );
 };
 
 const AgreementPreviewScreen = () => {
@@ -64,26 +117,95 @@ const AgreementPreviewScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const routeAgreement = route?.params?.agreement || {};
-  const agreementId = route?.params?.agreementId || routeAgreement?.id || routeAgreement?._id;
-  const accessToken = useSelector((state) => state?.auth?.accessToken || state?.auth?.token);
-
-  const { data: agreementResponse, isLoading: loadingAgreement } = useMadbelGetAgreementQuery(
-    { agreement_id: agreementId },
-    { skip: !agreementId },
+  const agreementId =
+    route?.params?.agreementId || routeAgreement?.id || routeAgreement?._id;
+  const accessToken = useSelector(
+    (state) => state?.auth?.accessToken || state?.auth?.token,
   );
+
+  const { data: agreementResponse, isLoading: loadingAgreement } =
+    useMadbelGetAgreementQuery(
+      { agreement_id: agreementId },
+      { skip: !agreementId },
+    );
   const agreement = agreementResponse?.data || routeAgreement;
-  const signingProvider = agreement?.signing_provider || routeAgreement?.signing_provider;
-  const tone = STATUS_TONE_MAP[String(agreement?.status || "pending_signature").toLowerCase()] || STATUS_TONE_MAP.pending_signature;
+  const signingProvider =
+    agreement?.signing_provider || routeAgreement?.signing_provider;
+  const tone =
+    STATUS_TONE_MAP[
+      String(agreement?.status || "pending_signature").toLowerCase()
+    ] || STATUS_TONE_MAP.pending_signature;
 
   const [showModal, setShowModal] = useState(false);
+  const [signatureProvider, setSignatureProvider] = useState(
+    signingProvider || "native",
+  );
   const [name, setName] = useState(agreement?.client_name || "");
   const [email, setEmail] = useState(agreement?.client_email || "");
   const [phone, setPhone] = useState(agreement?.client_phone || "");
 
-  const [sendForSignature, { isLoading: sending }] = useMadbelSendAgreementForSignatureMutation();
+  const [sendForSignature, { isLoading: sending }] =
+    useMadbelSendAgreementForSignatureMutation();
+  const [startDocusignOauth] = useLazyMadbelStartAgreementDocusignOauthQuery();
+  const [triggerDocusignStatus, { data: docusignStatusResponse }] =
+    useLazyMadbelGetAgreementDocusignStatusQuery();
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const appState = useRef(AppState.currentState);
 
-  const review = useMemo(() => agreement?.ai_review || [], [agreement?.ai_review]);
+  const review = useMemo(
+    () => agreement?.ai_review || [],
+    [agreement?.ai_review],
+  );
+  const docusignStatus = resolveDocusignStatus(docusignStatusResponse);
+
+  useEffect(() => {
+    setSignatureProvider(signingProvider || "native");
+  }, [agreement?.id, signingProvider]);
+
+  useEffect(() => {
+    if (!showModal || signatureProvider !== "docusign") return undefined;
+
+    void triggerDocusignStatus();
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextState === "active"
+      ) {
+        void triggerDocusignStatus();
+      }
+      appState.current = nextState;
+    });
+
+    return () => sub.remove();
+  }, [showModal, signatureProvider, triggerDocusignStatus]);
+
+  const handleConnectDocusign = async () => {
+    try {
+      const response = await startDocusignOauth().unwrap();
+      const authUrl = resolveAuthUrl(response);
+      if (!authUrl) {
+        Alert.alert(
+          "Unavailable",
+          "Did not receive a DocuSign authorization URL from the server.",
+        );
+        return;
+      }
+      const canOpen = await Linking.canOpenURL(authUrl);
+      if (!canOpen) {
+        Alert.alert(
+          "Unavailable",
+          "This device cannot open the DocuSign authorization link.",
+        );
+        return;
+      }
+      await Linking.openURL(authUrl);
+    } catch (error) {
+      Alert.alert(
+        "Connection failed",
+        error?.data?.message || "Could not start DocuSign connection.",
+      );
+    }
+  };
 
   const handleEditAgreement = () => {
     if (!agreementId && !agreement?.id) {
@@ -103,6 +225,13 @@ const AgreementPreviewScreen = () => {
       Alert.alert(t("unavailable"), t("agreement_not_found"));
       return;
     }
+    if (signatureProvider === "docusign" && !docusignStatus?.connected) {
+      Alert.alert(
+        "Connect DocuSign",
+        "Connect DocuSign before sending with DocuSign.",
+      );
+      return;
+    }
     try {
       const payload = {
         agreement_id: agreementId,
@@ -110,7 +239,8 @@ const AgreementPreviewScreen = () => {
         recipient_email: email.trim() || undefined,
         recipient_phone: phone.trim() || undefined,
         channel: email.trim() ? "email" : "link",
-        signing_provider: signingProvider || undefined,
+        provider: signatureProvider,
+        signing_provider: signatureProvider,
       };
       const response = await sendForSignature(payload).unwrap();
       const signingUrl = resolveSigningUrl(response);
@@ -129,7 +259,10 @@ const AgreementPreviewScreen = () => {
         });
       }
     } catch (error) {
-      Alert.alert("Send failed", error?.data?.message || "Could not send agreement.");
+      Alert.alert(
+        "Send failed",
+        error?.data?.message || "Could not send agreement.",
+      );
     }
   };
 
@@ -148,7 +281,9 @@ const AgreementPreviewScreen = () => {
 
       const pdfUrl =
         normalizeProtectedFileUrl(agreement?.pdf_url) ||
-        normalizeProtectedFileUrl(`/api/v1/smartflow/agreements/${agreementId}/pdf`);
+        normalizeProtectedFileUrl(
+          `/api/v1/smartflow/agreements/${agreementId}/pdf`,
+        );
       await downloadAndOpenProtectedPdf({
         url: pdfUrl,
         accessToken,
@@ -157,7 +292,9 @@ const AgreementPreviewScreen = () => {
     } catch (error) {
       Alert.alert(
         "PDF failed",
-        error?.data?.message || error?.message || "Could not open agreement PDF.",
+        error?.data?.message ||
+          error?.message ||
+          "Could not open agreement PDF.",
       );
     } finally {
       setDownloadingPdf(false);
@@ -166,14 +303,16 @@ const AgreementPreviewScreen = () => {
 
   if (loadingAgreement && !agreement?.title) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.center}><ActivityIndicator color="#14C9E7" size="large" /></View>
-      </SafeAreaView>
+      <View style={styles.safeArea}>
+        <View style={styles.center}>
+          <ActivityIndicator color="#14C9E7" size="large" />
+        </View>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -184,61 +323,55 @@ const AgreementPreviewScreen = () => {
           </View>
           <View style={styles.headerActions}>
             <Pressable style={styles.editBtn} onPress={handleEditAgreement}>
-              <Text style={styles.editBtnText}>{t("edit_agreement", "Edit Agreement")}</Text>
+              <Text style={styles.editBtnText}>
+                {t("edit_agreement", "Edit Agreement")}
+              </Text>
             </Pressable>
             <Pressable onPress={openPdf} disabled={downloadingPdf}>
-              {downloadingPdf ? <ActivityIndicator color="#D7E8FF" /> : <Download size={24} color="#D7E8FF" />}
+              {downloadingPdf ? (
+                <ActivityIndicator color="#D7E8FF" />
+              ) : (
+                <Download size={24} color="#D7E8FF" />
+              )}
             </Pressable>
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <View style={[styles.statusPill, { borderColor: tone.border, backgroundColor: tone.bg }]}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+        >
+          <View
+            style={[
+              styles.statusPill,
+              { borderColor: tone.border, backgroundColor: tone.bg },
+            ]}
+          >
             <ClipboardCheck size={19} color={tone.color} />
-            <Text style={[styles.statusText, { color: tone.color }]}>{tone.text}</Text>
+            <Text style={[styles.statusText, { color: tone.color }]}>
+              {tone.text}
+            </Text>
           </View>
 
           <View style={styles.docCard}>
             <Text style={styles.docMeta}>
               AGREEMENT NO: {agreement?.agreement_number || "--"}
-              {"\n"}Generated: {agreement?.created_at ? new Date(agreement.created_at).toLocaleDateString("en-US") : "--"}
+              {"\n"}Generated:{" "}
+              {agreement?.created_at
+                ? new Date(agreement.created_at).toLocaleDateString("en-US")
+                : "--"}
             </Text>
-            <Text style={styles.docTitle}>{agreement?.title || "Agreement"}</Text>
-            <Text style={styles.docBody}>{agreement?.content || "No agreement content available."}</Text>
+            <Text style={styles.docTitle}>
+              {agreement?.title || "Agreement"}
+            </Text>
+            <Text style={styles.docBody}>
+              {agreement?.content || "No agreement content available."}
+            </Text>
             <View style={styles.signatureBox}>
               <Text style={styles.signatureTag}>{t("signature_required")}</Text>
               <Text style={styles.signatureHint}>{t("click_to_sign")}</Text>
             </View>
           </View>
-
-          {/* <View style={styles.reviewCard}>
-            <View style={styles.reviewHeader}>
-              <Sparkles size={20} color="#10CDE9" />
-              <Text style={styles.reviewTitle}>{t("ai_review")}</Text>
-            </View>
-            {review.length ? (
-              review.map((item, index) => {
-                const isWarning = item?.severity === "warning" || item?.severity === "error";
-                return (
-                  <View key={`${item?.key || item?.title || "item"}-${index}`} style={isWarning ? styles.warningCard : styles.reviewItem}>
-                    {isWarning ? (
-                      <AlertTriangle size={18} color="#FF5F74" />
-                    ) : (
-                      <CheckCircle2 size={18} color="#2CD086" />
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={isWarning ? styles.warningTitle : styles.reviewItemTitle}>{item?.title || "Review item"}</Text>
-                      <Text style={isWarning ? styles.warningSub : styles.reviewItemSub}>{item?.message || ""}</Text>
-                    </View>
-                  </View>
-                );
-              })
-            ) : (
-              <View style={styles.reviewItem}>
-                <Text style={styles.reviewItemSub}>{t("no_ai_review_findings_available")}</Text>
-              </View>
-            )}
-          </View> */}
 
           <Pressable style={styles.sendBtn} onPress={() => setShowModal(true)}>
             <Text style={styles.sendBtnText}>{t("send_for_signature")}</Text>
@@ -246,7 +379,12 @@ const AgreementPreviewScreen = () => {
         </ScrollView>
       </View>
 
-      <Modal visible={showModal} transparent animationType="fade" onRequestClose={() => setShowModal(false)}>
+      <Modal
+        visible={showModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -256,18 +394,114 @@ const AgreementPreviewScreen = () => {
               </Pressable>
             </View>
             <View style={styles.modalDivider} />
+            <Text style={styles.modalLabel}>Signature provider</Text>
+            <View style={styles.providerRow}>
+              <Pressable
+                onPress={() => setSignatureProvider("native")}
+                style={[
+                  styles.providerChip,
+                  signatureProvider === "native" && styles.providerChipActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.providerChipText,
+                    signatureProvider === "native" &&
+                      styles.providerChipTextActive,
+                  ]}
+                >
+                  Native
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setSignatureProvider("docusign")}
+                style={[
+                  styles.providerChip,
+                  signatureProvider === "docusign" && styles.providerChipActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.providerChipText,
+                    signatureProvider === "docusign" &&
+                      styles.providerChipTextActive,
+                  ]}
+                >
+                  DocuSign
+                </Text>
+              </Pressable>
+            </View>
+            {signatureProvider === "docusign" ? (
+              <View style={styles.providerStatusCard}>
+                <Text style={styles.providerStatusText}>
+                  DocuSign status:{" "}
+                  {docusignStatus?.connection_status || "disconnected"}
+                </Text>
+                {docusignStatus?.connected ? (
+                  <Text style={styles.providerStatusSubText}>
+                    Connected to {docusignStatus?.account_name || "DocuSign"}
+                  </Text>
+                ) : (
+                  <>
+                    <Text style={styles.providerStatusSubText}>
+                      {docusignStatus?.last_error ||
+                        "DocuSign is not connected yet."}
+                    </Text>
+                    <Pressable
+                      style={styles.connectBtn}
+                      onPress={handleConnectDocusign}
+                    >
+                      <Text style={styles.connectBtnText}>
+                        Connect DocuSign
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            ) : (
+              <Text style={styles.providerHint}>
+                Use the existing Mabdel signing link flow.
+              </Text>
+            )}
             <Text style={styles.modalLabel}>{t("recipient_details")}</Text>
             <Text style={styles.fieldLabel}>{t("name")}</Text>
-            <TextInput value={name} onChangeText={setName} placeholder={t("full_name")} placeholderTextColor="#5D687D" style={styles.modalInput} />
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder={t("full_name")}
+              placeholderTextColor="#5D687D"
+              style={styles.modalInput}
+            />
             <Text style={styles.fieldLabel}>{t("email")}</Text>
-            <TextInput value={email} onChangeText={setEmail} placeholder={t("email_example_com")} placeholderTextColor="#5D687D" style={styles.modalInput} autoCapitalize="none" />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t("email_example_com")}
+              placeholderTextColor="#5D687D"
+              style={styles.modalInput}
+              autoCapitalize="none"
+            />
             <Text style={styles.fieldLabel}>{t("phone_optional")}</Text>
-            <TextInput value={phone} onChangeText={setPhone} placeholder="+1 234 567 890" placeholderTextColor="#5D687D" style={styles.modalInput} />
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+1 234 567 890"
+              placeholderTextColor="#5D687D"
+              style={styles.modalInput}
+            />
             <View style={styles.modalFooter}>
               <Pressable onPress={() => setShowModal(false)}>
                 <Text style={styles.cancelText}>{t("cancel")}</Text>
               </Pressable>
-              <Pressable style={styles.modalSendBtn} onPress={handleSend} disabled={sending}>
+              <Pressable
+                style={styles.modalSendBtn}
+                onPress={handleSend}
+                disabled={
+                  sending ||
+                  (signatureProvider === "docusign" &&
+                    !docusignStatus?.connected)
+                }
+              >
                 {sending ? (
                   <ActivityIndicator color="#EAF8FF" />
                 ) : (
@@ -278,7 +512,7 @@ const AgreementPreviewScreen = () => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -286,40 +520,225 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#020406" },
   container: { flex: 1, paddingHorizontal: responsiveWidth(4) },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  header: { marginTop: responsiveHeight(0.7), flexDirection: "row",  alignItems: "center" },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: responsiveWidth(2) , width: "30%" },
-  headerTitle: { color: "#F4F8FF", fontSize: responsiveWidth(5), fontWeight: "700" , width: '50%' },
-  editBtn: { minHeight: responsiveHeight(4.2), paddingHorizontal: responsiveWidth(3.2), borderRadius: 12, borderWidth: 1, borderColor: "#11CDE8", alignItems: "center", justifyContent: "center" },
+  header: {
+    marginTop: responsiveHeight(0.7),
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(2),
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(2),
+    width: "30%",
+  },
+  headerTitle: {
+    color: "#F4F8FF",
+    fontSize: responsiveWidth(5),
+    fontWeight: "700",
+    width: "50%",
+  },
+  editBtn: {
+    minHeight: responsiveHeight(4.2),
+    paddingHorizontal: responsiveWidth(3.2),
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#11CDE8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   editBtnText: { color: "#11CDE8", fontSize: 14, fontWeight: "700" },
-  content: { paddingTop: responsiveHeight(1.4), paddingBottom: responsiveHeight(9), gap: responsiveHeight(1.6) },
-  statusPill: { alignSelf: "center", borderRadius: 18, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: responsiveWidth(1.8), paddingHorizontal: responsiveWidth(4), paddingVertical: responsiveHeight(0.7) },
+  content: {
+    paddingTop: responsiveHeight(1.4),
+    paddingBottom: responsiveHeight(9),
+    gap: responsiveHeight(1.6),
+  },
+  statusPill: {
+    alignSelf: "center",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(1.8),
+    paddingHorizontal: responsiveWidth(4),
+    paddingVertical: responsiveHeight(0.7),
+  },
   statusText: { fontWeight: "700", fontSize: 17 },
-  docCard: { borderRadius: 20, backgroundColor: "#F2F4F7", padding: responsiveWidth(4) },
-  docMeta: { color: "#9BA6B7", fontSize: 14, marginBottom: responsiveHeight(1.3) },
-  docTitle: { color: "#2A3241", fontSize: 20, marginBottom: responsiveHeight(1) },
+  docCard: {
+    borderRadius: 20,
+    backgroundColor: "#F2F4F7",
+    padding: responsiveWidth(4),
+  },
+  docMeta: {
+    color: "#9BA6B7",
+    fontSize: 14,
+    marginBottom: responsiveHeight(1.3),
+  },
+  docTitle: {
+    color: "#2A3241",
+    fontSize: 20,
+    marginBottom: responsiveHeight(1),
+  },
   docBody: { color: "#4A5565", fontSize: 17, lineHeight: 29 },
-  signatureBox: { marginTop: responsiveHeight(1.8), borderRadius: 12, borderWidth: 2, borderColor: "#F1D64E", borderStyle: "dashed", minHeight: responsiveHeight(8.2), alignItems: "center", justifyContent: "center" },
-  signatureTag: { position: "absolute", top: -11, right: responsiveWidth(4), backgroundColor: "#F5D728", color: "#23201A", fontSize: 12, fontWeight: "700", paddingHorizontal: responsiveWidth(2), borderRadius: 8 },
+  signatureBox: {
+    marginTop: responsiveHeight(1.8),
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#F1D64E",
+    borderStyle: "dashed",
+    minHeight: responsiveHeight(8.2),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  signatureTag: {
+    position: "absolute",
+    top: -11,
+    right: responsiveWidth(4),
+    backgroundColor: "#F5D728",
+    color: "#23201A",
+    fontSize: 12,
+    fontWeight: "700",
+    paddingHorizontal: responsiveWidth(2),
+    borderRadius: 8,
+  },
   signatureHint: { color: "#D1BF5A", fontSize: 20 },
-  reviewCard: { borderRadius: 18, borderWidth: 1, borderColor: "#283245", backgroundColor: "#1B1E24", overflow: "hidden" },
-  reviewHeader: { minHeight: responsiveHeight(6.5), paddingHorizontal: responsiveWidth(4), flexDirection: "row", alignItems: "center", gap: responsiveWidth(2), backgroundColor: "#1A2436" },
+  reviewCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#283245",
+    backgroundColor: "#1B1E24",
+    overflow: "hidden",
+  },
+  reviewHeader: {
+    minHeight: responsiveHeight(6.5),
+    paddingHorizontal: responsiveWidth(4),
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(2),
+    backgroundColor: "#1A2436",
+  },
   reviewTitle: { color: "#E7EEF9", fontSize: 18 },
-  reviewItem: { flexDirection: "row", gap: responsiveWidth(2.4), paddingHorizontal: responsiveWidth(4), paddingVertical: responsiveHeight(1) },
+  reviewItem: {
+    flexDirection: "row",
+    gap: responsiveWidth(2.4),
+    paddingHorizontal: responsiveWidth(4),
+    paddingVertical: responsiveHeight(1),
+  },
   reviewItemTitle: { colosr: "#EAF2FF", fontWeight: "600", fontSize: 17 },
   reviewItemSub: { color: "#7F8BA0", fontSize: 15, marginTop: 2 },
-  warningCard: { marginHorizontal: responsiveWidth(4), marginVertical: responsiveHeight(1), padding: responsiveWidth(3), borderRadius: 12, backgroundColor: "#391E2A", flexDirection: "row", gap: responsiveWidth(2.4) },
+  warningCard: {
+    marginHorizontal: responsiveWidth(4),
+    marginVertical: responsiveHeight(1),
+    padding: responsiveWidth(3),
+    borderRadius: 12,
+    backgroundColor: "#391E2A",
+    flexDirection: "row",
+    gap: responsiveWidth(2.4),
+  },
   warningTitle: { color: "#FF7287", fontWeight: "700", fontSize: 17 },
   warningSub: { color: "#C79AA9", fontSize: 15, marginTop: 2 },
-  sendBtn: { minHeight: responsiveHeight(6.7), borderRadius: 14, backgroundColor: "#11CDE8", alignItems: "center", justifyContent: "center" , marginBottom: responsiveHeight(3)},
+  sendBtn: {
+    minHeight: responsiveHeight(6.7),
+    borderRadius: 14,
+    backgroundColor: "#11CDE8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: responsiveHeight(3),
+  },
   sendBtnText: { color: "#EAF8FF", fontSize: 19, fontWeight: "700" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center", paddingHorizontal: responsiveWidth(4) },
-  modalCard: { width: "100%", borderRadius: 20, borderWidth: 1, borderColor: "#313847", backgroundColor: "#1B1E24", paddingHorizontal: responsiveWidth(5), paddingTop: responsiveHeight(1.5), paddingBottom: responsiveHeight(2.2) },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: responsiveWidth(4),
+  },
+  modalCard: {
+    width: "100%",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#313847",
+    backgroundColor: "#1B1E24",
+    paddingHorizontal: responsiveWidth(5),
+    paddingTop: responsiveHeight(1.5),
+    paddingBottom: responsiveHeight(2.2),
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   modalTitle: { color: "#F2F7FF", fontSize: 44 / 2, fontWeight: "700" },
-  modalDivider: { marginTop: responsiveHeight(1), marginBottom: responsiveHeight(1.5), height: 1, backgroundColor: "#2F3747" },
-  modalLabel: { color: "#9DD8EC", fontWeight: "700", fontSize: 17, letterSpacing: 3, marginBottom: responsiveHeight(0.6) },
-  fieldLabel: { color: "#C2CCDA", fontSize: 20, marginBottom: responsiveHeight(0.5), marginTop: responsiveHeight(0.6) },
+  modalDivider: {
+    marginTop: responsiveHeight(1),
+    marginBottom: responsiveHeight(1.5),
+    height: 1,
+    backgroundColor: "#2F3747",
+  },
+  modalLabel: {
+    color: "#9DD8EC",
+    fontWeight: "700",
+    fontSize: 17,
+    letterSpacing: 3,
+    marginBottom: responsiveHeight(0.6),
+  },
+  providerRow: {
+    flexDirection: "row",
+    gap: responsiveWidth(2.4),
+    marginBottom: responsiveHeight(1),
+  },
+  providerChip: {
+    minHeight: responsiveHeight(4.6),
+    paddingHorizontal: responsiveWidth(3.8),
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#2A3445",
+    backgroundColor: "#121722",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  providerChipActive: { borderColor: "#12CDEA", backgroundColor: "#0D2230" },
+  providerChipText: { color: "#9AB0C8", fontSize: 14, fontWeight: "700" },
+  providerChipTextActive: { color: "#11CDE8" },
+  providerStatusCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#2A3445",
+    backgroundColor: "#121722",
+    padding: responsiveWidth(3.8),
+    marginBottom: responsiveHeight(1.4),
+  },
+  providerStatusText: { color: "#D6E3F5", fontSize: 15, fontWeight: "700" },
+  providerStatusSubText: {
+    color: "#8FA1B9",
+    fontSize: 14,
+    marginTop: responsiveHeight(0.5),
+  },
+  providerHint: {
+    color: "#8FA1B9",
+    fontSize: 14,
+    marginBottom: responsiveHeight(1.4),
+  },
+  connectBtn: {
+    marginTop: responsiveHeight(1),
+    minHeight: responsiveHeight(5),
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#12CDEA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  connectBtnText: { color: "#11CDE8", fontWeight: "700", fontSize: 15 },
+  fieldLabel: {
+    color: "#C2CCDA",
+    fontSize: 20,
+    marginBottom: responsiveHeight(0.5),
+    marginTop: responsiveHeight(0.6),
+  },
   modalInput: {
     minHeight: responsiveHeight(6.3),
     borderRadius: 12,
@@ -330,9 +749,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveWidth(4),
     fontSize: 18,
   },
-  modalFooter: { marginTop: responsiveHeight(2.2), flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  modalFooter: {
+    marginTop: responsiveHeight(2.2),
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   cancelText: { color: "#D0D8E4", fontSize: 20 },
-  modalSendBtn: { minHeight: responsiveHeight(6), minWidth: responsiveWidth(44), borderRadius: 13, backgroundColor: "#19CDEC", alignItems: "center", justifyContent: "center", paddingHorizontal: responsiveWidth(3) },
+  modalSendBtn: {
+    minHeight: responsiveHeight(6),
+    minWidth: responsiveWidth(44),
+    borderRadius: 13,
+    backgroundColor: "#19CDEC",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: responsiveWidth(3),
+  },
   modalSendText: { color: "#EAF8FF", fontSize: 22, fontWeight: "700" },
 });
 

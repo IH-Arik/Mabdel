@@ -1,19 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   ChevronLeft,
   ChevronRight,
@@ -105,7 +93,7 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.modalSafe}>
+      <View style={styles.modalSafe}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -200,7 +188,7 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
             </Pressable>
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
@@ -365,7 +353,7 @@ const ProfileAccountSettingsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
@@ -402,7 +390,7 @@ const ProfileAccountSettingsScreen = () => {
           )}
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

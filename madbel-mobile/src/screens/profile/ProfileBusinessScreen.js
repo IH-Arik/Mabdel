@@ -1,15 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Image,
-  ActivityIndicator,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, Pressable, ScrollView, StyleSheet, Image, ActivityIndicator } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import {
   responsiveHeight,
@@ -41,7 +32,7 @@ const ProfileBusinessScreen = () => {
         : [];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         {/* HEADER */}
         <View style={styles.header}>
@@ -159,7 +150,7 @@ const ProfileBusinessScreen = () => {
           </ScrollView>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

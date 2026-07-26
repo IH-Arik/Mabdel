@@ -1,17 +1,6 @@
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import {
@@ -364,7 +353,7 @@ const NewLeaseScreen = () => {
       : insets.bottom + responsiveHeight(5);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -650,7 +639,7 @@ const NewLeaseScreen = () => {
           onSelectDate={handleSelectDate}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

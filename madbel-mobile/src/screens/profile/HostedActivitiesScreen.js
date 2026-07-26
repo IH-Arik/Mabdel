@@ -1,7 +1,6 @@
 import React, { useMemo } from "react";
 import { useAppLanguage } from "../../context/LanguageContext";
 import { View, Text, FlatList } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import Navbar from "../../components/Navbar";
@@ -51,7 +50,7 @@ const HostedActivitiesScreen = () => {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white" style={{ padding: responsiveWidth(5) }}>
+    <View className="flex-1 bg-white" style={{ padding: responsiveWidth(5) }}>
       <Navbar title={t("hosted_activities")} />
       <FlatList
         contentContainerStyle={{ paddingTop: responsiveHeight(2), paddingBottom: responsiveHeight(2) }}
@@ -64,7 +63,7 @@ const HostedActivitiesScreen = () => {
           </Text>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

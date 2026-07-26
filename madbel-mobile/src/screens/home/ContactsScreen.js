@@ -1,18 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  SectionList,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  RefreshControl,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  ActivityIndicator, Alert, SectionList, Image, Pressable, StyleSheet, Text, TextInput, View, RefreshControl } from "react-native";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -64,8 +53,6 @@ const ContactsScreen = () => {
 
   console.log('LINE AT 65' , contactsResponse);
   
-
-
 
   const contactsData = contactsResponse?.data;
   const contacts = contactsData?.items || [];
@@ -157,7 +144,7 @@ const ContactsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -239,7 +226,7 @@ const ContactsScreen = () => {
         onClose={() => setImportModalVisible(false)}
         onImported={refetch}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

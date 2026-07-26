@@ -1,17 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  Image,
-  Alert,
-  ActivityIndicator,
-  TextInput,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, Pressable, StyleSheet, ScrollView, Image, Alert, ActivityIndicator, TextInput } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import {
@@ -370,16 +359,16 @@ const GroupSettingScreen = () => {
 
   if (isLoading && !group) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View style={styles.center}>
           <ActivityIndicator color="#14C9E7" size="large" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable
@@ -746,7 +735,7 @@ const GroupSettingScreen = () => {
           </>
         ) : null}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

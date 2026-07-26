@@ -1,29 +1,13 @@
-import { useAppLanguage } from "../context/LanguageContext";
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar, Alert, Image, Pressable, ScrollView } from "react-native";
 import { SwipeListView } from 'react-native-swipe-list-view';
 import {
-  responsiveHeight,
-  responsiveWidth,
-} from "react-native-responsive-dimensions";
-import { Bell, ChevronLeft , MessageCircle , Mail , MessageSquare} from "lucide-react-native";
+  responsiveHeight, responsiveWidth, } from "react-native-responsive-dimensions";
+import { Bell, ChevronLeft, MessageCircle, Mail, MessageSquare} from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import {
-  useMadbelListNotificationsQuery,
-  useMadbelMarkAllNotificationsReadMutation,
-  useMadbelDeleteNotificationMutation,
-} from "../redux/slices/madbelApiSlice";
+  useMadbelListNotificationsQuery, useMadbelMarkAllNotificationsReadMutation, useMadbelDeleteNotificationMutation, } from "../redux/slices/madbelApiSlice";
+import { useAppLanguage } from '../context/LanguageContext';
 
 const FILTER_OPTIONS = [
   { key: "all", label: "All" },
@@ -34,7 +18,6 @@ const FILTER_OPTIONS = [
 ];
 
 const getChannelBadgeConfig = (channelValue) => {
-  const { t } = useAppLanguage();
   const channel = String(channelValue || "").toLowerCase();
   if (channel.includes("whatsapp")) {
     return {
@@ -194,8 +177,8 @@ const NotificationScreen = () => {
   const newCount = notifications.filter((n) => n.isNew).length;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#020406" />
+    <View style={styles.container}>
+      {/* <StatusBar barStyle="light-content" backgroundColor="#020406" /> */}
       
       {/* Header */}
       <View style={styles.header}>
@@ -213,9 +196,6 @@ const NotificationScreen = () => {
           <Text style={styles.markAllText}>{t("mark_all_as_read")}</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Filter Chips */}
-
 
       {/* NEW badge */}
       {newCount > 0 && activeFilter === "all" && (
@@ -254,7 +234,7 @@ const NotificationScreen = () => {
           <Text style={styles.emptySubText}>{t("youre_all_caught_up")}</Text>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 

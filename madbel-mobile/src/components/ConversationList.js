@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  Pressable,
-  TextInput,
-  Image,
-} from "react-native";
+import { View, Text, FlatList, Pressable, TextInput, Image } from "react-native";
 import { CheckCheckIcon, Search } from "lucide-react-native";
 import {
   responsiveHeight,

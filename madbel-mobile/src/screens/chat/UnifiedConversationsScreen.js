@@ -1,16 +1,5 @@
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  Pressable,
-  TextInput,
-  Image,
-  FlatList,
-  StyleSheet,
-  ScrollView,
-} from "react-native";
+import { View, Text, ActivityIndicator, Pressable, TextInput, Image, FlatList, StyleSheet, ScrollView } from "react-native";
 import React, { useMemo, useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -206,7 +195,7 @@ const UnifiedConversationsScreen = () => {
   };
 
   return (
-    <SafeAreaView edges={["top"]} style={styles.container}>
+    <View edges={["top"]} style={styles.container}>
       <View style={styles.header}>
         <Pressable
           onPress={() => navigation.canGoBack() && navigation.goBack()}
@@ -278,7 +267,7 @@ const UnifiedConversationsScreen = () => {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 

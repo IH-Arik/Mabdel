@@ -1,16 +1,7 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -30,7 +21,6 @@ import {
   useMadbelListCallsQuery,
   useMadbelCreateOutboundCallMutation,
 } from "../../redux/slices/madbelApiSlice";
-
 
 const CallHistoryScreen = () => {
   const { t } = useAppLanguage();
@@ -244,7 +234,7 @@ const CallHistoryScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -292,7 +282,7 @@ const CallHistoryScreen = () => {
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

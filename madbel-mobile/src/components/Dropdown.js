@@ -1,14 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  FlatList,
-  TouchableWithoutFeedback,
-  Animated,
-  TextInput,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Modal, FlatList, TouchableWithoutFeedback, Animated, TextInput } from 'react-native';
 import { ChevronDown, Check, Search, X } from 'lucide-react-native';
 import { responsiveHeight } from 'react-native-responsive-dimensions';
 import { useAppLanguage } from "../context/LanguageContext";

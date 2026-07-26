@@ -1,25 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAppLanguage } from "../context/LanguageContext";
 import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+  ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { CheckCircle2, Edit3, Mic, MicOff, X } from "lucide-react-native";
 import {
-  responsiveHeight,
-  responsiveWidth,
-} from "react-native-responsive-dimensions";
+  responsiveHeight, responsiveWidth, } from "react-native-responsive-dimensions";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
+  ExpoSpeechRecognitionModule, useSpeechRecognitionEvent, } from "expo-speech-recognition";
 import { useAiLanguage } from "../context/LanguageContext";
 let Speech = null;
 try {
@@ -28,7 +16,7 @@ try {
   // TTS not available in this build — visual-only mode
 }
 import { useMadbelAiWorkflowPrefillMutation } from "../redux/slices/madbelApiSlice";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { normalizeVoiceWorkflowTranscript } from "../utils/voiceWorkflow";
 
 // ─── Phase state machine ──────────────────────────────────────────────────────
@@ -297,7 +285,6 @@ const VoiceFormFillCard = ({
   const [workflowPrefill] = useMadbelAiWorkflowPrefillMutation();
 
   const { t } = useAppLanguage();
-
 
   // Keep phaseRef synced (avoids stale closure in speech event handlers)
   useEffect(() => { phaseRef.current = phase; }, [phase]);
@@ -620,13 +607,12 @@ const VoiceFormFillCard = ({
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView className="flex-1">
+    <View className="flex-1">
     <View style={s.wrap}>
       <Pressable onPress={handleOpen} style={s.micCircle}>
         <Mic color="#EAF9FF" size={32} strokeWidth={2.4} />
       </Pressable>
       <Text style={s.labelText}>Tap mic to fill {label} with AI</Text>
-
 
       <Modal
         animationType="slide"
@@ -804,9 +790,8 @@ const VoiceFormFillCard = ({
         </View>
       </Modal>
 
-
     </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

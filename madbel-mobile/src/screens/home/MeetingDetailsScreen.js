@@ -1,36 +1,15 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
 import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  Alert,
-  ActivityIndicator,
-  Share,
-  ScrollView,
-} from "react-native";
+  Pressable, StyleSheet, Text, View, Alert, ActivityIndicator, Share, ScrollView } from "react-native";
 import {
-  CalendarDays,
-  ChevronLeft,
-  List,
-  MapPin,
-  Pencil,
-  Share2,
-  Trash2,
-} from "lucide-react-native";
+  CalendarDays, ChevronLeft, List, MapPin, Pencil, Share2, Trash2, } from "lucide-react-native";
 import {
-  responsiveHeight,
-  responsiveWidth,
-} from "react-native-responsive-dimensions";
+  responsiveHeight, responsiveWidth, } from "react-native-responsive-dimensions";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
-  useMadbelDeleteCalendarEventMutation,
-  useMadbelGetCalendarEventQuery,
-  useMadbelShareCalendarEventMutation,
-} from "../../redux/slices/madbelApiSlice";
+  useMadbelDeleteCalendarEventMutation, useMadbelGetCalendarEventQuery, useMadbelShareCalendarEventMutation, } from "../../redux/slices/madbelApiSlice";
 import { API_BASE_URL } from "../../redux/apiUtils";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { formatMeetingDateTime } from "../../utils/formatDateTime";
 
 const DetailRow = ({ icon: Icon, title, value }) => (
@@ -175,7 +154,7 @@ const MeetingDetailsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -195,7 +174,6 @@ const MeetingDetailsScreen = () => {
             contentContainerStyle={{ paddingBottom: 20 }}
           >
             <Text style={styles.meetingTitle}>{event?.title || "Meeting"}</Text>
-
 
             <DetailRow
               icon={CalendarDays}
@@ -262,7 +240,7 @@ const MeetingDetailsScreen = () => {
           </ScrollView>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

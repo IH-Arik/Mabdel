@@ -1,16 +1,5 @@
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  TextInput,
-  Image,
-  FlatList,
-  StyleSheet,
-} from "react-native";
+import { View, Text, ActivityIndicator, Alert, Pressable, TextInput, Image, FlatList, StyleSheet } from "react-native";
 import React, { useMemo, useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -194,7 +183,7 @@ const AllChatScreen = () => {
   };
 
   return (
-    <SafeAreaView edges={["top"]} style={styles.container}>
+    <View edges={["top"]} style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{t("messages")}</Text>
         {formattedConversations.length > 0 && (
@@ -282,7 +271,7 @@ const AllChatScreen = () => {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,17 +1,7 @@
 ﻿import { useAppLanguage } from "../../context/LanguageContext";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  Modal,
-  KeyboardAvoidingView,
-} from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, KeyboardAvoidingView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   responsiveHeight,
@@ -49,7 +39,6 @@ const normalizePrefillItems = (items = []) =>
         unit_price: String(item?.unit_price ?? 0),
       }))
     : [];
-
 
 const CreateInvoiceScreen = () => {
   const { t } = useAppLanguage();
@@ -241,7 +230,7 @@ const CreateInvoiceScreen = () => {
   return (
     <View style={{ flex: 1 }}>
 
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.iconWrap} onPress={() => navigation.goBack()}>
@@ -490,7 +479,7 @@ const CreateInvoiceScreen = () => {
           )}
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
     </View>
 
   );
