@@ -185,6 +185,8 @@ ROLES: list[dict] = [
             ("categories",   "edit"),
             ("roles",        "view"),
             ("audit_logs",   "view"),
+            ("integrations", "view"),
+            ("integrations", "manage"),
         ],
     },
     {

@@ -39,19 +39,31 @@ function useOutsideClose(open, onClose, refs) {
   }, [onClose, open, refs]);
 }
 
-function buildTimeSlots(stepMinutes = 30) {
-  const slots = [];
-  for (let hour = 0; hour < 24; hour += 1) {
-    for (let minute = 0; minute < 60; minute += stepMinutes) {
-      const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-      const label = format(parse(value, 'HH:mm', new Date()), 'hh:mm a');
-      slots.push({ value, label });
-    }
-  }
-  return slots;
+const FACE_RADIUS = 100;
+const TICK_RADIUS = 80;
+
+const HOUR_TICKS = Array.from({ length: 12 }, (_, i) => ({
+  value: i === 0 ? 12 : i,
+  angle: i * 30,
+}));
+
+const MINUTE_TICKS = Array.from({ length: 12 }, (_, i) => ({
+  value: i * 5,
+  angle: i * 30,
+}));
+
+function polarPoint(radius, angleDeg) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: radius * Math.cos(rad), y: radius * Math.sin(rad) };
 }
 
-const TIME_SLOTS = buildTimeSlots(30);
+function angleFromCenter(centerX, centerY, x, y) {
+  const dx = x - centerX;
+  const dy = y - centerY;
+  let angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+  if (angle < 0) angle += 360;
+  return angle;
+}
 
 function PickerModal({ open, onClose, title, subtitle, children, widthClass = 'max-w-[360px]' }) {
   const panelRef = useRef(null);
@@ -157,12 +169,82 @@ function CalendarGrid({ value, onSelect }) {
   );
 }
 
-function TimeList({ value, onSelect }) {
-  const activeRef = useRef(null);
+function AnalogTimePicker({ value, onSelect, onDone }) {
+  const initial = useMemo(() => {
+    if (!value) return { hour24: 10, minute: 0 };
+    const parsed = parse(value, 'HH:mm', new Date());
+    if (Number.isNaN(parsed.getTime())) return { hour24: 10, minute: 0 };
+    return { hour24: parsed.getHours(), minute: parsed.getMinutes() };
+  }, [value]);
+
+  const [mode, setMode] = useState('hour');
+  const [hour12, setHour12] = useState(() => {
+    const h = initial.hour24 % 12;
+    return h === 0 ? 12 : h;
+  });
+  const [minute, setMinute] = useState(initial.minute);
+  const [isPM, setIsPM] = useState(initial.hour24 >= 12);
+  const [dragging, setDragging] = useState(false);
+  const faceRef = useRef(null);
 
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: 'nearest' });
+    const h = initial.hour24 % 12;
+    setHour12(h === 0 ? 12 : h);
+    setMinute(initial.minute);
+    setIsPM(initial.hour24 >= 12);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+
+  const commitValue = (nextHour12, nextMinute, nextIsPM) => {
+    let hour24 = nextHour12 % 12;
+    if (nextIsPM) hour24 += 12;
+    onSelect(`${String(hour24).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`);
+  };
+
+  const handlePointerAt = (clientX, clientY) => {
+    const face = faceRef.current;
+    if (!face) return;
+    const rect = face.getBoundingClientRect();
+    const angle = angleFromCenter(rect.left + rect.width / 2, rect.top + rect.height / 2, clientX, clientY);
+    const idx = Math.round(angle / 30) % 12;
+    if (mode === 'hour') {
+      const nextHour = idx === 0 ? 12 : idx;
+      setHour12(nextHour);
+      commitValue(nextHour, minute, isPM);
+    } else {
+      const nextMinute = (idx * 5) % 60;
+      setMinute(nextMinute);
+      commitValue(hour12, nextMinute, isPM);
+    }
+  };
+
+  useEffect(() => {
+    if (!dragging) return undefined;
+    const onMove = (event) => {
+      const point = event.touches ? event.touches[0] : event;
+      handlePointerAt(point.clientX, point.clientY);
+    };
+    const onUp = () => {
+      setDragging(false);
+      if (mode === 'hour') {
+        setMode('minute');
+      } else {
+        onDone?.();
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging, mode, hour12, minute, isPM]);
+
+  const selectedAngle = mode === 'hour' ? (hour12 % 12) * 30 : (minute / 5) * 30;
+  const knobPoint = polarPoint(TICK_RADIUS, selectedAngle);
+  const ticks = mode === 'hour' ? HOUR_TICKS : MINUTE_TICKS;
+  const activeValue = mode === 'hour' ? hour12 : minute;
 
   return (
     <div className="rounded-2xl border border-[#243041] bg-[#0A1019] p-4">
@@ -170,35 +252,97 @@ function TimeList({ value, onSelect }) {
         <Clock3 size={14} />
         Select time
       </div>
-      <div className="mb-4 rounded-2xl border border-[#1D2B3D] bg-[#101826] p-4 text-center">
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7D8CA3]">Chosen time</p>
-        <p className="mt-2 text-3xl font-black tracking-tight text-[#7DDEFF]">
-          {value ? format(parse(value, 'HH:mm', new Date()), 'hh:mm a') : '--:--'}
-        </p>
+
+      <div className="mb-5 flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={() => setMode('hour')}
+          className={`rounded-xl px-3 py-1.5 text-3xl font-black tracking-tight transition-colors ${
+            mode === 'hour' ? 'bg-[#123549] text-[#7DDEFF]' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          {String(hour12).padStart(2, '0')}
+        </button>
+        <span className="text-3xl font-black text-[#7DDEFF]">:</span>
+        <button
+          type="button"
+          onClick={() => setMode('minute')}
+          className={`rounded-xl px-3 py-1.5 text-3xl font-black tracking-tight transition-colors ${
+            mode === 'minute' ? 'bg-[#123549] text-[#7DDEFF]' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          {String(minute).padStart(2, '0')}
+        </button>
+        <div className="ml-2 flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => { setIsPM(false); commitValue(hour12, minute, false); }}
+            className={`rounded-lg px-2 py-1 text-xs font-bold transition-colors ${
+              !isPM ? 'bg-[#11C7E5] text-[#03131B]' : 'bg-[#101826] text-slate-400'
+            }`}
+          >
+            AM
+          </button>
+          <button
+            type="button"
+            onClick={() => { setIsPM(true); commitValue(hour12, minute, true); }}
+            className={`rounded-lg px-2 py-1 text-xs font-bold transition-colors ${
+              isPM ? 'bg-[#11C7E5] text-[#03131B]' : 'bg-[#101826] text-slate-400'
+            }`}
+          >
+            PM
+          </button>
+        </div>
       </div>
-      <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto pr-1">
-        {TIME_SLOTS.map((slot) => {
-          const active = slot.value === value;
-          return (
-            <button
-              key={slot.value}
-              ref={active ? activeRef : null}
-              type="button"
-              onClick={() => onSelect(slot.value)}
-              className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
-                active
-                  ? 'border-[#11C7E5] bg-gradient-to-r from-[#123549] to-[#0E2433] text-[#B8F2FF] shadow-lg shadow-[#11C7E5]/10'
-                  : 'border-[#243041] bg-[#101826] text-slate-300 hover:border-[#11C7E5]/30 hover:text-white'
-              }`}
-            >
-              <span className="block text-base font-bold">{slot.label}</span>
-              <span className={`mt-0.5 block text-[10px] uppercase tracking-[0.18em] ${active ? 'text-[#76D8EB]' : 'text-[#708198]'}`}>
-                {slot.value}
-              </span>
-            </button>
-          );
-        })}
+
+      <div className="flex justify-center pb-1">
+        <div
+          ref={faceRef}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            setDragging(true);
+            handlePointerAt(event.clientX, event.clientY);
+          }}
+          className="relative select-none rounded-full border border-[#1D2B3D] bg-[#101826]"
+          style={{ width: FACE_RADIUS * 2, height: FACE_RADIUS * 2, touchAction: 'none', cursor: 'pointer' }}
+        >
+          <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#11C7E5]" />
+
+          <div
+            className="pointer-events-none absolute left-1/2 top-1/2 bg-[#11C7E5]/60"
+            style={{
+              width: 2,
+              height: TICK_RADIUS,
+              transformOrigin: 'top center',
+              transform: `translateX(-50%) rotate(${selectedAngle + 180}deg)`,
+            }}
+          />
+
+          <div
+            className="pointer-events-none absolute h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#11C7E5]"
+            style={{ left: FACE_RADIUS + knobPoint.x, top: FACE_RADIUS + knobPoint.y }}
+          />
+
+          {ticks.map((tick) => {
+            const point = polarPoint(TICK_RADIUS, tick.angle);
+            const active = tick.value === activeValue;
+            return (
+              <div
+                key={tick.value}
+                className={`pointer-events-none absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center text-sm font-bold ${
+                  active ? 'text-[#03131B]' : 'text-slate-300'
+                }`}
+                style={{ left: FACE_RADIUS + point.x, top: FACE_RADIUS + point.y }}
+              >
+                {mode === 'minute' ? String(tick.value).padStart(2, '0') : tick.value}
+              </div>
+            );
+          })}
+        </div>
       </div>
+      <p className="mt-3 text-center text-[11px] text-[#7D8CA3]">
+        {mode === 'hour' ? 'Tap or drag to set the hour' : 'Tap or drag to set the minutes'}
+      </p>
     </div>
   );
 }
@@ -284,10 +428,10 @@ export function TimePickerInput({
         subtitle="Pick a start or end time from the list."
         widthClass="max-w-[420px]"
       >
-        <TimeList
+        <AnalogTimePicker
           value={value}
-          onSelect={(nextValue) => {
-            onChange?.(nextValue);
+          onSelect={(nextValue) => onChange?.(nextValue)}
+          onDone={() => {
             setOpen(false);
           }}
         />
@@ -355,7 +499,7 @@ export function DateTimePickerInput({
       >
         <div className="grid gap-4 md:grid-cols-[1.05fr_0.95fr]">
           <CalendarGrid value={draftDate} onSelect={(nextDate) => commit(nextDate, draftTime)} />
-          <TimeList value={draftTime} onSelect={(nextTime) => commit(draftDate, nextTime)} />
+          <AnalogTimePicker value={draftTime} onSelect={(nextTime) => commit(draftDate, nextTime)} />
         </div>
       </PickerModal>
     </div>

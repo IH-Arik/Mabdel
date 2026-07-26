@@ -75,8 +75,10 @@ class CalendarService(SmartFlowBase):
     async def create_calendar_event(self, user_id: str, payload: dict) -> dict:
         self._validate_calendar_event_payload(payload)
         await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"])
-        if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
-            payload["meeting_link"] = self._generate_meeting_link()
+        # Leave meeting_link empty for online meetings when a Google Calendar is
+        # connected: _build_google_event_payload only requests a real Google Meet
+        # conference when no link was provided, so pre-filling here would replace
+        # the real Meet link with a local placeholder.
         try:
             google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
         except AppException:
@@ -94,6 +96,10 @@ class CalendarService(SmartFlowBase):
                 "google_updated": google_event.get("updated"),
                 "google_etag": google_event.get("etag"),
             }
+            if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
+                payload["meeting_link"] = self.google_calendar_service._extract_meeting_link(google_event)
+        if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
+            payload["meeting_link"] = self._generate_meeting_link()
         document = {
             "user_id": user_id,
             **payload,
@@ -118,9 +124,6 @@ class CalendarService(SmartFlowBase):
             merged["ends_at"],
             exclude_event_id=str(event["_id"]),
         )
-        if merged.get("meeting_mode") == "online" and not merged.get("meeting_link"):
-            clean_updates["meeting_link"] = self._generate_meeting_link()
-            merged["meeting_link"] = clean_updates["meeting_link"]
         google_event = None
         google_event_id = event.get("google_event_id")
         try:
@@ -145,6 +148,14 @@ class CalendarService(SmartFlowBase):
                 "google_updated": google_event.get("updated"),
                 "google_etag": google_event.get("etag"),
             }
+            if merged.get("meeting_mode") == "online" and not merged.get("meeting_link"):
+                real_link = self.google_calendar_service._extract_meeting_link(google_event)
+                if real_link:
+                    clean_updates["meeting_link"] = real_link
+                    merged["meeting_link"] = real_link
+        if merged.get("meeting_mode") == "online" and not merged.get("meeting_link"):
+            clean_updates["meeting_link"] = self._generate_meeting_link()
+            merged["meeting_link"] = clean_updates["meeting_link"]
         if "google_event_id" in clean_updates:
             clean_updates["sync_status"] = "synced" if clean_updates["google_event_id"] else "local"
         clean_updates["updated_at"] = utc_now()

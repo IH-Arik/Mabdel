@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronRight, CreditCard } from "lucide-react";
+import { ChevronRight, CreditCard, CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CiUser } from "react-icons/ci";
 import { FaEdit } from "react-icons/fa";
@@ -10,6 +10,7 @@ import { getAdminRole } from "../../utils/auth";
 const Settings = () => {
   const role = getAdminRole();
   const isOwner = role === "owner";
+  const isPlatformAdmin = role === "admin" || role === "super_admin";
 
   const subItems = [
     {
@@ -48,6 +49,15 @@ const Settings = () => {
       label: "Acceptable Use Policy",
       link: "/settings/acceptable-use-policy",
     },
+    ...(isPlatformAdmin
+      ? [
+          {
+            icon: <CalendarDays className="w-5 h-5" />,
+            label: "Google Calendar",
+            link: "/settings/google-calendar",
+          },
+        ]
+      : []),
   ];
 
   return (

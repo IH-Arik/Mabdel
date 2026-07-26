@@ -325,6 +325,13 @@ export const adminApi = {
   getChats: () => client.get('/api/v1/dashboard/admin/chats'),
 };
 
+export const publicApi = {
+  submitDemoRequest: (data) => client.post('/api/v1/public/demo-requests', data),
+  submitMeetingRequest: (data) => client.post('/api/v1/public/meeting-requests', data),
+  getAvailableMeetingTimes: (params) => client.get('/api/v1/public/meeting-requests/available-times', { params }),
+  bookMeetingSlot: (data) => client.post('/api/v1/public/meeting-requests/book', data),
+};
+
 
 
 

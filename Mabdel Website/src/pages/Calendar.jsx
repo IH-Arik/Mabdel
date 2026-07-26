@@ -166,7 +166,7 @@ function Toggle({ label, value, onChange }) {
   );
 }
 
-function MeetingEditor({ contacts, event, prefill, onSaved, onCancel }) {
+function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConnected = false }) {
   const isEditing = Boolean(event?.id);
   const seed = useMemo(() => getInitialFormState(event || prefill || {}), [event, prefill]);
   const [title, setTitle] = useState(seed.title);
@@ -300,9 +300,19 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel }) {
       </div>
 
       {mode === 'online' ? (
-        <Field label="Meeting Link">
-          <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://meet.google.com/..." className={INPUT} />
-        </Field>
+        googleConnected ? (
+          <div className="flex items-center gap-2.5 p-3 bg-[#0A1019] border border-[#11C7E5]/25 rounded-xl">
+            <Video size={15} className="text-[#11C7E5] shrink-0" />
+            <p className="text-[#A4B0B7] text-xs leading-5">
+              <span className="text-white font-semibold">Google Meet link</span> will be generated automatically and
+              emailed to attendees when you save.
+            </p>
+          </div>
+        ) : (
+          <Field label="Meeting Link">
+            <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://meet.google.com/..." className={INPUT} />
+          </Field>
+        )
       ) : (
         <Field label="Location">
           <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="HQ - Room 4, 2nd Floor" className={INPUT} />
@@ -484,7 +494,7 @@ function buildICSFile(event) {
   ].filter(Boolean).join('\r\n');
 }
 
-function EventDetailsModal({ eventId, onClose, onDeleted, onSaved }) {
+function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnected = false }) {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -606,6 +616,7 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved }) {
             <MeetingEditor
               contacts={contacts}
               event={event}
+              googleConnected={googleConnected}
               onCancel={() => setEditing(false)}
               onSaved={(updated) => {
                 setEvent(updated);
@@ -995,6 +1006,7 @@ export default function Calendar() {
               <MeetingEditor
                 contacts={contacts}
                 prefill={prefillData}
+                googleConnected={googleConnected}
                 onCancel={() => {
                   setShowCreate(false);
                   setPrefillData(null);
@@ -1010,6 +1022,7 @@ export default function Calendar() {
         {selectedEventId ? (
           <EventDetailsModal
             eventId={selectedEventId}
+            googleConnected={googleConnected}
             onClose={() => setSelectedEventId(null)}
             onDeleted={handleEventDeleted}
             onSaved={handleEventSaved}

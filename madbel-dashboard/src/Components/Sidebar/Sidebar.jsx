@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   TrendingUp,
   Building2,
+  Mail,
 } from "lucide-react";
 import { BsBadgeAd } from "react-icons/bs";
 import { SiActivitypub } from "react-icons/si";
@@ -32,6 +33,7 @@ const ADMIN_MENU = [
   { icon: <Brain className="w-5 h-5" />, label: "AI Analysis", Link: "/analysis-page" },
   { icon: <MessageSquare className="w-5 h-5" />, label: "Support Chat", Link: "/messages" },
   { icon: <TriangleAlert className="w-5 h-5" />, label: "Reports", Link: "/reports" },
+  { icon: <Mail className="w-5 h-5" />, label: "Demo Requests", Link: "/demo-requests" },
   { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
 ];
 

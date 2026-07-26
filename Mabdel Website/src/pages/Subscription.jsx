@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -10,6 +10,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { publicApi } from "../api/services";
 
 const plans = [
   {
@@ -102,14 +103,10 @@ const plans = [
   },
 ];
 
-const appointmentSlots = [
-  "Mon - 10:00 AM",
-  "Mon - 2:30 PM",
-  "Tue - 11:30 AM",
-  "Wed - 4:00 PM",
-  "Thu - 12:00 PM",
-  "Fri - 3:00 PM",
-];
+function formatSlotLabel(startIso) {
+  const start = new Date(startIso);
+  return `${start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+}
 
 export default function Subscription() {
   const navigate = useNavigate();
@@ -117,7 +114,12 @@ export default function Subscription() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState(appointmentSlots[1]);
+  const [appointmentSlots, setAppointmentSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [appointmentSubmitting, setAppointmentSubmitting] = useState(false);
+  const [appointmentSubmitted, setAppointmentSubmitted] = useState(false);
+  const [appointmentError, setAppointmentError] = useState("");
   const [activeSections, setActiveSections] = useState({
     starter: "included",
     growth: "included",
@@ -139,11 +141,35 @@ export default function Subscription() {
     email: "",
     message: "",
   });
+  const [demoSubmitting, setDemoSubmitting] = useState(false);
+  const [demoSubmitted, setDemoSubmitted] = useState(false);
+  const [demoError, setDemoError] = useState("");
 
   const featuredPlan = useMemo(
     () => plans.find((plan) => plan.isPopular),
     [],
   );
+
+  useEffect(() => {
+    if (!isDemoOpen) return;
+    let ignore = false;
+    setSlotsLoading(true);
+    publicApi
+      .getAvailableMeetingTimes()
+      .then((res) => {
+        if (ignore) return;
+        const slots = res.data?.data || [];
+        setAppointmentSlots(slots);
+        setSelectedSlot((current) => current || slots[0] || null);
+      })
+      .catch((error) => console.error(error))
+      .finally(() => {
+        if (!ignore) setSlotsLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [isDemoOpen]);
 
   const getSectionItems = (plan, section) => {
     if (section === "usage") return plan.usage;
@@ -201,6 +227,74 @@ export default function Subscription() {
     } catch (error) {
       console.error(error);
       alert("Failed to request access. Please try again later.");
+    }
+  };
+
+  const handleDemoSubmit = async () => {
+    if (!demoForm.firstName || !demoForm.lastName || !demoForm.email || !demoForm.message) {
+      setDemoError("Please fill in your name, email, and message.");
+      return;
+    }
+    setDemoSubmitting(true);
+    setDemoError("");
+    try {
+      await publicApi.submitDemoRequest({
+        first_name: demoForm.firstName,
+        last_name: demoForm.lastName,
+        phone: demoForm.phoneNumber,
+        email: demoForm.email,
+        message: demoForm.message,
+      });
+      setDemoSubmitted(true);
+      setDemoForm({ firstName: "", lastName: "", phoneNumber: "", email: "", message: "" });
+    } catch (error) {
+      console.error(error);
+      setDemoError(
+        error.response?.data?.message || "Failed to send your demo request. Please try again later."
+      );
+    } finally {
+      setDemoSubmitting(false);
+    }
+  };
+
+  const handleAppointmentConfirm = async () => {
+    if (!demoForm.firstName || !demoForm.lastName || !demoForm.email) {
+      setAppointmentError("Please fill in your name and email on the left first.");
+      return;
+    }
+    if (!selectedSlot) {
+      setAppointmentError("Please select a time slot.");
+      return;
+    }
+    setAppointmentSubmitting(true);
+    setAppointmentError("");
+    try {
+      await publicApi.bookMeetingSlot({
+        first_name: demoForm.firstName,
+        last_name: demoForm.lastName,
+        email: demoForm.email,
+        phone: demoForm.phoneNumber,
+        date: selectedSlot.date,
+        time: selectedSlot.time,
+        notes: demoForm.message,
+      });
+      setAppointmentSubmitted(true);
+    } catch (error) {
+      console.error(error);
+      if (error.response?.status === 409) {
+        setAppointmentError("That time was just booked by someone else. Please pick another slot.");
+        publicApi
+          .getAvailableMeetingTimes()
+          .then((res) => setAppointmentSlots(res.data?.data || []))
+          .catch(() => {});
+        setSelectedSlot(null);
+      } else {
+        setAppointmentError(
+          error.response?.data?.message || "Failed to book your appointment. Please try again later."
+        );
+      }
+    } finally {
+      setAppointmentSubmitting(false);
     }
   };
 
@@ -600,7 +694,7 @@ export default function Subscription() {
                         Contact us via mail
                       </h3>
                       <p className="text-sm text-gray-400">
-                        Frontend placeholder for direct sales outreach.
+                        Send us a message and our team will get back to you.
                       </p>
                     </div>
                   </div>
@@ -707,12 +801,26 @@ export default function Subscription() {
                         <li>Then we schedule a live walkthrough</li>
                       </ul>
                     </div>
-                    <button
-                      type="button"
-                      className="w-full rounded-2xl border border-gray-700 bg-gray-800 px-4 py-3 text-sm font-semibold text-white"
-                    >
-                      Send Demo Request
-                    </button>
+                    {demoSubmitted ? (
+                      <div className="flex items-center gap-2 rounded-2xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm font-semibold text-emerald-300">
+                        <CheckCircle size={18} />
+                        Thanks! We received your demo request and will reach out soon.
+                      </div>
+                    ) : (
+                      <>
+                        {demoError && (
+                          <p className="text-sm text-red-400">{demoError}</p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleDemoSubmit}
+                          disabled={demoSubmitting}
+                          className="w-full rounded-2xl border border-gray-700 bg-gray-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {demoSubmitting ? "Sending…" : "Send Demo Request"}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </section>
 
@@ -726,50 +834,73 @@ export default function Subscription() {
                         Set up an appointment
                       </h3>
                       <p className="text-sm text-gray-400">
-                        Scheduling UI only for now. We will wire it later.
+                        Pick a time and we'll confirm or suggest another slot.
                       </p>
                     </div>
                   </div>
 
                   <div className="rounded-3xl border border-gray-800 bg-[#0c1525] p-4">
-                    <p className="mb-4 text-xs uppercase tracking-[0.18em] text-gray-500">
-                      Available demo windows
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {appointmentSlots.map((slot) => {
-                        const isActive = slot === selectedSlot;
-                        return (
-                          <button
-                            key={slot}
-                            type="button"
-                            onClick={() => setSelectedSlot(slot)}
-                            className={
-                              isActive
-                                ? "rounded-2xl border border-cyan-400 bg-cyan-500/10 px-3 py-3 text-sm font-medium text-cyan-200"
-                                : "rounded-2xl border border-gray-800 bg-[#09111d] px-3 py-3 text-sm text-gray-300"
-                            }
-                          >
-                            {slot}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {appointmentSubmitted ? (
+                      <div className="flex items-center gap-2 rounded-2xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm font-semibold text-emerald-300">
+                        <CheckCircle size={18} />
+                        You're booked! Check your email for the meeting details.
+                      </div>
+                    ) : (
+                      <>
+                        <p className="mb-4 text-xs uppercase tracking-[0.18em] text-gray-500">
+                          Available demo windows
+                        </p>
+                        {slotsLoading ? (
+                          <p className="text-sm text-gray-400">Loading available times…</p>
+                        ) : appointmentSlots.length === 0 ? (
+                          <p className="text-sm text-gray-400">
+                            No open times right now — send us a message instead and we'll follow up.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-3">
+                            {appointmentSlots.map((slot) => {
+                              const isActive = slot.date === selectedSlot?.date && slot.time === selectedSlot?.time;
+                              return (
+                                <button
+                                  key={`${slot.date}-${slot.time}`}
+                                  type="button"
+                                  onClick={() => setSelectedSlot(slot)}
+                                  className={
+                                    isActive
+                                      ? "rounded-2xl border border-cyan-400 bg-cyan-500/10 px-3 py-3 text-sm font-medium text-cyan-200"
+                                      : "rounded-2xl border border-gray-800 bg-[#09111d] px-3 py-3 text-sm text-gray-300"
+                                  }
+                                >
+                                  {formatSlotLabel(slot.start)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
 
-                    <div className="mt-5 rounded-2xl border border-dashed border-gray-700 bg-[#09111d] p-4">
-                      <p className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">
-                        Selected slot
-                      </p>
-                      <p className="text-base font-medium text-white">
-                        {selectedSlot}
-                      </p>
-                    </div>
+                        <div className="mt-5 rounded-2xl border border-dashed border-gray-700 bg-[#09111d] p-4">
+                          <p className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">
+                            Selected slot
+                          </p>
+                          <p className="text-base font-medium text-white">
+                            {selectedSlot ? formatSlotLabel(selectedSlot.start) : "None selected"}
+                          </p>
+                        </div>
 
-                    <button
-                      type="button"
-                      className="mt-5 w-full rounded-2xl bg-gradient-to-r from-cyan-400 to-teal-400 px-4 py-3 text-sm font-bold text-[#070a13]"
-                    >
-                      Confirm Appointment
-                    </button>
+                        {appointmentError && (
+                          <p className="mt-3 text-sm text-red-400">{appointmentError}</p>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={handleAppointmentConfirm}
+                          disabled={appointmentSubmitting || !selectedSlot}
+                          className="mt-5 w-full rounded-2xl bg-gradient-to-r from-cyan-400 to-teal-400 px-4 py-3 text-sm font-bold text-[#070a13] transition disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {appointmentSubmitting ? "Booking…" : "Confirm Appointment"}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </section>
               </div>
