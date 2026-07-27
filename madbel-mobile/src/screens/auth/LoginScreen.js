@@ -8,6 +8,7 @@ import { useLoginMutation } from "../../redux/slices/authSlice";
 import ControllerTextInput from "../../components/ControllerTextInput";
 import { responsiveScreenFontSize } from "react-native-responsive-dimensions";
 import { useAppLanguage } from "../../context/LanguageContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const colors = {
   bg: "#02080B",
@@ -49,7 +50,8 @@ const LoginScreen = () => {
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      {/* <TouchableWithoutFeedback onPress={Keyboard.dismiss}> */}
+      <SafeAreaView style={styles.safeArea}>
         <View style={styles.safeArea}>
           <LinearGradient
             colors={["#02080B", "#010406"]}
@@ -141,7 +143,9 @@ const LoginScreen = () => {
             </ScrollView>
           </LinearGradient>
         </View>
-      </TouchableWithoutFeedback>
+            </SafeAreaView>
+      
+      {/* </TouchableWithoutFeedback> */}
     </KeyboardAvoidingView>
   );
 };

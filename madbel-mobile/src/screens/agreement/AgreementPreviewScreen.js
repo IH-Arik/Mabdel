@@ -113,17 +113,13 @@ const AgreementPreviewScreen = () => {
     );
   const agreement = agreementResponse?.data || routeAgreement;
   const isSigned = String(agreement?.status || "").toLowerCase() === "signed";
-  const signingProvider =
-    agreement?.signing_provider || routeAgreement?.signing_provider;
   const tone =
     STATUS_TONE_MAP[
       String(agreement?.status || "pending_signature").toLowerCase()
     ] || STATUS_TONE_MAP.pending_signature;
 
   const [showModal, setShowModal] = useState(false);
-  const [signatureProvider, setSignatureProvider] = useState(
-    signingProvider || "native",
-  );
+  const [signatureProvider, setSignatureProvider] = useState("docusign");
   const [name, setName] = useState(agreement?.client_name || "");
   const [email, setEmail] = useState(agreement?.client_email || "");
   const [phone, setPhone] = useState(agreement?.client_phone || "");
@@ -143,8 +139,8 @@ const AgreementPreviewScreen = () => {
   const docusignStatus = resolveDocusignStatus(docusignStatusResponse);
 
   useEffect(() => {
-    setSignatureProvider(signingProvider || "native");
-  }, [agreement?.id, signingProvider]);
+    setSignatureProvider("docusign");
+  }, [agreement?.id]);
 
   useEffect(() => {
     if (!showModal || signatureProvider !== "docusign") return undefined;
@@ -382,23 +378,6 @@ const AgreementPreviewScreen = () => {
             <Text style={styles.modalLabel}>Signature provider</Text>
             <View style={styles.providerRow}>
               <Pressable
-                onPress={() => setSignatureProvider("native")}
-                style={[
-                  styles.providerChip,
-                  signatureProvider === "native" && styles.providerChipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.providerChipText,
-                    signatureProvider === "native" &&
-                      styles.providerChipTextActive,
-                  ]}
-                >
-                  Native
-                </Text>
-              </Pressable>
-              <Pressable
                 onPress={() => setSignatureProvider("docusign")}
                 style={[
                   styles.providerChip,
@@ -416,38 +395,30 @@ const AgreementPreviewScreen = () => {
                 </Text>
               </Pressable>
             </View>
-            {signatureProvider === "docusign" ? (
-              <View style={styles.providerStatusCard}>
-                <Text style={styles.providerStatusText}>
-                  DocuSign status:{" "}
-                  {docusignStatus?.connection_status || "disconnected"}
-                </Text>
-                {docusignStatus?.connected ? (
-                  <Text style={styles.providerStatusSubText}>
-                    Connected to {docusignStatus?.account_name || "DocuSign"}
-                  </Text>
-                ) : (
-                  <>
-                    <Text style={styles.providerStatusSubText}>
-                      {docusignStatus?.last_error ||
-                        "DocuSign is not connected yet."}
-                    </Text>
-                    <Pressable
-                      style={styles.connectBtn}
-                      onPress={handleConnectDocusign}
-                    >
-                      <Text style={styles.connectBtnText}>
-                        Connect DocuSign
-                      </Text>
-                    </Pressable>
-                  </>
-                )}
-              </View>
-            ) : (
-              <Text style={styles.providerHint}>
-                Use the existing Mabdel signing link flow.
+            <View style={styles.providerStatusCard}>
+              <Text style={styles.providerStatusText}>
+                DocuSign status:{" "}
+                {docusignStatus?.connection_status || "disconnected"}
               </Text>
-            )}
+              {docusignStatus?.connected ? (
+                <Text style={styles.providerStatusSubText}>
+                  Connected to {docusignStatus?.account_name || "DocuSign"}
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.providerStatusSubText}>
+                    {docusignStatus?.last_error ||
+                      "DocuSign is not connected yet."}
+                  </Text>
+                  <Pressable
+                    style={styles.connectBtn}
+                    onPress={handleConnectDocusign}
+                  >
+                    <Text style={styles.connectBtnText}>Connect DocuSign</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
             <Text style={styles.modalLabel}>{t("recipient_details")}</Text>
             <Text style={styles.fieldLabel}>{t("name")}</Text>
             <TextInput

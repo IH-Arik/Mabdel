@@ -7,7 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -20,14 +19,15 @@
         "NSLocationWhenInUseUsageDescription": "We use your location to show nearby activities within 10 miles.",
         "NSMicrophoneUsageDescription": "Allow Mabdel to record voice commands for AI assistance.",
         "NSContactsUsageDescription": "Allow Mabdel to import contacts from your phone."
-      }
+      },
+        "googleServicesFile": "./GoogleService-Info.plist"
+
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -59,7 +59,8 @@
           "color": "#17CBE8",
           "sounds": []
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
