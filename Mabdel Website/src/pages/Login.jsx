@@ -47,10 +47,12 @@ export default function LoginPage() {
 
   // Verification states
   const [verifyMethod, setVerifyMethod] = useState('email'); // 'email' or 'sms'
-  const [otpArray, setOtpArray] = useState(['', '', '', '']);
+  // Backend OTP codes are 6 digits (settings.OTP_LENGTH) — must match here or
+  // verify-otp will always fail since the joined code can never be long enough.
+  const [otpArray, setOtpArray] = useState(['', '', '', '', '', '']);
   const [activeOtpIndex, setActiveOtpIndex] = useState(0);
   const [resendTimer, setResendTimer] = useState(45);
-  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
 
   // Forgot Password / Reset Password states
   const [forgotEmail, setForgotEmail] = useState('');
@@ -109,7 +111,7 @@ export default function LoginPage() {
     setOtpArray(newOtp);
 
     // Move to next field if value is entered
-    if (value && index < 3) {
+    if (value && index < otpArray.length - 1) {
       otpRefs[index + 1].current.focus();
       setActiveOtpIndex(index + 1);
     }
@@ -166,7 +168,7 @@ export default function LoginPage() {
           password: password
         });
         setResendTimer(45);
-        setOtpArray(['', '', '', '']);
+        setOtpArray(['', '', '', '', '', '']);
         setAuthMode('enter_code');
       } else {
         // Triggers forgot password OTP
@@ -174,7 +176,7 @@ export default function LoginPage() {
           email: forgotEmail
         });
         setResendTimer(45);
-        setOtpArray(['', '', '', '']);
+        setOtpArray(['', '', '', '', '', '']);
         setAuthMode('enter_code');
       }
     } catch (err) {
@@ -189,8 +191,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLocalError(null);
     const code = otpArray.join('');
-    if (code.length < 4) {
-      setLocalError('Please enter a 4-digit code.');
+    if (code.length < otpArray.length) {
+      setLocalError(`Please enter the full ${otpArray.length}-digit code.`);
       return;
     }
     setLocalLoading(true);
@@ -577,7 +579,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* 4. ENTER VERIFICATION CODE (4 individual input boxes) */}
+              {/* 4. ENTER VERIFICATION CODE (6 individual input boxes — matches backend OTP_LENGTH) */}
               {authMode === 'enter_code' && (
                 <div>
                   <div className="text-center mb-8 flex flex-col items-center">
@@ -587,12 +589,12 @@ export default function LoginPage() {
                     </div>
                     <h2 className="text-3xl font-bold text-white tracking-tight">Enter Verification Code</h2>
                     <p className="text-gray-400 mt-2 text-sm max-w-xs mx-auto">
-                      Enter the 4-digit code sent to your {verifyMethod === 'email' ? 'email' : 'phone'}.
+                      Enter the {otpArray.length}-digit code sent to your {verifyMethod === 'email' ? 'email' : 'phone'}.
                     </p>
                   </div>
 
                   <form onSubmit={handleVerifyCode} className="space-y-6">
-                    <div className="flex justify-center gap-4 py-2">
+                    <div className="flex justify-center gap-2 py-2">
                       {otpArray.map((digit, idx) => (
                         <input
                           key={idx}
@@ -602,9 +604,9 @@ export default function LoginPage() {
                           maxLength={1}
                           pattern="[0-9]*"
                           inputMode="numeric"
-                          className={`w-16 h-16 bg-[#131929] border rounded-2xl text-center text-3xl font-bold text-white focus:outline-none transition-all ${
+                          className={`w-11 h-14 sm:w-12 sm:h-14 bg-[#131929] border rounded-2xl text-center text-2xl font-bold text-white focus:outline-none transition-all ${
                             activeOtpIndex === idx || digit
-                              ? 'border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]' 
+                              ? 'border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]'
                               : 'border-gray-900'
                           }`}
                           value={digit}

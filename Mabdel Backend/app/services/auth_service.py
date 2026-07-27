@@ -117,7 +117,13 @@ class AuthService:
                 message="No user found for this email.",
             )
 
-        await self.otp_service.issue_otp(email=payload.email, purpose=payload.purpose)
+        # Same deliver-to-the-real-inbox behavior as forgot_password() below,
+        # applied here too since /resend-otp routes through this method.
+        deliver_to = None
+        if payload.purpose == "forgot_password" and user:
+            deliver_to = user.get("original_email") or user.get("email")
+
+        await self.otp_service.issue_otp(email=payload.email, purpose=payload.purpose, deliver_to=deliver_to)
         return MessageResponse(message="OTP sent successfully.")
 
     async def resend_otp(self, payload: SendOTPRequest) -> MessageResponse:
@@ -142,7 +148,12 @@ class AuthService:
                 message="No user found for this email.",
             )
 
-        await self.otp_service.issue_otp(email=payload.email, purpose="forgot_password")
+        # Subordinate accounts (Manager/Staff/Assistant) have a system-generated
+        # login email (xxx@mabdel.ai) with no real inbox — always deliver the OTP
+        # to the real personal email on file, regardless of which one was typed,
+        # so "forgot password" works even if the user enters their login email.
+        deliver_to = user.get("original_email") or user.get("email")
+        await self.otp_service.issue_otp(email=payload.email, purpose="forgot_password", deliver_to=deliver_to)
         return MessageResponse(message="Password reset OTP sent successfully.")
 
     async def reset_password(self, payload: ResetPasswordRequest) -> MessageResponse:
@@ -169,7 +180,7 @@ class AuthService:
             )
 
         await self.auth_repository.update_user_password(
-            email=payload.email,
+            user_id=str(user["_id"]),
             password_hash=hash_password(payload.new_password),
         )
         await self.token_repository.revoke_all_user_tokens(str(user["_id"]))

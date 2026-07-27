@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.exceptions import AppException
@@ -323,7 +324,19 @@ class RBACService:
         if creator_role in ("owner", "manager"):
             org_id = current_user.get("organization_id")
             if not org_id:
-                raise AppException(status_code=400, code="MISSING_ORGANIZATION", message=f"{creator_role.capitalize()} must belong to an organization.")
+                # Legacy/incomplete accounts (e.g. created before organization_id was
+                # wired up at signup) don't have one yet — an owner IS their own
+                # organization root, so self-heal by adopting their own id and
+                # persisting it, matching the fallback in api/dashboard/owner.py.
+                if creator_role == "owner":
+                    org_id = creator_id
+                    await self.repo.db.users.update_one(
+                        {"_id": ObjectId(creator_id) if ObjectId.is_valid(creator_id) else creator_id},
+                        {"$set": {"organization_id": org_id}},
+                    )
+                    current_user["organization_id"] = org_id
+                else:
+                    raise AppException(status_code=400, code="MISSING_ORGANIZATION", message=f"{creator_role.capitalize()} must belong to an organization.")
         else:
             org_id = payload.organization_id
 

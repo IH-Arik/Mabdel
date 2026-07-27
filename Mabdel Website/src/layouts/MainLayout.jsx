@@ -31,7 +31,7 @@ function cn(...inputs) {
 const primaryNavItems = [
   { name: 'Home', icon: LayoutDashboard, path: '/dashboard' },
   { name: 'Messages', icon: MessageSquare, path: '/conversations' },
-  { name: 'Voice Assistant', icon: Mic, path: '/ai-workflow' },
+  { name: 'Voice Assistant', icon: Mic, path: '/voice-conversation' },
   { name: 'AI Calling', icon: PhoneCall, path: '/calls' },
   { name: 'Contacts', icon: Contact, path: '/contacts' },
   { name: 'Documents', icon: FileText, path: '/documents' },
@@ -113,7 +113,7 @@ export default function MainLayout() {
   const path = location.pathname;
   
   // Determine if we are on a primary page or a sub-page
-  const isPrimaryPage = ['/dashboard', '/conversations', '/ai-workflow', '/calls', '/contacts', '/documents', '/groups', '/profile'].includes(path);
+  const isPrimaryPage = ['/dashboard', '/conversations', '/voice-conversation', '/calls', '/contacts', '/documents', '/groups', '/profile'].includes(path);
 
   // Map sub-page paths to friendly titles
   const getSubPageTitle = () => {

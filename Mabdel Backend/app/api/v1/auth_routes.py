@@ -183,6 +183,11 @@ async def subscription_signup(
     result = await db.users.insert_one(user_doc)
     new_user_id = str(result.inserted_id)
 
+    # An owner is the root of their own organization — self-reference their own id
+    # so team-member creation and org-wide scoping work immediately, without
+    # relying on a later self-healing fallback.
+    await db.users.update_one({"_id": result.inserted_id}, {"$set": {"organization_id": new_user_id}})
+
     # Assign role
     from app.repositories.dashboard.rbac_repository import RBACRepository
     repo = RBACRepository(db)
@@ -193,7 +198,7 @@ async def subscription_signup(
             role_id=str(role_doc["_id"]),
             role_slug="owner",
             assigned_by="system",
-            organization_id=None,
+            organization_id=new_user_id,
         )
 
     # Create Global Chat for the new organization (the owner is the organization)
