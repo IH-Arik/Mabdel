@@ -79,6 +79,8 @@ class LeaseService(SmartFlowBase):
 
     async def get_lease(self, user_id: str, lease_id: str) -> dict:
         lease = await self._get_owned_lease(user_id, lease_id)
+        if lease.get("signature_provider") == "docusign" and (lease.get("docusign") or {}).get("envelope_id"):
+            lease = await self.agreement_service.docusign_service.refresh_agreement(user_id, lease)
         lease = await self._refresh_lease_status(lease)
         return self._serialize_lease(lease, include_content=True)
 

@@ -69,7 +69,8 @@ class BulkMessageService(SmartFlowBase):
         status_filter: str | None,
         channel: str | None,
     ) -> dict:
-        filters: dict = {"user_id": user_id}
+        team_ids = await self._resolve_team_user_ids(user_id)
+        filters: dict = {"user_id": {"$in": team_ids}}
         if search:
             filters["$or"] = [
                 {"content": {"$regex": search, "$options": "i"}},
@@ -84,7 +85,7 @@ class BulkMessageService(SmartFlowBase):
         return page_result
 
     async def get_bulk_message(self, user_id: str, bulk_message_id: str) -> dict:
-        document = await self._get_owned_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")
+        document = await self._get_team_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")
         return self._serialize_bulk_message(document)
 
     async def create_bulk_message(self, user_id: str, payload: dict) -> dict:
@@ -155,7 +156,7 @@ class BulkMessageService(SmartFlowBase):
         return self._serialize_bulk_message(document)
 
     async def update_bulk_message(self, user_id: str, bulk_message_id: str, updates: dict) -> dict:
-        document = await self._get_owned_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")
+        document = await self._get_team_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")
         if document.get("status") not in {"draft", "scheduled"}:
             raise AppException(status_code=409, code="BULK_MESSAGE_LOCKED", message="Only draft or scheduled bulk messages can be updated.")
 
@@ -195,7 +196,7 @@ class BulkMessageService(SmartFlowBase):
         return self._serialize_bulk_message(updated)
 
     async def send_bulk_message(self, user_id: str, bulk_message_id: str) -> dict:
-        document = await self._get_owned_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")
+        document = await self._get_team_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")
         if document.get("status") == "cancelled":
             raise AppException(status_code=409, code="BULK_MESSAGE_CANCELLED", message="Cancelled bulk messages cannot be sent.")
         if document.get("status") in {"sent", "partial_failed", "failed"}:
@@ -233,7 +234,7 @@ class BulkMessageService(SmartFlowBase):
         return processed
 
     async def cancel_bulk_message(self, user_id: str, bulk_message_id: str) -> dict:
-        document = await self._get_owned_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")
+        document = await self._get_team_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")
         if document.get("status") not in {"draft", "scheduled"}:
             raise AppException(status_code=409, code="BULK_MESSAGE_CANNOT_CANCEL", message="Only draft or scheduled bulk messages can be cancelled.")
         updated = await self.db.bulk_messages.find_one_and_update(

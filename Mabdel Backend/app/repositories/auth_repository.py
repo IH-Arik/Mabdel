@@ -136,9 +136,9 @@ class AuthRepository:
             {"$set": {"is_verified": True, "updated_at": utc_now()}},
         )
 
-    async def update_user_password(self, email: str, password_hash: str) -> None:
+    async def update_user_password(self, user_id: str, password_hash: str) -> None:
         await self.collection.update_one(
-            {"email": email.lower().strip()},
+            {"_id": ObjectId(user_id)},
             {"$set": {"password_hash": password_hash, "updated_at": utc_now()}},
         )
 

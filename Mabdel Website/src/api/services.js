@@ -13,14 +13,9 @@ export const smartflowApi = {
   uploadContactAvatar: (id, formData) => client.post(`/api/v1/smartflow/contacts/${id}/avatar`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  createOutboundCall: (data) => client.post('/api/v1/smartflow/calls/outbound', data),
 
   // Conversations
-  getConversations: () => client.get('/api/v1/smartflow/conversations'),
-  getMessages: (id) => client.get(`/api/v1/smartflow/conversations/${id}/messages`),
-  sendMessage: (data) => client.post('/api/v1/smartflow/messages', data),
   markRead: (id) => client.post(`/api/v1/smartflow/conversations/${id}/mark-read`),
-  archiveConversation: (id) => client.patch(`/api/v1/smartflow/conversations/${id}/archive`),
   getTypingStatus: (id) => client.get(`/api/v1/smartflow/conversations/${id}/typing`),
   setTypingStatus: (id, payload) => client.post(`/api/v1/smartflow/conversations/${id}/typing`, payload),
 
@@ -35,31 +30,16 @@ export const smartflowApi = {
     workflow_intent: options.workflow_intent,
     current_values: options.current_values || {},
   }),
-  aiChat: (content, options = {}) => client.post('/api/v1/smartflow/ai/chat', {
-    content,
-    response_mode: options.response_mode || 'text',
-    voice_id: options.voice_id,
-  }),
   getAIVoices: () => client.get('/api/v1/smartflow/ai/voices'),
   getAIHistory: () => client.get('/api/v1/smartflow/ai/history'),
   replayAIResponse: (id) => client.post(`/api/v1/smartflow/ai/history/${id}/replay`),
-  voiceChat: (audioBlob) => {
-    const formData = new FormData();
-    formData.append('audio_file', audioBlob);
-    return client.post('/api/v1/smartflow/ai/voice-chat-upload', formData);
-  },
-
 
   // Bulk Messaging
   uploadBulkMessageAttachment: (formData) => client.post('/api/v1/smartflow/bulk-messages/attachments', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   improveBulkMessageContent: (content) => client.post('/api/v1/smartflow/bulk-messages/improve-content', { content }),
-  validateBulkRecipients: (data) => client.post('/api/v1/smartflow/bulk-messages/recipients/validate', data),
   getBulkMessages: (params) => client.get('/api/v1/smartflow/bulk-messages', { params }),
-  createBulkMessage: (data) => client.post('/api/v1/smartflow/bulk-messages', data),
-  sendBulkMessage: (id) => client.post(`/api/v1/smartflow/bulk-messages/${id}/send`),
-  cancelBulkMessage: (id) => client.post(`/api/v1/smartflow/bulk-messages/${id}/cancel`),
 
   // Documents & Leases
   getDocuments: () => client.get('/api/v1/smartflow/documents'),
@@ -89,11 +69,7 @@ export const smartflowApi = {
 
   // Integrations
   getIntegrations: () => client.get('/api/v1/smartflow/integrations'),
-  getIntegrationCatalog: () => client.get('/api/v1/smartflow/integrations/catalog'),
   syncIntegration: (platform) => client.post(`/api/v1/smartflow/integrations/${platform}/sync`),
-  disconnectIntegration: (platform) => client.delete(`/api/v1/smartflow/integrations/${platform}`),
-  startIntegrationOAuth: (platform) => client.get(`/api/v1/smartflow/integrations/${platform}/oauth/start`),
-
 
   // Notifications
   getNotifications: (params) => client.get('/api/v1/smartflow/notifications', { params }),

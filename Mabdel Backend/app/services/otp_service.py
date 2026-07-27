@@ -17,7 +17,7 @@ class OTPService:
         self.otp_repository = otp_repository
         self.email_service = email_service
 
-    async def issue_otp(self, email: str, purpose: OTPPurpose) -> dict:
+    async def issue_otp(self, email: str, purpose: OTPPurpose, deliver_to: str | None = None) -> dict:
         latest = await self.otp_repository.get_latest_otp(email=email, purpose=purpose)
         now = utc_now()
         if latest:
@@ -47,8 +47,9 @@ class OTPService:
             expires_at=expires_at,
         )
 
+        delivery_address = deliver_to or email
         try:
-            await self.email_service.send_otp_email(email=email, otp_code=code, purpose=purpose)
+            await self.email_service.send_otp_email(email=delivery_address, otp_code=code, purpose=purpose)
         except Exception as exc:
             raise AppException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -59,7 +60,7 @@ class OTPService:
 
         return {
             "email": email,
-            "masked_email": mask_email(email),
+            "masked_email": mask_email(delivery_address),
             "purpose": purpose,
             "expires_in_minutes": settings.OTP_EXPIRE_MINUTES,
         }

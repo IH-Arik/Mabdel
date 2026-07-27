@@ -793,6 +793,26 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
     return () => { ignore = true; };
   }, [open, item, item.id]);
 
+  // While a lease is out for DocuSign signature, poll periodically so the
+  // status flips to "active" automatically once both parties finish signing,
+  // without the user having to manually reload/re-expand the row.
+  useEffect(() => {
+    if (!open || record.signature_provider !== 'docusign' || record.status !== 'pending_signature') return undefined;
+    const interval = window.setInterval(async () => {
+      try {
+        const res = await smartflowApi.getLease(item.id);
+        const next = res.data?.data;
+        if (next) {
+          setDetail(next);
+          onRefresh?.();
+        }
+      } catch {
+        // Ignore transient polling errors; next tick will retry.
+      }
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [open, record.signature_provider, record.status, item.id, onRefresh]);
+
   useEffect(() => {
     let ignore = false;
     async function loadDocusignStatus() {

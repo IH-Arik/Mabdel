@@ -438,21 +438,35 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
   const collectedFields = Object.entries(prefill).filter(([, value]) => !isEmptyValue(value));
   const confirmText = buildConfirmationText(prefill, workflowIntent, label);
 
+  const speak = useCallback((text) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || !text) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = aiLanguage;
+      window.speechSynthesis.speak(utterance);
+    } catch { /* noop */ }
+  }, [aiLanguage]);
+
   useEffect(() => {
     if (!open) return;
     if (phase === 'question' && currentQuestion) {
       setAssistantPrompt(currentQuestion);
+      if (questionStartedRef.current !== fieldIdx) speak(currentQuestion);
       questionStartedRef.current = fieldIdx;
       return;
     }
     if (phase === 'initial') {
-      setAssistantPrompt(getInitialPrompt(aiLanguage, workflowIntent));
+      const prompt = getInitialPrompt(aiLanguage, workflowIntent);
+      setAssistantPrompt(prompt);
+      speak(prompt);
       return;
     }
     if (phase === 'confirm') {
       setAssistantPrompt(confirmText);
+      speak(confirmText);
     }
-  }, [aiLanguage, confirmText, currentQuestion, fieldIdx, open, phase, workflowIntent]);
+  }, [aiLanguage, confirmText, currentQuestion, fieldIdx, open, phase, speak, workflowIntent]);
 
   return (
     <>

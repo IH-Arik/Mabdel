@@ -19,9 +19,10 @@ export const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await client.post('/api/v1/auth/login', { email, password });
-      const { access_token, user } = response.data.data;
-      
+      const { access_token, refresh_token, user } = response.data.data;
+
       localStorage.setItem('access_token', access_token);
+      if (refresh_token) localStorage.setItem('refresh_token', refresh_token);
       set({ user, token: access_token, isAuthenticated: true, isLoading: false });
       return true;
     } catch (error) {
@@ -46,6 +47,7 @@ export const useAuthStore = create((set) => ({
 
   logout: () => {
     localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     set({ user: null, token: null, isAuthenticated: false });
   },
 
@@ -56,6 +58,7 @@ export const useAuthStore = create((set) => ({
       set({ user: response.data.data, isAuthenticated: true });
     } catch {
       localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       set({ isAuthenticated: false });
     }
   }
