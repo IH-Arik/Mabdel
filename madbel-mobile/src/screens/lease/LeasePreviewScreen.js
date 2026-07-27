@@ -433,10 +433,7 @@ const LeasePreviewScreen = () => {
           </View>
 
           <View style={styles.docCard}>
-            <Text style={styles.docTitle}>
-              Residential Lease{"\n"}Agreement
-            </Text>
-            <View style={styles.docDivider} />
+           
             <Text style={styles.docText}>{lease?.content}</Text>
           </View>
 
@@ -482,23 +479,7 @@ const LeasePreviewScreen = () => {
             <View style={styles.modalDivider} />
             <Text style={styles.modalLabel}>Signature provider</Text>
             <View style={styles.providerRow}>
-              <Pressable
-                onPress={() => setSignatureProvider("native")}
-                style={[
-                  styles.providerChip,
-                  signatureProvider === "native" && styles.providerChipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.providerChipText,
-                    signatureProvider === "native" &&
-                      styles.providerChipTextActive,
-                  ]}
-                >
-                  Native
-                </Text>
-              </Pressable>
+            
               <Pressable
                 onPress={() => setSignatureProvider("docusign")}
                 style={[

@@ -18,6 +18,7 @@ import {
   useMadbelUpdatePermissionsMutation,
   useMadbelAcceptAllPermissionsMutation,
 } from "../redux/slices/madbelApiSlice";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const colors = {
   bg: "#02080B",
@@ -309,6 +310,8 @@ export default function OnboardingScreen() {
 
   if (showPermissionPage) {
     return (
+      <SafeAreaView style={styles.safeArea}>
+
       <View style={styles.safeArea}>
         <LinearGradient
           colors={["#02080B", "#010405"]}
@@ -364,10 +367,14 @@ export default function OnboardingScreen() {
           </ScrollView>
         </LinearGradient>
       </View>
+      </SafeAreaView>
+
     );
   }
 
   return (
+      <SafeAreaView style={styles.safeArea}>
+
     <View style={styles.safeArea}>
       <LinearGradient
         colors={["#031218", "#02080B", "#010406"]}
@@ -414,11 +421,15 @@ export default function OnboardingScreen() {
         <View style={styles.dotsRow}>{dots}</View>
       </LinearGradient>
     </View>
+      </SafeAreaView>
+
   );
 }
 
 function PermissionCard({ title, description, icon, value, onToggle }) {
   return (
+      <SafeAreaView style={styles.safeArea}>
+    
     <View style={styles.permissionCard}>
       <View style={styles.permissionIconBox}>{icon}</View>
       <View style={styles.permissionTextWrap}>
@@ -433,6 +444,8 @@ function PermissionCard({ title, description, icon, value, onToggle }) {
         ios_backgroundColor={colors.toggleOff}
       />
     </View>
+      </SafeAreaView>
+
   );
 }
 
@@ -440,9 +453,13 @@ function FeatureIllustration({ source }) {
   const imageSource = typeof source === "string" ? { uri: source } : source;
   if (!imageSource) return null;
   return (
-    <View style={styles.illuCanvas}>
+      <SafeAreaView style={styles.safeArea}>
+   
+   <View style={styles.illuCanvas}>
       <Image source={imageSource} style={styles.featureImage} resizeMode="contain" />
     </View>
+      </SafeAreaView>
+
   );
 }
 

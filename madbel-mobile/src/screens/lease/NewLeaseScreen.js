@@ -112,6 +112,7 @@ const NewLeaseScreen = () => {
   const routePrefill = route?.params?.prefill || route?.params?.lease || {};
 
   const [voiceTrigger, setVoiceTrigger] = useState(0);
+  const [selfRole, setSelfRole] = useState(routePrefill.self_role || "landlord");
   const [tenantSignature, setTenantSignature] = useState(true);
   const [landlordSignature, setLandlordSignature] = useState(true);
   const [prompt, setPrompt] = useState(routePrefill.prompt || "");
@@ -122,6 +123,7 @@ const NewLeaseScreen = () => {
     routePrefill.property_type || "apartment",
   );
   const [landlord, setLandlord] = useState(routePrefill.landlord_name || "");
+  const [landlordEmail, setLandlordEmail] = useState(routePrefill.landlord_email || "");
   const [tenant, setTenant] = useState(routePrefill.tenant_name || "");
   const [tenantEmail, setTenantEmail] = useState(routePrefill.tenant_email || "");
   const [tenantPhone, setTenantPhone] = useState(routePrefill.tenant_phone || "");
@@ -153,7 +155,9 @@ const NewLeaseScreen = () => {
     if (prefill.prompt) setPrompt(prefill.prompt);
     if (prefill.property_address) setAddress(prefill.property_address);
     if (prefill.property_type) setPropertyType(prefill.property_type);
+    if (prefill.self_role) setSelfRole(prefill.self_role);
     if (prefill.landlord_name) setLandlord(prefill.landlord_name);
+    if (prefill.landlord_email) setLandlordEmail(prefill.landlord_email);
     if (prefill.tenant_name) setTenant(prefill.tenant_name);
     if (prefill.tenant_email) setTenantEmail(prefill.tenant_email);
     if (prefill.tenant_phone) setTenantPhone(prefill.tenant_phone);
@@ -169,7 +173,9 @@ const NewLeaseScreen = () => {
   const buildPayload = () => ({
     property_address: toTrimmedString(address),
     property_type: toTrimmedString(propertyType).toLowerCase(),
+    self_role: toTrimmedString(selfRole) || "landlord",
     landlord_name: toTrimmedString(landlord) || undefined,
+    landlord_email: toTrimmedString(landlordEmail) || undefined,
     tenant_name: toTrimmedString(tenant) || undefined,
     tenant_email: toTrimmedString(tenantEmail) || undefined,
     tenant_phone: toTrimmedString(tenantPhone) || undefined,
@@ -180,16 +186,18 @@ const NewLeaseScreen = () => {
     custom_terms: toTrimmedString(terms) || undefined,
     signing_provider:
       tenantSignature || landlordSignature ? SIGNING_PROVIDER : undefined,
-    signature_fields: {
-      tenant_signature: tenantSignature,
-      landlord_signature: landlordSignature,
-    },
+    // signature_fields: {
+    //   tenant_signature: tenantSignature,
+    //   landlord_signature: landlordSignature,
+    // },
   });
 
   const syncDraftIntoForm = (draft = {}) => {
     if (draft.property_address) setAddress(draft.property_address);
     if (draft.property_type) setPropertyType(draft.property_type);
+    if (draft.self_role) setSelfRole(draft.self_role);
     if (draft.landlord_name) setLandlord(draft.landlord_name);
+    if (draft.landlord_email) setLandlordEmail(draft.landlord_email);
     if (draft.tenant_name) setTenant(draft.tenant_name);
     if (draft.tenant_email) setTenantEmail(draft.tenant_email);
     if (draft.tenant_phone) setTenantPhone(draft.tenant_phone);
@@ -264,13 +272,20 @@ const NewLeaseScreen = () => {
       return;
     }
 
-    if (!toTrimmedString(address) || !toTrimmedString(tenant) || !toTrimmedString(rent)) {
+    const otherPartyName = selfRole === "landlord" ? tenant : landlord;
+
+    if (!toTrimmedString(address) || !toTrimmedString(otherPartyName) || !toTrimmedString(rent)) {
       Alert.alert(
         tr("missing_fields", "Missing fields"),
-        tr(
-          "property_address_tenant_name_and_monthly_rent_are_",
-          "Property address, tenant name, and monthly rent are required.",
-        ),
+        selfRole === "landlord"
+          ? tr(
+              "property_address_tenant_name_and_monthly_rent_are_",
+              "Property address, tenant name, and monthly rent are required.",
+            )
+          : tr(
+              "property_address_landlord_name_and_monthly_rent_are_",
+              "Property address, landlord name, and monthly rent are required.",
+            ),
       );
       return;
     }
@@ -285,11 +300,14 @@ const NewLeaseScreen = () => {
       }
 
       const response = isEditMode
-        ? await updateLease({
+    ? await updateLease({
             lease_id: editingLeaseId,
             ...buildPayload(),
           }).unwrap()
         : await createLease(buildPayload()).unwrap();
+
+        console.log('LINE AT 309' , response);
+        
       const createdLease = response?.data || response;
       const leaseId = extractLeaseId(createdLease);
       const signingUrl = resolveSigningUrl(response) || resolveSigningUrl(createdLease);
@@ -368,41 +386,7 @@ const NewLeaseScreen = () => {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
         >
-          {/* <View style={styles.card}>
-            <Text style={styles.sectionTitle}>{tr("generate_lease_with_ai", "GENERATE LEASE WITH AI")}</Text>
-            <View style={styles.promptBox}>
-              <TextInput
-                value={prompt}
-                onChangeText={setPrompt}
-                placeholder={tr("create_a_1_year_apartment_lease", "Create a 1-year apartment lease...")}
-                placeholderTextColor="#66748C"
-                multiline
-                style={styles.promptInput}
-              />
-              <Pressable
-                onPress={() => setVoiceTrigger((value) => value + 1)}
-                hitSlop={10}
-                style={styles.micButton}
-              >
-                <Mic size={22} color="#11CDE8" />
-              </Pressable>
-            </View>
-
-            <Pressable
-              style={styles.generateBtn}
-              onPress={runGenerate}
-              disabled={isBusy}
-            >
-              {generating ? (
-                <ActivityIndicator color="#EAF9FF" />
-              ) : (
-                <>
-                  <Sparkles size={20} color="#EAF9FF" />
-                  <Text style={styles.generateText}>{tr("generate_lease", "Generate Lease")}</Text>
-                </>
-              )}
-            </Pressable>
-          </View> */}
+          
 
           <View style={styles.card}>
             <View style={styles.rowTitle}>
@@ -432,7 +416,46 @@ const NewLeaseScreen = () => {
               <Users size={20} color="#11CDE8" />
               <Text style={styles.blockTitle}>{tr("parties_info", "Parties Info")}</Text>
             </View>
-            <Text style={styles.label}>{tr("landlord_full_name", "Landlord Full Name")}</Text>
+            <Text style={styles.label}>{tr("i_am_signing_this_lease_as", "I am signing this lease as")}</Text>
+            <View style={styles.roleSelector}>
+              <Pressable
+                onPress={() => setSelfRole("landlord")}
+                style={[
+                  styles.roleButton,
+                  selfRole === "landlord" && styles.roleButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    selfRole === "landlord" && styles.roleButtonTextActive,
+                  ]}
+                >
+                  {tr("landlord", "Landlord")}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setSelfRole("tenant")}
+                style={[
+                  styles.roleButton,
+                  selfRole === "tenant" && styles.roleButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    selfRole === "tenant" && styles.roleButtonTextActive,
+                  ]}
+                >
+                  {tr("tenant", "Tenant")}
+                </Text>
+              </Pressable>
+            </View>
+            <Text style={styles.label}>
+              {selfRole === "landlord"
+                ? tr("landlord_full_name_you", "Landlord Full Name (you)")
+                : tr("landlord_full_name", "Landlord Full Name")}
+            </Text>
             <TextInput
               value={landlord}
               onChangeText={setLandlord}
@@ -440,13 +463,34 @@ const NewLeaseScreen = () => {
               placeholderTextColor="#66748C"
               style={styles.input}
             />
-            <Text style={styles.label}>{tr("tenant_full_name", "Tenant Full Name")}</Text>
+            <Text style={styles.label}>
+              {selfRole === "tenant"
+                ? tr("tenant_full_name_you", "Tenant Full Name (you)")
+                : tr("tenant_full_name", "Tenant Full Name")}
+            </Text>
             <TextInput
               value={tenant}
               onChangeText={setTenant}
               placeholder={tr("e_g_jane_smith", "e.g. Jane Smith")}
               placeholderTextColor="#66748C"
               style={styles.input}
+            />
+            <Text style={styles.label}>
+              {selfRole === "landlord"
+                ? tr(
+                    "landlord_email_optional",
+                    "Landlord Email (leave blank to use your account email)",
+                  )
+                : tr("landlord_email", "Landlord Email")}
+            </Text>
+            <TextInput
+              value={landlordEmail}
+              onChangeText={setLandlordEmail}
+              placeholder={tr("email_example_com", "email@example.com")}
+              placeholderTextColor="#66748C"
+              style={styles.input}
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
             <Text style={styles.label}>{tr("tenant_email", "Tenant Email")}</Text>
             <TextInput
@@ -561,7 +605,7 @@ const NewLeaseScreen = () => {
             />
           </View>
 
-          <View style={styles.card}>
+          {/* <View style={styles.card}>
             <View style={styles.rowTitle}>
               <PenLine size={20} color="#11CDE8" />
               <Text style={styles.blockTitle}>{tr("signature_fields", "Signature Fields")}</Text>
@@ -590,7 +634,7 @@ const NewLeaseScreen = () => {
                 thumbColor="#F2F8FF"
               />
             </View>
-          </View>
+          </View> */}
 
           <VoiceFormFillCard
             label={tr("lease", "Lease")}
@@ -599,10 +643,12 @@ const NewLeaseScreen = () => {
             triggerOpen={voiceTrigger}
             currentValues={{
               prompt,
+              self_role: selfRole,
               tenant_name: tenant,
               tenant_email: tenantEmail,
               tenant_phone: tenantPhone,
               landlord_name: landlord,
+              landlord_email: landlordEmail,
               property_address: address,
               property_type: propertyType,
               monthly_rent: rent,
@@ -739,6 +785,33 @@ const styles = StyleSheet.create({
     color: "#DCE5F2",
     fontSize: responsiveWidth(3.8),
     fontWeight: "600",
+  },
+  roleSelector: {
+    flexDirection: "row",
+    gap: responsiveWidth(2.5),
+    marginBottom: responsiveHeight(0.8),
+  },
+  roleButton: {
+    flex: 1,
+    minHeight: responsiveHeight(5.4),
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#334056",
+    backgroundColor: "#1A1D24",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  roleButtonActive: {
+    borderColor: "#11CDE8",
+    backgroundColor: "rgba(17, 205, 232, 0.12)",
+  },
+  roleButtonText: {
+    color: "#A8B3C4",
+    fontSize: responsiveWidth(3.5),
+    fontWeight: "700",
+  },
+  roleButtonTextActive: {
+    color: "#EAF8FF",
   },
   label: {
     color: "#A8B3C4",
