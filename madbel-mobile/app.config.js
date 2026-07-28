@@ -95,6 +95,7 @@ const finalIosUrlScheme = googleIosUrlScheme || derivedIosUrlScheme;
 
 // basePlugins.unshift("./plugins/withGoogleSigninPodfileFix");
 // basePlugins.unshift("./plugins/withGoogleSigninIOSConfig");
+basePlugins.unshift("@react-native-community/datetimepicker");
 basePlugins.unshift([
   "expo-calendar",
   {
