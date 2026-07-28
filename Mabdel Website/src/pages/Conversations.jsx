@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { smartflowApi } from '../api/services';
 import { formatCstTime } from '../utils/dateUtils';
+import { buildWebSocketUrl } from '../api/client';
 import {
   AlertTriangle,
   Archive,
@@ -642,8 +643,7 @@ export default function Conversations() {
     const token = getStoredAccessToken();
     if (!token) return undefined;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const socket = new WebSocket(`${protocol}://127.0.0.1:8000/api/v1/smartflow/ws/inbox?token=${encodeURIComponent(token)}`);
+    const socket = new WebSocket(buildWebSocketUrl('/api/v1/smartflow/ws/inbox', token));
     inboxSocketRef.current = socket;
 
     socket.onmessage = (event) => {
@@ -691,8 +691,7 @@ export default function Conversations() {
     let socket = null;
 
     if (token) {
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      socket = new WebSocket(`${protocol}://127.0.0.1:8000/api/v1/smartflow/ws/conversations/${selectedId}?token=${encodeURIComponent(token)}`);
+      socket = new WebSocket(buildWebSocketUrl(`/api/v1/smartflow/ws/conversations/${selectedId}`, token));
       conversationSocketRef.current = socket;
       socket.onmessage = (event) => {
         try {

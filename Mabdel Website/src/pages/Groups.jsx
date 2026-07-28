@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { buildWebSocketUrl } from '../api/client';
 import { smartflowApi } from '../api/services';
 import { formatCstDateTime, formatCstTime } from '../utils/dateUtils';
 import { useAuthStore } from '../store/useAuthStore';
@@ -331,9 +332,8 @@ export default function Groups() {
     const token = getStoredAccessToken();
     if (!token) return undefined;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const socket = new WebSocket(
-      `${protocol}://127.0.0.1:8000/api/v1/smartflow/ws/conversations/${activeGroup.conversation_id}?token=${encodeURIComponent(token)}`,
+      buildWebSocketUrl(`/api/v1/smartflow/ws/conversations/${activeGroup.conversation_id}`, token),
     );
     threadSocketRef.current = socket;
     socket.onmessage = async (event) => {
