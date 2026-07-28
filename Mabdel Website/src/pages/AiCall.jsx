@@ -98,7 +98,7 @@ export default function AiCall() {
            <div className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center">
                {isConnected && (
                   <>
-                     <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }} transition={{ duration: 3, repeat: Infinity }} className="absolute w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[100px]" />
+                     <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }} transition={{ duration: 3, repeat: Infinity }} className="absolute w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px]" />
                      <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.1, 0.2, 0.1] }} transition={{ duration: 4, repeat: Infinity, delay: 1 }} className="absolute w-[300px] h-[300px] bg-blue-500/20 rounded-full blur-[80px]" />
                   </>
                )}
@@ -107,16 +107,16 @@ export default function AiCall() {
            <div className="z-10 flex flex-col items-center">
                <div className="relative mb-8">
                    <div className="w-32 h-32 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center shadow-2xl relative z-10">
-                       <Activity size={48} className={isConnected && !isauted ? "text-cyan-400 animate-pulse" : "text-slate-600"} />
+                       <Activity size={48} className={isConnected && !isauted ? "text-purple-400 animate-pulse" : "text-slate-600"} />
                    </div>
                    
                    {isCalling && (
-                       <div className="absolute inset-[-10px] border-2 border-cyan-500/30 rounded-full animate-ping" />
+                       <div className="absolute inset-[-10px] border-2 border-purple-500/30 rounded-full animate-ping" />
                    )}
                    {isConnected && !isauted && (
                        <>
-                         <div className="absolute inset-[-15px] border border-cyan-500/40 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
-                         <div className="absolute inset-[-30px] border border-cyan-500/20 rounded-full animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+                         <div className="absolute inset-[-15px] border border-purple-500/40 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
+                         <div className="absolute inset-[-30px] border border-purple-500/20 rounded-full animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
                        </>
                    )}
                </div>
@@ -125,7 +125,7 @@ export default function AiCall() {
                
                <div className="h-6 flex items-center justify-center">
                    {isCalling ? (
-                       <span className="text-cyan-400 font-bold animate-pulse">Connecting...</span>
+                       <span className="text-purple-400 font-bold animate-pulse">Connecting...</span>
                    ) : isConnected ? (
                        <span className="text-emerald-400 font-mono font-bold text-lg">{formatDuration(duration)}</span>
                    ) : (

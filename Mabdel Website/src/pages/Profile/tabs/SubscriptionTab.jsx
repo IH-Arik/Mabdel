@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 
 import { smartflowApi } from '../../../api/services';
 import { Badge } from '../shared';
+import { formatCstDate } from '../../../utils/dateUtils';
 
 const formatPrice = (plan) => {
   const amount = Number(plan?.price_cents || 0) / 100;
@@ -46,7 +47,7 @@ function SubscriptionTab() {
   if (loading) {
     return (
       <div className="flex h-48 items-center justify-center">
-        <Loader2 className="animate-spin text-[#11C7E5]" />
+        <Loader2 className="animate-spin text-[#9333ea]" />
       </div>
     );
   }
@@ -61,14 +62,14 @@ function SubscriptionTab() {
       ) : null}
 
       {current ? (
-        <div className="rounded-2xl border border-[#11C7E5]/20 bg-[#0A1019] p-5">
+        <div className="rounded-2xl border border-[#9333ea]/20 bg-[#0A1019] p-5">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[#A4B0B7]">Current Plan</p>
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xl font-black text-white">{current.plan?.name || 'Free'}</p>
               <p className="text-sm text-[#A4B0B7]">
                 {current.status === 'active' ? 'Active' : current.status}
-                {current.renews_at ? ` · Renews ${new Date(current.renews_at).toLocaleDateString()}` : ''}
+                {current.renews_at ? ` · Renews ${formatCstDate(current.renews_at)}` : ''}
               </p>
             </div>
             <Badge color={current.status === 'active' ? 'green' : 'yellow'}>{current.status || 'free'}</Badge>
@@ -81,20 +82,20 @@ function SubscriptionTab() {
           {plans.map((plan) => {
             const isCurrent = current?.plan?.code === plan.code;
             return (
-              <div key={plan.code} className={`rounded-2xl border bg-[#0A1019] p-5 ${plan.is_popular ? 'border-[#11C7E5]/30' : 'border-[#243041]'}`}>
+              <div key={plan.code} className={`rounded-2xl border bg-[#0A1019] p-5 ${plan.is_popular ? 'border-[#9333ea]/30' : 'border-[#243041]'}`}>
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-lg font-bold text-white">{plan.name}</h3>
                   {plan.is_popular ? <Badge>Popular</Badge> : null}
                 </div>
                 <p className="mt-1 text-sm text-[#A4B0B7]">{plan.description}</p>
-                <p className="mt-3 text-3xl font-black text-[#11C7E5]">
+                <p className="mt-3 text-3xl font-black text-[#9333ea]">
                   {formatPrice(plan)}
                   {Number(plan.price_cents || 0) > 0 ? <span className="text-sm text-[#A4B0B7]">/{plan.billing_interval || 'month'}</span> : null}
                 </p>
                 <ul className="mt-4 space-y-2">
                   {(plan.features || []).map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-xs text-[#A4B0B7]">
-                      <CheckCircle2 size={12} className="mt-0.5 shrink-0 text-[#11C7E5]" />
+                      <CheckCircle2 size={12} className="mt-0.5 shrink-0 text-[#9333ea]" />
                       <span>{feature}</span>
                     </li>
                   ))}

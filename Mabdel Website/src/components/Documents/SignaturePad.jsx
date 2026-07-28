@@ -13,7 +13,7 @@ export default function SignaturePad({ onSave }) {
       // Set actual size in memory (scaled to account for extra pixel density if needed, though simple 1:1 is fine here)
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#11C7E5'; // Cyan ink
+      ctx.strokeStyle = '#9333ea'; // Cyan ink
     }
   }, []);
 

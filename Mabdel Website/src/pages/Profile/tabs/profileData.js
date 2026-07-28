@@ -1,3 +1,5 @@
+import { formatCstDate } from '../../../utils/dateUtils';
+
 export const getApiList = (response, keys = []) => {
   const data = response?.data?.data || response?.data || {};
   if (Array.isArray(data)) return data;
@@ -35,7 +37,7 @@ export const formatEventDate = (item) => {
   if (!value) return '-';
 
   try {
-    return new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    return formatCstDate(value);
   } catch {
     return '-';
   }

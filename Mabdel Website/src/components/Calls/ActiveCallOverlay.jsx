@@ -53,14 +53,14 @@ export default function ActiveCallOverlay({
           {/* Caller Info */}
           <div className={`flex flex-col items-center justify-center flex-1 transition-all ${isExpanded ? 'mb-12' : 'mb-6'}`}>
               <div className="relative">
-                  <div className={`rounded-full bg-[#11C7E5]/10 flex items-center justify-center text-[#11C7E5] font-black border border-[#11C7E5]/20 relative z-10 transition-all ${isExpanded ? 'w-32 h-32 text-4xl' : 'w-20 h-20 text-2xl'}`}>
+                  <div className={`rounded-full bg-[#9333ea]/10 flex items-center justify-center text-[#9333ea] font-black border border-[#9333ea]/20 relative z-10 transition-all ${isExpanded ? 'w-32 h-32 text-4xl' : 'w-20 h-20 text-2xl'}`}>
                       {callerName?.[0] || 'C'}
                   </div>
                   {/* Active audio rings */}
                   {!isMuted && (
                       <>
-                        <div className="absolute inset-0 border border-[#11C7E5]/30 rounded-full animate-ping opacity-50" />
-                        <div className="absolute inset-[-10px] border border-[#11C7E5]/10 rounded-full animate-ping opacity-30" style={{ animationDelay: '0.5s' }} />
+                        <div className="absolute inset-0 border border-[#9333ea]/30 rounded-full animate-ping opacity-50" />
+                        <div className="absolute inset-[-10px] border border-[#9333ea]/10 rounded-full animate-ping opacity-30" style={{ animationDelay: '0.5s' }} />
                       </>
                   )}
               </div>

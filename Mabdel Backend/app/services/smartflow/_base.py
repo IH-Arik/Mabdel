@@ -2505,6 +2505,10 @@ class SmartFlowBase:
         details = self._lease_details_from_agreement(lease)
         lease_status = self._derive_lease_status({**lease, "end_date": details.get("end_date")})
         lease_id = safe["id"]
+        docusign = lease.get("docusign") or {}
+        safe["pdf_url"] = self._lease_pdf_url(lease_id)
+        safe["signed_pdf_url"] = self._lease_signed_pdf_url(lease_id) if docusign.get("signed_pdf_public_path") else None
+        safe["completion_certificate_url"] = self._lease_certificate_url(lease_id) if docusign.get("certificate_public_path") else None
         safe["agreement_status"] = safe.get("status")
         safe["status"] = lease_status
         safe["lease_status"] = lease_status
@@ -3004,6 +3008,18 @@ class SmartFlowBase:
     @staticmethod
     def _agreement_certificate_url(agreement_id: str) -> str:
         return f"/api/v1/smartflow/agreements/{agreement_id}/completion-certificate"
+
+    @staticmethod
+    def _lease_pdf_url(lease_id: str) -> str:
+        return f"/api/v1/smartflow/leases/{lease_id}/pdf"
+
+    @staticmethod
+    def _lease_signed_pdf_url(lease_id: str) -> str:
+        return f"/api/v1/smartflow/leases/{lease_id}/signed-pdf"
+
+    @staticmethod
+    def _lease_certificate_url(lease_id: str) -> str:
+        return f"/api/v1/smartflow/leases/{lease_id}/completion-certificate"
 
     @staticmethod
     def _agreement_signature_url(token: str) -> str:

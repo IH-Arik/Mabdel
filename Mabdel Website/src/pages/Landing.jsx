@@ -45,7 +45,7 @@ function StoreBadge({ icon: Icon, eyebrow, label, compact = false }) {
         <span className={`block font-medium text-gray-400 uppercase tracking-wide ${compact ? 'text-[8px]' : 'text-[9px]'}`}>{eyebrow}</span>
         <span className={`block font-bold text-white ${compact ? 'text-xs' : 'text-sm'}`}>{label}</span>
       </span>
-      <span className="ml-1 text-[9px] font-bold uppercase tracking-wider text-cyan-400 border border-cyan-500/30 bg-cyan-950/30 rounded-full px-2 py-0.5">
+      <span className="ml-1 text-[9px] font-bold uppercase tracking-wider text-purple-400 border border-purple-500/30 bg-purple-950/30 rounded-full px-2 py-0.5">
         Soon
       </span>
     </button>
@@ -244,7 +244,7 @@ export default function Landing() {
   const TrialButton = ({ className = '' }) => (
     <button
       onClick={() => navigate('/subscription')}
-      className={`px-8 py-4 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-cyan-500/20 hover:opacity-95 hover:shadow-cyan-500/35 transition-all active:scale-[0.98] inline-flex items-center justify-center gap-2 group ${className}`}
+      className={`px-8 py-4 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-purple-500/20 hover:opacity-95 hover:shadow-purple-500/35 transition-all active:scale-[0.98] inline-flex items-center justify-center gap-2 group ${className}`}
     >
       Start 7-Day Free Trial
       <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
@@ -252,19 +252,19 @@ export default function Landing() {
   );
 
   return (
-    <div className="min-h-screen bg-[#070a13] text-gray-100 font-sans antialiased overflow-x-hidden selection:bg-cyan-500 selection:text-[#070a13]">
+    <div className="min-h-screen bg-[#070a13] text-gray-100 font-sans antialiased overflow-x-hidden selection:bg-purple-500 selection:text-[#070a13]">
 
       {/* Background Gradients */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] pointer-events-none -z-10 overflow-hidden">
-        <div className="absolute top-[-10%] left-[20%] w-[60%] h-[80%] bg-gradient-to-tr from-cyan-500/10 to-teal-500/5 rounded-full blur-[120px] opacity-75" />
-        <div className="absolute top-[20%] right-[10%] w-[40%] h-[60%] bg-cyan-600/5 rounded-full blur-[100px] opacity-50" />
+        <div className="absolute top-[-10%] left-[20%] w-[60%] h-[80%] bg-gradient-to-tr from-purple-500/10 to-blue-500/5 rounded-full blur-[120px] opacity-75" />
+        <div className="absolute top-[20%] right-[10%] w-[40%] h-[60%] bg-purple-600/5 rounded-full blur-[100px] opacity-50" />
       </div>
 
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-md border-b border-gray-900 bg-[#070a13]/70">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <img src={logoMark} alt="GoCustify logo" className="w-9 h-9 rounded-lg shadow-lg shadow-cyan-500/20" />
+            <img src={logoMark} alt="GoCustify logo" className="w-9 h-9 rounded-lg shadow-lg shadow-purple-500/20" />
             <span className="text-xl font-bold tracking-tight text-white bg-clip-text">GoCustify</span>
           </div>
 
@@ -283,7 +283,7 @@ export default function Landing() {
             </button>
             <button
               onClick={() => navigate('/subscription')}
-              className="px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl hover:opacity-90 transition-all shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.98]"
+              className="px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl hover:opacity-90 transition-all shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.98]"
             >
               Start Free Trial
             </button>
@@ -301,7 +301,7 @@ export default function Landing() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/20 text-cyan-400 text-xs font-semibold uppercase tracking-wider"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-950/20 text-purple-400 text-xs font-semibold uppercase tracking-wider"
             >
               <Sparkles size={12} className="animate-pulse" /> The AI-Powered Business Operating System
             </motion.div>
@@ -313,7 +313,7 @@ export default function Landing() {
               className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] text-white"
             >
               Power Up Your <br />
-              <span className="bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-purple-400 via-blue-300 to-purple-400 bg-clip-text text-transparent">
                 Business With AI
               </span>
             </motion.h1>
@@ -367,7 +367,7 @@ export default function Landing() {
           <div className="lg:col-span-5 relative flex items-center justify-center">
 
             {/* Ambient Backlight */}
-            <div className="absolute w-72 h-72 bg-cyan-500/10 rounded-full blur-[80px] -z-10 animate-pulse" />
+            <div className="absolute w-72 h-72 bg-purple-500/10 rounded-full blur-[80px] -z-10 animate-pulse" />
 
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -387,7 +387,7 @@ export default function Landing() {
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                 className="absolute top-12 -left-8 px-4 py-3 bg-[#0d1222]/80 backdrop-blur-md border border-gray-800 rounded-xl flex items-center gap-3 shadow-xl"
               >
-                <div className="w-8 h-8 rounded-lg bg-cyan-950 flex items-center justify-center text-cyan-400">
+                <div className="w-8 h-8 rounded-lg bg-purple-950 flex items-center justify-center text-purple-400">
                   <PhoneCall size={16} />
                 </div>
                 <div className="text-left">
@@ -417,7 +417,7 @@ export default function Landing() {
                 transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
                 className="absolute -bottom-4 left-10 px-4 py-3 bg-[#0d1222]/80 backdrop-blur-md border border-gray-800 rounded-xl flex items-center gap-3 shadow-xl"
               >
-                <div className="w-8 h-8 rounded-lg bg-cyan-950 flex items-center justify-center text-cyan-400">
+                <div className="w-8 h-8 rounded-lg bg-purple-950 flex items-center justify-center text-purple-400">
                   <Bot size={16} />
                 </div>
                 <div className="text-left">
@@ -445,7 +445,7 @@ export default function Landing() {
           <button
             type="button"
             onClick={() => setVideoOpen(true)}
-            className="group relative w-full aspect-video rounded-3xl overflow-hidden border border-gray-800 hover:border-cyan-500/40 transition-all shadow-2xl shadow-black/40 cursor-pointer"
+            className="group relative w-full aspect-video rounded-3xl overflow-hidden border border-gray-800 hover:border-purple-500/40 transition-all shadow-2xl shadow-black/40 cursor-pointer"
           >
             <img
               src={heroImage}
@@ -454,7 +454,7 @@ export default function Landing() {
             />
             <div className="absolute inset-0 bg-gradient-to-b from-[#070a13]/40 via-[#070a13]/60 to-[#070a13]/80" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-cyan-400 text-[#02080B] flex items-center justify-center shadow-xl shadow-cyan-500/30 group-hover:scale-110 transition-transform">
+              <div className="w-20 h-20 rounded-full bg-purple-400 text-[#02080B] flex items-center justify-center shadow-xl shadow-purple-500/30 group-hover:scale-110 transition-transform">
                 <Play size={28} fill="currentColor" className="ml-1" />
               </div>
             </div>
@@ -515,7 +515,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-2 lg:grid-cols-4 gap-8">
           {stats.map((stat) => (
             <div key={stat.label} className="text-center space-y-2">
-              <p className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-300 bg-clip-text text-transparent">
+              <p className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-purple-400 to-blue-300 bg-clip-text text-transparent">
                 {stat.value}
               </p>
               <p className="text-xs md:text-sm text-gray-500 font-medium leading-snug max-w-[200px] mx-auto">
@@ -552,10 +552,10 @@ export default function Landing() {
                 >
                   <div className={`space-y-6 text-left ${reversed ? 'lg:order-2' : 'lg:order-1'}`}>
                     <div className="flex items-center gap-3">
-                      <span className="w-10 h-10 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] font-extrabold flex items-center justify-center text-sm shrink-0">
+                      <span className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] font-extrabold flex items-center justify-center text-sm shrink-0">
                         {String(index + 1).padStart(2, '0')}
                       </span>
-                      <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-cyan-400">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-purple-400">
                         <step.icon size={13} /> {step.label}
                       </span>
                     </div>
@@ -568,8 +568,8 @@ export default function Landing() {
                     <ul className="space-y-3">
                       {step.bullets.map((bullet) => (
                         <li key={bullet} className="flex items-start gap-3 text-sm text-gray-300">
-                          <span className="mt-0.5 w-5 h-5 rounded-full bg-cyan-950 border border-cyan-500/30 flex items-center justify-center shrink-0">
-                            <Check size={12} className="text-cyan-400" />
+                          <span className="mt-0.5 w-5 h-5 rounded-full bg-purple-950 border border-purple-500/30 flex items-center justify-center shrink-0">
+                            <Check size={12} className="text-purple-400" />
                           </span>
                           {bullet}
                         </li>
@@ -579,10 +579,10 @@ export default function Landing() {
 
                   {/* Illustrative panel */}
                   <div className={`relative flex items-center justify-center py-4 ${reversed ? 'lg:order-1' : 'lg:order-2'}`}>
-                    <div className="absolute w-56 h-56 bg-cyan-500/10 rounded-full blur-[70px] -z-0" />
+                    <div className="absolute w-56 h-56 bg-purple-500/10 rounded-full blur-[70px] -z-0" />
                     <div className="relative z-10 w-full max-w-sm bg-[#0d1222]/90 backdrop-blur-md border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-cyan-950 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                        <div className="w-10 h-10 rounded-xl bg-purple-950 border border-purple-500/20 flex items-center justify-center text-purple-400">
                           <step.panel.icon size={18} />
                         </div>
                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
@@ -630,7 +630,7 @@ export default function Landing() {
             ))}
           </div>
 
-          <p className="text-sm font-bold text-cyan-400 uppercase tracking-widest pt-2">
+          <p className="text-sm font-bold text-purple-400 uppercase tracking-widest pt-2">
             GoCustify replaces them all — with one AI that never clocks out.
           </p>
         </div>
@@ -662,15 +662,15 @@ export default function Landing() {
                 variants={itemVariants}
                 whileHover={{ y: -6 }}
                 onClick={() => navigate('/login')}
-                className="group relative bg-[#111625]/40 backdrop-blur-xl border border-gray-900 hover:border-cyan-500/40 p-8 rounded-3xl cursor-pointer transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(6,182,212,0.15)] flex flex-col justify-between h-72"
+                className="group relative bg-[#111625]/40 backdrop-blur-xl border border-gray-900 hover:border-purple-500/40 p-8 rounded-3xl cursor-pointer transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(6,182,212,0.15)] flex flex-col justify-between h-72"
               >
-                <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/0 to-cyan-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/0 to-purple-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none duration-300" />
 
                 <div>
-                  <div className="w-12 h-12 bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center text-cyan-400 group-hover:text-cyan-300 group-hover:border-cyan-500/30 transition-colors">
+                  <div className="w-12 h-12 bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center text-purple-400 group-hover:text-purple-300 group-hover:border-purple-500/30 transition-colors">
                     <card.icon size={22} />
                   </div>
-                  <h3 className="text-xl font-bold text-white mt-6 group-hover:text-cyan-300 transition-colors">
+                  <h3 className="text-xl font-bold text-white mt-6 group-hover:text-purple-300 transition-colors">
                     {card.title}
                   </h3>
                   <p className="text-sm text-gray-400 mt-3 font-normal leading-relaxed">
@@ -678,7 +678,7 @@ export default function Landing() {
                   </p>
                 </div>
 
-                <div className="inline-flex items-center gap-2 text-sm font-bold text-cyan-400 group-hover:text-cyan-300 mt-6 select-none">
+                <div className="inline-flex items-center gap-2 text-sm font-bold text-purple-400 group-hover:text-purple-300 mt-6 select-none">
                   Explore <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </div>
               </motion.div>
@@ -705,12 +705,12 @@ export default function Landing() {
                 key={plan.name}
                 className={`relative flex flex-col rounded-3xl p-8 border transition-all duration-300 ${
                   plan.isPopular
-                    ? 'bg-[#0d1626] border-cyan-500/40 shadow-[0_0_40px_-10px_rgba(6,182,212,0.25)] md:-translate-y-3'
+                    ? 'bg-[#0d1626] border-purple-500/40 shadow-[0_0_40px_-10px_rgba(6,182,212,0.25)] md:-translate-y-3'
                     : 'bg-[#111625]/40 border-gray-900 hover:border-gray-700'
                 }`}
               >
                 {plan.isPopular && (
-                  <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-lg shadow-cyan-500/25">
+                  <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] text-[11px] font-extrabold uppercase tracking-wider rounded-full shadow-lg shadow-purple-500/25">
                     Most Popular
                   </span>
                 )}
@@ -727,8 +727,8 @@ export default function Landing() {
                 <ul className="space-y-3 mt-8 flex-1">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-3 text-sm text-gray-300">
-                      <span className="mt-0.5 w-5 h-5 rounded-full bg-cyan-950 border border-cyan-500/30 flex items-center justify-center shrink-0">
-                        <Check size={12} className="text-cyan-400" />
+                      <span className="mt-0.5 w-5 h-5 rounded-full bg-purple-950 border border-purple-500/30 flex items-center justify-center shrink-0">
+                        <Check size={12} className="text-purple-400" />
                       </span>
                       {feature}
                     </li>
@@ -739,7 +739,7 @@ export default function Landing() {
                   onClick={() => navigate('/subscription')}
                   className={`mt-8 w-full px-6 py-3.5 font-bold rounded-xl transition-all active:scale-[0.98] ${
                     plan.isPopular
-                      ? 'bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] shadow-lg shadow-cyan-500/20 hover:opacity-95'
+                      ? 'bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] shadow-lg shadow-purple-500/20 hover:opacity-95'
                       : 'bg-gray-900/60 border border-gray-800 text-white hover:bg-gray-900 hover:border-gray-700'
                   }`}
                 >
@@ -759,7 +759,7 @@ export default function Landing() {
       <section className="py-14 border-t border-gray-950 bg-[#0a0e1a]/60">
         <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
           <div className="flex flex-col items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center text-cyan-400">
+            <div className="w-11 h-11 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center text-purple-400">
               <Lock size={20} />
             </div>
             <p className="text-sm font-bold text-white">Private by Design</p>
@@ -768,7 +768,7 @@ export default function Landing() {
             </p>
           </div>
           <div className="flex flex-col items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center text-cyan-400">
+            <div className="w-11 h-11 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center text-purple-400">
               <Users size={20} />
             </div>
             <p className="text-sm font-bold text-white">Built for Teams</p>
@@ -777,7 +777,7 @@ export default function Landing() {
             </p>
           </div>
           <div className="flex flex-col items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center text-cyan-400">
+            <div className="w-11 h-11 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center text-purple-400">
               <CalendarClock size={20} />
             </div>
             <p className="text-sm font-bold text-white">Up & Running in Minutes</p>
@@ -790,10 +790,10 @@ export default function Landing() {
 
       {/* CTA Section */}
       <section className="py-24 md:py-32 relative bg-gradient-to-b from-[#0a0e1a] to-[#070a13] border-t border-gray-950">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-[100px] pointer-events-none -z-10" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/5 rounded-full blur-[100px] pointer-events-none -z-10" />
 
         <div className="max-w-4xl mx-auto px-6 text-center space-y-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/20 text-cyan-400 text-xs font-semibold uppercase tracking-wider mx-auto">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-950/20 text-purple-400 text-xs font-semibold uppercase tracking-wider mx-auto">
             <Megaphone size={12} /> 7-Day Free Trial
           </div>
           <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">

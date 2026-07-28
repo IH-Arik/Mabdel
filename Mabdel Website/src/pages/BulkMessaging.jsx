@@ -6,9 +6,10 @@ import {
   Loader2, Mail, Mic, Paperclip, Phone, Play, Plus, Sparkles, Square, Upload, Users, X,
 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
+import { formatCstDate, formatCstDateTime } from '../utils/dateUtils';
 import { DateTimePickerInput } from '../components/ui/DateTimeInputs';
 
-const INPUT = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors text-sm placeholder:text-[#4A5568]';
+const INPUT = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-sm placeholder:text-[#4A5568]';
 const LABEL = 'block text-[#A4B0B7] text-xs font-semibold uppercase tracking-wider mb-1.5';
 
 const CHANNELS = [
@@ -139,7 +140,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
       )}
 
       {validationSummary && (
-        <div className="p-3 bg-[#11C7E5]/5 border border-[#11C7E5]/20 rounded-xl text-sm text-[#A4B0B7]">
+        <div className="p-3 bg-[#9333ea]/5 border border-[#9333ea]/20 rounded-xl text-sm text-[#A4B0B7]">
           <span className="text-white font-semibold">{validationSummary.valid}</span> valid
           {validationSummary.invalid ? <span>, <span className="text-amber-300 font-semibold">{validationSummary.invalid}</span> invalid</span> : null}
           {validationSummary.duplicates ? <span>, <span className="text-amber-300 font-semibold">{validationSummary.duplicates}</span> duplicate</span> : null}
@@ -164,7 +165,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
                 }}
                 className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm border transition-all cursor-pointer ${
                   channel === option.id
-                    ? 'bg-[#11C7E5]/10 border-[#11C7E5]/30 text-[#11C7E5]'
+                    ? 'bg-[#9333ea]/10 border-[#9333ea]/30 text-[#9333ea]'
                     : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'
                 }`}
               >
@@ -179,7 +180,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
       {chips.length > 0 && (
         <div className="flex flex-wrap gap-2 p-3 bg-[#0A1019] border border-[#243246] rounded-xl min-h-12">
           {chips.map((chip) => (
-            <span key={chip} className="flex items-center gap-1.5 px-3 py-1 bg-[#11C7E5]/10 border border-[#11C7E5]/20 text-[#11C7E5] text-xs font-bold rounded-full">
+            <span key={chip} className="flex items-center gap-1.5 px-3 py-1 bg-[#9333ea]/10 border border-[#9333ea]/20 text-[#9333ea] text-xs font-bold rounded-full">
               {chip}
               <button type="button" onClick={() => removeChip(chip)} className="hover:text-white cursor-pointer">
                 <X size={11} />
@@ -205,7 +206,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
         <button
           type="button"
           onClick={() => addChip(manual)}
-          className="px-4 py-3 bg-[#11C7E5]/10 border border-[#11C7E5]/20 text-[#11C7E5] rounded-xl hover:bg-[#11C7E5]/20 transition-colors cursor-pointer"
+          className="px-4 py-3 bg-[#9333ea]/10 border border-[#9333ea]/20 text-[#9333ea] rounded-xl hover:bg-[#9333ea]/20 transition-colors cursor-pointer"
         >
           <Plus size={16} />
         </button>
@@ -230,9 +231,9 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
                   onClick={() => {
                     if (target) setChips((current) => [...new Set([...current, target])]);
                   }}
-                  className="w-full flex items-center gap-3 p-2.5 hover:bg-[#11C7E5]/5 rounded-xl transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center gap-3 p-2.5 hover:bg-[#9333ea]/5 rounded-xl transition-colors text-left cursor-pointer"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#243041] flex items-center justify-center text-[#11C7E5] font-black text-xs shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#243041] flex items-center justify-center text-[#9333ea] font-black text-xs shrink-0">
                     {(contact.name || '?')[0].toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -272,9 +273,9 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
                   type="button"
                   disabled={loadingGroupId === group.id}
                   onClick={() => addGroupRecipients(group)}
-                  className="w-full flex items-center gap-3 p-2.5 hover:bg-[#11C7E5]/5 rounded-xl transition-colors text-left cursor-pointer disabled:opacity-60"
+                  className="w-full flex items-center gap-3 p-2.5 hover:bg-[#9333ea]/5 rounded-xl transition-colors text-left cursor-pointer disabled:opacity-60"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#243041] flex items-center justify-center text-[#11C7E5] shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#243041] flex items-center justify-center text-[#9333ea] shrink-0">
                     {loadingGroupId === group.id ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -290,8 +291,8 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
         </div>
       )}
 
-      <label className="flex items-center gap-3 p-4 border border-dashed border-[#243246] hover:border-[#11C7E5]/40 rounded-xl cursor-pointer transition-colors group">
-        <Upload size={18} className="text-[#A4B0B7] group-hover:text-[#11C7E5] transition-colors" />
+      <label className="flex items-center gap-3 p-4 border border-dashed border-[#243246] hover:border-[#9333ea]/40 rounded-xl cursor-pointer transition-colors group">
+        <Upload size={18} className="text-[#A4B0B7] group-hover:text-[#9333ea] transition-colors" />
         <div>
           <p className="text-white text-sm font-semibold">{file ? file.name : 'Upload CSV file'}</p>
           <p className="text-[#A4B0B7] text-xs">
@@ -306,7 +307,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
         <button
           onClick={validate}
           disabled={validating || chips.length === 0}
-          className="px-6 py-3 bg-[#11C7E5] text-[#02080B] rounded-xl font-bold flex items-center gap-2 hover:bg-[#0fd0f0] transition-colors cursor-pointer disabled:opacity-60"
+          className="px-6 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold flex items-center gap-2 hover:bg-[#a855f7] transition-colors cursor-pointer disabled:opacity-60"
         >
           {validating ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
           Validate Recipients
@@ -463,9 +464,9 @@ function StepCompose({
 
   return (
     <div className="space-y-5">
-      <div className="p-4 bg-[#11C7E5]/5 border border-[#11C7E5]/20 rounded-xl flex items-center justify-between">
+      <div className="p-4 bg-[#9333ea]/5 border border-[#9333ea]/20 rounded-xl flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-[#11C7E5]" />
+          <CheckCircle2 size={16} className="text-[#9333ea]" />
           <span className="font-bold text-white">{recipients.length}</span>
           <span className="text-[#A4B0B7] text-sm">recipients validated</span>
         </div>
@@ -500,7 +501,7 @@ function StepCompose({
                 }}
                 className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm border transition-all cursor-pointer ${
                   channel === option.id
-                    ? 'bg-[#11C7E5]/10 border-[#11C7E5]/30 text-[#11C7E5]'
+                    ? 'bg-[#9333ea]/10 border-[#9333ea]/30 text-[#9333ea]'
                     : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'
                 }`}
               >
@@ -548,7 +549,7 @@ function StepCompose({
               onClick={improveMessage}
               disabled={improving || !message.trim()}
               title="Improve with AI"
-              className="w-9 h-9 rounded-lg border border-[#243246] bg-[#0A1019] text-[#A4B0B7] hover:text-[#11C7E5] flex items-center justify-center transition-colors cursor-pointer disabled:opacity-60"
+              className="w-9 h-9 rounded-lg border border-[#243246] bg-[#0A1019] text-[#A4B0B7] hover:text-[#9333ea] flex items-center justify-center transition-colors cursor-pointer disabled:opacity-60"
             >
               {improving ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
             </button>
@@ -558,7 +559,7 @@ function StepCompose({
           <p className="text-rose-300 text-xs mt-1.5 flex items-center gap-1.5"><AlertTriangle size={12} />{voiceError}</p>
         )}
         <p className="text-[#A4B0B7] text-xs mt-1">
-          Variables: <span className="text-[#11C7E5]">{'{name}'}</span>, <span className="text-[#11C7E5]">{'{phone}'}</span>, <span className="text-[#11C7E5]">{'{date}'}</span>
+          Variables: <span className="text-[#9333ea]">{'{name}'}</span>, <span className="text-[#9333ea]">{'{phone}'}</span>, <span className="text-[#9333ea]">{'{date}'}</span>
         </p>
       </div>
 
@@ -621,12 +622,12 @@ function StepCompose({
         <DateTimePickerInput
           value={scheduleDate}
           onChange={setScheduleDate}
-          className="focus:border-[#11C7E5]/50"
+          className="focus:border-[#9333ea]/50"
         />
         {scheduleDate && (
-          <p className="text-[#11C7E5] text-xs mt-1 flex items-center gap-1.5">
+          <p className="text-[#9333ea] text-xs mt-1 flex items-center gap-1.5">
             <CalendarClock size={12} />
-            Scheduled for {new Date(scheduleDate).toLocaleString()}
+            Scheduled for {formatCstDateTime(scheduleDate)}
           </p>
         )}
       </div>
@@ -638,7 +639,7 @@ function StepCompose({
         <button
           onClick={onSend}
           disabled={!message.trim() || sending}
-          className="flex-[2] py-3 bg-[#11C7E5] text-[#02080B] rounded-xl font-extrabold flex items-center justify-center gap-2 hover:bg-[#0fd0f0] transition-colors cursor-pointer disabled:opacity-60"
+          className="flex-[2] py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-extrabold flex items-center justify-center gap-2 hover:bg-[#a855f7] transition-colors cursor-pointer disabled:opacity-60"
         >
           {sending ? <Loader2 size={18} className="animate-spin" /> : scheduleDate ? <CalendarClock size={18} /> : <Play size={18} />}
           {sending ? 'Sending...' : scheduleDate ? 'Schedule Broadcast' : 'Send Now'}
@@ -679,7 +680,7 @@ function BroadcastHistory({ refreshKey = 0 }) {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-24"><Loader2 className="animate-spin text-[#11C7E5]" /></div>;
+    return <div className="flex items-center justify-center h-24"><Loader2 className="animate-spin text-[#9333ea]" /></div>;
   }
   if (loadError) {
     return <div className="mt-6 p-4 rounded-2xl border border-rose-500/30 bg-rose-950/20 text-rose-300 text-sm">{loadError}</div>;
@@ -690,14 +691,14 @@ function BroadcastHistory({ refreshKey = 0 }) {
 
   return (
     <div className="mt-6">
-      <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Clock size={15} className="text-[#11C7E5]" />Previous Broadcasts</h3>
+      <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Clock size={15} className="text-[#9333ea]" />Previous Broadcasts</h3>
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl overflow-hidden">
         {items.map((item, index) => (
           <div key={item.id || index} className="p-4 flex items-center justify-between gap-4 border-b border-[#243041]/30 last:border-0">
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-white text-sm truncate">{item.subject || item.content?.slice(0, 60) || 'Broadcast'}</p>
               <p className="text-[#A4B0B7] text-xs mt-0.5">
-                {(item.recipients || []).length || item.recipient_emails?.length || 0} recipients • {item.channel} • {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
+                {(item.recipients || []).length || item.recipient_emails?.length || 0} recipients • {item.channel} • {item.created_at ? formatCstDate(item.created_at) : ''}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -813,12 +814,12 @@ export default function BulkMessaging() {
           return (
             <Fragment key={stepNumber}>
               <div className="flex flex-col items-center gap-1">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-extrabold transition-all border ${active ? 'bg-[#11C7E5]/10 border-[#11C7E5]/35 text-white shadow-[0_0_15px_rgba(17,199,229,0.15)]' : 'bg-[#131A24] border-[#243041] text-[#A4B0B7]'} ${current ? 'ring-2 ring-[#11C7E5]/30' : ''}`}>
-                  {stepNumber === 3 && step === 3 ? <CheckCircle size={18} className="text-[#11C7E5]" /> : stepNumber}
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-extrabold transition-all border ${active ? 'bg-[#9333ea]/10 border-[#9333ea]/35 text-white shadow-[0_0_15px_rgba(17,199,229,0.15)]' : 'bg-[#131A24] border-[#243041] text-[#A4B0B7]'} ${current ? 'ring-2 ring-[#9333ea]/30' : ''}`}>
+                  {stepNumber === 3 && step === 3 ? <CheckCircle size={18} className="text-[#9333ea]" /> : stepNumber}
                 </div>
-                <span className={`text-[10px] font-bold ${active ? 'text-[#11C7E5]' : 'text-[#A4B0B7]'}`}>{label}</span>
+                <span className={`text-[10px] font-bold ${active ? 'text-[#9333ea]' : 'text-[#A4B0B7]'}`}>{label}</span>
               </div>
-              {stepNumber < steps.length && <div className={`flex-1 max-w-12 h-0.5 ${step > stepNumber ? 'bg-[#11C7E5]/35' : 'bg-[#243041]'} transition-colors`} />}
+              {stepNumber < steps.length && <div className={`flex-1 max-w-12 h-0.5 ${step > stepNumber ? 'bg-[#9333ea]/35' : 'bg-[#243041]'} transition-colors`} />}
             </Fragment>
           );
         })}
@@ -859,18 +860,18 @@ export default function BulkMessaging() {
           )}
           {step === 3 && (
             <motion.div key="s3" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-12 text-center space-y-6">
-              <div className="w-24 h-24 bg-[#11C7E5]/10 border-2 border-[#11C7E5]/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(17,199,229,0.1)]">
-                <CheckCircle size={48} className="text-[#11C7E5]" />
+              <div className="w-24 h-24 bg-[#9333ea]/10 border-2 border-[#9333ea]/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(17,199,229,0.1)]">
+                <CheckCircle size={48} className="text-[#9333ea]" />
               </div>
               <div>
                 <h2 className="text-2xl font-extrabold text-white">Broadcast {scheduleDate ? 'Scheduled!' : 'Sent!'}</h2>
                 <p className="text-[#A4B0B7] text-sm mt-2 max-w-md mx-auto">
                   {scheduleDate
-                    ? `Your message is scheduled for ${new Date(scheduleDate).toLocaleString()}.`
+                    ? `Your message is scheduled for ${formatCstDateTime(scheduleDate)}.`
                     : `Your message is being delivered to ${chips.length} recipients.`}
                 </p>
               </div>
-              <button onClick={reset} className="px-8 py-3 bg-[#11C7E5] text-[#02080B] rounded-xl font-extrabold hover:bg-[#0fd0f0] active:scale-95 transition-all cursor-pointer">
+              <button onClick={reset} className="px-8 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-extrabold hover:bg-[#a855f7] active:scale-95 transition-all cursor-pointer">
                 Send Another
               </button>
             </motion.div>

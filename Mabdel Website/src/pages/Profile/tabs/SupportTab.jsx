@@ -117,7 +117,7 @@ function SupportTab() {
       {session ? (
         <div className="rounded-2xl border border-[#243041] bg-[#0A1019] p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#11C7E5]/10 text-[#11C7E5]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#9333ea]/10 text-[#9333ea]">
               <UserRound size={18} />
             </div>
             <div>
@@ -141,7 +141,7 @@ function SupportTab() {
       >
         {loading ? (
           <div className="flex h-32 items-center justify-center">
-            <Loader2 className="animate-spin text-[#11C7E5]" />
+            <Loader2 className="animate-spin text-[#9333ea]" />
           </div>
         ) : messages.length === 0 ? (
           <p className="py-8 text-center text-sm text-[#A4B0B7]">No messages yet. Send a message to start.</p>
@@ -154,7 +154,7 @@ function SupportTab() {
               <div
                 className={`max-w-xs rounded-2xl px-4 py-2.5 text-sm ${
                   message.sender_type === 'user'
-                    ? 'bg-[#11C7E5] text-[#02080B]'
+                    ? 'bg-[#9333ea] text-[#02080B]'
                     : 'border border-[#243041] bg-[#131A24] text-white'
                 }`}
               >
@@ -165,7 +165,7 @@ function SupportTab() {
                     target="_blank"
                     rel="noreferrer"
                     className={`mt-2 block text-xs underline ${
-                      message.sender_type === 'user' ? 'text-[#02080B]' : 'text-[#11C7E5]'
+                      message.sender_type === 'user' ? 'text-[#02080B]' : 'text-[#9333ea]'
                     }`}
                   >
                     Open attachment
@@ -191,7 +191,7 @@ function SupportTab() {
             <button
               key={`${reply?.value || reply?.label || 'reply'}-${index}`}
               onClick={() => setNewMsg(reply?.value || reply?.label || '')}
-              className="cursor-pointer rounded-xl border border-[#11C7E5]/20 bg-[#11C7E5]/10 px-3 py-1.5 text-xs font-semibold text-[#11C7E5] transition-colors hover:bg-[#11C7E5]/20"
+              className="cursor-pointer rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-3 py-1.5 text-xs font-semibold text-[#9333ea] transition-colors hover:bg-[#9333ea]/20"
             >
               {reply?.label || reply?.value || 'Quick reply'}
             </button>
@@ -215,7 +215,7 @@ function SupportTab() {
         <button
           onClick={send}
           disabled={sending || !newMsg.trim()}
-          className="cursor-pointer rounded-xl bg-[#11C7E5] px-5 py-3 font-bold text-[#02080B] transition-colors disabled:opacity-60"
+          className="cursor-pointer rounded-xl bg-[#9333ea] px-5 py-3 font-bold text-[#02080B] transition-colors disabled:opacity-60"
         >
           {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
         </button>

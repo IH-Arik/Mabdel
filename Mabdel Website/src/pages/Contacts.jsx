@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
+import { formatCalendarDate } from '../utils/dateUtils';
 import { DatePickerInput } from '../components/ui/DateTimeInputs';
 
 const IMPORT_HEADERS = ['name', 'first_name', 'last_name', 'email', 'phone', 'address', 'notes', 'company', 'job_title'];
@@ -480,7 +481,7 @@ export default function Contacts() {
                 onClick={() => setActiveTab('on_mabdel')}
                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                   activeTab === 'on_mabdel' 
-                    ? 'bg-cyan-500/20 text-cyan-400 shadow-sm' 
+                    ? 'bg-purple-500/20 text-purple-400 shadow-sm' 
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -490,7 +491,7 @@ export default function Contacts() {
                 onClick={() => setActiveTab('invite')}
                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                   activeTab === 'invite' 
-                    ? 'bg-cyan-500/20 text-cyan-400 shadow-sm' 
+                    ? 'bg-purple-500/20 text-purple-400 shadow-sm' 
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -519,7 +520,7 @@ export default function Contacts() {
                   setSuccessMessage('');
                   setViewMode('create');
                 }}
-                className="px-4 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] hover:shadow-cyan-400/10 rounded-xl text-xs font-extrabold shadow-lg shadow-cyan-500/5 active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 bg-purple-400 hover:bg-purple-300 text-[#070a13] hover:shadow-purple-400/10 rounded-xl text-xs font-extrabold shadow-lg shadow-purple-500/5 active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <UserPlus size={14} /> Add Contact
               </button>
@@ -586,7 +587,7 @@ export default function Contacts() {
             <div className="lg:col-span-8 bg-[#0c101b]/90 border border-slate-900 rounded-3xl p-6 text-left flex flex-col justify-between space-y-4">
               <div className="flex justify-between items-center pb-2">
                 <h3 className="text-xs font-bold text-slate-500 tracking-widest uppercase">Top Prospects</h3>
-                <button className="text-[10px] font-bold text-cyan-400 hover:underline">View All</button>
+                <button className="text-[10px] font-bold text-purple-400 hover:underline">View All</button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -611,7 +612,7 @@ export default function Contacts() {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative">
-                        <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-extrabold text-cyan-400 overflow-hidden">
+                        <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-extrabold text-purple-400 overflow-hidden">
                           {item.avatar_url ? (
                             <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
                           ) : (
@@ -628,7 +629,7 @@ export default function Contacts() {
                       </div>
                     </div>
                     {/* Micro trend indicator icon */}
-                    <div className="text-cyan-400 bg-cyan-950/40 p-1.5 rounded-lg border border-cyan-500/20">
+                    <div className="text-purple-400 bg-purple-950/40 p-1.5 rounded-lg border border-purple-500/20">
                       <Activity size={12} />
                     </div>
                   </div>
@@ -637,7 +638,7 @@ export default function Contacts() {
             </div>
 
             {/* Network Reach Panel (1/3 width) */}
-            <div className="lg:col-span-4 bg-gradient-to-br from-cyan-400 to-teal-500 rounded-3xl p-6 text-[#070a13] flex flex-col justify-between text-left shadow-lg shadow-cyan-500/10 min-h-[150px]">
+            <div className="lg:col-span-4 bg-gradient-to-br from-purple-400 to-blue-500 rounded-3xl p-6 text-[#070a13] flex flex-col justify-between text-left shadow-lg shadow-purple-500/10 min-h-[150px]">
               <div className="flex justify-between items-start">
                 <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">Network Reach</span>
                 <span className="p-1 bg-[#070a13]/10 rounded-lg">
@@ -650,7 +651,7 @@ export default function Contacts() {
               </div>
               <div className="flex items-center -space-x-2 pt-2">
                 {showcasedContacts.map((item, idx) => (
-                  <div key={idx} className="w-6 h-6 rounded-full border border-[#070a13] bg-[#0c101b] flex items-center justify-center text-[7px] text-cyan-400 font-extrabold shadow-md overflow-hidden">
+                  <div key={idx} className="w-6 h-6 rounded-full border border-[#070a13] bg-[#0c101b] flex items-center justify-center text-[7px] text-purple-400 font-extrabold shadow-md overflow-hidden">
                     {item.avatarText}
                   </div>
                 ))}
@@ -679,7 +680,7 @@ export default function Contacts() {
                   <input 
                     type="text" 
                     placeholder="Search directory..."
-                    className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40 transition-colors"
+                    className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition-colors"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -688,14 +689,14 @@ export default function Contacts() {
                 <div className="flex items-center gap-1 bg-slate-950 border border-slate-900 p-1 rounded-xl">
                   <button 
                     onClick={() => setLayoutMode('grid')}
-                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${layoutMode === 'grid' ? 'bg-slate-900 text-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${layoutMode === 'grid' ? 'bg-slate-900 text-purple-400' : 'text-slate-500 hover:text-slate-300'}`}
                     title="Grid layout"
                   >
                     <Grid size={14} />
                   </button>
                   <button 
                     onClick={() => setLayoutMode('list')}
-                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${layoutMode === 'list' ? 'bg-slate-900 text-cyan-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${layoutMode === 'list' ? 'bg-slate-900 text-purple-400' : 'text-slate-500 hover:text-slate-300'}`}
                     title="List layout"
                   >
                     <List size={14} />
@@ -864,7 +865,7 @@ export default function Contacts() {
                 <button className="p-1.5 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-500 rounded-lg transition-colors cursor-pointer">
                   <ChevronLeft size={14} />
                 </button>
-                <span className="w-7 h-7 bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 flex items-center justify-center rounded-lg text-xs font-extrabold">1</span>
+                <span className="w-7 h-7 bg-purple-950/60 border border-purple-500/30 text-purple-400 flex items-center justify-center rounded-lg text-xs font-extrabold">1</span>
                 <span className="w-7 h-7 hover:bg-slate-900 text-slate-500 hover:text-white flex items-center justify-center rounded-lg text-xs font-bold cursor-pointer">2</span>
                 <span className="w-7 h-7 hover:bg-slate-900 text-slate-500 hover:text-white flex items-center justify-center rounded-lg text-xs font-bold cursor-pointer">3</span>
                 <button className="p-1.5 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-500 rounded-lg transition-colors cursor-pointer">
@@ -911,8 +912,8 @@ export default function Contacts() {
           <div className="bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 text-left">
             <div className="flex items-center gap-5">
               <div className="relative flex-shrink-0">
-                <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-cyan-500/40 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/5 overflow-hidden">
-                  <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-3xl font-extrabold text-cyan-400 overflow-hidden">
+                <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-purple-500/40 p-0.5 flex items-center justify-center shadow-lg shadow-purple-500/5 overflow-hidden">
+                  <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-3xl font-extrabold text-purple-400 overflow-hidden">
                     {activeContact.avatar_url ? (
                         <img src={activeContact.avatar_url} alt={activeContact.name} className="w-full h-full object-cover" />
                       ) : (
@@ -938,18 +939,18 @@ export default function Contacts() {
             {/* Quick Actions call / msg / edit triggers */}
             <div className="flex items-center gap-3">
               <button onClick={() => handleCallContact(activeContact)} className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer">
-                <PhoneCall size={16} className="text-cyan-400 mb-1" />
+                <PhoneCall size={16} className="text-purple-400 mb-1" />
                 <span>Call</span>
               </button>
               <button 
                 onClick={() => window.location.href = `/conversations`}
                 className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all"
               >
-                <MessageSquare size={16} className="text-cyan-400 mb-1" />
+                <MessageSquare size={16} className="text-purple-400 mb-1" />
                 <span>Message</span>
               </button>
               <button onClick={() => openEdit(activeContact)} className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer">
-                <Pencil size={16} className="text-cyan-400 mb-1" />
+                <Pencil size={16} className="text-purple-400 mb-1" />
                 <span>Edit</span>
               </button>
             </div>
@@ -961,7 +962,7 @@ export default function Contacts() {
             {/* Quick Stats card (1/3 width) */}
             <div className="lg:col-span-4 bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 flex flex-col justify-between min-h-[200px]">
               <div className="flex justify-between items-start">
-                <span className="w-8 h-8 rounded-lg bg-slate-950 border border-slate-900 flex items-center justify-center text-cyan-400">
+                <span className="w-8 h-8 rounded-lg bg-slate-950 border border-slate-900 flex items-center justify-center text-purple-400">
                   <Activity size={14} />
                 </span>
                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Quick Stats</span>
@@ -983,7 +984,7 @@ export default function Contacts() {
                 {(activeContact.activity_chart || [4, 2, 8, 12, 5]).map((val, idx) => (
                   <div 
                     key={idx}
-                    className="flex-1 bg-cyan-950/40 border border-cyan-500/20 rounded-md transition-all hover:bg-cyan-500/50 hover:border-cyan-400"
+                    className="flex-1 bg-purple-950/40 border border-purple-500/20 rounded-md transition-all hover:bg-purple-500/50 hover:border-purple-400"
                     style={{ height: `${(val / 15) * 100}%` }}
                     title={`Calls count: ${val}`}
                   />
@@ -1033,7 +1034,7 @@ export default function Contacts() {
                   <div>
                     <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Date of Birth (DOB)</span>
                     <span className="text-white mt-0.5 block">
-                      {activeContact.date_of_birth || activeContact.dob ? new Date(activeContact.date_of_birth || activeContact.dob).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not provided'}
+                      {activeContact.date_of_birth || activeContact.dob ? formatCalendarDate(activeContact.date_of_birth || activeContact.dob) : 'Not provided'}
                     </span>
                   </div>
                 </div>
@@ -1087,7 +1088,7 @@ export default function Contacts() {
               <ArrowLeft size={16} />
               <span>Back to Directory</span>
             </button>
-            <span className="px-2.5 py-0.5 bg-cyan-950/80 border border-cyan-500/20 text-cyan-400 text-[9px] font-bold rounded-full uppercase tracking-wider">
+            <span className="px-2.5 py-0.5 bg-purple-950/80 border border-purple-500/20 text-purple-400 text-[9px] font-bold rounded-full uppercase tracking-wider">
               {editId ? 'Editing Contact' : 'Creating Draft'}
             </span>
           </div>
@@ -1110,14 +1111,14 @@ export default function Contacts() {
             {/* profile upload block */}
             <div className="flex flex-col items-center justify-center space-y-2 pb-2">
               <label htmlFor="avatar-upload" className="relative cursor-pointer group">
-                <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-dashed border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:bg-slate-900 transition-colors overflow-hidden">
+                <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-dashed border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:bg-slate-900 transition-colors overflow-hidden">
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
                     <User size={32} />
                   )}
                 </div>
-                <span className="absolute bottom-0 right-0 w-6 h-6 bg-cyan-400 rounded-full flex items-center justify-center text-[#070a13] font-bold text-xs shadow-md">
+                <span className="absolute bottom-0 right-0 w-6 h-6 bg-purple-400 rounded-full flex items-center justify-center text-[#070a13] font-bold text-xs shadow-md">
                   +
                 </span>
                 <input 
@@ -1143,7 +1144,7 @@ export default function Contacts() {
                     type="text" 
                     placeholder="e.g. Alex"
                     required
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                   />
@@ -1158,7 +1159,7 @@ export default function Contacts() {
                   <input 
                     type="text" 
                     placeholder="e.g. Thompson"
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                   />
@@ -1173,7 +1174,7 @@ export default function Contacts() {
                   <input 
                     type="text" 
                     placeholder="+1 (415) 555-0123"
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                   />
@@ -1188,7 +1189,7 @@ export default function Contacts() {
                   <input 
                     type="email" 
                     placeholder="alex.t@lumina.ai"
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -1203,7 +1204,7 @@ export default function Contacts() {
                   <input 
                     type="text" 
                     placeholder="123 Innovation Drive, San Francisco, CA"
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                   />
@@ -1227,7 +1228,7 @@ export default function Contacts() {
                 <div className="relative">
                   <Sparkles className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                   <select 
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white"
                     value={leadStatus}
                     onChange={(e) => setLeadStatus(e.target.value)}
                   >
@@ -1245,7 +1246,7 @@ export default function Contacts() {
                   <FileText className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
                   <textarea 
                     placeholder="Add key decision maker insights, communication preferences, or relevant background information here..."
-                    className="w-full pl-9 pr-4 py-3 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700 min-h-[100px]"
+                    className="w-full pl-9 pr-4 py-3 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700 min-h-[100px]"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                   />
@@ -1259,7 +1260,7 @@ export default function Contacts() {
               <button 
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-3 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-50 text-[#070a13] hover:shadow-cyan-400/15 rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer"
+                className="px-6 py-3 bg-purple-400 hover:bg-purple-300 disabled:opacity-50 text-[#070a13] hover:shadow-purple-400/15 rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer"
               >
                 {submitting ? 'Saving...' : 'Save Contact'}
               </button>
@@ -1283,7 +1284,7 @@ export default function Contacts() {
             
             {/* Privacy details */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-5 flex items-start gap-4">
-              <div className="p-2.5 bg-slate-950 border border-slate-900 text-cyan-400 rounded-xl flex-shrink-0 mt-0.5">
+              <div className="p-2.5 bg-slate-950 border border-slate-900 text-purple-400 rounded-xl flex-shrink-0 mt-0.5">
                 <ShieldCheck size={16} />
               </div>
               <div>
@@ -1308,7 +1309,7 @@ export default function Contacts() {
                   onClick={() => setWorkflowSequence(true)}
                   className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                     workflowSequence 
-                      ? 'bg-cyan-950/40 text-cyan-400 border border-cyan-500/20' 
+                      ? 'bg-purple-950/40 text-purple-400 border border-purple-500/20' 
                       : 'text-slate-500 hover:text-slate-300 border border-transparent'
                   }`}
                 >
@@ -1319,7 +1320,7 @@ export default function Contacts() {
                   onClick={() => setWorkflowSequence(false)}
                   className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                     !workflowSequence 
-                      ? 'bg-cyan-950/40 text-cyan-400 border border-cyan-500/20' 
+                      ? 'bg-purple-950/40 text-purple-400 border border-purple-500/20' 
                       : 'text-slate-500 hover:text-slate-300 border border-transparent'
                   }`}
                 >

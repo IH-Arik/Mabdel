@@ -156,7 +156,7 @@ export default function MainLayout() {
               <h1 className="text-sm font-black text-white tracking-tight leading-none uppercase">
                 GoCustify
               </h1>
-              <p className="text-[7.5px] font-bold text-[#11C7E5]/80 tracking-[0.2em] uppercase mt-1">
+              <p className="text-[7.5px] font-bold text-[#9333ea]/80 tracking-[0.2em] uppercase mt-1">
                 AI CRM PLATFORM
               </p>
             </div>
@@ -255,7 +255,7 @@ export default function MainLayout() {
               size={24}
               strokeWidth={2.75}
               buttonClassName="hover:text-white transition-colors relative cursor-pointer"
-              className={cn(path === '/notifications' ? 'text-[#11C7E5]' : 'text-slate-200')}
+              className={cn(path === '/notifications' ? 'text-[#9333ea]' : 'text-slate-200')}
             />
 
             {/* Profile Avatar */}
@@ -263,7 +263,7 @@ export default function MainLayout() {
               onClick={() => navigate('/profile')}
               className="flex items-center gap-3 cursor-pointer group"
             >
-              <div className="w-8 h-8 rounded-full bg-slate-800 border border-[#243041] flex items-center justify-center text-[#11C7E5] font-black overflow-hidden shadow-inner group-hover:border-[#11C7E5]/50 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-slate-800 border border-[#243041] flex items-center justify-center text-[#9333ea] font-black overflow-hidden shadow-inner group-hover:border-[#9333ea]/50 transition-colors">
                 {user?.full_name?.[0]?.toUpperCase() || 'U'}
               </div>
             </div>

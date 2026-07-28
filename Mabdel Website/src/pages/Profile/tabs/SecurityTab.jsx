@@ -69,14 +69,14 @@ function SecurityTab() {
 
       {/* Change Password */}
       <div className="bg-[#0A1019] border border-[#243041] rounded-2xl p-5 space-y-4">
-        <h3 className="font-bold text-white flex items-center gap-2"><Key size={16} className="text-[#11C7E5]"/>Change Password</h3>
+        <h3 className="font-bold text-white flex items-center gap-2"><Key size={16} className="text-[#9333ea]"/>Change Password</h3>
         <PwInput label="Current Password" value={oldPw} onChange={setOldPw} show={showOld} onToggle={()=>setShowOld(s=>!s)}/>
         <PwInput label="New Password" value={newPw} onChange={setNewPw} show={showNew} onToggle={()=>setShowNew(s=>!s)}/>
         <Field label="Confirm New Password">
           <input type="password" value={confirmPw} onChange={e=>setConfirmPw(e.target.value)} className={INPUT} placeholder="••••••••"/>
         </Field>
         <button onClick={changePassword} disabled={changing}
-          className="px-6 py-3 bg-[#11C7E5] text-[#02080B] rounded-xl font-bold flex items-center gap-2 hover:bg-[#0fd0f0] transition-colors cursor-pointer disabled:opacity-60">
+          className="px-6 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold flex items-center gap-2 hover:bg-[#a855f7] transition-colors cursor-pointer disabled:opacity-60">
           {changing ? <Loader2 size={16} className="animate-spin"/> : <Lock size={16}/>}
           {changing ? 'Changing…' : 'Change Password'}
         </button>
@@ -84,7 +84,7 @@ function SecurityTab() {
 
       {/* Session Management */}
       <div className="bg-[#0A1019] border border-[#243041] rounded-2xl p-5 space-y-4">
-        <h3 className="font-bold text-white flex items-center gap-2"><Shield size={16} className="text-[#11C7E5]"/>Session Management</h3>
+        <h3 className="font-bold text-white flex items-center gap-2"><Shield size={16} className="text-[#9333ea]"/>Session Management</h3>
         <p className="text-[#A4B0B7] text-sm">Revoke all active sessions and force re-authentication on all devices.</p>
         <button onClick={revokeSessions} disabled={revoking}
           className="px-6 py-3 bg-amber-900/20 border border-amber-500/30 text-amber-400 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-900/30 transition-colors cursor-pointer disabled:opacity-60">

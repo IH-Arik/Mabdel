@@ -73,8 +73,8 @@ export default function Profile() {
               const Icon = tab.icon;
               return (
                 <button key={tab.id} onClick={()=>setActive(tab.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer text-left ${active===tab.id ? 'bg-[#11C7E5]/10 text-white border border-[#11C7E5]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border border-transparent'}`}>
-                  <Icon size={15} className={active===tab.id ? 'text-[#11C7E5]' : ''}/>
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer text-left ${active===tab.id ? 'bg-[#9333ea]/10 text-white border border-[#9333ea]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border border-transparent'}`}>
+                  <Icon size={15} className={active===tab.id ? 'text-[#9333ea]' : ''}/>
                   {tab.label}
                 </button>
               );

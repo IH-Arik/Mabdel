@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { smartflowApi } from '../api/services';
+import { formatCstTime } from '../utils/dateUtils';
 import {
   AlertTriangle,
   Archive,
@@ -19,13 +20,12 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 
 const PLATFORM_COLORS = {
-  ai: '#11C7E5',
+  ai: '#9333ea',
   global: '#10B981',
   whatsapp: '#25D366',
   instagram: '#E4405F',
@@ -176,21 +176,21 @@ const formatMessageTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return format(date, 'HH:mm');
+  return formatCstTime(date, { hour: '2-digit', hour12: false });
 };
 
 const formatConversationTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return format(date, 'HH:mm');
+  return formatCstTime(date, { hour: '2-digit', hour12: false });
 };
 
 function PLATFORM_BADGE({ platform }) {
   return (
     <span
       className="text-[9px] font-bold uppercase tracking-widest"
-      style={{ color: PLATFORM_COLORS[platform] || '#11C7E5' }}
+      style={{ color: PLATFORM_COLORS[platform] || '#9333ea' }}
     >
       {platform || 'chat'}
     </span>
@@ -289,11 +289,11 @@ function ConvItem({ conversation, selected, onClick }) {
     <button
       onClick={onClick}
       className={`w-full border-b border-[#243041]/10 p-4 text-left transition-all hover:bg-slate-900/40 ${
-        selected ? 'border-l-4 border-l-[#11C7E5] bg-[#11C7E5]/10' : ''
+        selected ? 'border-l-4 border-l-[#9333ea] bg-[#9333ea]/10' : ''
       }`}
     >
       <div className="flex gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-black uppercase text-[#11C7E5]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-black uppercase text-[#9333ea]">
           {conversation.contact_name?.[0] || 'C'}
         </div>
         <div className="min-w-0 flex-1">
@@ -311,7 +311,7 @@ function ConvItem({ conversation, selected, onClick }) {
           </div>
         </div>
         {conversation.unread_count > 0 ? (
-          <div className="flex h-5 w-5 shrink-0 self-center items-center justify-center rounded-full bg-[#11C7E5] text-[10px] font-black text-[#070a13]">
+          <div className="flex h-5 w-5 shrink-0 self-center items-center justify-center rounded-full bg-[#9333ea] text-[10px] font-black text-[#070a13]">
             {Math.min(conversation.unread_count, 99)}
           </div>
         ) : null}
@@ -342,17 +342,17 @@ function MsgBubble({ message, onReply, onForward }) {
       className={`group flex ${outbound ? 'justify-end' : 'justify-start'}`}
     >
       {!outbound ? (
-        <div className="mr-2 flex h-7 w-7 shrink-0 self-end items-center justify-center rounded-lg bg-slate-900 text-[10px] font-bold text-[#11C7E5]">
+        <div className="mr-2 flex h-7 w-7 shrink-0 self-end items-center justify-center rounded-lg bg-slate-900 text-[10px] font-bold text-[#9333ea]">
           {message.sender_name?.[0] || message.contact_name?.[0] || 'C'}
         </div>
       ) : null}
 
       {outbound ? (
         <div className="mr-2 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <button aria-label="Reply to message" title="Reply" onClick={() => onReply(message)} className="text-slate-500 hover:text-[#11C7E5]">
+          <button aria-label="Reply to message" title="Reply" onClick={() => onReply(message)} className="text-slate-500 hover:text-[#9333ea]">
             <Reply size={14} />
           </button>
-          <button aria-label="Forward message" title="Forward" onClick={() => onForward(message)} className="text-slate-500 hover:text-[#11C7E5]">
+          <button aria-label="Forward message" title="Forward" onClick={() => onForward(message)} className="text-slate-500 hover:text-[#9333ea]">
             <Forward size={14} />
           </button>
         </div>
@@ -361,7 +361,7 @@ function MsgBubble({ message, onReply, onForward }) {
       <div
         className={`max-w-[72%] rounded-2xl p-3.5 text-xs font-semibold leading-relaxed shadow-md ${
           outbound
-            ? 'rounded-tr-none bg-[#11C7E5]/90 text-[#070a13]'
+            ? 'rounded-tr-none bg-[#9333ea]/90 text-[#070a13]'
             : 'rounded-tl-none border border-slate-900 bg-[#121625]/60 text-slate-200'
         }`}
       >
@@ -381,7 +381,7 @@ function MsgBubble({ message, onReply, onForward }) {
             href={message.media_url}
             target="_blank"
             rel="noreferrer"
-            className={`mt-2 block text-[11px] underline ${outbound ? 'text-[#031218]' : 'text-cyan-300'}`}
+            className={`mt-2 block text-[11px] underline ${outbound ? 'text-[#031218]' : 'text-purple-300'}`}
           >
             Open attachment
           </a>
@@ -394,10 +394,10 @@ function MsgBubble({ message, onReply, onForward }) {
 
       {!outbound ? (
         <div className="ml-2 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <button aria-label="Reply to message" title="Reply" onClick={() => onReply(message)} className="text-slate-500 hover:text-[#11C7E5]">
+          <button aria-label="Reply to message" title="Reply" onClick={() => onReply(message)} className="text-slate-500 hover:text-[#9333ea]">
             <Reply size={14} />
           </button>
-          <button aria-label="Forward message" title="Forward" onClick={() => onForward(message)} className="text-slate-500 hover:text-[#11C7E5]">
+          <button aria-label="Forward message" title="Forward" onClick={() => onForward(message)} className="text-slate-500 hover:text-[#9333ea]">
             <Forward size={14} />
           </button>
         </div>
@@ -439,7 +439,7 @@ function AISuggestion({ conversationId, onUse }) {
         <button
           onClick={generate}
           disabled={loading}
-          className="flex cursor-pointer items-center gap-1.5 text-xs font-bold text-[#11C7E5] hover:underline disabled:opacity-60"
+          className="flex cursor-pointer items-center gap-1.5 text-xs font-bold text-[#9333ea] hover:underline disabled:opacity-60"
         >
           {loading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
           {loading ? 'Generating suggestions...' : 'AI Reply Suggestions'}
@@ -447,7 +447,7 @@ function AISuggestion({ conversationId, onUse }) {
       ) : (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1 text-xs font-bold text-[#11C7E5]">
+            <span className="flex items-center gap-1 text-xs font-bold text-[#9333ea]">
               <Sparkles size={11} />
               AI Suggestions
             </span>
@@ -463,7 +463,7 @@ function AISuggestion({ conversationId, onUse }) {
                   onUse(suggestion.replace(/^[0-9]+[.)]\s*/, ''));
                   setSuggestions([]);
                 }}
-                className="cursor-pointer rounded-xl border border-[#11C7E5]/20 bg-[#11C7E5]/10 px-3 py-1.5 text-left text-xs font-semibold text-[#11C7E5] transition-colors hover:bg-[#11C7E5]/20"
+                className="cursor-pointer rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-3 py-1.5 text-left text-xs font-semibold text-[#9333ea] transition-colors hover:bg-[#9333ea]/20"
               >
                 {suggestion.replace(/^[0-9]+[.)]\s*/, '')}
               </button>
@@ -916,7 +916,7 @@ export default function Conversations() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search conversations..."
-              className="w-full rounded-xl border border-slate-900 bg-slate-950 py-2 pl-9 pr-10 text-xs font-semibold text-white placeholder-slate-600 transition-all focus:border-[#11C7E5]/40 focus:outline-none"
+              className="w-full rounded-xl border border-slate-900 bg-slate-950 py-2 pl-9 pr-10 text-xs font-semibold text-white placeholder-slate-600 transition-all focus:border-[#9333ea]/40 focus:outline-none"
             />
             {search ? (
               <button
@@ -934,7 +934,7 @@ export default function Conversations() {
                 key={option.key}
                 onClick={() => setFilterPlatform(option.key)}
                 className={`cursor-pointer rounded-lg px-2 py-1 text-[10px] font-bold transition-all ${
-                  filterPlatform === option.key ? 'bg-[#11C7E5]/10 text-[#11C7E5]' : 'text-slate-500 hover:text-white'
+                  filterPlatform === option.key ? 'bg-[#9333ea]/10 text-[#9333ea]' : 'text-slate-500 hover:text-white'
                 }`}
               >
                 {option.label}
@@ -982,7 +982,7 @@ export default function Conversations() {
           <>
             <div className="flex items-center justify-between border-b border-[#243041]/40 bg-[#0c101b]/60 p-4 backdrop-blur-md">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#11C7E5]/20 bg-[#11C7E5]/10 text-sm font-black text-[#11C7E5]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 text-sm font-black text-[#9333ea]">
                   {selectedConversation?.contact_name?.[0] || 'C'}
                 </div>
                 <div className="text-left">
@@ -995,14 +995,14 @@ export default function Conversations() {
                   title="Call"
                   disabled={isGlobalChat}
                   onClick={() => smartflowApi.createOutboundCall({ contact_id: selectedConversation?.contact_id, call_type: 'ai_call' }).catch(() => {})}
-                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#11C7E5] disabled:opacity-40"
+                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea] disabled:opacity-40"
                 >
                   <Phone size={16} />
                 </button>
-                <button title="Video" className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#11C7E5]">
+                <button title="Video" className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
                   <Video size={16} />
                 </button>
-                <button title="Info" className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#11C7E5]">
+                <button title="Info" className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
                   <Info size={16} />
                 </button>
                 <button
@@ -1019,7 +1019,7 @@ export default function Conversations() {
             <div className="flex-1 overflow-y-auto p-6">
               {threadLoading ? (
                 <div className="flex h-full items-center justify-center text-slate-400">
-                  <Loader2 size={18} className="mr-2 animate-spin text-[#11C7E5]" />
+                  <Loader2 size={18} className="mr-2 animate-spin text-[#9333ea]" />
                   Loading conversation...
                 </div>
               ) : (
@@ -1077,8 +1077,8 @@ export default function Conversations() {
 
             <div className="flex flex-col gap-2 border-t border-[#243041]/40 bg-[#0c101b]/60 p-4">
               {recording ? (
-                <div className="flex items-center justify-between rounded-lg border border-[#11C7E5]/20 bg-slate-900 px-3 py-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#11C7E5]">
+                <div className="flex items-center justify-between rounded-lg border border-[#9333ea]/20 bg-slate-900 px-3 py-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#9333ea]">
                     <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
                     Recording {String(Math.floor(durationSeconds / 60)).padStart(2, '0')}:{String(durationSeconds % 60).padStart(2, '0')}
                   </div>
@@ -1086,7 +1086,7 @@ export default function Conversations() {
                     <button type="button" onClick={cancelVoiceRecording} className="cursor-pointer p-1 text-slate-500 hover:text-white">
                       <X size={14} />
                     </button>
-                    <button type="button" onClick={stopVoiceRecording} className="cursor-pointer rounded-lg bg-[#11C7E5] px-3 py-1 text-[11px] font-bold text-[#031218]">
+                    <button type="button" onClick={stopVoiceRecording} className="cursor-pointer rounded-lg bg-[#9333ea] px-3 py-1 text-[11px] font-bold text-[#031218]">
                       Stop
                     </button>
                   </div>
@@ -1094,9 +1094,9 @@ export default function Conversations() {
               ) : null}
 
               {!recording && audioUrl ? (
-                <div className="flex flex-col gap-2 rounded-lg border border-[#11C7E5]/20 bg-slate-900 px-3 py-3">
+                <div className="flex flex-col gap-2 rounded-lg border border-[#9333ea]/20 bg-slate-900 px-3 py-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#11C7E5]">Voice message preview</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#9333ea]">Voice message preview</p>
                     <button type="button" onClick={cancelVoiceRecording} className="cursor-pointer p-1 text-slate-500 hover:text-white">
                       <X size={14} />
                     </button>
@@ -1107,7 +1107,7 @@ export default function Conversations() {
                       type="button"
                       onClick={handleSendAudio}
                       disabled={audioSending || voiceLoading}
-                      className="cursor-pointer rounded-lg bg-[#11C7E5] px-3 py-1.5 text-[11px] font-bold text-[#031218] disabled:opacity-60"
+                      className="cursor-pointer rounded-lg bg-[#9333ea] px-3 py-1.5 text-[11px] font-bold text-[#031218] disabled:opacity-60"
                     >
                       {audioSending || voiceLoading ? 'Sending...' : 'Send voice message'}
                     </button>
@@ -1116,9 +1116,9 @@ export default function Conversations() {
               ) : null}
 
               {replyToMessage ? (
-                <div className="flex items-center justify-between rounded-lg border-l-2 border-[#11C7E5] bg-slate-900 px-3 py-2">
+                <div className="flex items-center justify-between rounded-lg border-l-2 border-[#9333ea] bg-slate-900 px-3 py-2">
                   <div className="min-w-0 flex-1">
-                    <p className="mb-0.5 text-[10px] font-bold text-[#11C7E5]">
+                    <p className="mb-0.5 text-[10px] font-bold text-[#9333ea]">
                       Replying to {replyToMessage.direction === 'outbound' ? 'yourself' : selectedConversation?.contact_name || 'them'}
                     </p>
                     <p className="truncate text-xs text-slate-400">{replyToMessage.content}</p>
@@ -1143,7 +1143,7 @@ export default function Conversations() {
                   onChange={(event) => handleComposerChange(event.target.value)}
                   placeholder="Type a message..."
                   rows={2}
-                  className="max-h-32 min-h-[48px] flex-1 resize-none rounded-xl border border-slate-900 bg-slate-950 px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 transition-all focus:border-[#11C7E5]/40 focus:outline-none"
+                  className="max-h-32 min-h-[48px] flex-1 resize-none rounded-xl border border-slate-900 bg-slate-950 px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 transition-all focus:border-[#9333ea]/40 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -1151,7 +1151,7 @@ export default function Conversations() {
                   disabled={voiceLoading || audioSending || Boolean(audioUrl)}
                   title={recording ? 'Stop recording' : 'Record voice message'}
                   aria-label={recording ? 'Stop recording' : 'Record voice message'}
-                  className="shrink-0 cursor-pointer rounded-xl border border-slate-900 bg-slate-950 p-3 text-slate-500 transition-all hover:text-[#11C7E5] disabled:opacity-60"
+                  className="shrink-0 cursor-pointer rounded-xl border border-slate-900 bg-slate-950 p-3 text-slate-500 transition-all hover:text-[#9333ea] disabled:opacity-60"
                 >
                   {voiceLoading ? <Loader2 size={15} className="animate-spin" /> : recording ? <MicOff size={15} /> : <Mic size={15} />}
                 </button>
@@ -1159,7 +1159,7 @@ export default function Conversations() {
                   type="submit"
                   disabled={sending || !newMessage.trim()}
                   aria-label="Send message"
-                  className="flex shrink-0 cursor-pointer items-center justify-center rounded-xl bg-[#11C7E5] p-3 text-[#070a13] shadow-lg shadow-cyan-400/10 transition-all active:scale-95 hover:bg-[#0fd0f0] disabled:opacity-60"
+                  className="flex shrink-0 cursor-pointer items-center justify-center rounded-xl bg-[#9333ea] p-3 text-[#070a13] shadow-lg shadow-purple-400/10 transition-all active:scale-95 hover:bg-[#a855f7] disabled:opacity-60"
                 >
                   {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </button>
@@ -1168,8 +1168,8 @@ export default function Conversations() {
           </>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-slate-500">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#11C7E5]/10">
-              <MessageSquare size={32} className="text-[#11C7E5]" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#9333ea]/10">
+              <MessageSquare size={32} className="text-[#9333ea]" />
             </div>
             <div className="text-center">
               <p className="text-sm font-bold text-white">Select a conversation</p>
@@ -1198,7 +1198,7 @@ export default function Conversations() {
                       onClick={() => handleForwardTarget(conversation)}
                       className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-900/50"
                     >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-xs font-black text-[#11C7E5]">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-xs font-black text-[#9333ea]">
                         {conversation.contact_name?.[0] || 'C'}
                       </div>
                       <div className="min-w-0 flex-1">

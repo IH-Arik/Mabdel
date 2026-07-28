@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Load
 
 import { smartflowApi } from '../../../api/services';
 import { Field, INPUT } from '../shared';
+import { formatCstDate } from '../../../utils/dateUtils';
 
 const CONTENT_SECTIONS = [
   { key: 'about', label: 'About', request: () => smartflowApi.getAboutUs() },
@@ -14,7 +15,7 @@ const CONTENT_SECTIONS = [
 const formatUpdatedAt = (value) => {
   if (!value) return 'No update date';
   try {
-    return new Date(value).toLocaleDateString();
+    return formatCstDate(value);
   } catch {
     return 'No update date';
   }
@@ -150,7 +151,7 @@ function AccountSettingsTab() {
   if (loading) {
     return (
       <div className="flex h-48 items-center justify-center">
-        <Loader2 className="animate-spin text-[#11C7E5]" />
+        <Loader2 className="animate-spin text-[#9333ea]" />
       </div>
     );
   }
@@ -172,7 +173,7 @@ function AccountSettingsTab() {
 
       <div className="space-y-4 rounded-2xl border border-[#243041] bg-[#0A1019] p-5">
         <div className="flex items-center gap-2">
-          <PhoneCall size={16} className="text-[#11C7E5]" />
+          <PhoneCall size={16} className="text-[#9333ea]" />
           <h3 className="font-bold text-white">Twilio Calling Setup</h3>
         </div>
 
@@ -183,7 +184,7 @@ function AccountSettingsTab() {
             <button
               onClick={handleProvisionTwilio}
               disabled={provisioning || platformStatus === 'provisioning'}
-              className="rounded-xl bg-[#11C7E5] px-4 py-2.5 text-sm font-bold text-[#02080B] disabled:opacity-60"
+              className="rounded-xl bg-[#9333ea] px-4 py-2.5 text-sm font-bold text-[#02080B] disabled:opacity-60"
             >
               {provisioning ? 'Provisioning...' : platformStatus === 'active' ? 'Re-run Provision Check' : 'Activate Platform Number'}
             </button>
@@ -236,7 +237,7 @@ function AccountSettingsTab() {
               <button
                 onClick={handleSaveCustomTwilio}
                 disabled={savingCustom}
-                className="rounded-xl border border-[#11C7E5]/20 bg-[#11C7E5]/10 px-4 py-2.5 text-sm font-bold text-[#11C7E5] disabled:opacity-60"
+                className="rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-4 py-2.5 text-sm font-bold text-[#9333ea] disabled:opacity-60"
               >
                 {savingCustom ? 'Validating...' : 'Validate & Save Credentials'}
               </button>
@@ -247,7 +248,7 @@ function AccountSettingsTab() {
 
       <div className="space-y-4 rounded-2xl border border-[#243041] bg-[#0A1019] p-5">
         <div className="flex items-center gap-2">
-          <Shield size={16} className="text-[#11C7E5]" />
+          <Shield size={16} className="text-[#9333ea]" />
           <h3 className="font-bold text-white">Account Content</h3>
         </div>
 
@@ -278,7 +279,7 @@ function AccountSettingsTab() {
                   {section.key === 'help' ? (
                     <a
                       href="mailto:sales@mabdelai.com"
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-[#11C7E5]"
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-[#9333ea]"
                     >
                       <ExternalLink size={14} />
                       sales@mabdelai.com

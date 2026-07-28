@@ -30,7 +30,7 @@ function AIConfigTab() {
   return (
     <div className="space-y-5">
       <div className="bg-[#0A1019] border border-[#243041] rounded-2xl p-5">
-        <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Globe size={16} className="text-[#11C7E5]"/>AI Voice Language</h3>
+        <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Globe size={16} className="text-[#9333ea]"/>AI Voice Language</h3>
         <select
           value={aiLanguage}
           onChange={(event) => setAiLanguage(event.target.value)}
@@ -46,8 +46,8 @@ function AIConfigTab() {
       </div>
 
       <div className="bg-[#0A1019] border border-[#243041] rounded-2xl p-5">
-        <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Mic size={16} className="text-[#11C7E5]"/>Available AI Voices</h3>
-        {loading ? <div className="flex items-center justify-center h-24"><Loader2 className="animate-spin text-[#11C7E5]"/></div>
+        <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Mic size={16} className="text-[#9333ea]"/>Available AI Voices</h3>
+        {loading ? <div className="flex items-center justify-center h-24"><Loader2 className="animate-spin text-[#9333ea]"/></div>
           : voices.length ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {voices.map(v => (

@@ -21,7 +21,7 @@ export default function NotificationBellButton({
     >
       <Bell size={size} strokeWidth={strokeWidth} className={className} />
       {safeCount > 0 ? (
-        <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#11C7E5] text-[#041015] text-[10px] font-black flex items-center justify-center border border-[#0c101b]">
+        <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#9333ea] text-[#041015] text-[10px] font-black flex items-center justify-center border border-[#0c101b]">
           {badgeLabel}
         </span>
       ) : null}

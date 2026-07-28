@@ -116,7 +116,7 @@ function BusinessProfileTab() {
   if (loading) {
     return (
       <div className="flex h-48 items-center justify-center">
-        <Loader2 className="animate-spin text-[#11C7E5]" />
+        <Loader2 className="animate-spin text-[#9333ea]" />
       </div>
     );
   }
@@ -137,11 +137,11 @@ function BusinessProfileTab() {
       ) : null}
 
       <div className="flex items-center gap-5">
-        <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#11C7E5]/20 bg-[#11C7E5]/10">
+        <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#9333ea]/20 bg-[#9333ea]/10">
           {logoUrl ? (
             <img src={logoUrl} alt="logo" className="h-full w-full object-cover" />
           ) : (
-            <Building2 size={32} className="text-[#11C7E5]/40" />
+            <Building2 size={32} className="text-[#9333ea]/40" />
           )}
           {uploading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50">
@@ -150,7 +150,7 @@ function BusinessProfileTab() {
           ) : null}
         </div>
 
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-2.5 text-sm font-semibold text-[#A4B0B7] transition-all hover:border-[#11C7E5]/40 hover:text-white">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-2.5 text-sm font-semibold text-[#A4B0B7] transition-all hover:border-[#9333ea]/40 hover:text-white">
           <Upload size={15} />
           Upload Logo
           <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoUpload} />
@@ -187,7 +187,7 @@ function BusinessProfileTab() {
       <button
         onClick={save}
         disabled={saving}
-        className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#11C7E5] px-6 py-3 font-bold text-[#02080B] transition-colors hover:bg-[#0fd0f0] disabled:opacity-60"
+        className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#9333ea] px-6 py-3 font-bold text-[#02080B] transition-colors hover:bg-[#a855f7] disabled:opacity-60"
       >
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
         {saving ? 'Saving...' : 'Save Business Profile'}

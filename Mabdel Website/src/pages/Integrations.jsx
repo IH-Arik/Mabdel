@@ -19,7 +19,7 @@ const PLATFORM_META = {
 };
 
 const INPUT =
-  'w-full px-4 py-3 bg-[#0C0E12] border border-[#1E2530] text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors text-[15px] placeholder:text-[#70829B]';
+  'w-full px-4 py-3 bg-[#0C0E12] border border-[#1E2530] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-[15px] placeholder:text-[#70829B]';
 
 function WhatsAppModal({ onClose, onSuccess }) {
   const [phone, setPhone] = useState('');
@@ -84,7 +84,7 @@ function WhatsAppModal({ onClose, onSuccess }) {
           <button
             onClick={connect}
             disabled={loading}
-            className="flex-1 h-[50px] bg-[#16CDE9] text-[#03141E] rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#12b0c9] transition-colors cursor-pointer disabled:opacity-60 text-[15px]"
+            className="flex-1 h-[50px] bg-[#c084fc] text-[#03141E] rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#7e22ce] transition-colors cursor-pointer disabled:opacity-60 text-[15px]"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : null}
             Connect
@@ -174,7 +174,7 @@ function TelegramModal({ onClose, onSuccess }) {
           <button
             onClick={connect}
             disabled={loading}
-            className="flex-1 h-[50px] bg-[#16CDE9] text-[#03141E] rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#12b0c9] transition-colors cursor-pointer disabled:opacity-60 text-[15px]"
+            className="flex-1 h-[50px] bg-[#c084fc] text-[#03141E] rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#7e22ce] transition-colors cursor-pointer disabled:opacity-60 text-[15px]"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : null}
             Connect
@@ -236,7 +236,7 @@ function PlatformCard({ item, onConnect, onDisconnect }) {
           onClick={() => !isUnavailable && onConnect(item)}
           disabled={isUnavailable}
           className={`px-4 py-2 rounded-full min-w-[80px] flex items-center justify-center cursor-pointer transition-colors shrink-0 ${
-            isUnavailable ? 'bg-[#1E2530] text-[#03141E]' : 'bg-[#16CDE9] text-[#03141E] hover:bg-[#12b0c9]'
+            isUnavailable ? 'bg-[#1E2530] text-[#03141E]' : 'bg-[#c084fc] text-[#03141E] hover:bg-[#7e22ce]'
           }`}
         >
           <span className="text-[14px] font-bold">{isUnavailable ? 'Soon' : 'Connect'}</span>
@@ -393,7 +393,7 @@ export default function Integrations() {
       <div className="flex-1 pb-10">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3.5">
-            <Loader2 size={32} className="text-[#16CDE9] animate-spin" />
+            <Loader2 size={32} className="text-[#c084fc] animate-spin" />
             <p className="text-[#9BA7BB] text-[15px]">Loading platforms...</p>
           </div>
         ) : error ? (
@@ -402,7 +402,7 @@ export default function Integrations() {
             <p className="text-[#F3F9FF] text-[16px] font-semibold">{error}</p>
             <button
               onClick={fetchAll}
-              className="h-[46px] px-5 bg-[#16CDE9] text-[#03141E] rounded-xl font-semibold hover:bg-[#12b0c9] transition-colors cursor-pointer"
+              className="h-[46px] px-5 bg-[#c084fc] text-[#03141E] rounded-xl font-semibold hover:bg-[#7e22ce] transition-colors cursor-pointer"
             >
               Retry
             </button>

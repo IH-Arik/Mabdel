@@ -10,7 +10,7 @@ import {
   normalizeVoiceWorkflowTranscript,
 } from '../../utils/voiceAgentConfig';
 
-const INPUT_CLS = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors text-sm placeholder:text-[#4A5568]';
+const INPUT_CLS = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-sm placeholder:text-[#4A5568]';
 
 const DESIRED_FIELDS = {
   agreement: ['prompt', 'client_name', 'client_email', 'client_phone', 'agreement_type', 'start_date'],
@@ -506,8 +506,8 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
 
               <div className="p-6 space-y-5">
                 {assistantPrompt ? (
-                  <div className="rounded-2xl border border-[#11C7E5]/20 bg-[#07131B] p-4">
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-[#11C7E5] mb-2">AI prompt</p>
+                  <div className="rounded-2xl border border-[#9333ea]/20 bg-[#07131B] p-4">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-[#9333ea] mb-2">AI prompt</p>
                     <p className="text-sm text-[#D5E3F5]">{assistantPrompt}</p>
                   </div>
                 ) : null}
@@ -531,8 +531,8 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
                 ) : null}
 
                 {phase === 'confirm' ? (
-                  <div className="rounded-2xl border border-[#11C7E5]/20 bg-[#07131B] p-4">
-                    <p className="text-[#11C7E5] text-sm font-semibold">{confirmText}</p>
+                  <div className="rounded-2xl border border-[#9333ea]/20 bg-[#07131B] p-4">
+                    <p className="text-[#9333ea] text-sm font-semibold">{confirmText}</p>
                   </div>
                 ) : null}
 
@@ -546,21 +546,21 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
                   <button
                     type="button"
                     onClick={toggleListening}
-                    className={`absolute bottom-3 right-3 w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${isListening ? 'bg-[#11C7E5] text-[#02080B]' : 'bg-[#0A1019] border border-[#11C7E5]/30 text-[#11C7E5]'}`}
+                    className={`absolute bottom-3 right-3 w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${isListening ? 'bg-[#9333ea] text-[#02080B]' : 'bg-[#0A1019] border border-[#9333ea]/30 text-[#9333ea]'}`}
                   >
                     {isListening ? <Loader2 size={16} className="animate-spin" /> : <Mic size={16} />}
                   </button>
                 </div>
 
                 {isListening ? (
-                  <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+                  <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4">
                     <div className="flex items-center justify-between gap-3 mb-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">
                         Listening in {currentLanguageName}...
                       </p>
-                      <span className="text-cyan-300 text-xs">Live transcript</span>
+                      <span className="text-purple-300 text-xs">Live transcript</span>
                     </div>
-                    <p className="text-sm text-cyan-50 min-h-[22px]">
+                    <p className="text-sm text-purple-50 min-h-[22px]">
                       {liveTranscript || 'Start speaking...'}
                     </p>
                   </div>
@@ -592,12 +592,12 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 py-3 border border-[#243041] text-[#A4B0B7] hover:text-white hover:border-[#11C7E5]/30 rounded-xl font-semibold transition-colors"
+                  className="flex-1 py-3 border border-[#243041] text-[#A4B0B7] hover:text-white hover:border-[#9333ea]/30 rounded-xl font-semibold transition-colors"
                 >
                   Cancel
                 </button>
                 {phase === 'confirm' ? (
-                  <button type="button" onClick={handleConfirm} className="flex-1 py-3 bg-[#11C7E5] text-[#02080B] rounded-xl font-bold">
+                  <button type="button" onClick={handleConfirm} className="flex-1 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold">
                     Fill Form
                   </button>
                 ) : (
@@ -605,7 +605,7 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
                     type="button"
                     onClick={phase === 'question' ? handleAnswerSubmit : handleInitialSubmit}
                     disabled={loading || (!normalizeVoiceText(voiceInput) && !isListening)}
-                    className="flex-1 py-3 bg-[#11C7E5] text-[#02080B] rounded-xl font-bold disabled:opacity-60 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold disabled:opacity-60 flex items-center justify-center gap-2"
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                     {phase === 'question' ? 'Use This Answer' : isListening ? 'Submit Voice Fill' : 'Start Voice Fill'}

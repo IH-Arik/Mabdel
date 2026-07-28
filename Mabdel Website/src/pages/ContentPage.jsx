@@ -3,6 +3,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import logoMark from '../assets/gocustify-mark.png';
+import { formatCstDate } from '../utils/dateUtils';
 
 const PAGE_META = {
   'privacy-policy': { request: () => smartflowApi.getPrivacyPolicy(), eyebrow: 'Legal' },
@@ -20,7 +21,7 @@ const PAGE_META = {
 function formatUpdatedLabel(updatedAt) {
   if (!updatedAt) return '';
   try {
-    return new Date(updatedAt).toLocaleDateString();
+    return formatCstDate(updatedAt);
   } catch {
     return '';
   }
@@ -81,7 +82,7 @@ export default function ContentPage({ forcedSlug = '' }) {
           </button>
 
           <div className="flex items-center gap-2">
-            <img src={logoMark} alt="GoCustify logo" className="w-9 h-9 rounded-lg shadow-lg shadow-cyan-500/20" />
+            <img src={logoMark} alt="GoCustify logo" className="w-9 h-9 rounded-lg shadow-lg shadow-purple-500/20" />
             <span className="text-lg font-bold tracking-tight text-white">GoCustify</span>
           </div>
         </div>
@@ -90,14 +91,14 @@ export default function ContentPage({ forcedSlug = '' }) {
       <main className="max-w-5xl mx-auto px-6 py-16 md:py-20">
         {loading ? (
           <div className="min-h-[40vh] flex items-center justify-center">
-            <Loader2 className="animate-spin text-cyan-400" />
+            <Loader2 className="animate-spin text-purple-400" />
           </div>
         ) : error ? (
           <div className="rounded-3xl border border-rose-500/20 bg-rose-950/10 px-6 py-8 text-rose-300">{error}</div>
         ) : page ? (
           <div className="space-y-10">
             <div className="space-y-5">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-400">{config.eyebrow}</p>
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-purple-400">{config.eyebrow}</p>
               <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">{page.title}</h1>
               {updatedLabel ? <p className="text-sm text-gray-500">Updated {updatedLabel}</p> : null}
             </div>
@@ -114,7 +115,7 @@ export default function ContentPage({ forcedSlug = '' }) {
             {extraSections.map((section) => (
               <div key={section.content.slug || section.content.title} className="space-y-8 pt-4 border-t border-gray-900">
                 <div className="space-y-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-400">{section.eyebrow}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.28em] text-purple-400">{section.eyebrow}</p>
                   <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">{section.content.title}</h1>
                   {formatUpdatedLabel(section.content.updated_at) ? (
                     <p className="text-sm text-gray-500">Updated {formatUpdatedLabel(section.content.updated_at)}</p>

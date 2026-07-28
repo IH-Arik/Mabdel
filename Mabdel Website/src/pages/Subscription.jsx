@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { publicApi } from "../api/services";
+import { formatCstDate, formatCstTime } from "../utils/dateUtils";
 
 const plans = [
   {
@@ -105,7 +106,7 @@ const plans = [
 
 function formatSlotLabel(startIso) {
   const start = new Date(startIso);
-  return `${start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+  return `${formatCstDate(start, { weekday: "short", year: undefined })} · ${formatCstTime(start)}`;
 }
 
 export default function Subscription() {
@@ -299,8 +300,8 @@ export default function Subscription() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070a13] px-6 py-20 text-white selection:bg-cyan-500/30">
-      <div className="fixed left-[-10%] top-[-20%] h-[50%] w-[50%] rounded-full bg-cyan-900/20 blur-[120px] pointer-events-none" />
+    <div className="min-h-screen bg-[#070a13] px-6 py-20 text-white selection:bg-purple-500/30">
+      <div className="fixed left-[-10%] top-[-20%] h-[50%] w-[50%] rounded-full bg-purple-900/20 blur-[120px] pointer-events-none" />
       <div className="fixed bottom-[-20%] right-[-10%] h-[50%] w-[50%] rounded-full bg-teal-900/10 blur-[120px] pointer-events-none" />
 
       <motion.div
@@ -315,7 +316,7 @@ export default function Subscription() {
           &larr; Back to Home
         </button>
         <h1 className="mb-4 text-4xl font-extrabold tracking-tight md:text-5xl">
-          AI CRM <span className="bg-gradient-to-r from-cyan-400 to-teal-300 bg-clip-text text-transparent">Pricing Plans</span>
+          AI CRM <span className="bg-gradient-to-r from-purple-400 to-blue-300 bg-clip-text text-transparent">Pricing Plans</span>
         </h1>
         <p className="text-lg text-gray-400">
           Choose the right GoCustify plan for your team, then scale with usage-based add-ons when you need more.
@@ -335,19 +336,19 @@ export default function Subscription() {
               transition={{ delay: 0.08 * (index + 1) }}
               className={
                 isPopular
-                  ? "relative flex min-h-[980px] flex-col overflow-hidden rounded-3xl border border-cyan-500/50 bg-gradient-to-b from-gray-800/80 to-gray-900/40 p-8 shadow-xl shadow-cyan-500/10"
-                  : "flex min-h-[980px] flex-col rounded-3xl border border-gray-800 bg-gray-900/40 p-8 backdrop-blur-md transition-all hover:border-cyan-500/30"
+                  ? "relative flex min-h-[980px] flex-col overflow-hidden rounded-3xl border border-purple-500/50 bg-gradient-to-b from-gray-800/80 to-gray-900/40 p-8 shadow-xl shadow-purple-500/10"
+                  : "flex min-h-[980px] flex-col rounded-3xl border border-gray-800 bg-gray-900/40 p-8 backdrop-blur-md transition-all hover:border-purple-500/30"
               }
             >
               {isPopular ? (
-                <div className="absolute right-0 top-0 rounded-bl-xl bg-cyan-500 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#070a13]">
+                <div className="absolute right-0 top-0 rounded-bl-xl bg-purple-500 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#070a13]">
                   Most Popular
                 </div>
               ) : null}
 
               <div className="mb-6 mt-2">
                 <h3 className="mb-2 flex items-center gap-2 text-2xl font-bold">
-                  {Icon ? <Icon className="text-cyan-400" size={23} /> : null}
+                  {Icon ? <Icon className="text-purple-400" size={23} /> : null}
                   {plan.name}
                 </h3>
                 <p className="mb-2 text-sm text-gray-400">{plan.subtitle}</p>
@@ -380,7 +381,7 @@ export default function Subscription() {
                         }
                         className={
                           isActive
-                            ? "rounded-full border border-cyan-400 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-200"
+                            ? "rounded-full border border-purple-400 bg-purple-500/10 px-3 py-2 text-xs font-semibold text-purple-200"
                             : "rounded-full border border-gray-700 bg-transparent px-3 py-2 text-xs font-semibold text-gray-400 transition hover:text-white"
                         }
                       >
@@ -391,7 +392,7 @@ export default function Subscription() {
                 </div>
 
                 <div className="mb-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">
                     {activeSections[plan.id] === "included" && "Included"}
                     {activeSections[plan.id] === "usage" && "Included Usage"}
                     {activeSections[plan.id] === "addons" && "When you exceed limits"}
@@ -417,7 +418,7 @@ export default function Subscription() {
                     >
                       <div className="flex items-start gap-3">
                         <CheckCircle
-                          className="mt-0.5 shrink-0 text-cyan-400"
+                          className="mt-0.5 shrink-0 text-purple-400"
                           size={16}
                         />
                         <span className="text-sm leading-6 text-gray-200">
@@ -435,7 +436,7 @@ export default function Subscription() {
                   onClick={() => handleOpenModal("subscribe")}
                   className={
                     isPopular
-                      ? "flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 py-4 font-bold text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-cyan-500/20"
+                      ? "flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-4 font-bold text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-purple-500/20"
                       : "flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700 bg-gray-800 py-4 font-bold text-white transition-all active:scale-[0.98] hover:bg-gray-700"
                   }
                 >
@@ -462,7 +463,7 @@ export default function Subscription() {
             className="flex items-center gap-3 rounded-3xl bg-[#0f1727] px-7 py-4 text-sm font-semibold text-white transition-all hover:bg-[#162136]"
           >
             Request a Demo
-            <ChevronRight size={18} className="text-cyan-300" />
+            <ChevronRight size={18} className="text-purple-300" />
           </button>
         </div>
       </div>
@@ -497,8 +498,8 @@ export default function Subscription() {
               <div className="p-8">
                 {isSubmitted ? (
                   <div className="py-8 text-center">
-                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-900/30">
-                      <CheckCircle className="text-cyan-400" size={32} />
+                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-purple-900/30">
+                      <CheckCircle className="text-purple-400" size={32} />
                     </div>
                     <h3 className="mb-3 text-2xl font-bold text-white">
                       Request Received!
@@ -534,7 +535,7 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, fullName: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="John Doe"
                         />
                       </div>
@@ -550,7 +551,7 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, email: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="john@company.com"
                         />
                       </div>
@@ -566,7 +567,7 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, businessName: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="Acme Corp"
                         />
                       </div>
@@ -582,7 +583,7 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, businessAddress: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="123 Business St, City, Country"
                         />
                       </div>
@@ -599,7 +600,7 @@ export default function Subscription() {
                             onChange={(e) =>
                               setFormData({ ...formData, phoneNo: e.target.value })
                             }
-                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                             placeholder="+1 234 567 8900"
                           />
                         </div>
@@ -614,7 +615,7 @@ export default function Subscription() {
                             onChange={(e) =>
                               setFormData({ ...formData, ownerDob: e.target.value })
                             }
-                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all [color-scheme:dark] focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all [color-scheme:dark] focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           />
                         </div>
                       </div>
@@ -630,14 +631,14 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, businessType: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="e.g. Real Estate, E-commerce, Marketing"
                         />
                       </div>
 
                       <button
                         type="submit"
-                        className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 py-3.5 font-bold text-[#070a13] shadow-lg shadow-cyan-500/10 transition-all active:scale-[0.98] hover:shadow-cyan-500/25"
+                        className="mt-4 w-full rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-3.5 font-bold text-[#070a13] shadow-lg shadow-purple-500/10 transition-all active:scale-[0.98] hover:shadow-purple-500/25"
                       >
                         Request Access
                       </button>
@@ -667,7 +668,7 @@ export default function Subscription() {
             >
               <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-purple-300">
                     Request a Demo
                   </p>
                   <h2 className="mt-2 text-2xl font-bold text-white">
@@ -686,7 +687,7 @@ export default function Subscription() {
               <div className="grid flex-1 grid-cols-2 overflow-hidden max-md:grid-cols-1">
                 <section className="border-r border-gray-800 px-6 py-6 max-md:border-r-0 max-md:border-b">
                   <div className="mb-6 flex items-center gap-3">
-                    <div className="rounded-2xl bg-cyan-500/10 p-3 text-cyan-300">
+                    <div className="rounded-2xl bg-purple-500/10 p-3 text-purple-300">
                       <Mail size={20} />
                     </div>
                     <div>
@@ -714,7 +715,7 @@ export default function Subscription() {
                               firstName: e.target.value,
                             }))
                           }
-                          className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-500/60"
+                          className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
                           placeholder="John"
                         />
                       </div>
@@ -731,7 +732,7 @@ export default function Subscription() {
                               lastName: e.target.value,
                             }))
                           }
-                          className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-500/60"
+                          className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
                           placeholder="Doe"
                         />
                       </div>
@@ -750,7 +751,7 @@ export default function Subscription() {
                             phoneNumber: e.target.value,
                           }))
                         }
-                        className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-500/60"
+                        className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
                         placeholder="+1 234 567 8900"
                       />
                     </div>
@@ -768,7 +769,7 @@ export default function Subscription() {
                             email: e.target.value,
                           }))
                         }
-                        className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-500/60"
+                        className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
                         placeholder="john@company.com"
                       />
                     </div>
@@ -786,7 +787,7 @@ export default function Subscription() {
                           }))
                         }
                         rows={5}
-                        className="w-full resize-none rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-500/60"
+                        className="w-full resize-none rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
                         placeholder="Tell us about your business and what you want to automate."
                       />
                     </div>
@@ -867,7 +868,7 @@ export default function Subscription() {
                                   onClick={() => setSelectedSlot(slot)}
                                   className={
                                     isActive
-                                      ? "rounded-2xl border border-cyan-400 bg-cyan-500/10 px-3 py-3 text-sm font-medium text-cyan-200"
+                                      ? "rounded-2xl border border-purple-400 bg-purple-500/10 px-3 py-3 text-sm font-medium text-purple-200"
                                       : "rounded-2xl border border-gray-800 bg-[#09111d] px-3 py-3 text-sm text-gray-300"
                                   }
                                 >
@@ -895,7 +896,7 @@ export default function Subscription() {
                           type="button"
                           onClick={handleAppointmentConfirm}
                           disabled={appointmentSubmitting || !selectedSlot}
-                          className="mt-5 w-full rounded-2xl bg-gradient-to-r from-cyan-400 to-teal-400 px-4 py-3 text-sm font-bold text-[#070a13] transition disabled:cursor-not-allowed disabled:opacity-60"
+                          className="mt-5 w-full rounded-2xl bg-gradient-to-r from-purple-400 to-blue-400 px-4 py-3 text-sm font-bold text-[#070a13] transition disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {appointmentSubmitting ? "Booking…" : "Confirm Appointment"}
                         </button>

@@ -132,7 +132,7 @@ function ProfileTab() {
   if (loading) {
     return (
       <div className="flex h-48 items-center justify-center">
-        <Loader2 className="animate-spin text-[#11C7E5]" />
+        <Loader2 className="animate-spin text-[#9333ea]" />
       </div>
     );
   }
@@ -154,7 +154,7 @@ function ProfileTab() {
 
       <div className="flex items-center gap-5">
         <div className="relative">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-[#11C7E5]/20 bg-[#11C7E5]/10 text-3xl font-black text-[#11C7E5]">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-[#9333ea]/20 bg-[#9333ea]/10 text-3xl font-black text-[#9333ea]">
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="avatar" className="h-full w-full rounded-2xl object-cover" />
             ) : (
@@ -169,7 +169,7 @@ function ProfileTab() {
         </div>
 
         <div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-2.5 text-sm font-semibold text-[#A4B0B7] transition-all hover:border-[#11C7E5]/40 hover:text-white">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-2.5 text-sm font-semibold text-[#A4B0B7] transition-all hover:border-[#9333ea]/40 hover:text-white">
             <Camera size={15} />
             Upload Photo
             <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleAvatarUpload} />
@@ -229,7 +229,7 @@ function ProfileTab() {
       <button
         onClick={save}
         disabled={saving}
-        className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#11C7E5] px-6 py-3 font-bold text-[#02080B] transition-colors hover:bg-[#0fd0f0] disabled:opacity-60"
+        className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#9333ea] px-6 py-3 font-bold text-[#02080B] transition-colors hover:bg-[#a855f7] disabled:opacity-60"
       >
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
         {saving ? 'Saving...' : 'Save Profile'}

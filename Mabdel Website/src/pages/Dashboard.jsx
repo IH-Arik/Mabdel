@@ -13,6 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
+import { formatCstDateTime } from '../utils/dateUtils';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNotificationStore } from '../store/useNotificationStore';
 
@@ -126,7 +127,7 @@ function AvatarStack({ avatars, countText, size = 36, overlap = -10 }) {
       {avatars.map((avatar, index) => (
         <div
           key={`${avatar.name}-${index}`}
-          className="border-2 border-[#131A24] bg-slate-900 overflow-hidden flex items-center justify-center font-bold text-[11px] text-[#11C7E5]"
+          className="border-2 border-[#131A24] bg-slate-900 overflow-hidden flex items-center justify-center font-bold text-[11px] text-[#9333ea]"
           style={{
             width: size,
             height: size,
@@ -200,7 +201,7 @@ function SectionCard({ children, className = '', onClick }) {
           onClick();
         }
       }}
-      className={`${base} ${className} cursor-pointer transition-all hover:border-[#11C7E5]/30 active:scale-[0.995]`}
+      className={`${base} ${className} cursor-pointer transition-all hover:border-[#9333ea]/30 active:scale-[0.995]`}
     >
       {children}
     </div>
@@ -340,12 +341,7 @@ export default function Dashboard() {
     .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime());
   const nextUpcomingEvent = upcomingEvents[0] ?? null;
   const upcomingEventLabel = nextUpcomingEvent
-    ? new Date(nextUpcomingEvent.starts_at).toLocaleString([], {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      })
+    ? formatCstDateTime(nextUpcomingEvent.starts_at)
     : 'No upcoming meetings scheduled.';
   const analyticsCallRows = recentCalls.slice(0, 3).map((call, index) => {
     const durationMinutes = call?.duration ? Math.round(Number(call.duration) / 60) : null;
@@ -429,7 +425,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={openUnifiedConversations}
-            className="px-6 py-2.5 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#11C7E5]/10 cursor-pointer"
+            className="px-6 py-2.5 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#9333ea]/10 cursor-pointer"
             >
               View All
             </button>
@@ -454,7 +450,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={openContacts}
-              className="px-6 py-2.5 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#11C7E5]/10 cursor-pointer"
+              className="px-6 py-2.5 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#9333ea]/10 cursor-pointer"
             >
               View All
             </button>
@@ -484,7 +480,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={openScheduleMeeting}
-              className="mt-5 px-6 py-2.5 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#11C7E5]/10 cursor-pointer"
+              className="mt-5 px-6 py-2.5 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#9333ea]/10 cursor-pointer"
             >
               Add Your Calendar
             </button>
@@ -548,7 +544,7 @@ export default function Dashboard() {
           </div>
           <div className="bg-[#0A1019] border border-[#243246] rounded-2xl p-4">
             <span className="text-[10px] font-bold text-[#8E9FB5] uppercase tracking-wider block">Minutes Saved</span>
-            <span className="text-3xl font-black text-[#11C7E5] mt-1 block">{minutesSavedCount}</span>
+            <span className="text-3xl font-black text-[#9333ea] mt-1 block">{minutesSavedCount}</span>
           </div>
         </div>
 
