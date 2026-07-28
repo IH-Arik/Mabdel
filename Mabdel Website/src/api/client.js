@@ -2,9 +2,21 @@ import axios from 'axios';
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const isLocalHost = typeof window !== 'undefined' && ['127.0.0.1', 'localhost'].includes(window.location.hostname);
-const API_BASE_URL = isLocalHost && configuredBaseUrl?.includes(':18000')
+export const API_BASE_URL = isLocalHost && configuredBaseUrl?.includes(':18000')
   ? 'http://127.0.0.1:8001'
   : (configuredBaseUrl || 'http://127.0.0.1:8001');
+
+export function buildWebSocketUrl(path, token) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = new URL(API_BASE_URL);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  url.pathname = normalizedPath;
+  url.search = '';
+  if (token) {
+    url.searchParams.set('token', token);
+  }
+  return url.toString();
+}
 
 const client = axios.create({
   baseURL: API_BASE_URL,

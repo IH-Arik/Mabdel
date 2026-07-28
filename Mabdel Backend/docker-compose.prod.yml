@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    container_name: mabdel-backend-api
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    volumes:
+      - ./uploads:/app/uploads
