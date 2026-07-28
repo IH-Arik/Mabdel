@@ -9,7 +9,9 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "1": "^0.1.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-navigation/bottom-tabs": "^7.8.6",
     "@react-navigation/native": "^7.1.21",
@@ -35,7 +37,6 @@
     "react-hook-form": "^7.71.1",
     "react-native": "0.81.5",
     "react-native-calendars": "^1.1313.0",
-    "react-native-date-picker": "^5.0.13",
     "react-native-image-picker": "^8.2.1",
     "react-native-maps": "1.20.1",
     "react-native-otp-textinput": "^1.1.7",

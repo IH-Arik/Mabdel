@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAppLanguage } from "../context/LanguageContext";
 import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet, Dimensions } from "react-native";
-import DatePicker from "react-native-date-picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { responsiveHeight } from "react-native-responsive-dimensions";
 
@@ -73,14 +73,16 @@ const TimePickerComponent = ({
               },
             ]}
           >
-            <DatePicker
-              date={time}
-              onDateChange={setTime}
+            <DateTimePicker
+              value={time}
+              onChange={(_, selectedTime) => {
+                if (selectedTime) {
+                  setTime(selectedTime);
+                }
+              }}
               mode="time"
-              theme="dark"
-              androidVariant="iosClone"
-              // textColor="#FFFFFF"
-              // fadeToColor="#0B1118"
+              display="spinner"
+              themeVariant="dark"
               style={styles.picker}
             />
             <TouchableOpacity
