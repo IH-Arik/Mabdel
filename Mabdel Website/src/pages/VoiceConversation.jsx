@@ -748,7 +748,7 @@ export default function VoiceConversation() {
       <div className="w-80 border-r border-[#243041]/40 bg-slate-950/20 p-6 hidden lg:flex flex-col gap-6">
         <div>
           <h2 className="text-white font-bold text-lg flex items-center gap-2">
-            <Sparkles className="text-cyan-400" size={18} />
+            <Sparkles className="text-purple-400" size={18} />
             AI Voice Assistant
           </h2>
           <p className="text-slate-400 text-xs mt-2 leading-relaxed">
@@ -765,7 +765,7 @@ export default function VoiceConversation() {
                 <button
                   key={chip.id}
                   onClick={() => handleActionChip(chip)}
-                  className="px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-200 hover:text-cyan-300 hover:border-cyan-500/40 transition-colors text-xs font-semibold flex items-center gap-2"
+                  className="px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-200 hover:text-purple-300 hover:border-purple-500/40 transition-colors text-xs font-semibold flex items-center gap-2"
                 >
                   <Icon size={14} />
                   {chip.label}
@@ -782,7 +782,7 @@ export default function VoiceConversation() {
               <button
                 key={prompt}
                 onClick={() => sendPrompt(prompt, 'prompt')}
-                className="w-full text-left px-4 py-3 bg-[#11C7E5]/5 border border-[#11C7E5]/10 rounded-xl text-xs text-cyan-300 font-semibold hover:bg-[#11C7E5]/10 transition-colors"
+                className="w-full text-left px-4 py-3 bg-[#9333ea]/5 border border-[#9333ea]/10 rounded-xl text-xs text-purple-300 font-semibold hover:bg-[#9333ea]/10 transition-colors"
               >
                 "{prompt}"
               </button>
@@ -831,27 +831,27 @@ export default function VoiceConversation() {
       <div className="flex-1 flex flex-col">
         {!isSessionActive ? (
           <div className="flex-1 flex flex-col items-center justify-center px-6">
-            <div className="w-32 h-32 rounded-full bg-cyan-500/10 flex items-center justify-center mb-8 border border-cyan-500/20">
-              <Mic size={48} className="text-cyan-400" />
+            <div className="w-32 h-32 rounded-full bg-purple-500/10 flex items-center justify-center mb-8 border border-purple-500/20">
+              <Mic size={48} className="text-purple-400" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Start AI Voice Assistant</h2>
             <p className="text-slate-400 text-sm mb-8 text-center max-w-sm">
               Talk to GoCustify AI, switch to text instantly, and execute business workflows from the same thread.
             </p>
-            <p className="text-cyan-300 text-xs font-semibold mb-5">
+            <p className="text-purple-300 text-xs font-semibold mb-5">
               {getInitialPrompt(aiLanguage, 'agreement')}
             </p>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSessionActive(true)}
-                className="px-8 py-4 bg-cyan-500 hover:bg-cyan-400 text-[#070a13] font-bold rounded-full transition-all shadow-lg shadow-cyan-500/20 text-lg flex items-center gap-2"
+                className="px-8 py-4 bg-purple-500 hover:bg-purple-400 text-[#070a13] font-bold rounded-full transition-all shadow-lg shadow-purple-500/20 text-lg flex items-center gap-2"
               >
                 <Phone size={20} />
                 Connect
               </button>
               <button
                 onClick={startListening}
-                className="px-6 py-4 bg-slate-900 border border-slate-800 text-cyan-300 rounded-full font-bold text-sm flex items-center gap-2"
+                className="px-6 py-4 bg-slate-900 border border-slate-800 text-purple-300 rounded-full font-bold text-sm flex items-center gap-2"
               >
                 <Mic size={18} />
                 Start Listening
@@ -862,7 +862,7 @@ export default function VoiceConversation() {
           <>
             <div className="p-4 border-b border-[#243041]/40 flex items-center justify-between bg-slate-950/40">
               <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-cyan-400 animate-pulse' : isThinking ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
+                <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-purple-400 animate-pulse' : isThinking ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
                 <span className="text-white font-bold text-sm">AI Assistant Session</span>
               </div>
 
@@ -908,7 +908,7 @@ export default function VoiceConversation() {
                   <div
                     className={`max-w-[78%] p-4 rounded-3xl ${
                       message.role === 'user'
-                        ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-50 rounded-br-none'
+                        ? 'bg-purple-500/20 border border-purple-500/30 text-purple-50 rounded-br-none'
                         : message.tone === 'error'
                           ? 'bg-rose-950/30 border border-rose-500/30 text-rose-100 rounded-bl-none'
                           : message.tone === 'success'
@@ -932,7 +932,7 @@ export default function VoiceConversation() {
 
               {isListening && interimTranscript ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
-                  <div className="max-w-[78%] px-4 py-3 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 rounded-3xl rounded-br-none">
+                  <div className="max-w-[78%] px-4 py-3 bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded-3xl rounded-br-none">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2">
                       <Activity size={14} className="animate-pulse" />
                       Partial Transcript
@@ -945,7 +945,7 @@ export default function VoiceConversation() {
               {isThinking ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                   <div className="px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-3xl rounded-bl-none text-sm font-medium flex items-center gap-2">
-                    <Loader2 size={14} className="animate-spin text-cyan-400" />
+                    <Loader2 size={14} className="animate-spin text-purple-400" />
                     AI is thinking...
                   </div>
                 </motion.div>
@@ -953,8 +953,8 @@ export default function VoiceConversation() {
 
               {activeWorkflow?.intent && !activeWorkflow.missingFields?.length ? (
                 <div className="flex justify-start">
-                  <div className="max-w-[78%] p-4 rounded-3xl rounded-bl-none bg-[#11C7E5]/8 border border-[#11C7E5]/20 text-white">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-300 mb-3">
+                  <div className="max-w-[78%] p-4 rounded-3xl rounded-bl-none bg-[#9333ea]/8 border border-[#9333ea]/20 text-white">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-purple-300 mb-3">
                       <CheckCircle2 size={14} />
                       Confirmation Required
                     </div>
@@ -965,7 +965,7 @@ export default function VoiceConversation() {
                       <button
                         onClick={executeWorkflow}
                         disabled={workflowBusy}
-                        className="px-4 py-2 rounded-xl bg-cyan-500 text-[#031218] font-bold text-sm disabled:opacity-60"
+                        className="px-4 py-2 rounded-xl bg-purple-500 text-[#031218] font-bold text-sm disabled:opacity-60"
                       >
                         {workflowBusy ? 'Executing...' : activeWorkflow.submitLabel || 'Confirm and Execute'}
                       </button>
@@ -1000,7 +1000,7 @@ export default function VoiceConversation() {
                   disabled={voiceLoading || isThinking || workflowBusy}
                   className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg ${
                     isListening
-                      ? 'bg-cyan-500 text-[#070a13] shadow-cyan-500/20'
+                      ? 'bg-purple-500 text-[#070a13] shadow-purple-500/20'
                       : 'bg-slate-800 text-white hover:bg-slate-700'
                   } disabled:opacity-60`}
                   title={isListening ? 'Stop Listening' : 'Start Listening'}
@@ -1026,7 +1026,7 @@ export default function VoiceConversation() {
                 <button
                   onClick={() => sendPrompt(inputText, 'text')}
                   disabled={!inputText.trim() || isThinking || workflowBusy}
-                  className="w-14 h-14 rounded-2xl bg-cyan-500 text-[#031218] flex items-center justify-center font-bold disabled:opacity-60"
+                  className="w-14 h-14 rounded-2xl bg-purple-500 text-[#031218] flex items-center justify-center font-bold disabled:opacity-60"
                   title="Send text"
                 >
                   <Send size={18} />

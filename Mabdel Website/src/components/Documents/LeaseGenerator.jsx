@@ -51,13 +51,13 @@ export default function LeaseGenerator({ onClose }) {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-3xl bg-[#0c101b] border border-cyan-500/20 rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl shadow-cyan-500/10"
+        className="w-full max-w-3xl bg-[#0c101b] border border-purple-500/20 rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl shadow-purple-500/10"
       >
         {/* Header */}
         <div className="p-6 border-b border-[#243041]/60 flex items-center justify-between bg-slate-950/40">
            <div>
                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                   <FileText className="text-cyan-400" /> Lease Generator
+                   <FileText className="text-purple-400" /> Lease Generator
                </h2>
                <p className="text-slate-400 text-xs mt-1">Create a standard residential lease agreement.</p>
            </div>
@@ -76,10 +76,10 @@ export default function LeaseGenerator({ onClose }) {
                     const isCompleted = currentStep > idx;
                     return (
                         <div key={step.id} className="relative z-10 flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${isActive ? 'bg-[#0c101b] border-cyan-500 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.5)]' : isCompleted ? 'bg-cyan-500 border-cyan-500 text-[#0c101b]' : 'bg-[#0c101b] border-slate-700 text-slate-500'}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${isActive ? 'bg-[#0c101b] border-purple-500 text-purple-400 shadow-[0_0_15px_rgba(6,182,212,0.5)]' : isCompleted ? 'bg-purple-500 border-purple-500 text-[#0c101b]' : 'bg-[#0c101b] border-slate-700 text-slate-500'}`}>
                                 {isCompleted ? <Check size={14} /> : <Icon size={14} />}
                             </div>
-                            <span className={`text-[10px] font-bold uppercase tracking-wider hidden sm:block ${isActive ? 'text-cyan-400' : isCompleted ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider hidden sm:block ${isActive ? 'text-purple-400' : isCompleted ? 'text-slate-300' : 'text-slate-600'}`}>
                                 {step.title}
                             </span>
                         </div>
@@ -100,7 +100,7 @@ export default function LeaseGenerator({ onClose }) {
                         <p className="text-slate-400 text-sm max-w-md mb-8">The residential lease agreement has been generated successfully and is ready to be shared with the tenant.</p>
                         <div className="flex gap-4">
                             <button className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-colors">Download PDF</button>
-                            <button onClick={onClose} className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-105">Finish</button>
+                            <button onClick={onClose} className="px-6 py-2.5 bg-purple-500 hover:bg-purple-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-105">Finish</button>
                         </div>
                     </motion.div>
                 ) : (
@@ -116,7 +116,7 @@ export default function LeaseGenerator({ onClose }) {
                                         value={formData.propertyAddress}
                                         onChange={e => setFormData({...formData, propertyAddress: e.target.value})}
                                         placeholder="e.g. 123 Main St, Apt 4B" 
-                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-cyan-500/50 focus:outline-none text-white text-sm"
+                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-purple-500/50 focus:outline-none text-white text-sm"
                                     />
                                 </div>
                             </div>
@@ -131,7 +131,7 @@ export default function LeaseGenerator({ onClose }) {
                                         type="text" 
                                         value={formData.landlordName}
                                         onChange={e => setFormData({...formData, landlordName: e.target.value})}
-                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-cyan-500/50 focus:outline-none text-white text-sm"
+                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-purple-500/50 focus:outline-none text-white text-sm"
                                     />
                                 </div>
                                 <div>
@@ -140,7 +140,7 @@ export default function LeaseGenerator({ onClose }) {
                                         type="text" 
                                         value={formData.tenantName}
                                         onChange={e => setFormData({...formData, tenantName: e.target.value})}
-                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-cyan-500/50 focus:outline-none text-white text-sm"
+                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-purple-500/50 focus:outline-none text-white text-sm"
                                     />
                                 </div>
                             </div>
@@ -155,7 +155,7 @@ export default function LeaseGenerator({ onClose }) {
                                         type="number" 
                                         value={formData.rentAmount}
                                         onChange={e => setFormData({...formData, rentAmount: e.target.value})}
-                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-cyan-500/50 focus:outline-none text-white text-sm"
+                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-purple-500/50 focus:outline-none text-white text-sm"
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 mt-4">
@@ -165,7 +165,7 @@ export default function LeaseGenerator({ onClose }) {
                                             type="date" 
                                             value={formData.leaseStart}
                                             onChange={e => setFormData({...formData, leaseStart: e.target.value})}
-                                            className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-cyan-500/50 focus:outline-none text-white text-sm"
+                                            className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-purple-500/50 focus:outline-none text-white text-sm"
                                         />
                                     </div>
                                     <div>
@@ -174,7 +174,7 @@ export default function LeaseGenerator({ onClose }) {
                                             type="date" 
                                             value={formData.leaseEnd}
                                             onChange={e => setFormData({...formData, leaseEnd: e.target.value})}
-                                            className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-cyan-500/50 focus:outline-none text-white text-sm"
+                                            className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-purple-500/50 focus:outline-none text-white text-sm"
                                         />
                                     </div>
                                 </div>
@@ -219,7 +219,7 @@ export default function LeaseGenerator({ onClose }) {
                 <button 
                     onClick={handleNext}
                     disabled={isGenerating}
-                    className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-cyan-500/20 flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                    className="px-6 py-2.5 bg-purple-500 hover:bg-purple-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-purple-500/20 flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
                 >
                     {isGenerating ? (
                          <><Loader2 size={16} className="animate-spin" /> Generating...</>

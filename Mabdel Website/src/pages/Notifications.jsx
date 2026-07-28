@@ -209,7 +209,7 @@ export default function Notifications() {
         <button
           type="button"
           onClick={handleMarkAllAsRead}
-          className="text-sm font-semibold text-[#11C7E5] hover:text-[#6BE7FF] transition-colors cursor-pointer"
+          className="text-sm font-semibold text-[#9333ea] hover:text-[#6BE7FF] transition-colors cursor-pointer"
         >
           Mark All As Read
         </button>
@@ -225,7 +225,7 @@ export default function Notifications() {
               onClick={() => setActiveFilter(option.key)}
               className={`px-4 py-2 rounded-full border text-sm font-semibold transition-colors cursor-pointer ${
                 active
-                  ? 'bg-[#16CBEA]/15 border-[#16CBEA]/40 text-[#DDFBFF]'
+                  ? 'bg-[#c084fc]/15 border-[#c084fc]/40 text-[#DDFBFF]'
                   : 'bg-[#0D131D] border-[#243041] text-[#A4B0B7] hover:text-white hover:border-[#324359]'
               }`}
             >
@@ -237,7 +237,7 @@ export default function Notifications() {
 
       {newCount > 0 && activeFilter === 'all' ? (
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0D1A23] border border-[#17485A] mb-5">
-          <Bell size={16} className="text-[#16CBEA]" />
+          <Bell size={16} className="text-[#c084fc]" />
           <span className="text-sm font-semibold text-[#D9F8FF]">
             {newCount} {newCount > 1 ? 'new notifications' : 'new notification'}
           </span>
@@ -270,7 +270,7 @@ export default function Notifications() {
                   showHighlight
                     ? 'bg-[#101C25] border-[#17485A]'
                     : 'bg-[#131A24] border-[#243041]'
-                } cursor-pointer transition-colors hover:border-[#16CBEA]/35`}
+                } cursor-pointer transition-colors hover:border-[#c084fc]/35`}
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="relative shrink-0">
@@ -286,14 +286,14 @@ export default function Notifications() {
                       <channelBadge.Icon size={11} color="#F8FBFF" />
                     </div>
                     {item.isNew ? (
-                      <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#16CBEA] border-2 border-[#131A24]" />
+                      <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#c084fc] border-2 border-[#131A24]" />
                     ) : null}
                   </div>
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-base font-bold text-white truncate">{item.title}</p>
-                      {item.isNew ? <div className="w-2 h-2 rounded-full bg-[#16CBEA] shrink-0" /> : null}
+                      {item.isNew ? <div className="w-2 h-2 rounded-full bg-[#c084fc] shrink-0" /> : null}
                     </div>
                     <p className="text-sm text-[#A4B0B7] mt-1 line-clamp-2">{item.description}</p>
                     {item.displayTimeLabel ? (

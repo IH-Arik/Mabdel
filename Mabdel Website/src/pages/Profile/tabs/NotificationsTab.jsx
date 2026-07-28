@@ -64,7 +64,7 @@ function NotificationsTab() {
   if (loading) {
     return (
       <div className="flex h-48 items-center justify-center">
-        <Loader2 className="animate-spin text-[#11C7E5]" />
+        <Loader2 className="animate-spin text-[#9333ea]" />
       </div>
     );
   }
@@ -87,15 +87,15 @@ function NotificationsTab() {
       {ITEMS.map((item) => (
         <div key={item.key} className="flex items-center justify-between rounded-2xl border border-[#243041] bg-[#0A1019] p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#11C7E5]/10">
-              <item.icon size={16} className="text-[#11C7E5]" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#9333ea]/10">
+              <item.icon size={16} className="text-[#9333ea]" />
             </div>
             <span className="text-sm font-semibold text-white">{item.label}</span>
           </div>
 
           <button
             onClick={() => toggle(item.key)}
-            className={`relative h-6 w-12 rounded-full transition-colors ${prefs[item.key] ? 'bg-[#11C7E5]' : 'bg-[#243041]'}`}
+            className={`relative h-6 w-12 rounded-full transition-colors ${prefs[item.key] ? 'bg-[#9333ea]' : 'bg-[#243041]'}`}
           >
             <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${prefs[item.key] ? 'translate-x-6' : 'translate-x-0.5'}`} />
           </button>
@@ -105,7 +105,7 @@ function NotificationsTab() {
       <button
         onClick={save}
         disabled={saving}
-        className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#11C7E5] px-6 py-3 font-bold text-[#02080B] transition-colors hover:bg-[#0fd0f0] disabled:opacity-60"
+        className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#9333ea] px-6 py-3 font-bold text-[#02080B] transition-colors hover:bg-[#a855f7] disabled:opacity-60"
       >
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
         Save Preferences

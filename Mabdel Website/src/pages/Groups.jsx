@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
+import { formatCstDateTime, formatCstTime } from '../utils/dateUtils';
 import { useAuthStore } from '../store/useAuthStore';
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
@@ -92,20 +93,14 @@ const formatDateTime = (value) => {
   if (!value) return 'Unknown';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Unknown';
-  return date.toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatCstDateTime(date);
 };
 
 const formatMessageTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return formatCstTime(date);
 };
 
 function GroupAvatar({ name, avatarUrl, size = 'w-12 h-12 text-sm' }) {
@@ -114,13 +109,13 @@ function GroupAvatar({ name, avatarUrl, size = 'w-12 h-12 text-sm' }) {
       <img
         src={avatarUrl}
         alt={name}
-        className={`${size} rounded-2xl border border-cyan-500/20 object-cover`}
+        className={`${size} rounded-2xl border border-purple-500/20 object-cover`}
       />
     );
   }
 
   return (
-    <div className={`${size} rounded-2xl border border-cyan-500/20 bg-cyan-950/50 flex items-center justify-center font-black text-cyan-400`}>
+    <div className={`${size} rounded-2xl border border-purple-500/20 bg-purple-950/50 flex items-center justify-center font-black text-purple-400`}>
       {getInitials(name)}
     </div>
   );
@@ -134,12 +129,12 @@ function MessageBubble({ message }) {
       <div
         className={`max-w-[70%] rounded-2xl px-4 py-3 text-xs font-semibold leading-relaxed ${
           outbound
-            ? 'rounded-tr-none bg-[#11C7E5] text-[#041118]'
+            ? 'rounded-tr-none bg-[#9333ea] text-[#041118]'
             : 'rounded-tl-none border border-slate-900 bg-[#121625] text-slate-200'
         }`}
       >
         {!outbound ? (
-          <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-cyan-400">
+          <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-purple-400">
             {message.sender_name}
           </p>
         ) : null}
@@ -613,7 +608,7 @@ export default function Groups() {
                   value={createForm.name}
                   onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
                   placeholder="Enter group name..."
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/40"
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                   required
                 />
               </div>
@@ -624,7 +619,7 @@ export default function Groups() {
                   value={createForm.description}
                   onChange={(event) => setCreateForm((current) => ({ ...current, description: event.target.value }))}
                   placeholder="Brief group description..."
-                  className="w-full min-h-24 px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/40"
+                  className="w-full min-h-24 px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                 />
               </div>
 
@@ -635,18 +630,18 @@ export default function Groups() {
                   value={createForm.avatar_url}
                   onChange={(event) => setCreateForm((current) => ({ ...current, avatar_url: event.target.value }))}
                   placeholder="https://..."
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/40"
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                 />
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 tracking-wide uppercase flex items-center gap-1.5">
-                  <Shield size={12} className="text-cyan-400" /> Link to RBAC Role
+                  <Shield size={12} className="text-purple-400" /> Link to RBAC Role
                 </label>
                 <select
                   value={createForm.role_slug}
                   onChange={(event) => setCreateForm((current) => ({ ...current, role_slug: event.target.value }))}
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-cyan-500/40"
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-purple-500/40"
                 >
                   <option value="">No role link</option>
                   <option value="manager">Manager</option>
@@ -663,7 +658,7 @@ export default function Groups() {
                   <label className="text-xs font-bold text-slate-400 tracking-wide uppercase">
                     Members ({selectedMemberIds.length} Selected)
                   </label>
-                  {contactsLoading ? <Loader2 size={14} className="animate-spin text-cyan-400" /> : null}
+                  {contactsLoading ? <Loader2 size={14} className="animate-spin text-purple-400" /> : null}
                 </div>
 
                 <div className="relative">
@@ -673,7 +668,7 @@ export default function Groups() {
                     value={memberSearchQuery}
                     onChange={(event) => setMemberSearchQuery(event.target.value)}
                     placeholder="Search contacts..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                   />
                 </div>
 
@@ -708,14 +703,14 @@ export default function Groups() {
                           );
                         }}
                         className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl text-left transition-colors ${
-                          selected ? 'bg-cyan-950/20 border border-cyan-500/20' : 'hover:bg-slate-950'
+                          selected ? 'bg-purple-950/20 border border-purple-500/20' : 'hover:bg-slate-950'
                         }`}
                       >
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-white truncate">{contact.name || 'Unnamed Contact'}</p>
                           <p className="text-[10px] text-slate-500 truncate">{contact.email || contact.phone || 'No email or phone'}</p>
                         </div>
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${selected ? 'border-cyan-500 bg-cyan-950 text-cyan-400' : 'border-slate-800'}`}>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${selected ? 'border-purple-500 bg-purple-950 text-purple-400' : 'border-slate-800'}`}>
                           {selected ? <Check size={10} /> : null}
                         </div>
                       </button>
@@ -729,7 +724,7 @@ export default function Groups() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-4 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] rounded-xl font-bold shadow-lg shadow-cyan-400/10 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-purple-400 hover:bg-purple-300 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-400/10 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
                 Create Group
@@ -753,7 +748,7 @@ export default function Groups() {
             </div>
 
             <div className="rounded-2xl border border-slate-900 bg-slate-950/40 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-400">Runtime notes</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400">Runtime notes</p>
               <ul className="mt-3 space-y-2 text-xs text-slate-400">
                 <li>Creates a real SmartFlow group record.</li>
                 <li>Uses real contact IDs as members.</li>
@@ -790,7 +785,7 @@ export default function Groups() {
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-extrabold text-white">{activeGroup.name}</h2>
                     {activeGroup.role_slug ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-950/40 border border-cyan-500/20 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-950/40 border border-purple-500/20 text-[10px] font-bold uppercase tracking-wider text-purple-300">
                         <Shield size={10} /> {activeGroup.role_slug}
                       </span>
                     ) : null}
@@ -810,7 +805,7 @@ export default function Groups() {
                     value={settingsForm.name}
                     onChange={(event) => setSettingsForm((current) => ({ ...current, name: event.target.value }))}
                     readOnly={activeGroup.is_system_managed}
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/40"
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                   />
                 </div>
                 <div className="space-y-2">
@@ -820,7 +815,7 @@ export default function Groups() {
                     value={settingsForm.avatar_url}
                     onChange={(event) => setSettingsForm((current) => ({ ...current, avatar_url: event.target.value }))}
                     readOnly={activeGroup.is_system_managed}
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/40"
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                   />
                 </div>
               </div>
@@ -831,19 +826,19 @@ export default function Groups() {
                   value={settingsForm.description}
                   onChange={(event) => setSettingsForm((current) => ({ ...current, description: event.target.value }))}
                   readOnly={activeGroup.is_system_managed}
-                  className="w-full min-h-24 px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/40"
+                  className="w-full min-h-24 px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                 />
               </div>
 
               {!activeGroup.is_system_managed ? (
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                    <Shield size={12} className="text-cyan-400" /> Link to RBAC Role
+                    <Shield size={12} className="text-purple-400" /> Link to RBAC Role
                   </label>
                   <select
                     value={settingsForm.role_slug}
                     onChange={(event) => setSettingsForm((current) => ({ ...current, role_slug: event.target.value }))}
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-cyan-500/40"
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-purple-500/40"
                   >
                     <option value="">No role link</option>
                     <option value="manager">Manager</option>
@@ -861,7 +856,7 @@ export default function Groups() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-5 py-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-[#070a13] font-bold flex items-center gap-2 disabled:opacity-60"
+                    className="px-5 py-3 rounded-xl bg-purple-400 hover:bg-purple-300 text-[#070a13] font-bold flex items-center gap-2 disabled:opacity-60"
                   >
                     {saving ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />}
                     Save
@@ -881,7 +876,7 @@ export default function Groups() {
             <div className="mt-8 border-t border-slate-900/60 pt-8">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Members ({activeGroup.members.length})</h3>
-                {contactsLoading ? <Loader2 size={14} className="animate-spin text-cyan-400" /> : null}
+                {contactsLoading ? <Loader2 size={14} className="animate-spin text-purple-400" /> : null}
               </div>
 
               <div className="mt-4 space-y-3">
@@ -895,7 +890,7 @@ export default function Groups() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${member.role === 'admin' ? 'bg-cyan-950/40 text-cyan-400' : 'bg-slate-950 text-slate-400'}`}>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${member.role === 'admin' ? 'bg-purple-950/40 text-purple-400' : 'bg-slate-950 text-slate-400'}`}>
                         {member.role === 'admin' ? <Shield size={11} /> : <User size={11} />}
                         {member.role}
                       </span>
@@ -905,7 +900,7 @@ export default function Groups() {
                             value={member.role === 'admin' ? 'admin' : 'member'}
                             onChange={(event) => handleRoleChange(member.id, event.target.value)}
                             disabled={changingRoleId === member.id}
-                            className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-900 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/40 disabled:opacity-60"
+                            className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-900 text-xs text-slate-300 focus:outline-none focus:border-purple-500/40 disabled:opacity-60"
                           >
                             <option value="member">Member</option>
                             <option value="admin">Admin</option>
@@ -944,7 +939,7 @@ export default function Groups() {
               <>
                 <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6">
                   <div className="flex items-center gap-2">
-                    <UserPlus size={15} className="text-cyan-400" />
+                    <UserPlus size={15} className="text-purple-400" />
                     <h3 className="text-sm font-extrabold text-white">Add Members</h3>
                   </div>
                   <div className="relative mt-4">
@@ -954,7 +949,7 @@ export default function Groups() {
                       value={memberSearchQuery}
                       onChange={(event) => setMemberSearchQuery(event.target.value)}
                       placeholder="Search contacts..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40"
+                      className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                     />
                   </div>
                   <div className="mt-4 max-h-72 overflow-y-auto space-y-2">
@@ -968,7 +963,7 @@ export default function Groups() {
                           type="button"
                           onClick={() => handleAddMember(String(contact.id))}
                           disabled={addingMemberId === String(contact.id)}
-                          className="px-3 py-2 rounded-xl bg-cyan-400 text-[#041118] text-[11px] font-black disabled:opacity-60"
+                          className="px-3 py-2 rounded-xl bg-purple-400 text-[#041118] text-[11px] font-black disabled:opacity-60"
                         >
                           {addingMemberId === String(contact.id) ? 'Adding...' : 'Add'}
                         </button>
@@ -981,7 +976,7 @@ export default function Groups() {
 
                 <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6">
                   <div className="flex items-center gap-2">
-                    <Mail size={15} className="text-cyan-400" />
+                    <Mail size={15} className="text-purple-400" />
                     <h3 className="text-sm font-extrabold text-white">Invite by Email or Phone</h3>
                   </div>
                   <form onSubmit={handleInvite} className="mt-4 space-y-3">
@@ -990,26 +985,26 @@ export default function Groups() {
                       value={inviteForm.name}
                       onChange={(event) => setInviteForm((current) => ({ ...current, name: event.target.value }))}
                       placeholder="Invitee name"
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                     />
                     <input
                       type="email"
                       value={inviteForm.email}
                       onChange={(event) => setInviteForm((current) => ({ ...current, email: event.target.value }))}
                       placeholder="Email address"
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                     />
                     <input
                       type="tel"
                       value={inviteForm.phone}
                       onChange={(event) => setInviteForm((current) => ({ ...current, phone: event.target.value }))}
                       placeholder="Phone number"
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                     />
                     <select
                       value={inviteForm.role}
                       onChange={(event) => setInviteForm((current) => ({ ...current, role: event.target.value }))}
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-cyan-500/40"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-purple-500/40"
                     >
                       <option value="member">Member</option>
                       <option value="admin">Admin</option>
@@ -1017,7 +1012,7 @@ export default function Groups() {
                     <button
                       type="submit"
                       disabled={inviteSaving}
-                      className="w-full py-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-[#041118] text-xs font-black disabled:opacity-60"
+                      className="w-full py-3 rounded-xl bg-purple-400 hover:bg-purple-300 text-[#041118] text-xs font-black disabled:opacity-60"
                     >
                       {inviteSaving ? 'Sending...' : 'Create Invite'}
                     </button>
@@ -1099,7 +1094,7 @@ export default function Groups() {
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
             {threadLoading ? (
               <div className="h-full flex items-center justify-center text-slate-400">
-                <Loader2 size={18} className="animate-spin mr-2 text-cyan-400" />
+                <Loader2 size={18} className="animate-spin mr-2 text-purple-400" />
                 Loading group chat...
               </div>
             ) : messages.length ? (
@@ -1127,7 +1122,7 @@ export default function Groups() {
             <button
               type="submit"
               disabled={sending || !currentMessageText.trim()}
-              className="h-12 w-12 rounded-2xl bg-cyan-400 text-[#041118] flex items-center justify-center disabled:opacity-60"
+              className="h-12 w-12 rounded-2xl bg-purple-400 text-[#041118] flex items-center justify-center disabled:opacity-60"
             >
               {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
@@ -1153,7 +1148,7 @@ export default function Groups() {
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Search groups..."
-                  className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40"
+                  className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                 />
               </div>
               <button
@@ -1163,7 +1158,7 @@ export default function Groups() {
                   setMemberSearchQuery('');
                   setViewMode('create');
                 }}
-                className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] rounded-xl text-xs font-extrabold shadow-lg shadow-cyan-500/5 transition-all flex items-center gap-1.5"
+                className="px-4 py-2 bg-purple-400 hover:bg-purple-300 text-[#070a13] rounded-xl text-xs font-extrabold shadow-lg shadow-purple-500/5 transition-all flex items-center gap-1.5"
               >
                 <Plus size={14} />
                 <span>Create Group</span>
@@ -1195,7 +1190,7 @@ export default function Groups() {
                         onClick={() => setSelectedGroupId(group.id)}
                         className={`p-5 rounded-2xl border transition-all flex flex-col justify-between h-40 text-left cursor-pointer relative overflow-hidden group ${
                           isSelected
-                            ? 'bg-[#0c101b] border-cyan-500/35 shadow-[0_0_20px_rgba(6,182,212,0.02)]'
+                            ? 'bg-[#0c101b] border-purple-500/35 shadow-[0_0_20px_rgba(6,182,212,0.02)]'
                             : 'bg-[#0c101b]/60 border-slate-900/60 hover:border-slate-800'
                         }`}
                       >
@@ -1274,7 +1269,7 @@ export default function Groups() {
                       <div className="flex items-center gap-3.5 pt-2 text-xs font-bold">
                         <button
                           onClick={() => setViewMode('chat')}
-                          className="px-4 py-2 bg-cyan-950/40 border border-cyan-500/20 hover:bg-cyan-950/70 text-cyan-400 rounded-xl transition-all flex items-center gap-1"
+                          className="px-4 py-2 bg-purple-950/40 border border-purple-500/20 hover:bg-purple-950/70 text-purple-400 rounded-xl transition-all flex items-center gap-1"
                         >
                           <MessageSquare size={12} /> Message
                         </button>

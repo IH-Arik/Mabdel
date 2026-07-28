@@ -64,12 +64,12 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-[#070a13] flex flex-col justify-center items-center p-4 relative overflow-hidden">
       {/* Background Orbs */}
-      <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none -translate-x-1/2 -translate-y-1/2" />
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none translate-x-1/3 translate-y-1/3" />
       
       {/* Header */}
       <div className="absolute top-8 left-8 text-white font-black text-2xl tracking-tighter">
-        MABDEL<span className="text-cyan-400">.</span>
+        MABDEL<span className="text-purple-400">.</span>
       </div>
 
       <motion.div 
@@ -81,7 +81,7 @@ export default function Onboarding() {
         <div className="flex items-center justify-between mb-12 relative">
            <div className="absolute top-1/2 left-0 right-0 h-1 bg-slate-800 -translate-y-1/2 z-0 rounded-full overflow-hidden">
               <motion.div 
-                 className="h-full bg-cyan-500"
+                 className="h-full bg-purple-500"
                  initial={{ width: '0%' }}
                  animate={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
                  transition={{ duration: 0.3 }}
@@ -92,10 +92,10 @@ export default function Onboarding() {
              const isCompleted = currentStep > idx;
              return (
                <div key={step.id} className="relative z-10 flex flex-col items-center gap-2">
-                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 font-bold text-sm transition-colors ${isActive ? 'bg-[#0c101b] border-cyan-500 text-cyan-400' : isCompleted ? 'bg-cyan-500 border-cyan-500 text-[#070a13]' : 'bg-[#0c101b] border-slate-800 text-slate-500'}`}>
+                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 font-bold text-sm transition-colors ${isActive ? 'bg-[#0c101b] border-purple-500 text-purple-400' : isCompleted ? 'bg-purple-500 border-purple-500 text-[#070a13]' : 'bg-[#0c101b] border-slate-800 text-slate-500'}`}>
                     {isCompleted ? <Check size={18} /> : idx + 1}
                  </div>
-                 <span className={`absolute -bottom-6 text-xs font-bold whitespace-nowrap ${isActive ? 'text-cyan-400' : isCompleted ? 'text-slate-300' : 'text-slate-600'}`}>{step.title}</span>
+                 <span className={`absolute -bottom-6 text-xs font-bold whitespace-nowrap ${isActive ? 'text-purple-400' : isCompleted ? 'text-slate-300' : 'text-slate-600'}`}>{step.title}</span>
                </div>
              )
            })}
@@ -126,13 +126,13 @@ export default function Onboarding() {
                             <button
                                key={role.id}
                                onClick={() => setFormData({ ...formData, role: role.id })}
-                               className={`p-5 rounded-2xl border text-left flex items-start gap-4 transition-all ${isSelected ? 'bg-cyan-500/10 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.1)]' : 'bg-slate-900/50 border-slate-800 hover:border-slate-600 hover:bg-slate-900'}`}
+                               className={`p-5 rounded-2xl border text-left flex items-start gap-4 transition-all ${isSelected ? 'bg-purple-500/10 border-purple-500 shadow-[0_0_20px_rgba(6,182,212,0.1)]' : 'bg-slate-900/50 border-slate-800 hover:border-slate-600 hover:bg-slate-900'}`}
                             >
-                               <div className={`p-3 rounded-xl ${isSelected ? 'bg-cyan-500 text-[#070a13]' : 'bg-slate-800 text-slate-400'}`}>
+                               <div className={`p-3 rounded-xl ${isSelected ? 'bg-purple-500 text-[#070a13]' : 'bg-slate-800 text-slate-400'}`}>
                                  <Icon size={24} />
                                </div>
                                <div>
-                                 <h3 className={`font-bold text-lg mb-1 ${isSelected ? 'text-cyan-400' : 'text-white'}`}>{role.label}</h3>
+                                 <h3 className={`font-bold text-lg mb-1 ${isSelected ? 'text-purple-400' : 'text-white'}`}>{role.label}</h3>
                                  <p className="text-slate-500 text-sm">{role.desc}</p>
                                </div>
                             </button>
@@ -156,7 +156,7 @@ export default function Onboarding() {
                             <button
                                key={goal}
                                onClick={() => toggleGoal(goal)}
-                               className={`px-4 py-4 rounded-xl border text-left font-semibold text-sm transition-all flex items-center justify-between ${isSelected ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:border-slate-600'}`}
+                               className={`px-4 py-4 rounded-xl border text-left font-semibold text-sm transition-all flex items-center justify-between ${isSelected ? 'bg-purple-500/10 border-purple-500 text-purple-400' : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:border-slate-600'}`}
                             >
                                {goal}
                                {isSelected && <Check size={16} />}
@@ -184,7 +184,7 @@ export default function Onboarding() {
                               value={formData.company}
                               onChange={e => setFormData({ ...formData, company: e.target.value })}
                               placeholder="e.g. Acme Real Estate"
-                              className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-cyan-500/50 focus:outline-none text-white"
+                              className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-purple-500/50 focus:outline-none text-white"
                             />
                           </div>
                         </div>
@@ -195,7 +195,7 @@ export default function Onboarding() {
                             <select 
                               value={formData.experience}
                               onChange={e => setFormData({ ...formData, experience: e.target.value })}
-                              className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-cyan-500/50 focus:outline-none text-white appearance-none"
+                              className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:border-purple-500/50 focus:outline-none text-white appearance-none"
                             >
                               <option value="Less than 1 year">Less than 1 year</option>
                               <option value="1-3 years">1-3 years</option>
@@ -227,7 +227,7 @@ export default function Onboarding() {
                 (currentStep === 1 && formData.goals.length === 0) ||
                 isFinishing
              }
-             className="px-8 py-3 bg-cyan-500 hover:bg-cyan-400 text-[#070a13] font-bold rounded-xl flex items-center gap-2 transition-all hover:scale-105 shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
+             className="px-8 py-3 bg-purple-500 hover:bg-purple-400 text-[#070a13] font-bold rounded-xl flex items-center gap-2 transition-all hover:scale-105 shadow-lg shadow-purple-500/20 disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
            >
              {isFinishing ? (
                  <><Loader2 size={18} className="animate-spin" /> Finishing...</>

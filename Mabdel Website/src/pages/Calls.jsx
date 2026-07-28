@@ -19,6 +19,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import { useTwilioVoice } from '../context/TwilioVoiceContext';
+import { formatCstDateTime } from '../utils/dateUtils';
 
 const PAGE_SIZE = 20;
 
@@ -58,7 +59,7 @@ function normalizeCall(call) {
     phone_number: phoneNumber,
     contact_name: call.contact_name || call.caller_name || call.contact?.name || null,
     display_name: call.contact_name || call.caller_name || call.contact?.name || phoneNumber || 'Unknown Caller',
-    display_time: call.display_time_label || (call.timestamp ? new Date(call.timestamp).toLocaleString() : ''),
+    display_time: call.display_time_label || (call.timestamp ? formatCstDateTime(call.timestamp) : ''),
     duration_label: call.duration_label || (call.duration ? `${call.duration}s` : '--'),
     recording_available: Boolean(call.recording_available || call.recording_url),
     transcript_available: Boolean(call.transcript_available || call.transcript),
@@ -122,7 +123,7 @@ function downloadFromUrl(url, filename) {
 function CallStats({ summary }) {
   if (!summary) return null;
   const stats = [
-    { label: 'Total Calls', value: summary.total_calls || 0, icon: Phone, color: '#11C7E5' },
+    { label: 'Total Calls', value: summary.total_calls || 0, icon: Phone, color: '#9333ea' },
     { label: 'Inbound', value: summary.inbound_calls || 0, icon: PhoneIncoming, color: '#10B981' },
     { label: 'Outbound', value: summary.outbound_calls || 0, icon: PhoneOutgoing, color: '#8B5CF6' },
     { label: 'Missed', value: summary.missed_calls || 0, icon: PhoneMissed, color: '#EF4444' },
@@ -207,7 +208,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
         <div className="flex items-center gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <Brain size={16} className="text-[#11C7E5]" />
+              <Brain size={16} className="text-[#9333ea]" />
               <span className="text-sm font-bold text-white">AI Call Analysis</span>
             </div>
             <p className="mt-1 text-xs text-[#A4B0B7]">{call.display_name}</p>
@@ -220,7 +221,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
               onClick={() => setTab(item)}
               className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition-all ${
                 tab === item
-                  ? 'border border-[#11C7E5]/20 bg-[#11C7E5]/10 text-[#11C7E5]'
+                  ? 'border border-[#9333ea]/20 bg-[#9333ea]/10 text-[#9333ea]'
                   : 'text-[#A4B0B7] hover:text-white'
               }`}
             >
@@ -244,7 +245,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
         ) : tab === 'summary' ? (
           <div className="space-y-4">
             <div className="rounded-xl border border-[#243041] bg-[#0A1019] p-4">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#11C7E5]">Call Overview</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">Call Overview</p>
               <div className="grid gap-2 text-sm text-[#A4B0B7] sm:grid-cols-2">
                 <p>Direction: <span className="text-white">{call.call_type_label || call.direction}</span></p>
                 <p>Status: <span className="text-white">{call.status_label || call.status}</span></p>
@@ -254,7 +255,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
             </div>
 
             <div className="rounded-xl border border-[#243041] bg-[#0A1019] p-4">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#11C7E5]">AI Summary</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">AI Summary</p>
               <p className="text-sm leading-relaxed text-[#A4B0B7]">
                 {summaryPurpose || 'No AI summary available for this call yet.'}
               </p>
@@ -262,7 +263,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
 
             {keyPoints.length > 0 && (
               <div className="rounded-xl border border-[#243041] bg-[#0A1019] p-4">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#11C7E5]">Key Points</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">Key Points</p>
                 <ul className="space-y-1.5">
                   {keyPoints.map((point, index) => (
                     <li key={`${point}-${index}`} className="flex items-start gap-2 text-sm text-[#A4B0B7]">
@@ -276,11 +277,11 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
 
             {actionItems.length > 0 && (
               <div className="rounded-xl border border-[#243041] bg-[#0A1019] p-4">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#11C7E5]">Action Items</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">Action Items</p>
                 <ul className="space-y-1.5">
                   {actionItems.map((item, index) => (
                     <li key={`${item}-${index}`} className="flex items-start gap-2 text-sm text-[#A4B0B7]">
-                      <CheckCircle2 size={13} className="mt-0.5 shrink-0 text-[#11C7E5]" />
+                      <CheckCircle2 size={13} className="mt-0.5 shrink-0 text-[#9333ea]" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -291,7 +292,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => onCallback(call)}
-                className="cursor-pointer rounded-xl border border-[#11C7E5]/20 bg-[#11C7E5]/10 px-4 py-2 text-sm font-bold text-[#11C7E5] transition-colors hover:bg-[#11C7E5]/20"
+                className="cursor-pointer rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-4 py-2 text-sm font-bold text-[#9333ea] transition-colors hover:bg-[#9333ea]/20"
               >
                 Callback
               </button>
@@ -314,7 +315,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
                   <div key={`${segment.text || segment.content || 'segment'}-${index}`} className={`flex gap-3 ${isAgent ? 'flex-row-reverse' : ''}`}>
                     <div
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
-                        isAgent ? 'bg-[#11C7E5]/20 text-[#11C7E5]' : 'bg-[#243041] text-[#A4B0B7]'
+                        isAgent ? 'bg-[#9333ea]/20 text-[#9333ea]' : 'bg-[#243041] text-[#A4B0B7]'
                       }`}
                     >
                       {isAgent ? 'AI' : 'U'}
@@ -322,7 +323,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
                     <div
                       className={`max-w-sm rounded-2xl border p-3 text-sm ${
                         isAgent
-                          ? 'border-[#11C7E5]/20 bg-[#11C7E5]/10 text-white'
+                          ? 'border-[#9333ea]/20 bg-[#9333ea]/10 text-white'
                           : 'border-[#243041] bg-[#0A1019] text-[#A4B0B7]'
                       }`}
                     >
@@ -418,7 +419,7 @@ function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPen
 
           <button
             onClick={() => onAnalyze(item)}
-            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#11C7E5]/20 bg-[#11C7E5]/10 px-3 py-2 text-xs font-bold text-[#11C7E5] transition-colors hover:bg-[#11C7E5]/20"
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-3 py-2 text-xs font-bold text-[#9333ea] transition-colors hover:bg-[#9333ea]/20"
           >
             <Brain size={13} />
             Analyze
@@ -468,7 +469,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
       >
         <div className="flex items-center justify-between">
           <h3 className="flex items-center gap-2 font-bold text-white">
-            <PhoneOutgoing size={16} className="text-[#11C7E5]" />
+            <PhoneOutgoing size={16} className="text-[#9333ea]" />
             Make AI Call
           </h3>
           <button onClick={onClose} className="cursor-pointer text-[#A4B0B7] hover:text-white">
@@ -484,7 +485,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
             placeholder="+15551234567"
-            className="w-full rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-3 text-sm text-white outline-none transition-colors focus:border-[#11C7E5]/50"
+            className="w-full rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-3 text-sm text-white outline-none transition-colors focus:border-[#9333ea]/50"
             onKeyDown={(event) => event.key === 'Enter' && call()}
           />
         </div>
@@ -499,7 +500,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
           <button
             onClick={call}
             disabled={calling || !runtimeReady}
-            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#11C7E5] py-3 font-bold text-[#02080B] transition-colors hover:bg-[#0fd0f0] disabled:opacity-60"
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#9333ea] py-3 font-bold text-[#02080B] transition-colors hover:bg-[#a855f7] disabled:opacity-60"
           >
             {calling ? <Loader2 size={16} className="animate-spin" /> : <Phone size={16} />}
             {calling ? 'Calling...' : runtimeReady ? 'Call Now' : 'Voice Unavailable'}
@@ -647,7 +648,7 @@ export default function Calls() {
         <div className="flex gap-3">
           <button
             onClick={() => setShowCallModal(true)}
-            className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#11C7E5] px-5 py-3 font-extrabold text-[#02080B] transition-all active:scale-95 hover:bg-[#0fd0f0]"
+            className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#9333ea] px-5 py-3 font-extrabold text-[#02080B] transition-all active:scale-95 hover:bg-[#a855f7]"
           >
             <Phone size={18} />
             Make AI Call
@@ -687,7 +688,7 @@ export default function Calls() {
       <div className="overflow-hidden rounded-[22px] border border-[#243041] bg-[#131A24] text-left">
         <div className="flex flex-col gap-4 border-b border-[#243041]/40 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-base font-bold text-white">
-            <Phone size={18} className="text-[#11C7E5]" />
+            <Phone size={18} className="text-[#9333ea]" />
             Call History
             <span className="ml-2 text-sm font-normal text-[#A4B0B7]">{filteredCalls.length} records</span>
           </div>
@@ -697,7 +698,7 @@ export default function Calls() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search calls by name, phone, status, direction, AI..."
-              className="w-full rounded-xl border border-[#243246] bg-[#0A1019] py-2.5 pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-[#11C7E5]/50"
+              className="w-full rounded-xl border border-[#243246] bg-[#0A1019] py-2.5 pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-[#9333ea]/50"
             />
           </div>
         </div>
@@ -733,8 +734,8 @@ export default function Calls() {
           </>
         ) : (
           <div className="p-16 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#11C7E5]/10">
-              <Phone size={24} className="text-[#11C7E5]" />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#9333ea]/10">
+              <Phone size={24} className="text-[#9333ea]" />
             </div>
             <p className="font-bold text-white">{search.trim() ? 'No matching calls found' : 'No calls yet'}</p>
             <p className="mt-1 text-sm text-[#A4B0B7]">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CalendarClock, Loader2, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { smartflowApi } from '../api/services';
+import { formatCstDateTime } from '../utils/dateUtils';
 import { DateTimePickerInput } from '../components/ui/DateTimeInputs';
 
 const PUBLISHABLE_PLATFORM_MAP = {
@@ -12,7 +13,7 @@ const PUBLISHABLE_PLATFORM_MAP = {
 };
 
 const INPUT =
-  'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors text-sm placeholder:text-[#4A5568]';
+  'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-sm placeholder:text-[#4A5568]';
 const LABEL = 'block text-[#A4B0B7] text-xs font-semibold uppercase tracking-wider mb-1.5';
 
 function formatPlatformLabel(platform) {
@@ -28,7 +29,7 @@ function summarizePostStatus(results = []) {
     return { label: 'Published', tone: 'text-emerald-300 bg-emerald-950/30' };
   }
   if (results.every((item) => item.status === 'scheduled')) {
-    return { label: 'Scheduled', tone: 'text-[#11C7E5] bg-[#12303F]' };
+    return { label: 'Scheduled', tone: 'text-[#9333ea] bg-[#12303F]' };
   }
   if (results.some((item) => item.status === 'published')) {
     return { label: 'Partially Failed', tone: 'text-amber-300 bg-amber-950/30' };
@@ -200,7 +201,7 @@ export default function CreatePost() {
         setFeedback({
           type: 'success',
           message: scheduled
-            ? `Post scheduled for ${new Date(scheduleDate).toLocaleString()}.`
+            ? `Post scheduled for ${formatCstDateTime(scheduleDate)}.`
             : `Posted to ${successful.map((item) => formatPlatformLabel(item.platform)).join(', ')}.`,
         });
       } else if (successful.length) {
@@ -273,7 +274,7 @@ export default function CreatePost() {
         <div className="space-y-6">
           <div className="bg-[#131A24] border border-[#243041] rounded-[22px] p-6 space-y-4">
             <div className="flex items-center gap-2">
-              <Sparkles size={18} className="text-[#11C7E5]" />
+              <Sparkles size={18} className="text-[#9333ea]" />
               <h2 className="text-white font-bold">AI Generator</h2>
             </div>
 
@@ -290,7 +291,7 @@ export default function CreatePost() {
             <button
               onClick={handleGenerate}
               disabled={generating || !prompt.trim()}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#11C7E5] px-4 py-3 text-sm font-extrabold text-[#02080B] transition-all disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#9333ea] px-4 py-3 text-sm font-extrabold text-[#02080B] transition-all disabled:cursor-not-allowed disabled:opacity-60"
             >
               {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
               Generate Post
@@ -328,7 +329,7 @@ export default function CreatePost() {
                         onClick={() => togglePlatform(platform.id)}
                         className={`rounded-full border px-4 py-2 text-xs font-bold transition-all ${
                           active
-                            ? 'border-[#11C7E5] bg-[#11C7E5]/10 text-white'
+                            ? 'border-[#9333ea] bg-[#9333ea]/10 text-white'
                             : 'border-[#243246] bg-[#0A1019] text-[#A4B0B7]'
                         }`}
                         title={platform.accountName}
@@ -356,7 +357,7 @@ export default function CreatePost() {
                 <DateTimePickerInput
                   value={scheduleDate}
                   onChange={setScheduleDate}
-                  className="focus:border-[#11C7E5]/50"
+                  className="focus:border-[#9333ea]/50"
                 />
               </div>
 
@@ -364,7 +365,7 @@ export default function CreatePost() {
                 type="button"
                 onClick={() => handlePublish(false)}
                 disabled={publishing || !hasPublishablePlatforms}
-                className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-[#11C7E5] px-4 py-3 text-sm font-extrabold text-[#02080B] transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-[#9333ea] px-4 py-3 text-sm font-extrabold text-[#02080B] transition-all disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {publishing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 Publish Now
@@ -386,7 +387,7 @@ export default function CreatePost() {
         <div className="bg-[#131A24] border border-[#243041] rounded-[22px] p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-white font-bold">Recent Posts</h2>
-            <button type="button" onClick={loadHistory} className="inline-flex items-center gap-2 text-xs font-bold text-[#11C7E5]">
+            <button type="button" onClick={loadHistory} className="inline-flex items-center gap-2 text-xs font-bold text-[#9333ea]">
               <RefreshCw size={14} />
               Refresh
             </button>
@@ -418,7 +419,7 @@ export default function CreatePost() {
                       {(item.results || []).map((result, index) => (
                         <span
                           key={`${item.id}-${result.platform}-${index}`}
-                          className="rounded-full bg-[#12303F] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#11C7E5]"
+                          className="rounded-full bg-[#12303F] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#9333ea]"
                         >
                           {formatPlatformLabel(result.platform)}
                         </span>
@@ -428,8 +429,8 @@ export default function CreatePost() {
                     <div className="mt-3 space-y-1.5 text-[11px] text-[#A4B0B7]">
                       <p>
                         {item.scheduled_at
-                          ? `Scheduled for ${new Date(item.scheduled_at).toLocaleString()}`
-                          : `Created ${new Date(item.created_at).toLocaleString()}`}
+                          ? `Scheduled for ${formatCstDateTime(item.scheduled_at)}`
+                          : `Created ${formatCstDateTime(item.created_at)}`}
                       </p>
                       {(item.results || []).map((result, index) => (
                         <p key={`${item.id}-detail-${result.platform}-${index}`}>

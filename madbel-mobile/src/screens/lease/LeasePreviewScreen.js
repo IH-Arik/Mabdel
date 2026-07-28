@@ -40,6 +40,7 @@ import {
   downloadAndOpenProtectedPdf,
   normalizeProtectedFileUrl,
 } from "../../utils/downloadPdf";
+import { API_BASE_URL } from "../../redux/apiUtils";
 
 const STATUS_TONE_MAP = {
   pending_signature: {
@@ -90,6 +91,17 @@ const resolveSigningUrl = (response) =>
   response?.sign_url ||
   response?.data?.sign_url ||
   response?.data?.data?.sign_url ||
+  // DocuSign embedded-signing responses (send-for-signature with
+  // embedded_signing: true) return the open-this-to-sign URL under
+  // signature_request_url (mirrored from envelope.recipient_view_url),
+  // not signing_url/sign_url — without these, the app has no way to
+  // open the actual DocuSign signing view after sending.
+  response?.signature_request_url ||
+  response?.data?.signature_request_url ||
+  response?.data?.data?.signature_request_url ||
+  response?.recipient_view_url ||
+  response?.data?.recipient_view_url ||
+  response?.data?.data?.recipient_view_url ||
   null;
 
 const resolveSigningToken = (response) =>
@@ -300,6 +312,10 @@ const LeasePreviewScreen = () => {
         channel: recipientEmail.trim() ? "email" : "link",
         provider: signatureProvider,
         signing_provider: signatureProvider,
+        return_url:
+          signatureProvider === "docusign"
+            ? `${API_BASE_URL}/api/v1/smartflow/agreements/signature-providers/docusign/signing-complete`
+            : undefined,
       };
       const response = await sendForSignature(payload).unwrap();
       const signingUrl = resolveSigningUrl(response);

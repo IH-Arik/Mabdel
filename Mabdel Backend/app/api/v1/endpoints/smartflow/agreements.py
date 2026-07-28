@@ -163,6 +163,22 @@ async def complete_docusign_oauth(
     return HTMLResponse(content=html, status_code=200)
 
 
+@router.get("/agreements/signature-providers/docusign/signing-complete")
+async def docusign_signing_complete() -> HTMLResponse:
+    # DocuSign's embedded-signing return_url for the mobile app (which has no
+    # window.opener/window.close to fall back on, unlike the Website's popup
+    # flow above) — signing status itself is picked up separately when the
+    # app resumes foreground, this page just avoids stranding the user on a
+    # dead link after they finish signing in the external browser.
+    html = """
+    <html><body style="font-family:Arial,sans-serif;background:#0b1220;color:#fff;padding:24px;text-align:center;">
+    <h2>Signed successfully.</h2>
+    <p>You can switch back to the Madbel app now.</p>
+    </body></html>
+    """
+    return HTMLResponse(content=html, status_code=200)
+
+
 @router.post("/agreements/signature-providers/docusign/webhook")
 async def handle_docusign_webhook(
     request: Request,

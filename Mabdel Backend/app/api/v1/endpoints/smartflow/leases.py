@@ -210,3 +210,31 @@ async def download_lease_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/leases/{lease_id}/signed-pdf")
+async def download_signed_lease_pdf(
+    lease_id: str,
+    current_user: dict = Depends(require_permission("leases", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> Response:
+    pdf_bytes, filename = await service.download_signed_lease_pdf(str(current_user["_id"]), lease_id)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/leases/{lease_id}/completion-certificate")
+async def download_lease_completion_certificate(
+    lease_id: str,
+    current_user: dict = Depends(require_permission("leases", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> Response:
+    pdf_bytes, filename = await service.download_lease_completion_certificate(str(current_user["_id"]), lease_id)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

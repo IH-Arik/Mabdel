@@ -477,3 +477,11 @@ class LeaseService(SmartFlowBase):
         if not lease:
             raise AppException(status_code=404, code="LEASE_NOT_FOUND", message="Requested lease was not found.")
         return self._generate_agreement_pdf_bytes(lease)
+
+    async def download_signed_lease_pdf(self, user_id: str, lease_id: str) -> tuple[bytes, str]:
+        lease = await self._get_owned_lease(user_id, lease_id)
+        return await self.agreement_service.docusign_service.download_signed_pdf(user_id, lease)
+
+    async def download_lease_completion_certificate(self, user_id: str, lease_id: str) -> tuple[bytes, str]:
+        lease = await self._get_owned_lease(user_id, lease_id)
+        return await self.agreement_service.docusign_service.download_certificate(user_id, lease)

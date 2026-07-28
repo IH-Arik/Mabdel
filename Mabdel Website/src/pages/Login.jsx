@@ -83,7 +83,7 @@ export default function LoginPage() {
     const hasNumbers = /[0-9]/.test(pass);
     const hasSpecial = /[^a-zA-Z0-9]/.test(pass);
     if (hasLetters && hasNumbers && hasSpecial && pass.length >= 10) {
-      return { score: 3, text: 'Strong', color: 'bg-cyan-400 shadow-[0_0_10px_#22d3ee]' };
+      return { score: 3, text: 'Strong', color: 'bg-purple-400 shadow-[0_0_10px_#22d3ee]' };
     }
     return { score: 2, text: 'Medium', color: 'bg-amber-400 shadow-[0_0_10px_#fbbf24]' };
   };
@@ -260,7 +260,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#02080B] text-gray-100 flex flex-col justify-between p-6 relative overflow-hidden font-sans antialiased">
       
       {/* Background radial glow */}
-      <div className="absolute w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[100px] pointer-events-none -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[100px] pointer-events-none -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
 
       {/* Spacer to push card center */}
       <div className="flex-1 flex items-center justify-center z-10">
@@ -284,7 +284,7 @@ export default function LoginPage() {
                     setLocalMessage(null);
                   }}>
                     <img src={logoImg} alt="GoCustify logo" className="w-12 h-12 object-contain drop-shadow-[0_0_15px_rgba(17,199,229,0.2)]" />
-                    <span className="text-xs font-black tracking-[0.2em] text-[#11C7E5] uppercase">GoCustify</span>
+                    <span className="text-xs font-black tracking-[0.2em] text-[#9333ea] uppercase">GoCustify</span>
                   </div>
                 </div>
               )}
@@ -299,8 +299,8 @@ export default function LoginPage() {
 
               {/* Local status message feedback */}
               {localMessage && (
-                <div className="mb-6 p-4 bg-cyan-950/20 border border-cyan-500/25 rounded-xl text-cyan-300 text-sm flex items-center gap-2 font-medium">
-                  <Check size={18} className="text-cyan-400 flex-shrink-0" />
+                <div className="mb-6 p-4 bg-purple-950/20 border border-purple-500/25 rounded-xl text-purple-300 text-sm flex items-center gap-2 font-medium">
+                  <Check size={18} className="text-purple-400 flex-shrink-0" />
                   <span>{localMessage}</span>
                 </div>
               )}
@@ -321,7 +321,7 @@ export default function LoginPage() {
                         <input 
                           type="email" 
                           placeholder="Enter your email or phone"
-                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
+                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
@@ -339,7 +339,7 @@ export default function LoginPage() {
                             setLocalError(null);
                             setLocalMessage(null);
                           }} 
-                          className="text-xs font-bold text-cyan-400 hover:underline"
+                          className="text-xs font-bold text-purple-400 hover:underline"
                         >
                           Forgot Password?
                         </button>
@@ -349,7 +349,7 @@ export default function LoginPage() {
                         <input 
                           type={showPass ? "text" : "password"} 
                           placeholder="Enter your password"
-                          className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
+                          className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
@@ -367,7 +367,7 @@ export default function LoginPage() {
                     <button 
                       type="submit" 
                       disabled={authLoading}
-                      className="w-full py-3.5 mt-2 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 group cursor-pointer"
+                      className="w-full py-3.5 mt-2 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 group cursor-pointer"
                     >
                       {authLoading ? (
                         <Loader2 className="animate-spin" size={20} />
@@ -385,7 +385,7 @@ export default function LoginPage() {
                         setLocalError(null);
                         setLocalMessage(null);
                       }} 
-                      className="text-cyan-400 font-bold hover:underline"
+                      className="text-purple-400 font-bold hover:underline"
                     >
                       Sign Up
                     </button>
@@ -409,7 +409,7 @@ export default function LoginPage() {
                         <input 
                           type="text" 
                           placeholder="John Doe"
-                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
+                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
                           required
@@ -424,7 +424,7 @@ export default function LoginPage() {
                         <input 
                           type="email" 
                           placeholder="john@example.com"
-                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
+                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
@@ -439,7 +439,7 @@ export default function LoginPage() {
                         <input 
                           type="text" 
                           placeholder="+1 (555) 000-0000"
-                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
+                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={phoneVal}
                           onChange={(e) => setPhoneVal(e.target.value)}
                         />
@@ -453,7 +453,7 @@ export default function LoginPage() {
                         <input 
                           type={showPass ? "text" : "password"} 
                           placeholder="Enter your password"
-                          className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
+                          className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
@@ -469,15 +469,15 @@ export default function LoginPage() {
                     </div>
 
                     <div className="flex items-start gap-2.5 pt-1">
-                      <input type="checkbox" id="agree" required className="mt-1 rounded bg-[#121625]/60 border border-gray-900 text-cyan-500 focus:ring-cyan-500/20" />
+                      <input type="checkbox" id="agree" required className="mt-1 rounded bg-[#121625]/60 border border-gray-900 text-purple-500 focus:ring-purple-500/20" />
                       <label htmlFor="agree" className="text-xs text-gray-400 leading-normal font-medium cursor-pointer">
-                        I agree to the <a href="/terms-and-conditions" className="text-cyan-400 hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" className="text-cyan-400 hover:underline">Privacy Policy</a>.
+                        I agree to the <a href="/terms-and-conditions" className="text-purple-400 hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" className="text-purple-400 hover:underline">Privacy Policy</a>.
                       </label>
                     </div>
 
                     <button 
                       type="submit" 
-                      className="w-full py-3.5 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.99] transition-all cursor-pointer"
+                      className="w-full py-3.5 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all cursor-pointer"
                     >
                       Sign Up
                     </button>
@@ -491,7 +491,7 @@ export default function LoginPage() {
                         setLocalError(null);
                         setLocalMessage(null);
                       }} 
-                      className="text-cyan-400 font-bold hover:underline"
+                      className="text-purple-400 font-bold hover:underline"
                     >
                       Log In
                     </button>
@@ -513,12 +513,12 @@ export default function LoginPage() {
                       onClick={() => setVerifyMethod('email')}
                       className={`p-5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
                         verifyMethod === 'email' 
-                          ? 'border-cyan-500/80 bg-[#0e1322]/80 shadow-[0_0_15px_rgba(6,182,212,0.08)]' 
+                          ? 'border-purple-500/80 bg-[#0e1322]/80 shadow-[0_0_15px_rgba(6,182,212,0.08)]' 
                           : 'border-gray-900 bg-[#121625]/20 hover:bg-[#121625]/40 hover:border-gray-800'
                       }`}
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${verifyMethod === 'email' ? 'bg-cyan-950 text-cyan-400' : 'bg-gray-900 text-gray-500'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${verifyMethod === 'email' ? 'bg-purple-950 text-purple-400' : 'bg-gray-900 text-gray-500'}`}>
                           <Mail size={18} />
                         </div>
                         <div className="text-left">
@@ -526,8 +526,8 @@ export default function LoginPage() {
                           <p className="text-sm font-bold text-white">{maskEmail(flowType === 'signup' ? email : forgotEmail)}</p>
                         </div>
                       </div>
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${verifyMethod === 'email' ? 'border-cyan-400' : 'border-gray-700'}`}>
-                        {verifyMethod === 'email' && <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />}
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${verifyMethod === 'email' ? 'border-purple-400' : 'border-gray-700'}`}>
+                        {verifyMethod === 'email' && <div className="w-2.5 h-2.5 rounded-full bg-purple-400" />}
                       </div>
                     </div>
 
@@ -536,12 +536,12 @@ export default function LoginPage() {
                       onClick={() => setVerifyMethod('sms')}
                       className={`p-5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
                         verifyMethod === 'sms' 
-                          ? 'border-cyan-500/80 bg-[#0e1322]/80 shadow-[0_0_15px_rgba(6,182,212,0.08)]' 
+                          ? 'border-purple-500/80 bg-[#0e1322]/80 shadow-[0_0_15px_rgba(6,182,212,0.08)]' 
                           : 'border-gray-900 bg-[#121625]/20 hover:bg-[#121625]/40 hover:border-gray-800'
                       }`}
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${verifyMethod === 'sms' ? 'bg-cyan-950 text-cyan-400' : 'bg-gray-900 text-gray-500'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${verifyMethod === 'sms' ? 'bg-purple-950 text-purple-400' : 'bg-gray-900 text-gray-500'}`}>
                           <Phone size={18} />
                         </div>
                         <div className="text-left">
@@ -549,8 +549,8 @@ export default function LoginPage() {
                           <p className="text-sm font-bold text-white">{maskPhone(phoneVal)}</p>
                         </div>
                       </div>
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${verifyMethod === 'sms' ? 'border-cyan-400' : 'border-gray-700'}`}>
-                        {verifyMethod === 'sms' && <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />}
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${verifyMethod === 'sms' ? 'border-purple-400' : 'border-gray-700'}`}>
+                        {verifyMethod === 'sms' && <div className="w-2.5 h-2.5 rounded-full bg-purple-400" />}
                       </div>
                     </div>
                   </div>
@@ -558,7 +558,7 @@ export default function LoginPage() {
                   <button 
                     onClick={handleSendVerificationCode}
                     disabled={localLoading}
-                    className="w-full py-4 mt-8 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-4 mt-8 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {localLoading ? (
                       <Loader2 className="animate-spin" size={20} />
@@ -606,7 +606,7 @@ export default function LoginPage() {
                           inputMode="numeric"
                           className={`w-11 h-14 sm:w-12 sm:h-14 bg-[#131929] border rounded-2xl text-center text-2xl font-bold text-white focus:outline-none transition-all ${
                             activeOtpIndex === idx || digit
-                              ? 'border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]'
+                              ? 'border-purple-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]'
                               : 'border-gray-900'
                           }`}
                           value={digit}
@@ -621,7 +621,7 @@ export default function LoginPage() {
                     <button 
                       type="submit" 
                       disabled={localLoading}
-                      className="w-full py-3.5 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 group cursor-pointer"
+                      className="w-full py-3.5 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 group cursor-pointer"
                     >
                       {localLoading ? (
                         <Loader2 className="animate-spin" size={20} />
@@ -652,7 +652,7 @@ export default function LoginPage() {
                       className={`text-sm font-bold transition-colors block mx-auto ${
                         resendTimer > 0 
                           ? 'text-gray-700 cursor-not-allowed' 
-                          : 'text-cyan-400 hover:text-cyan-300'
+                          : 'text-purple-400 hover:text-purple-300'
                       }`}
                     >
                       I didn't receive a code
@@ -669,7 +669,7 @@ export default function LoginPage() {
               {authMode === 'forgot' && (
                 <div>
                   <div className="text-center mb-8 flex flex-col items-center">
-                    <div className="w-14 h-14 rounded-full bg-cyan-950/45 border border-cyan-500/25 flex items-center justify-center text-cyan-400 mb-4 shadow-lg shadow-cyan-500/5">
+                    <div className="w-14 h-14 rounded-full bg-purple-950/45 border border-purple-500/25 flex items-center justify-center text-purple-400 mb-4 shadow-lg shadow-purple-500/5">
                       <KeyRound size={24} />
                     </div>
                     <h2 className="text-3xl font-bold text-white tracking-tight">Forgot Password?</h2>
@@ -686,7 +686,7 @@ export default function LoginPage() {
                         <input 
                           type="email" 
                           placeholder="Enter your details"
-                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
+                          className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
                           required
@@ -696,7 +696,7 @@ export default function LoginPage() {
 
                     <button 
                       type="submit" 
-                      className="w-full py-3.5 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer"
+                      className="w-full py-3.5 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer"
                     >
                       Send Verification Code
                       <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
@@ -711,7 +711,7 @@ export default function LoginPage() {
                         setLocalError(null);
                         setLocalMessage(null);
                       }} 
-                      className="text-cyan-400 font-bold hover:underline"
+                      className="text-purple-400 font-bold hover:underline"
                     >
                       Back to Login
                     </button>
@@ -734,7 +734,7 @@ export default function LoginPage() {
                         <input 
                           type={showNewPass ? "text" : "password"} 
                           placeholder="Enter new password"
-                          className="w-full pl-4 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
+                          className="w-full pl-4 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           required
@@ -755,7 +755,7 @@ export default function LoginPage() {
                         <input 
                           type={showConfirmPass ? "text" : "password"} 
                           placeholder="Confirm new password"
-                          className="w-full pl-4 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
+                          className="w-full pl-4 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           required
@@ -775,7 +775,7 @@ export default function LoginPage() {
                       <div className="flex justify-between items-center text-xs font-bold">
                         <span className="text-gray-500">Password strength</span>
                         <span className={
-                          strength.score === 3 ? "text-cyan-400" :
+                          strength.score === 3 ? "text-purple-400" :
                           strength.score === 2 ? "text-amber-400" :
                           strength.score === 1 ? "text-rose-400" : "text-gray-600"
                         }>{strength.text}</span>
@@ -790,7 +790,7 @@ export default function LoginPage() {
                     <button 
                       type="submit" 
                       disabled={localLoading}
-                      className="w-full py-3.5 mt-4 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-3.5 mt-4 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {localLoading ? (
                         <Loader2 className="animate-spin" size={20} />
@@ -808,7 +808,7 @@ export default function LoginPage() {
                         setLocalError(null);
                         setLocalMessage(null);
                       }} 
-                      className="text-cyan-400 font-bold hover:underline"
+                      className="text-purple-400 font-bold hover:underline"
                     >
                       Back to Login
                     </button>
@@ -819,7 +819,7 @@ export default function LoginPage() {
               {/* 7. REGISTRATION SUCCESS MODE */}
               {authMode === 'success_register' && (
                 <div className="text-center py-4 flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-cyan-950/80 border-2 border-cyan-400 flex items-center justify-center text-cyan-400 mb-6 shadow-lg shadow-cyan-400/30">
+                  <div className="w-16 h-16 rounded-full bg-purple-950/80 border-2 border-purple-400 flex items-center justify-center text-purple-400 mb-6 shadow-lg shadow-purple-400/30">
                     <Check size={32} strokeWidth={3} />
                   </div>
                   
@@ -837,7 +837,7 @@ export default function LoginPage() {
                       setLocalError(null);
                       setLocalMessage(null);
                     }}
-                    className="w-full py-3.5 mt-8 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer"
+                    className="w-full py-3.5 mt-8 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer"
                   >
                     Continue
                   </button>
@@ -847,7 +847,7 @@ export default function LoginPage() {
               {/* 8. PASSWORD RESET SUCCESS MODE */}
               {authMode === 'success_reset' && (
                 <div className="text-center py-4 flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-cyan-950/80 border-2 border-cyan-400 flex items-center justify-center text-cyan-400 mb-6 shadow-lg shadow-cyan-400/30">
+                  <div className="w-16 h-16 rounded-full bg-purple-950/80 border-2 border-purple-400 flex items-center justify-center text-purple-400 mb-6 shadow-lg shadow-purple-400/30">
                     <Check size={32} strokeWidth={3} />
                   </div>
                   
@@ -865,7 +865,7 @@ export default function LoginPage() {
                       setLocalError(null);
                       setLocalMessage(null);
                     }}
-                    className="w-full py-3.5 mt-8 bg-gradient-to-r from-cyan-400 to-teal-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer"
+                    className="w-full py-3.5 mt-8 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer"
                   >
                     Back to Log In
                     <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />

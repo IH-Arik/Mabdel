@@ -134,7 +134,7 @@ export default function Activities() {
         </div>
         <button
           onClick={() => setShowHostModal(true)}
-          className="flex items-center gap-2 px-5 py-3 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-xl shadow-lg shadow-[#11C7E5]/10 active:scale-95 transition-all cursor-pointer"
+          className="flex items-center gap-2 px-5 py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl shadow-lg shadow-[#9333ea]/10 active:scale-95 transition-all cursor-pointer"
         >
           <Plus size={16} /> Host Activity
         </button>
@@ -161,7 +161,7 @@ export default function Activities() {
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer whitespace-nowrap ${
                 selectedCategory === cat.id
-                  ? 'bg-[#11C7E5]/10 text-[#11C7E5] border-[#11C7E5]/30'
+                  ? 'bg-[#9333ea]/10 text-[#9333ea] border-[#9333ea]/30'
                   : 'bg-[#0c101b] text-[#A4B0B7] border-[#243041]/40 hover:text-white hover:border-[#243041]/80'
               }`}
             >
@@ -177,7 +177,7 @@ export default function Activities() {
             placeholder="Search activities or hosts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-[#0c101b] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 bg-[#0c101b] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
           />
           <Search size={15} className="absolute left-3.5 top-3.5 text-[#A4B0B7]" />
         </div>
@@ -185,7 +185,7 @@ export default function Activities() {
 
       {loading ? (
         <div className="py-20 flex justify-center items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#11C7E5]" />
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#9333ea]" />
         </div>
       ) : filteredActivities.length === 0 ? (
         <div className="py-20 text-center bg-[#0c101b] rounded-3xl border border-[#243041]/60">
@@ -199,7 +199,7 @@ export default function Activities() {
             <motion.div
               layout
               key={act.id || act._id}
-              className="bg-[#0c101b] border border-[#243041]/50 rounded-[22px] overflow-hidden flex flex-col hover:border-[#11C7E5]/30 transition-all duration-300"
+              className="bg-[#0c101b] border border-[#243041]/50 rounded-[22px] overflow-hidden flex flex-col hover:border-[#9333ea]/30 transition-all duration-300"
             >
               <div className="flex flex-col sm:flex-row h-full">
                 {/* Cover Photo */}
@@ -209,7 +209,7 @@ export default function Activities() {
                     alt={act.name}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute top-3 left-3 bg-[#02080B]/70 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/5 text-[9px] font-black uppercase text-[#11C7E5]">
+                  <div className="absolute top-3 left-3 bg-[#02080B]/70 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/5 text-[9px] font-black uppercase text-[#9333ea]">
                     {act.category}
                   </div>
                 </div>
@@ -224,15 +224,15 @@ export default function Activities() {
 
                   <div className="space-y-1.5 text-[11px] text-[#A4B0B7]/90 pt-1 border-t border-[#243041]/20">
                     <div className="flex items-center gap-2">
-                      <Calendar size={13} className="text-[#11C7E5]" />
+                      <Calendar size={13} className="text-[#9333ea]" />
                       <span>{act.date}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Clock size={13} className="text-[#11C7E5]" />
+                      <Clock size={13} className="text-[#9333ea]" />
                       <span>{act.time}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <MapPin size={13} className="text-[#11C7E5]" />
+                      <MapPin size={13} className="text-[#9333ea]" />
                       <span className="truncate max-w-[200px]">{act.location}</span>
                     </div>
                   </div>
@@ -249,7 +249,7 @@ export default function Activities() {
                       </span>
                       <button
                         onClick={() => setSelectedActivity(act)}
-                        className="px-3.5 py-1.5 bg-[#11C7E5]/10 hover:bg-[#11C7E5] text-[#11C7E5] hover:text-[#02080B] font-extrabold text-[10px] rounded-lg border border-[#11C7E5]/20 hover:border-transparent transition-all cursor-pointer"
+                        className="px-3.5 py-1.5 bg-[#9333ea]/10 hover:bg-[#9333ea] text-[#9333ea] hover:text-[#02080B] font-extrabold text-[10px] rounded-lg border border-[#9333ea]/20 hover:border-transparent transition-all cursor-pointer"
                       >
                         Join
                       </button>
@@ -298,7 +298,7 @@ export default function Activities() {
 
               <div className="p-6 space-y-5">
                 <div>
-                  <span className="text-[10px] bg-[#11C7E5]/10 text-[#11C7E5] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider border border-[#11C7E5]/10">
+                  <span className="text-[10px] bg-[#9333ea]/10 text-[#9333ea] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider border border-[#9333ea]/10">
                     {selectedActivity.category}
                   </span>
                   <h2 className="text-xl font-extrabold text-white mt-3">{selectedActivity.name}</h2>
@@ -309,28 +309,28 @@ export default function Activities() {
 
                 <div className="grid grid-cols-2 gap-4 py-1 text-xs">
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3 flex items-center gap-3">
-                    <Calendar size={18} className="text-[#11C7E5]" />
+                    <Calendar size={18} className="text-[#9333ea]" />
                     <div>
                       <span className="text-slate-500 block mb-0.5 text-[10px]">Date</span>
                       <span className="font-bold text-white">{selectedActivity.date}</span>
                     </div>
                   </div>
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3 flex items-center gap-3">
-                    <Clock size={18} className="text-[#11C7E5]" />
+                    <Clock size={18} className="text-[#9333ea]" />
                     <div>
                       <span className="text-slate-500 block mb-0.5 text-[10px]">Time</span>
                       <span className="font-bold text-white">{selectedActivity.time}</span>
                     </div>
                   </div>
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3 flex items-center gap-3">
-                    <MapPin size={18} className="text-[#11C7E5]" />
+                    <MapPin size={18} className="text-[#9333ea]" />
                     <div>
                       <span className="text-slate-500 block mb-0.5 text-[10px]">Location</span>
                       <span className="font-bold text-white truncate max-w-[140px] block">{selectedActivity.location}</span>
                     </div>
                   </div>
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3 flex items-center gap-3">
-                    <Users size={18} className="text-[#11C7E5]" />
+                    <Users size={18} className="text-[#9333ea]" />
                     <div>
                       <span className="text-slate-500 block mb-0.5 text-[10px]">Participants</span>
                       <span className="font-bold text-white">{selectedActivity.joinedCount}/{selectedActivity.maxParticipants || 15} Joined</span>
@@ -341,10 +341,10 @@ export default function Activities() {
                 {selectedActivity.price > 0 && (
                   <div className="p-4 bg-[#0C2028] border border-[#1B5E6E]/60 text-[#EAF8FF] rounded-2xl flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <Ticket size={16} className="text-[#11C7E5]" />
+                      <Ticket size={16} className="text-[#9333ea]" />
                       <span className="text-xs font-bold">Entry Fee</span>
                     </div>
-                    <span className="font-black text-sm text-[#11C7E5]">${selectedActivity.price.toFixed(2)}</span>
+                    <span className="font-black text-sm text-[#9333ea]">${selectedActivity.price.toFixed(2)}</span>
                   </div>
                 )}
 
@@ -357,7 +357,7 @@ export default function Activities() {
                   </button>
                   <button
                     onClick={() => handleJoin(selectedActivity.id || selectedActivity._id)}
-                    className="flex-1 py-3 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
+                    className="flex-1 py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
                   >
                     Confirm & Join
                   </button>
@@ -408,7 +408,7 @@ export default function Activities() {
                       placeholder="e.g. Evening Running / Cycling Session"
                       value={hostForm.name}
                       onChange={(e) => setHostForm({ ...hostForm, name: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                     />
                   </div>
 
@@ -418,7 +418,7 @@ export default function Activities() {
                       <select
                         value={hostForm.category}
                         onChange={(e) => setHostForm({ ...hostForm, category: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                       >
                         <option value="walking">Walking</option>
                         <option value="running">Running</option>
@@ -434,7 +434,7 @@ export default function Activities() {
                         min="2"
                         value={hostForm.maxParticipants}
                         onChange={(e) => setHostForm({ ...hostForm, maxParticipants: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                       />
                     </div>
                   </div>
@@ -445,7 +445,7 @@ export default function Activities() {
                       placeholder="Describe the fitness session goals, pace, target participants, etc."
                       value={hostForm.description}
                       onChange={(e) => setHostForm({ ...hostForm, description: e.target.value })}
-                      className="w-full min-h-20 px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                      className="w-full min-h-20 px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                     />
                   </div>
 
@@ -457,7 +457,7 @@ export default function Activities() {
                       placeholder="e.g. Greenwood Park Main Gate"
                       value={hostForm.location}
                       onChange={(e) => setHostForm({ ...hostForm, location: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                     />
                   </div>
 
@@ -470,7 +470,7 @@ export default function Activities() {
                         placeholder="e.g. June 24, 2026"
                         value={hostForm.date}
                         onChange={(e) => setHostForm({ ...hostForm, date: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                       />
                     </div>
                     <div>
@@ -481,7 +481,7 @@ export default function Activities() {
                         placeholder="e.g. 7:00 AM"
                         value={hostForm.time}
                         onChange={(e) => setHostForm({ ...hostForm, time: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                       />
                     </div>
                   </div>
@@ -494,7 +494,7 @@ export default function Activities() {
                       min="0"
                       value={hostForm.price}
                       onChange={(e) => setHostForm({ ...hostForm, price: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                     />
                   </div>
                 </div>
@@ -509,7 +509,7 @@ export default function Activities() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-3 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
+                    className="flex-1 py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
                   >
                     Publish Activity
                   </button>

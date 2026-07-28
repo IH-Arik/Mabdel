@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { smartflowApi } from '../api/services';
+import { formatCalendarDate, formatCstDateTime } from '../utils/dateUtils';
 import VoiceFormFillModal from '../components/Documents/VoiceFormFillModal';
 import { DatePickerInput } from '../components/ui/DateTimeInputs';
 
@@ -18,7 +19,7 @@ const tabs = [
 ];
 
 // ── Small helpers ──────────────────────────────────────────────────────────────
-const INPUT_CLS = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors text-sm placeholder:text-[#4A5568]';
+const INPUT_CLS = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-sm placeholder:text-[#4A5568]';
 const LABEL_CLS = 'block text-[#A4B0B7] text-xs font-semibold uppercase tracking-wider mb-1.5';
 
 function Field({ label, children }) {
@@ -33,7 +34,7 @@ function Field({ label, children }) {
 function SectionHeader({ icon: Icon, title }) {
   return (
     <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[#243041]/40">
-      <Icon size={18} className="text-[#11C7E5]" />
+      <Icon size={18} className="text-[#9333ea]" />
       <h3 className="text-white font-bold text-sm">{title}</h3>
     </div>
   );
@@ -72,7 +73,7 @@ function formatDisplayDate(value) {
   if (!value) return '—';
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) return String(value);
-  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatCalendarDate(dt);
 }
 
 function formatLeaseMoney(value, currency = 'USD', suffix = '') {
@@ -282,12 +283,12 @@ function AgreementCreator({ onCreated, prefill }) {
             label="Agreement"
             currentValues={{ ...form, prompt, content }}
             onApply={applyVoicePrefill}
-            buttonClassName="absolute bottom-4 right-4 text-[#11C7E5] hover:text-white transition-colors"
+            buttonClassName="absolute bottom-4 right-4 text-[#9333ea] hover:text-white transition-colors"
           />
         </div>
         <button
           onClick={runGenerate} disabled={generating}
-          className="mt-3 w-full py-3.5 bg-[#11C7E5] text-[#02080B] hover:bg-[#0fd0f0] rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
+          className="mt-3 w-full py-3.5 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
         >
           {generating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
           {generating ? 'Generating…' : 'Generate Agreement'}
@@ -304,7 +305,7 @@ function AgreementCreator({ onCreated, prefill }) {
         />
         <button
           onClick={runReview} disabled={reviewing}
-          className="mt-3 w-full py-3 border border-[#11C7E5]/30 text-[#11C7E5] hover:bg-[#11C7E5]/10 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
+          className="mt-3 w-full py-3 border border-[#9333ea]/30 text-[#9333ea] hover:bg-[#9333ea]/10 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
         >
           {reviewing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           {reviewing ? 'Reviewing…' : 'Run AI Review'}
@@ -314,7 +315,7 @@ function AgreementCreator({ onCreated, prefill }) {
       {/* AI Review Results */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 bg-[#0C1420] border-b border-[#243041]/40">
-          <Sparkles size={16} className="text-[#11C7E5]" />
+          <Sparkles size={16} className="text-[#9333ea]" />
           <span className="text-white font-bold text-sm">AI Review</span>
           {aiReview.length > 0 && <span className="ml-auto text-xs text-[#A4B0B7]">{aiReview.length} item{aiReview.length !== 1 ? 's' : ''}</span>}
         </div>
@@ -328,7 +329,7 @@ function AgreementCreator({ onCreated, prefill }) {
         <span className="text-white font-semibold text-sm">Require Signature Field</span>
         <button
           onClick={() => setSig(s => !s)}
-          className={`relative w-12 h-6 rounded-full transition-colors ${signatureEnabled ? 'bg-[#11C7E5]' : 'bg-[#243041]'}`}
+          className={`relative w-12 h-6 rounded-full transition-colors ${signatureEnabled ? 'bg-[#9333ea]' : 'bg-[#243041]'}`}
         >
           <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${signatureEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
         </button>
@@ -336,7 +337,7 @@ function AgreementCreator({ onCreated, prefill }) {
 
       <button
         onClick={handleCreate} disabled={creating}
-        className="w-full py-4 bg-[#11C7E5] text-[#02080B] hover:bg-[#0fd0f0] rounded-xl font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer text-base"
+        className="w-full py-4 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer text-base"
       >
         {creating ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
         {creating ? 'Creating…' : signatureEnabled ? 'Send For Signature' : 'Save as Draft'}
@@ -443,7 +444,7 @@ function LeaseCreator({ onCreated, prefill }) {
     return (
       <div className="flex items-center justify-between px-4 py-3.5 bg-[#0A1019] border border-[#243246] rounded-xl">
         <span className="flex items-center gap-2.5 text-white text-sm font-semibold"><Icon size={16} className="text-[#A4B0B7]" />{label}</span>
-        <button onClick={() => onChange(!value)} className={`relative w-12 h-6 rounded-full transition-colors ${value ? 'bg-[#11C7E5]' : 'bg-[#243041]'}`}>
+        <button onClick={() => onChange(!value)} className={`relative w-12 h-6 rounded-full transition-colors ${value ? 'bg-[#9333ea]' : 'bg-[#243041]'}`}>
           <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-0.5'}`} />
         </button>
       </div>
@@ -457,7 +458,7 @@ function LeaseCreator({ onCreated, prefill }) {
 
       {/* AI Generate */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <p className="text-[#11C7E5] text-xs font-bold uppercase tracking-widest mb-3">Generate Lease with AI</p>
+        <p className="text-[#9333ea] text-xs font-bold uppercase tracking-widest mb-3">Generate Lease with AI</p>
         <div className="relative">
           <textarea
             value={prompt} onChange={e => setPrompt(e.target.value)}
@@ -482,12 +483,12 @@ function LeaseCreator({ onCreated, prefill }) {
               custom_terms: terms,
             }}
             onApply={applyVoicePrefill}
-            buttonClassName="absolute bottom-4 right-4 text-[#11C7E5] hover:text-white transition-colors"
+            buttonClassName="absolute bottom-4 right-4 text-[#9333ea] hover:text-white transition-colors"
           />
         </div>
         <button
           onClick={runGenerate} disabled={generating}
-          className="mt-3 w-full py-3.5 bg-[#11C7E5] text-[#02080B] hover:bg-[#0fd0f0] rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
+          className="mt-3 w-full py-3.5 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
         >
           {generating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
           {generating ? 'Generating…' : 'Generate Lease'}
@@ -521,14 +522,14 @@ function LeaseCreator({ onCreated, prefill }) {
             <button
               type="button"
               onClick={() => setSelfRole('landlord')}
-              className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${selfRole === 'landlord' ? 'bg-[#11C7E5]/10 border-[#11C7E5] text-[#11C7E5]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
+              className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${selfRole === 'landlord' ? 'bg-[#9333ea]/10 border-[#9333ea] text-[#9333ea]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
             >
               Landlord
             </button>
             <button
               type="button"
               onClick={() => setSelfRole('tenant')}
-              className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${selfRole === 'tenant' ? 'bg-[#11C7E5]/10 border-[#11C7E5] text-[#11C7E5]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
+              className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${selfRole === 'tenant' ? 'bg-[#9333ea]/10 border-[#9333ea] text-[#9333ea]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
             >
               Tenant
             </button>
@@ -571,10 +572,10 @@ function LeaseCreator({ onCreated, prefill }) {
         <SectionHeader icon={CalendarDays} title="Lease Duration" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Start Date">
-            <DatePickerInput value={startDate} onChange={setStartDate} className="focus:border-[#11C7E5]/50" />
+            <DatePickerInput value={startDate} onChange={setStartDate} className="focus:border-[#9333ea]/50" />
           </Field>
           <Field label="End Date">
-            <DatePickerInput value={endDate} onChange={setEndDate} className="focus:border-[#11C7E5]/50" />
+            <DatePickerInput value={endDate} onChange={setEndDate} className="focus:border-[#9333ea]/50" />
           </Field>
         </div>
       </div>
@@ -598,7 +599,7 @@ function LeaseCreator({ onCreated, prefill }) {
 
       <button
         onClick={handleCreate} disabled={creating}
-        className="w-full py-4 bg-[#11C7E5] text-[#02080B] hover:bg-[#0fd0f0] rounded-xl font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer text-base"
+        className="w-full py-4 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer text-base"
       >
         {creating ? <Loader2 size={20} className="animate-spin" /> : <ScrollText size={20} />}
         {creating ? 'Creating…' : 'Preview Lease'}
@@ -682,7 +683,7 @@ function RecordRow({ item, type, onDelete, onRefresh }) {
               {item.property_address && <p>📍 {item.property_address}</p>}
               {item.monthly_rent && <p>💰 ${item.monthly_rent}/month</p>}
               {item.start_date && <p>📅 {item.start_date} → {item.end_date || '—'}</p>}
-              {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" className="text-[#11C7E5] hover:underline">View File ↗</a>}
+              {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" className="text-[#9333ea] hover:underline">View File ↗</a>}
 
               {/* Action buttons for lease/agreement */}
               {showActions && (
@@ -692,7 +693,7 @@ function RecordRow({ item, type, onDelete, onRefresh }) {
                     {busy==='pdf' ? <Loader2 size={12} className="animate-spin"/> : <Download size={12}/>} PDF
                   </button>
                   <button onClick={e=>{e.stopPropagation(); action('Send Signature', ()=>(isLease ? smartflowApi.leaseSendSignature(item.id,{}) : smartflowApi.agreementSendSignature(item.id,{})));}} disabled={!!busy}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#11C7E5] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#9333ea] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                     {busy==='Send Signature' ? <Loader2 size={12} className="animate-spin"/> : <Mail size={12}/>} Send for Signature
                   </button>
                   <button onClick={e=>{e.stopPropagation(); action('Sign', ()=>(isLease ? smartflowApi.leaseSign(item.id,{signature:'web'}) : smartflowApi.agreementSign(item.id,{signature:'web'})));}} disabled={!!busy}
@@ -700,7 +701,7 @@ function RecordRow({ item, type, onDelete, onRefresh }) {
                     {busy==='Sign' ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle2 size={12}/>} Sign
                   </button>
                   <button onClick={e=>{e.stopPropagation(); action('Renew', ()=>(isLease ? smartflowApi.leaseRenew(item.id,{}) : smartflowApi.agreementRenew(item.id,{})));}} disabled={!!busy}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[#11C7E5]/10 border border-[#11C7E5]/20 text-[#11C7E5] hover:bg-[#11C7E5]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#9333ea]/10 border border-[#9333ea]/20 text-[#9333ea] hover:bg-[#9333ea]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                     {busy==='Renew' ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12}/>} Renew
                   </button>
                   <button onClick={e=>{e.stopPropagation(); action('Improve', ()=>(isLease ? smartflowApi.leaseEnhanceTerms(item.id,{}) : smartflowApi.agreementImprove(item.id,{})));}} disabled={!!busy}
@@ -884,6 +885,40 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       URL.revokeObjectURL(url);
     } catch (err) {
       setMsg(err.response?.data?.message || 'PDF download failed.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function downloadSignedPdf() {
+    setBusy('signed-pdf');
+    try {
+      const res = await smartflowApi.downloadSignedLeasePdf(record.id);
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${record.lease_number || record.title || 'lease'}-signed.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setMsg(err.response?.data?.message || 'Signed PDF download failed.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function downloadCertificate() {
+    setBusy('certificate');
+    try {
+      const res = await smartflowApi.downloadLeaseCompletionCertificate(record.id);
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${record.lease_number || record.title || 'lease'}-certificate.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setMsg(err.response?.data?.message || 'Completion certificate download failed.');
     } finally {
       setBusy(null);
     }
@@ -1128,7 +1163,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                           }
                         }}
                         disabled={busy === 'review'}
-                        className="text-xs font-semibold text-[#11C7E5] disabled:opacity-60 cursor-pointer"
+                        className="text-xs font-semibold text-[#9333ea] disabled:opacity-60 cursor-pointer"
                       >
                         {busy === 'review' ? 'Refreshing…' : 'Refresh Review'}
                       </button>
@@ -1140,13 +1175,23 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                     <button onClick={downloadPdf} disabled={busy === 'pdf'} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                       {busy === 'pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} PDF
                     </button>
-                    <button onClick={() => setShowSendPanel(s => !s)} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#11C7E5] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
+                    {record.signed_pdf_url && (
+                      <button onClick={downloadSignedPdf} disabled={busy === 'signed-pdf'} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/25 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-950/40 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
+                        {busy === 'signed-pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Signed PDF
+                      </button>
+                    )}
+                    {record.completion_certificate_url && (
+                      <button onClick={downloadCertificate} disabled={busy === 'certificate'} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#9333ea] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
+                        {busy === 'certificate' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Certificate
+                      </button>
+                    )}
+                    <button onClick={() => setShowSendPanel(s => !s)} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#9333ea] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                       <Mail size={12} /> Send for Signature
                     </button>
                     <button onClick={() => setShowSignPanel(s => !s)} disabled={!!busy || record.signature_provider === 'docusign'} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-950/50 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                       <CheckCircle2 size={12} /> Sign
                     </button>
-                    <button onClick={() => setShowRenewPanel(s => !s)} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#11C7E5]/10 border border-[#11C7E5]/20 text-[#11C7E5] hover:bg-[#11C7E5]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
+                    <button onClick={() => setShowRenewPanel(s => !s)} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#9333ea]/10 border border-[#9333ea]/20 text-[#9333ea] hover:bg-[#9333ea]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                       <RefreshCw size={12} /> Renew
                     </button>
                     <button onClick={previewImprove} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-amber-400 hover:bg-amber-950/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
@@ -1161,14 +1206,14 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                           <button
                             type="button"
                             onClick={() => setSignatureProvider('native')}
-                            className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${signatureProvider === 'native' ? 'bg-[#11C7E5]/10 border-[#11C7E5] text-[#11C7E5]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
+                            className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${signatureProvider === 'native' ? 'bg-[#9333ea]/10 border-[#9333ea] text-[#9333ea]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
                           >
                             Native (link)
                           </button>
                           <button
                             type="button"
                             onClick={() => setSignatureProvider('docusign')}
-                            className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${signatureProvider === 'docusign' ? 'bg-[#11C7E5]/10 border-[#11C7E5] text-[#11C7E5]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
+                            className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${signatureProvider === 'docusign' ? 'bg-[#9333ea]/10 border-[#9333ea] text-[#9333ea]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
                           >
                             DocuSign
                           </button>
@@ -1192,7 +1237,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                         <div className="sm:col-span-2 rounded-xl border border-amber-500/20 bg-amber-950/20 p-3 text-xs text-amber-200">
                           <p>DocuSign status: {docusignStatus?.connection_status || 'disconnected'}</p>
                           {!docusignStatus?.connected && (
-                            <button onClick={startDocusignConnect} disabled={busy === 'connect-docusign'} className="mt-3 px-3 py-2 rounded-lg bg-[#11C7E5] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
+                            <button onClick={startDocusignConnect} disabled={busy === 'connect-docusign'} className="mt-3 px-3 py-2 rounded-lg bg-[#9333ea] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
                               {busy === 'connect-docusign' ? 'Opening…' : 'Connect DocuSign'}
                             </button>
                           )}
@@ -1202,7 +1247,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                         <button
                           onClick={sendForSignature}
                           disabled={!!busy || (signatureProvider === 'docusign' && !otherParty.email)}
-                          className="px-4 py-3 rounded-xl bg-[#11C7E5] text-[#02080B] font-bold cursor-pointer disabled:opacity-60"
+                          className="px-4 py-3 rounded-xl bg-[#9333ea] text-[#02080B] font-bold cursor-pointer disabled:opacity-60"
                         >
                           {busy === 'send-signature' ? 'Sending…' : 'Send Lease'}
                         </button>
@@ -1249,7 +1294,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                       {!!improveReview.length && <AIReviewPanel review={improveReview} />}
                       <div className="flex justify-end gap-2">
                         <button onClick={() => setShowImprovePanel(false)} className="px-4 py-3 rounded-xl border border-[#243246] text-[#A4B0B7] font-bold cursor-pointer">Discard</button>
-                        <button onClick={acceptImprove} disabled={!!busy} className="px-4 py-3 rounded-xl bg-[#11C7E5] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
+                        <button onClick={acceptImprove} disabled={!!busy} className="px-4 py-3 rounded-xl bg-[#9333ea] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
                           {busy === 'save-improve' ? 'Saving…' : 'Accept Changes'}
                         </button>
                       </div>
@@ -1265,7 +1310,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                         Renewal creates a brand-new lease linked to {record.lease_number || record.agreement_number}.
                       </div>
                       <div className="sm:col-span-3 flex justify-end">
-                        <button onClick={renewLeaseNow} disabled={!!busy} className="px-4 py-3 rounded-xl bg-[#11C7E5] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
+                        <button onClick={renewLeaseNow} disabled={!!busy} className="px-4 py-3 rounded-xl bg-[#9333ea] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
                           {busy === 'renew' ? 'Renewing…' : 'Create Renewal Lease'}
                         </button>
                       </div>
@@ -1572,12 +1617,12 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
           >
             <div className="px-5 pb-4 text-sm text-[#A4B0B7] border-t border-[#243041]/30 pt-3 space-y-3">
               {msg && <p className={msg.toLowerCase().includes('failed') ? 'text-rose-400' : 'text-emerald-400'}>{msg}</p>}
-              {loadingDetail && <p className="flex items-center gap-2 text-[#11C7E5]"><Loader2 size={14} className="animate-spin" /> Loading agreement details…</p>}
+              {loadingDetail && <p className="flex items-center gap-2 text-[#9333ea]"><Loader2 size={14} className="animate-spin" /> Loading agreement details…</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <p>Agreement No: {record.agreement_number || '--'}</p>
                 <p>Status: {record.status || '--'}</p>
                 <p>Type: {record.agreement_type_label || record.agreement_type || '--'}</p>
-                <p>Updated: {record.updated_at ? new Date(record.updated_at).toLocaleString() : '--'}</p>
+                <p>Updated: {record.updated_at ? formatCstDateTime(record.updated_at) : '--'}</p>
                 <p>Start: {record.start_date || '--'}</p>
                 <p>End: {record.end_date || '--'}</p>
                 <p>Signature Provider: {record.signature_provider || 'native'}</p>
@@ -1596,17 +1641,17 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
                   </button>
                 )}
                 {record.completion_certificate_url && (
-                  <button onClick={e => { e.stopPropagation(); downloadCertificate(); }} disabled={busy === 'certificate'} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#11C7E5] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
+                  <button onClick={e => { e.stopPropagation(); downloadCertificate(); }} disabled={busy === 'certificate'} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#9333ea] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                     {busy === 'certificate' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Certificate
                   </button>
                 )}
-                <button onClick={e => { e.stopPropagation(); setShowSendPanel(s => !s); }} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#11C7E5] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
+                <button onClick={e => { e.stopPropagation(); setShowSendPanel(s => !s); }} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#9333ea] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                   <Mail size={12} /> Send for Signature
                 </button>
                 <button onClick={e => { e.stopPropagation(); setShowSignPanel(s => !s); }} disabled={!!busy || record.signature_provider === 'docusign'} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-950/50 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                   <CheckCircle2 size={12} /> Sign
                 </button>
-                <button onClick={e => { e.stopPropagation(); action('Renew', () => smartflowApi.agreementRenew(item.id, {})); }} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#11C7E5]/10 border border-[#11C7E5]/20 text-[#11C7E5] hover:bg-[#11C7E5]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
+                <button onClick={e => { e.stopPropagation(); action('Renew', () => smartflowApi.agreementRenew(item.id, {})); }} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#9333ea]/10 border border-[#9333ea]/20 text-[#9333ea] hover:bg-[#9333ea]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
                   {busy === 'Renew' ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Renew
                 </button>
                 <button onClick={e => { e.stopPropagation(); previewImprovement(); }} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-amber-400 hover:bg-amber-950/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
@@ -1628,11 +1673,11 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
                   <input value={recipientName} onChange={e => setRecipientName(e.target.value)} placeholder="Recipient name" className={INPUT_CLS} />
                   <input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="Recipient email" className={INPUT_CLS} />
                   {signatureProvider === 'docusign' && !docusignStatus?.connected && (
-                    <button onClick={connectDocusign} type="button" className="sm:col-span-2 py-3 border border-[#11C7E5]/30 text-[#11C7E5] rounded-xl font-bold cursor-pointer">
+                    <button onClick={connectDocusign} type="button" className="sm:col-span-2 py-3 border border-[#9333ea]/30 text-[#9333ea] rounded-xl font-bold cursor-pointer">
                       Connect DocuSign
                     </button>
                   )}
-                  <button onClick={sendAgreementForSignature} disabled={!!busy || (signatureProvider === 'docusign' && !docusignStatus?.connected)} className="sm:col-span-2 py-3 bg-[#11C7E5] text-[#02080B] rounded-xl font-bold disabled:opacity-60 cursor-pointer">
+                  <button onClick={sendAgreementForSignature} disabled={!!busy || (signatureProvider === 'docusign' && !docusignStatus?.connected)} className="sm:col-span-2 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold disabled:opacity-60 cursor-pointer">
                     Confirm Send for Signature
                   </button>
                 </div>
@@ -1655,7 +1700,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
                   {improvePreview ? <textarea value={improvePreview} readOnly className={`${INPUT_CLS} min-h-36 resize-none`} /> : null}
                   {improveReview.length ? <AIReviewPanel review={improveReview} /> : null}
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={acceptImprovement} disabled={!!busy || !improvePreview.trim()} className="px-4 py-2.5 bg-[#11C7E5] text-[#02080B] rounded-xl font-bold disabled:opacity-60 cursor-pointer">
+                    <button onClick={acceptImprovement} disabled={!!busy || !improvePreview.trim()} className="px-4 py-2.5 bg-[#9333ea] text-[#02080B] rounded-xl font-bold disabled:opacity-60 cursor-pointer">
                       Accept Improvement
                     </button>
                     <button onClick={() => { setShowImprovePanel(false); setImprovePreview(''); setImproveReview([]); }} className="px-4 py-2.5 border border-[#243246] text-[#A4B0B7] rounded-xl font-bold cursor-pointer">
@@ -1710,6 +1755,31 @@ export default function Documents() {
     }
   }, [location, navigate]);
 
+  // list_leases/list_agreements read straight from the DB and never call DocuSign,
+  // so a row can keep showing "Pending Signature" after both parties have actually
+  // finished signing until someone opens that specific row (which does trigger a
+  // live refresh). Reconcile any docusign-pending rows in the background right
+  // after each list load so the list itself self-heals without requiring a click.
+  const reconcilePendingDocusign = useCallback((items, kind) => {
+    const pending = (items || []).filter(it => it.signature_provider === 'docusign' && it.status === 'pending_signature');
+    if (!pending.length) return;
+    const fetcher = kind === 'lease' ? smartflowApi.getLease : smartflowApi.getAgreement;
+    const setter = kind === 'lease' ? setLeases : setAgreements;
+    (async () => {
+      for (const it of pending) {
+        try {
+          const res = await fetcher(it.id);
+          const next = res.data?.data;
+          if (next && next.status !== it.status) {
+            setter(prev => prev.map(p => (p.id === next.id ? next : p)));
+          }
+        } catch {
+          // Best-effort reconciliation; a stale row just stays stale until next load.
+        }
+      }
+    })();
+  }, []);
+
   const fetchAll = useCallback(async () => {
     const fetchVersion = ++fetchVersionRef.current;
     try {
@@ -1724,8 +1794,10 @@ export default function Documents() {
       if (active === 'leases') {
         const leaseList = await leasesPromise;
         if (fetchVersion !== fetchVersionRef.current) return;
-        setLeases(leaseList.data?.data?.items || leaseList.data?.data || []);
+        const leaseItems = leaseList.data?.data?.items || leaseList.data?.data || [];
+        setLeases(leaseItems);
         setLoading(false);
+        reconcilePendingDocusign(leaseItems, 'lease');
         Promise.allSettled([docsPromise, agreementsPromise]).then(([docs, agreementList]) => {
           if (fetchVersion !== fetchVersionRef.current) return;
           if (docs.status === 'fulfilled') {
@@ -1741,8 +1813,10 @@ export default function Documents() {
       if (active === 'agreements') {
         const agreementList = await agreementsPromise;
         if (fetchVersion !== fetchVersionRef.current) return;
-        setAgreements(agreementList.data?.data?.items || agreementList.data?.data || []);
+        const agreementItems = agreementList.data?.data?.items || agreementList.data?.data || [];
+        setAgreements(agreementItems);
         setLoading(false);
+        reconcilePendingDocusign(agreementItems, 'agreement');
         Promise.allSettled([docsPromise, leasesPromise]).then(([docs, leaseList]) => {
           if (fetchVersion !== fetchVersionRef.current) return;
           if (docs.status === 'fulfilled') {
@@ -1758,8 +1832,20 @@ export default function Documents() {
       const [docs, leaseList, agreementList] = await Promise.allSettled([docsPromise, leasesPromise, agreementsPromise]);
       if (fetchVersion !== fetchVersionRef.current) return;
       setDocuments(docs.status === 'fulfilled' ? (docs.value.data?.data?.items || docs.value.data?.data || []) : []);
-      setLeases(leaseList.status === 'fulfilled' ? (leaseList.value.data?.data?.items || leaseList.value.data?.data || []) : []);
-      setAgreements(agreementList.status === 'fulfilled' ? (agreementList.value.data?.data?.items || agreementList.value.data?.data || []) : []);
+      if (leaseList.status === 'fulfilled') {
+        const leaseItems = leaseList.value.data?.data?.items || leaseList.value.data?.data || [];
+        setLeases(leaseItems);
+        reconcilePendingDocusign(leaseItems, 'lease');
+      } else {
+        setLeases([]);
+      }
+      if (agreementList.status === 'fulfilled') {
+        const agreementItems = agreementList.value.data?.data?.items || agreementList.value.data?.data || [];
+        setAgreements(agreementItems);
+        reconcilePendingDocusign(agreementItems, 'agreement');
+      } else {
+        setAgreements([]);
+      }
 
       if (docs.status === 'rejected' && leaseList.status === 'rejected' && agreementList.status === 'rejected') {
         console.error('Documents page data requests failed.', {
@@ -1771,7 +1857,7 @@ export default function Documents() {
     } catch (err) {
       console.error('Documents page fetch crashed.', err);
     } finally { setLoading(false); }
-  }, [active, agreementSearch, leaseSearch]);
+  }, [active, agreementSearch, leaseSearch, reconcilePendingDocusign]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -1829,7 +1915,7 @@ export default function Documents() {
         </div>
         <button
           onClick={() => { setShowCreate(c => !c); }}
-          className="px-5 py-3 bg-[#11C7E5] text-[#02080B] hover:bg-[#0fd0f0] rounded-xl font-extrabold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shrink-0"
+          className="px-5 py-3 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shrink-0"
         >
           {showCreate ? <X size={18} /> : <Plus size={18} />}
           {showCreate ? 'Close Form' : active === 'leases' ? 'New Lease' : 'New Agreement'}
@@ -1860,9 +1946,9 @@ export default function Documents() {
             <button
               key={tab.id}
               onClick={() => { setActive(tab.id); setShowCreate(false); }}
-              className={`px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer ${active === tab.id ? 'bg-[#11C7E5]/10 text-white border-[#11C7E5]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent'}`}
+              className={`px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer ${active === tab.id ? 'bg-[#9333ea]/10 text-white border-[#9333ea]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent'}`}
             >
-              <Icon size={16} className={active === tab.id ? 'text-[#11C7E5]' : ''} />
+              <Icon size={16} className={active === tab.id ? 'text-[#9333ea]' : ''} />
               {tab.label}
               <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#243041] text-[#A4B0B7] text-xs">
                 {tab.id === 'leases' ? leases.length : agreements.length}
@@ -1909,8 +1995,8 @@ export default function Documents() {
             </div>
           ) : (
             <div className="p-16 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-[#11C7E5]/10 flex items-center justify-center mx-auto mb-4">
-                {active === 'leases' ? <ScrollText size={24} className="text-[#11C7E5]" /> : <FileCheck2 size={24} className="text-[#11C7E5]" />}
+              <div className="w-14 h-14 rounded-2xl bg-[#9333ea]/10 flex items-center justify-center mx-auto mb-4">
+                {active === 'leases' ? <ScrollText size={24} className="text-[#9333ea]" /> : <FileCheck2 size={24} className="text-[#9333ea]" />}
               </div>
               <p className="text-white font-bold">No {tabs.find(t => t.id === active)?.label.toLowerCase()} yet</p>
               <p className="text-[#A4B0B7] text-sm mt-1">

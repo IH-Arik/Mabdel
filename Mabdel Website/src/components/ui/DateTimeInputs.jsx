@@ -154,7 +154,7 @@ function CalendarGrid({ value, onSelect }) {
               onClick={() => onSelect(dayValue)}
               className={`h-10 rounded-xl text-sm font-semibold transition-all ${
                 active
-                  ? 'bg-[#11C7E5] text-[#03131B] shadow-md shadow-[#11C7E5]/20'
+                  ? 'bg-[#9333ea] text-[#03131B] shadow-md shadow-[#9333ea]/20'
                   : muted
                   ? 'text-[#546274] hover:bg-[#101826]'
                   : 'text-white hover:bg-[#101826]'
@@ -258,17 +258,17 @@ function AnalogTimePicker({ value, onSelect, onDone }) {
           type="button"
           onClick={() => setMode('hour')}
           className={`rounded-xl px-3 py-1.5 text-3xl font-black tracking-tight transition-colors ${
-            mode === 'hour' ? 'bg-[#123549] text-[#7DDEFF]' : 'text-slate-400 hover:text-white'
+            mode === 'hour' ? 'bg-[#123549] text-[#d8b4fe]' : 'text-slate-400 hover:text-white'
           }`}
         >
           {String(hour12).padStart(2, '0')}
         </button>
-        <span className="text-3xl font-black text-[#7DDEFF]">:</span>
+        <span className="text-3xl font-black text-[#d8b4fe]">:</span>
         <button
           type="button"
           onClick={() => setMode('minute')}
           className={`rounded-xl px-3 py-1.5 text-3xl font-black tracking-tight transition-colors ${
-            mode === 'minute' ? 'bg-[#123549] text-[#7DDEFF]' : 'text-slate-400 hover:text-white'
+            mode === 'minute' ? 'bg-[#123549] text-[#d8b4fe]' : 'text-slate-400 hover:text-white'
           }`}
         >
           {String(minute).padStart(2, '0')}
@@ -278,7 +278,7 @@ function AnalogTimePicker({ value, onSelect, onDone }) {
             type="button"
             onClick={() => { setIsPM(false); commitValue(hour12, minute, false); }}
             className={`rounded-lg px-2 py-1 text-xs font-bold transition-colors ${
-              !isPM ? 'bg-[#11C7E5] text-[#03131B]' : 'bg-[#101826] text-slate-400'
+              !isPM ? 'bg-[#9333ea] text-[#03131B]' : 'bg-[#101826] text-slate-400'
             }`}
           >
             AM
@@ -287,7 +287,7 @@ function AnalogTimePicker({ value, onSelect, onDone }) {
             type="button"
             onClick={() => { setIsPM(true); commitValue(hour12, minute, true); }}
             className={`rounded-lg px-2 py-1 text-xs font-bold transition-colors ${
-              isPM ? 'bg-[#11C7E5] text-[#03131B]' : 'bg-[#101826] text-slate-400'
+              isPM ? 'bg-[#9333ea] text-[#03131B]' : 'bg-[#101826] text-slate-400'
             }`}
           >
             PM
@@ -306,10 +306,10 @@ function AnalogTimePicker({ value, onSelect, onDone }) {
           className="relative select-none rounded-full border border-[#1D2B3D] bg-[#101826]"
           style={{ width: FACE_RADIUS * 2, height: FACE_RADIUS * 2, touchAction: 'none', cursor: 'pointer' }}
         >
-          <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#11C7E5]" />
+          <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#9333ea]" />
 
           <div
-            className="pointer-events-none absolute left-1/2 top-1/2 bg-[#11C7E5]/60"
+            className="pointer-events-none absolute left-1/2 top-1/2 bg-[#9333ea]/60"
             style={{
               width: 2,
               height: TICK_RADIUS,
@@ -319,7 +319,7 @@ function AnalogTimePicker({ value, onSelect, onDone }) {
           />
 
           <div
-            className="pointer-events-none absolute h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#11C7E5]"
+            className="pointer-events-none absolute h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#9333ea]"
             style={{ left: FACE_RADIUS + knobPoint.x, top: FACE_RADIUS + knobPoint.y }}
           />
 
@@ -368,11 +368,11 @@ export function DatePickerInput({
         type="button"
         onClick={() => setOpen((current) => !current)}
         className={`${BASE_INPUT} ${className} flex items-center justify-between gap-3 text-left ${
-          open ? 'border-[#11C7E5]/50' : ''
+          open ? 'border-[#9333ea]/50' : ''
         }`}
       >
         <span className={displayValue ? 'text-white font-semibold' : 'text-[#4A5568]'}>{displayValue || placeholder}</span>
-        <CalendarDays size={16} className="text-[#7DDEFF]" />
+        <CalendarDays size={16} className="text-[#d8b4fe]" />
       </button>
 
       <PickerModal
@@ -414,11 +414,11 @@ export function TimePickerInput({
         type="button"
         onClick={() => setOpen((current) => !current)}
         className={`${BASE_INPUT} ${className} flex items-center justify-between gap-3 text-left ${
-          open ? 'border-[#11C7E5]/50' : ''
+          open ? 'border-[#9333ea]/50' : ''
         }`}
       >
         <span className={displayValue ? 'text-white font-semibold' : 'text-[#4A5568]'}>{displayValue || placeholder}</span>
-        <Clock3 size={16} className="text-[#7DDEFF]" />
+        <Clock3 size={16} className="text-[#d8b4fe]" />
       </button>
 
       <PickerModal
@@ -480,11 +480,11 @@ export function DateTimePickerInput({
         type="button"
         onClick={() => setOpen((current) => !current)}
         className={`${BASE_INPUT} ${className} flex items-center justify-between gap-3 text-left ${
-          open ? 'border-[#11C7E5]/50' : ''
+          open ? 'border-[#9333ea]/50' : ''
         }`}
       >
         <span className={displayValue ? 'text-white font-semibold' : 'text-[#4A5568]'}>{displayValue || placeholder}</span>
-        <div className="flex items-center gap-2 text-[#7DDEFF]">
+        <div className="flex items-center gap-2 text-[#d8b4fe]">
           <CalendarDays size={16} />
           <Clock3 size={16} />
         </div>

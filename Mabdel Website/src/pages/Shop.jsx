@@ -144,7 +144,7 @@ export default function Shop() {
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer whitespace-nowrap ${
                 selectedCategory === cat.id
-                  ? 'bg-[#11C7E5]/10 text-[#11C7E5] border-[#11C7E5]/30'
+                  ? 'bg-[#9333ea]/10 text-[#9333ea] border-[#9333ea]/30'
                   : 'bg-[#0c101b] text-[#A4B0B7] border-[#243041]/40 hover:text-white hover:border-[#243041]/80'
               }`}
             >
@@ -160,7 +160,7 @@ export default function Shop() {
             placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-[#0c101b] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 bg-[#0c101b] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
           />
           <Search size={15} className="absolute left-3.5 top-3.5 text-[#A4B0B7]" />
         </div>
@@ -168,7 +168,7 @@ export default function Shop() {
 
       {loading ? (
         <div className="py-20 flex justify-center items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#11C7E5]" />
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#9333ea]" />
         </div>
       ) : filteredProducts.length === 0 ? (
         <div className="py-20 text-center bg-[#0c101b] rounded-3xl border border-[#243041]/60">
@@ -182,7 +182,7 @@ export default function Shop() {
             <motion.div
               layout
               key={product.id || product._id}
-              className="bg-[#0c101b] border border-[#243041]/50 rounded-[22px] overflow-hidden flex flex-col justify-between hover:border-[#11C7E5]/30 group transition-all duration-300"
+              className="bg-[#0c101b] border border-[#243041]/50 rounded-[22px] overflow-hidden flex flex-col justify-between hover:border-[#9333ea]/30 group transition-all duration-300"
             >
               <div>
                 {/* Product Image */}
@@ -193,14 +193,14 @@ export default function Shop() {
                     className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
                   />
                   <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/5 flex items-center gap-1.5">
-                    <Tag size={10} className="text-[#11C7E5]" />
+                    <Tag size={10} className="text-[#9333ea]" />
                     <span className="text-[10px] font-black tracking-wider uppercase text-white">{product.category || 'General'}</span>
                   </div>
                 </div>
 
                 {/* Product Info */}
                 <div className="p-5 text-left space-y-2">
-                  <h3 className="font-bold text-white text-base truncate group-hover:text-[#11C7E5] transition-colors">{product.name}</h3>
+                  <h3 className="font-bold text-white text-base truncate group-hover:text-[#9333ea] transition-colors">{product.name}</h3>
                   <p className="text-[#A4B0B7] text-xs leading-relaxed line-clamp-2 min-h-[32px]">{product.description}</p>
                 </div>
               </div>
@@ -217,7 +217,7 @@ export default function Shop() {
                   </button>
                   <button
                     onClick={() => setCheckoutProduct(product)}
-                    className="px-4 py-2 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer"
+                    className="px-4 py-2 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer"
                   >
                     Buy Now
                   </button>
@@ -267,12 +267,12 @@ export default function Shop() {
               <div className="p-6 space-y-4">
                 <div className="flex justify-between items-start gap-4">
                   <div>
-                    <span className="text-[10px] bg-[#11C7E5]/10 text-[#11C7E5] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider border border-[#11C7E5]/10">
+                    <span className="text-[10px] bg-[#9333ea]/10 text-[#9333ea] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider border border-[#9333ea]/10">
                       {selectedProduct.category || 'General'}
                     </span>
                     <h2 className="text-xl font-extrabold text-white mt-3">{selectedProduct.name}</h2>
                   </div>
-                  <span className="text-2xl font-black text-[#11C7E5] shrink-0">${selectedProduct.price?.toFixed(2)}</span>
+                  <span className="text-2xl font-black text-[#9333ea] shrink-0">${selectedProduct.price?.toFixed(2)}</span>
                 </div>
 
                 <p className="text-[#A4B0B7] text-xs leading-relaxed">{selectedProduct.description}</p>
@@ -300,7 +300,7 @@ export default function Shop() {
                       setCheckoutProduct(selectedProduct);
                       setSelectedProduct(null);
                     }}
-                    className="flex-1 py-3 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
+                    className="flex-1 py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
                   >
                     Buy Now
                   </button>
@@ -339,7 +339,7 @@ export default function Shop() {
               {checkoutStep === 'form' && (
                 <form onSubmit={handleCheckoutSubmit} className="space-y-5">
                   <div className="text-center">
-                    <CreditCard size={28} className="mx-auto text-[#11C7E5] mb-2" />
+                    <CreditCard size={28} className="mx-auto text-[#9333ea] mb-2" />
                     <h3 className="text-lg font-black text-white">Payment Checkout</h3>
                     <p className="text-[#A4B0B7] text-xs">Enter your card details to complete your checkout purchase.</p>
                   </div>
@@ -357,7 +357,7 @@ export default function Shop() {
                         <span className="text-[#A4B0B7] text-[10px]">Qty: 1</span>
                       </div>
                     </div>
-                    <span className="font-black text-[#11C7E5] text-sm">${checkoutProduct.price?.toFixed(2)}</span>
+                    <span className="font-black text-[#9333ea] text-sm">${checkoutProduct.price?.toFixed(2)}</span>
                   </div>
 
                   {paymentError && <p className="text-rose-400 text-[11px] font-bold bg-rose-950/20 p-2.5 rounded-lg border border-rose-950/50">{paymentError}</p>}
@@ -369,7 +369,7 @@ export default function Shop() {
                       placeholder="Cardholder Name"
                       value={cardDetails.name}
                       onChange={(e) => setCardDetails({ ...cardDetails, name: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                     />
                     <input
                       type="text"
@@ -377,7 +377,7 @@ export default function Shop() {
                       maxLength={16}
                       value={cardDetails.number}
                       onChange={(e) => setCardDetails({ ...cardDetails, number: e.target.value.replace(/\D/g, '') })}
-                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                     />
                     <div className="grid grid-cols-2 gap-3">
                       <input
@@ -386,7 +386,7 @@ export default function Shop() {
                         maxLength={5}
                         value={cardDetails.expiry}
                         onChange={(e) => setCardDetails({ ...cardDetails, expiry: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors text-center"
+                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-center"
                       />
                       <input
                         type="password"
@@ -394,19 +394,19 @@ export default function Shop() {
                         maxLength={3}
                         value={cardDetails.cvc}
                         onChange={(e) => setCardDetails({ ...cardDetails, cvc: e.target.value.replace(/\D/g, '') })}
-                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#11C7E5]/50 transition-colors text-center"
+                        className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-center"
                       />
                     </div>
                   </div>
 
                   <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500">
-                    <ShieldCheck size={14} className="text-[#11C7E5]" />
+                    <ShieldCheck size={14} className="text-[#9333ea]" />
                     <span>Secured Stripe Gateway Integration</span>
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-3 bg-[#11C7E5] hover:bg-[#0fd0f0] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
+                    className="w-full py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
                   >
                     Confirm & Pay
                   </button>
@@ -415,7 +415,7 @@ export default function Shop() {
 
               {checkoutStep === 'processing' && (
                 <div className="py-12 flex flex-col justify-center items-center space-y-4">
-                  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#11C7E5]" />
+                  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#9333ea]" />
                   <h4 className="font-extrabold text-white">Processing Transaction...</h4>
                   <p className="text-[#A4B0B7] text-xs">Authenticating and verifying payment credentials with card issuer...</p>
                 </div>

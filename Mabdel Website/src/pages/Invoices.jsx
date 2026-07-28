@@ -9,6 +9,7 @@ import {
   Sparkles, Share2, Settings, Loader2
 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
+import { formatCalendarDate, formatCstDate, formatCstTime } from '../utils/dateUtils';
 import VoiceFormFillModal from '../components/Documents/VoiceFormFillModal';
 import { DatePickerInput } from '../components/ui/DateTimeInputs';
 
@@ -475,7 +476,7 @@ export default function Invoices() {
         return 'bg-rose-500/10 border-rose-500/30 text-rose-400';
       case 'sent':
       case 'viewed':
-        return 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400';
+        return 'bg-purple-500/10 border-purple-500/30 text-purple-400';
       case 'draft':
       default:
         return 'bg-slate-800 border-slate-700 text-slate-400';
@@ -507,7 +508,7 @@ export default function Invoices() {
                 resetForm();
                 setViewMode('create');
               }}
-              className="px-5 py-3 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] hover:shadow-cyan-400/10 rounded-xl text-xs font-extrabold shadow-lg shadow-cyan-500/5 active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer self-start md:self-auto"
+              className="px-5 py-3 bg-purple-400 hover:bg-purple-300 text-[#070a13] hover:shadow-purple-400/10 rounded-xl text-xs font-extrabold shadow-lg shadow-purple-500/5 active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer self-start md:self-auto"
             >
               <Plus size={16} />
               <span>New Invoice</span>
@@ -520,7 +521,7 @@ export default function Invoices() {
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6 flex flex-col justify-between text-left relative overflow-hidden group">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Outstanding</span>
-                <span className="w-8 h-8 rounded-lg bg-slate-950/60 flex items-center justify-center text-cyan-400 border border-slate-900">
+                <span className="w-8 h-8 rounded-lg bg-slate-950/60 flex items-center justify-center text-purple-400 border border-slate-900">
                   <DollarSign size={16} />
                 </span>
               </div>
@@ -538,7 +539,7 @@ export default function Invoices() {
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6 flex flex-col justify-between text-left relative overflow-hidden group">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sent</span>
-                <span className="w-8 h-8 rounded-lg bg-slate-950/60 flex items-center justify-center text-cyan-400 border border-slate-900">
+                <span className="w-8 h-8 rounded-lg bg-slate-950/60 flex items-center justify-center text-purple-400 border border-slate-900">
                   <Send size={16} />
                 </span>
               </div>
@@ -580,7 +581,7 @@ export default function Invoices() {
                   <input 
                     type="text" 
                     placeholder="Search invoices..." 
-                    className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40 transition-colors"
+                    className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition-colors"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -594,7 +595,7 @@ export default function Invoices() {
                       onClick={() => setStatusFilter(status)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border capitalize cursor-pointer ${
                         statusFilter === status 
-                          ? 'bg-cyan-950/40 text-cyan-400 border-cyan-500/35' 
+                          ? 'bg-purple-950/40 text-purple-400 border-purple-500/35' 
                           : 'bg-transparent text-slate-500 border-transparent hover:text-slate-300'
                       }`}
                     >
@@ -671,7 +672,7 @@ export default function Invoices() {
                               ${inv.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </td>
                             <td className="px-6 py-4 text-xs text-slate-500 font-semibold">
-                              {new Date(inv.due_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {formatCalendarDate(inv.due_date)}
                             </td>
                             <td className="px-6 py-4">
                               <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold border capitalize ${getStatusBadgeStyle(inv.status)}`}>
@@ -732,7 +733,7 @@ export default function Invoices() {
                     {/* Header */}
                     <div className="flex items-center justify-between pb-4 border-b border-slate-900/60">
                       <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">Invoice Details</span>
-                      <span className="px-2.5 py-0.5 bg-cyan-950/80 border border-cyan-500/20 text-cyan-400 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                      <span className="px-2.5 py-0.5 bg-purple-950/80 border border-purple-500/20 text-purple-400 text-[9px] font-bold rounded-full uppercase tracking-wider">
                         Preview
                       </span>
                     </div>
@@ -747,13 +748,13 @@ export default function Invoices() {
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
-                          {activeInvoice.invoice_number} • Due: {new Date(activeInvoice.due_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                          {activeInvoice.invoice_number} • Due: {formatCalendarDate(activeInvoice.due_date, { year: undefined })}
                         </p>
                       </div>
 
                       <div className="border-t border-slate-900/60 pt-3 flex items-baseline justify-between">
                         <span className="text-xs text-slate-400 font-bold">Total Amount</span>
-                        <span className="text-2xl font-extrabold text-cyan-400 tracking-tight">
+                        <span className="text-2xl font-extrabold text-purple-400 tracking-tight">
                           ${activeInvoice.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
@@ -787,7 +788,7 @@ export default function Invoices() {
                       {activeInvoice.status === 'draft' ? (
                         <button 
                           onClick={() => setViewMode('dispatch')}
-                          className="py-2.5 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] hover:shadow-cyan-400/10 rounded-xl text-xs font-bold shadow-md shadow-cyan-500/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          className="py-2.5 bg-purple-400 hover:bg-purple-300 text-[#070a13] hover:shadow-purple-400/10 rounded-xl text-xs font-bold shadow-md shadow-purple-500/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                         >
                           Send Invoice
                         </button>
@@ -808,7 +809,7 @@ export default function Invoices() {
                     {/* AI Suggestions Box */}
                     {activeInvoice.status !== 'paid' && (
                       <div className="border-t border-slate-900/60 pt-5 space-y-3.5">
-                        <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
                           <Sparkles size={12} className="fill-current" /> AI Suggestions
                         </span>
                         
@@ -817,7 +818,7 @@ export default function Invoices() {
                             onClick={handleScheduleVoiceReminder}
                             className="p-3 bg-slate-950/40 border border-slate-900 hover:border-slate-800 rounded-xl flex items-start gap-2.5 cursor-pointer transition-all"
                           >
-                            <div className="p-1.5 bg-cyan-950/80 border border-cyan-500/20 text-cyan-400 rounded-lg mt-0.5">
+                            <div className="p-1.5 bg-purple-950/80 border border-purple-500/20 text-purple-400 rounded-lg mt-0.5">
                               <Mail size={12} />
                             </div>
                             <div className="text-left leading-normal">
@@ -858,7 +859,7 @@ export default function Invoices() {
                           setViewMode('details');
                         }
                       }}
-                      className="text-xs font-bold text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-xs font-bold text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       View Full Timeline & Logs →
                     </button>
@@ -920,7 +921,7 @@ export default function Invoices() {
                   <button 
                     onClick={handleSaveDraft}
                     disabled={savingInvoice}
-                    className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] text-xs font-bold rounded-xl transition-all cursor-pointer"
+                    className="px-4 py-2 bg-purple-400 hover:bg-purple-300 text-[#070a13] text-xs font-bold rounded-xl transition-all cursor-pointer"
                   >
                     {editingInvoiceId ? 'Update Invoice' : 'Create Invoice'}
                   </button>
@@ -929,7 +930,7 @@ export default function Invoices() {
 
               <div className="mt-6 bg-[#070a13] border border-slate-900 rounded-2xl p-5 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-900 text-cyan-400 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-900 text-purple-400 flex items-center justify-center flex-shrink-0">
                     <Mic size={20} />
                   </div>
                   <div className="text-left flex-1 min-w-0">
@@ -954,7 +955,7 @@ export default function Invoices() {
                     items: lineItems,
                   }}
                   onApply={applyVoicePrefill}
-                  buttonClassName="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2"
+                  buttonClassName="px-4 py-2 bg-purple-400 hover:bg-purple-300 text-[#070a13] text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2"
                 >
                   <Mic size={16} />
                   Start Voice Fill
@@ -972,7 +973,7 @@ export default function Invoices() {
                     <DatePickerInput
                       value={issueDate}
                       onChange={setIssueDate}
-                      className="py-2.5 bg-slate-950 border-slate-900 text-xs focus:border-cyan-500/40"
+                      className="py-2.5 bg-slate-950 border-slate-900 text-xs focus:border-purple-500/40"
                     />
                   </div>
 
@@ -982,7 +983,7 @@ export default function Invoices() {
                     <input 
                       type="text" 
                       placeholder="Search or add client..."
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
                     />
@@ -994,7 +995,7 @@ export default function Invoices() {
                     <input 
                       type="email" 
                       placeholder="client@example.com"
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                       value={clientEmail}
                       onChange={(e) => setClientEmail(e.target.value)}
                     />
@@ -1006,7 +1007,7 @@ export default function Invoices() {
                     <DatePickerInput
                       value={dueDate}
                       onChange={setDueDate}
-                      className="py-2.5 bg-slate-950 border-slate-900 text-xs focus:border-cyan-500/40"
+                      className="py-2.5 bg-slate-950 border-slate-900 text-xs focus:border-purple-500/40"
                     />
                   </div>
 
@@ -1015,7 +1016,7 @@ export default function Invoices() {
                     <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Invoice Number</label>
                     <input 
                       type="text" 
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-slate-400"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-slate-400"
                       value={invoiceNumber}
                       disabled
                     />
@@ -1028,7 +1029,7 @@ export default function Invoices() {
                     <input 
                       type="text" 
                       placeholder="123 Business St, City, Country"
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                       value={billingAddress}
                       onChange={(e) => setBillingAddress(e.target.value)}
                     />
@@ -1041,7 +1042,7 @@ export default function Invoices() {
                       min="0"
                       max="100"
                       step="0.01"
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white"
                       value={taxRate}
                       onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
                     />
@@ -1053,7 +1054,7 @@ export default function Invoices() {
                   <textarea
                     rows={3}
                     placeholder="Optional invoice notes"
-                    className="w-full resize-none px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                    className="w-full resize-none px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                   />
@@ -1066,7 +1067,7 @@ export default function Invoices() {
                     <button 
                       type="button"
                       onClick={addLineItem}
-                      className="text-[10px] font-bold text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-[10px] font-bold text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       + Add Item
                     </button>
@@ -1078,7 +1079,7 @@ export default function Invoices() {
                         <input 
                           type="text" 
                           placeholder="Item description"
-                          className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
+                          className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                           value={item.description}
                           onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
                         />
@@ -1086,14 +1087,14 @@ export default function Invoices() {
                           <input 
                             type="number" 
                             placeholder="Qty"
-                            className="w-16 px-3 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white text-center placeholder:text-gray-700"
+                            className="w-16 px-3 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white text-center placeholder:text-gray-700"
                             value={item.quantity || ''}
                             onChange={(e) => handleItemChange(idx, 'quantity', parseFloat(e.target.value) || 0)}
                           />
                           <input 
                             type="number" 
                             placeholder="Price"
-                            className="w-24 px-3 py-2.5 bg-slate-950 border border-slate-900 focus:border-cyan-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white text-center placeholder:text-gray-700"
+                            className="w-24 px-3 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white text-center placeholder:text-gray-700"
                             value={item.unit_price || ''}
                             onChange={(e) => handleItemChange(idx, 'unit_price', parseFloat(e.target.value) || 0)}
                           />
@@ -1125,8 +1126,8 @@ export default function Invoices() {
                     <span className="text-slate-300">${calculateFormTax().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between w-64 border-t border-slate-900/60 pt-2 text-sm font-extrabold text-white">
-                    <span className="text-cyan-400">Total</span>
-                    <span className="text-cyan-400">${calculateFormTotal().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-purple-400">Total</span>
+                    <span className="text-purple-400">${calculateFormTotal().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
 
@@ -1139,7 +1140,7 @@ export default function Invoices() {
             
             {/* Live extraction helper info */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-5 text-left space-y-3.5">
-              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
                 <Sparkles size={12} className="fill-current animate-pulse" /> Live Extraction
               </span>
               <p className="text-xs text-slate-400 leading-relaxed font-semibold">
@@ -1148,7 +1149,7 @@ export default function Invoices() {
             </div>
 
             {/* LIVE PREVIEW DOCUMENT (Image 3 right pane) */}
-            <div className="flex-1 bg-white rounded-3xl p-6 flex flex-col justify-between shadow-2xl relative min-h-[400px] text-[#070a13] border-4 border-cyan-500/30">
+            <div className="flex-1 bg-white rounded-3xl p-6 flex flex-col justify-between shadow-2xl relative min-h-[400px] text-[#070a13] border-4 border-purple-500/30">
               <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest absolute top-6 right-6">LIVE PREVIEW</span>
               
               <div className="space-y-6 text-left">
@@ -1217,20 +1218,20 @@ export default function Invoices() {
           <div className="lg:col-span-8 flex-1 bg-slate-950 border border-slate-900 rounded-3xl p-6 flex flex-col overflow-y-auto justify-center items-center">
             
             {/* White invoice preview sheet */}
-            <div className="w-full max-w-[620px] bg-white rounded-3xl p-8 shadow-2xl text-[#070a13] space-y-8 min-h-[580px] flex flex-col justify-between border-4 border-cyan-500/10">
+            <div className="w-full max-w-[620px] bg-white rounded-3xl p-8 shadow-2xl text-[#070a13] space-y-8 min-h-[580px] flex flex-col justify-between border-4 border-purple-500/10">
               <div className="space-y-6">
                 
                 {/* Brand Logo header */}
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#070a13] flex items-center justify-center border border-slate-900 text-cyan-400">
-                      <svg className="w-6 h-6 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <div className="w-10 h-10 rounded-xl bg-[#070a13] flex items-center justify-center border border-slate-900 text-purple-400">
+                      <svg className="w-6 h-6 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M12 2v20M17 5v14M22 8v8M7 8v8M2 10v4" />
                       </svg>
                     </div>
                     <div>
                       <h3 className="text-sm font-extrabold text-slate-800 tracking-tight flex items-center gap-1">
-                        SmartFlow <span className="text-cyan-600">Inc.</span>
+                        SmartFlow <span className="text-purple-600">Inc.</span>
                       </h3>
                       <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider -mt-0.5">billing@smartflow.ai</p>
                     </div>
@@ -1250,8 +1251,8 @@ export default function Invoices() {
                     <p>Neo-Tokyo, NT 100-0001</p>
                   </div>
                   <div className="text-right">
-                    <p><span className="font-bold">Date of Issue:</span> {new Date(activeInvoice.issue_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                    <p><span className="font-bold">Due Date:</span> {new Date(activeInvoice.due_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    <p><span className="font-bold">Date of Issue:</span> {formatCalendarDate(activeInvoice.issue_date)}</p>
+                    <p><span className="font-bold">Due Date:</span> {formatCalendarDate(activeInvoice.due_date)}</p>
                   </div>
                 </div>
 
@@ -1301,7 +1302,7 @@ export default function Invoices() {
                   )}
                   <div className="flex justify-between w-48 border-t border-slate-100 pt-1 text-xs font-extrabold text-[#070a13]">
                     <span>Total Due</span>
-                    <span className="text-cyan-600">${activeInvoice.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-purple-600">${activeInvoice.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
 
@@ -1340,14 +1341,14 @@ export default function Invoices() {
                       onClick={() => handleDownloadPDF(activeInvoice)}
                       className="w-full p-3 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-xl flex items-center justify-between text-xs font-bold text-slate-300 transition-colors cursor-pointer"
                     >
-                      <span className="flex items-center gap-2"><FileText size={14} className="text-cyan-400" /> Download PDF</span>
+                      <span className="flex items-center gap-2"><FileText size={14} className="text-purple-400" /> Download PDF</span>
                       <span className="text-[10px] text-slate-500">245 KB</span>
                     </button>
                     
                     <button 
                       className="w-full p-3 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-xl flex items-center justify-between text-xs font-bold text-slate-300 transition-colors cursor-pointer"
                     >
-                      <span className="flex items-center gap-2"><Phone size={14} className="text-cyan-400" /> Share via Voice Brief</span>
+                      <span className="flex items-center gap-2"><Phone size={14} className="text-purple-400" /> Share via Voice Brief</span>
                       <span className="text-slate-500">›</span>
                     </button>
                   </div>
@@ -1364,12 +1365,12 @@ export default function Invoices() {
                       onClick={() => setDeliveryChannels({...deliveryChannels, email: !deliveryChannels.email})}
                       className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
                         deliveryChannels.email 
-                          ? 'bg-cyan-950/20 border-cyan-500/35' 
+                          ? 'bg-purple-950/20 border-purple-500/35' 
                           : 'bg-slate-950/30 border-slate-900/60 hover:border-slate-800'
                       }`}
                     >
                       <div className={`w-4 h-4 rounded-md border flex items-center justify-center mt-0.5 flex-shrink-0 ${
-                        deliveryChannels.email ? 'border-cyan-500 bg-cyan-950 text-cyan-400' : 'border-slate-850 bg-slate-950'
+                        deliveryChannels.email ? 'border-purple-500 bg-purple-950 text-purple-400' : 'border-slate-850 bg-slate-950'
                       }`}>
                         {deliveryChannels.email && <Check size={10} />}
                       </div>
@@ -1384,12 +1385,12 @@ export default function Invoices() {
                       onClick={() => setDeliveryChannels({...deliveryChannels, sms: !deliveryChannels.sms})}
                       className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
                         deliveryChannels.sms 
-                          ? 'bg-cyan-950/20 border-cyan-500/35' 
+                          ? 'bg-purple-950/20 border-purple-500/35' 
                           : 'bg-slate-950/30 border-slate-900/60 hover:border-slate-800'
                       }`}
                     >
                       <div className={`w-4 h-4 rounded-md border flex items-center justify-center mt-0.5 flex-shrink-0 ${
-                        deliveryChannels.sms ? 'border-cyan-500 bg-cyan-950 text-cyan-400' : 'border-slate-850 bg-slate-950'
+                        deliveryChannels.sms ? 'border-purple-500 bg-purple-950 text-purple-400' : 'border-slate-850 bg-slate-950'
                       }`}>
                         {deliveryChannels.sms && <Check size={10} />}
                       </div>
@@ -1404,12 +1405,12 @@ export default function Invoices() {
                       onClick={() => setDeliveryChannels({...deliveryChannels, whatsapp: !deliveryChannels.whatsapp})}
                       className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
                         deliveryChannels.whatsapp 
-                          ? 'bg-cyan-950/20 border-cyan-500/35' 
+                          ? 'bg-purple-950/20 border-purple-500/35' 
                           : 'bg-slate-950/30 border-slate-900/60 hover:border-slate-800'
                       }`}
                     >
                       <div className={`w-4 h-4 rounded-md border flex items-center justify-center mt-0.5 flex-shrink-0 ${
-                        deliveryChannels.whatsapp ? 'border-cyan-500 bg-cyan-950 text-cyan-400' : 'border-slate-850 bg-slate-950'
+                        deliveryChannels.whatsapp ? 'border-purple-500 bg-purple-950 text-purple-400' : 'border-slate-850 bg-slate-950'
                       }`}>
                         {deliveryChannels.whatsapp && <Check size={10} />}
                       </div>
@@ -1427,7 +1428,7 @@ export default function Invoices() {
               <button 
                 onClick={handleDispatchInvoice}
                 disabled={dispatching || !Object.values(deliveryChannels).some(Boolean)}
-                className="w-full py-4 mt-6 bg-cyan-400 hover:bg-cyan-300 text-[#070a13] hover:shadow-cyan-400/20 rounded-xl font-bold shadow-lg shadow-cyan-500/10 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-4 mt-6 bg-purple-400 hover:bg-purple-300 text-[#070a13] hover:shadow-purple-400/20 rounded-xl font-bold shadow-lg shadow-purple-500/10 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {dispatching ? (
                   <>
@@ -1484,7 +1485,7 @@ export default function Invoices() {
               </div>
               <div className="text-left md:text-right">
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Amount Due</span>
-                <p className="text-2xl font-extrabold text-cyan-400 tracking-tight mt-0.5">
+                <p className="text-2xl font-extrabold text-purple-400 tracking-tight mt-0.5">
                   ${activeInvoice.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </p>
               </div>
@@ -1498,7 +1499,7 @@ export default function Invoices() {
                 {/* Horizontal progress bar track */}
                 <div className="absolute left-[10%] right-[10%] top-1/2 -translate-y-1/2 h-[2px] bg-slate-800 z-0">
                   <div 
-                    className="h-full bg-cyan-500 transition-all duration-500" 
+                    className="h-full bg-purple-500 transition-all duration-500" 
                     style={{ 
                       width: activeInvoice.status === 'paid' ? '100%' 
                            : activeInvoice.status === 'viewed' ? '66%'
@@ -1518,7 +1519,7 @@ export default function Invoices() {
                   <div key={idx} className="flex flex-col items-center space-y-2 relative z-10">
                     <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
                       step.done 
-                        ? 'bg-cyan-500 border-cyan-400 text-[#070a13]' 
+                        ? 'bg-purple-500 border-purple-400 text-[#070a13]' 
                         : 'bg-slate-950 border-slate-850 text-slate-600'
                     }`}>
                       {step.done ? <Check size={12} strokeWidth={3} /> : <span className="w-1.5 h-1.5 bg-slate-700 rounded-full" />}
@@ -1594,7 +1595,7 @@ export default function Invoices() {
 
             {/* visual analytics loading placeholder */}
             <div className="border border-slate-900 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center text-slate-500 space-y-2">
-              <Loader2 className="animate-spin text-cyan-400" size={20} />
+              <Loader2 className="animate-spin text-purple-400" size={20} />
               <p className="text-xs font-semibold text-slate-400">Visual analytics for this invoice are generating...</p>
             </div>
 
@@ -1606,7 +1607,7 @@ export default function Invoices() {
             {/* AI Intelligence scheduler (Image 4 top right) */}
             {activeInvoice.status !== 'paid' && (
               <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6 text-left space-y-4">
-                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
                   <Sparkles size={12} className="fill-current animate-pulse" /> AI Intelligence
                 </span>
                 
@@ -1617,7 +1618,7 @@ export default function Invoices() {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-slate-500 font-bold uppercase">Schedule</span>
                   <select 
-                    className="flex-1 bg-slate-950 border border-slate-900 text-xs text-white rounded-lg px-2 py-1.5 focus:outline-none focus:border-cyan-500/40"
+                    className="flex-1 bg-slate-950 border border-slate-900 text-xs text-white rounded-lg px-2 py-1.5 focus:outline-none focus:border-purple-500/40"
                     value={aiVoiceReminderTime}
                     onChange={(e) => setAiVoiceReminderTime(e.target.value)}
                   >
@@ -1631,7 +1632,7 @@ export default function Invoices() {
                 <button 
                   onClick={handleScheduleVoiceReminder}
                   disabled={aiVoiceReminderScheduled}
-                  className="w-full py-2.5 bg-transparent border border-cyan-500/35 hover:bg-cyan-950/20 text-cyan-400 text-xs font-bold rounded-xl text-center transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 bg-transparent border border-purple-500/35 hover:bg-purple-950/20 text-purple-400 text-xs font-bold rounded-xl text-center transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   {aiVoiceReminderScheduled ? <Loader2 size={12} className="animate-spin" /> : <Phone size={12} />}
                   <span>Schedule Voice Reminder</span>
@@ -1645,7 +1646,7 @@ export default function Invoices() {
               
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-900 flex items-center justify-center text-sm font-extrabold text-cyan-400 shadow-md">
+                  <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-900 flex items-center justify-center text-sm font-extrabold text-purple-400 shadow-md">
                     {activeInvoice.client_name[0] || 'C'}
                   </div>
                   <div>
@@ -1677,12 +1678,12 @@ export default function Invoices() {
                 {activeInvoice.timeline.map((event, idx) => (
                   <div key={event.id || idx} className="relative space-y-1">
                     {/* Node point */}
-                    <span className="absolute -left-[20.5px] top-1 w-2.5 h-2.5 rounded-full bg-cyan-500 border border-[#070a13] shadow-md shadow-cyan-500/20" />
+                    <span className="absolute -left-[20.5px] top-1 w-2.5 h-2.5 rounded-full bg-purple-500 border border-[#070a13] shadow-md shadow-purple-500/20" />
                     
                     <h6 className="text-[10px] font-extrabold text-white leading-tight">{event.title}</h6>
                     {event.description && <p className="text-[9px] text-slate-500 leading-normal font-semibold">{event.description}</p>}
                     <span className="text-[8px] text-slate-600 font-bold uppercase tracking-wider block pt-0.5">
-                      {new Date(event.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} • {new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatCstDate(event.created_at, { year: undefined })} • {formatCstTime(event.created_at)}
                     </span>
                   </div>
                 ))}

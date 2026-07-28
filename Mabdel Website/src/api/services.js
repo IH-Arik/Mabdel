@@ -169,6 +169,8 @@ export const smartflowApi = {
   leaseSign: (id, data) => client.post(`/api/v1/smartflow/leases/${id}/sign`, data),
   leaseRenew: (id, data) => client.post(`/api/v1/smartflow/leases/${id}/renew`, data),
   downloadLeasePdf: (id) => client.get(`/api/v1/smartflow/leases/${id}/pdf`, { responseType: 'blob' }),
+  downloadSignedLeasePdf: (id) => client.get(`/api/v1/smartflow/leases/${id}/signed-pdf`, { responseType: 'blob' }),
+  downloadLeaseCompletionCertificate: (id) => client.get(`/api/v1/smartflow/leases/${id}/completion-certificate`, { responseType: 'blob' }),
   getLeaseMetadata: () => client.get('/api/v1/smartflow/leases/metadata'),
 
   // ── Agreements extras ─────────────────────────────────────────────────────────
