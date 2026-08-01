@@ -105,8 +105,8 @@ const AddContactScreen = () => {
     : "MM/DD/YYYY";
   const footerBottomMargin =
     keyboardHeight > 0
-      ? keyboardHeight + insets.bottom + responsiveHeight(1)
-      : insets.bottom + responsiveHeight(5);
+      ? keyboardHeight
+      : insets.bottom + responsiveHeight(9);
 
   const handleAvatarPick = async () => {
     const response = await launchImageLibrary({
@@ -122,10 +122,9 @@ const AddContactScreen = () => {
     }
 
     const asset = response?.assets?.[0];
-    console.log("LINE AT 174" , asset);
+    // console.log("LINE AT 174" , asset);
     setAvatarUrl(asset?.uri);
   };
-console.log('LINE AT 151' , avatarUrl);
 
   const saveContact = async () => {
     const values = getValues();
@@ -151,8 +150,6 @@ console.log('LINE AT 151' , avatarUrl);
       notes: notes.trim() || undefined,
       avatar_url: avatarUrl || undefined,
     };
-
-console.log("LINE AT 177" , payload);
 
     try {
       if (currentContactId) {
@@ -496,11 +493,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#15CFE9",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#15CFE9",
-    shadowOpacity: 0.33,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    // shadowColor: "#15CFE9",
+    // shadowOpacity: 0.33,
+    // shadowRadius: 16,
+    // shadowOffset: { width: 0, height: 8 },
+    // elevation: 8,
   },
   saveBtnDisabled: {
     opacity: 0.8,

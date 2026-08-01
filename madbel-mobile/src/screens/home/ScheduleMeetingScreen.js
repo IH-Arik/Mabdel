@@ -24,8 +24,6 @@ const ScheduleMeetingScreen = () => {
       date_to: selectedDate,
     });
 
-    console.log("Calendar Response:", calendarResponse);
-
   const apiEvents = calendarResponse?.data?.items || [];
   const allEventsByDate = useMemo(() => {
     const grouped = {};

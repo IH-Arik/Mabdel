@@ -96,8 +96,8 @@ const CreateInvoiceScreen = () => {
   }, 0);
   const footerBottomMargin =
     keyboardHeight > 0
-      ? keyboardHeight + insets.bottom + responsiveHeight(1)
-      : insets.bottom + responsiveHeight(5);
+      ? keyboardHeight
+      : insets.bottom + responsiveHeight(9);
 
   const closeItemModal = () => {
     setEditingItemIndex(null);
@@ -613,11 +613,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#14C9E7",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#14C9E7",
-    shadowOpacity: 0.45,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 14,
-    elevation: 7,
+    // shadowColor: "#14C9E7",
+    // shadowOpacity: 0.45,
+    // shadowOffset: { width: 0, height: 8 },
+    // shadowRadius: 14,
+    // elevation: 7,
     // marginBottom: responsiveHeight(4),
   },
   createText: { color: "#EAF8FF", fontSize: 19, fontWeight: "600" },

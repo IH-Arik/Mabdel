@@ -517,7 +517,6 @@ const GroupChatScreen = () => {
         );
       }
     } catch (error) {
-      console.log("Failed to send message:", error);
       setMessage(text);
       Alert.alert(
         tr("error", "Error"),

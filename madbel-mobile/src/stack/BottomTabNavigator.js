@@ -116,7 +116,7 @@ const BottomNavigator = () => {
           name="Shop"
           component={MicStack}
           options={{
-            tabBarLabel: t("ai"),
+            tabBarLabel: ()=> null,
             tabBarIcon: ({ focused }) => <MicTabIcon focused={focused} />,
           }}
         />

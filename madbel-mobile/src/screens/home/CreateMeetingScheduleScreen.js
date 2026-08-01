@@ -1189,8 +1189,6 @@ const CreateMeetingScheduleScreen = () => {
         // reminder_minutes: REMINDER_TO_MINUTES[activeReminder] || 10,
       };
 
-      console.log("Creating meeting schedule with payload:", payload);
-
       const response = await createCalendarEvent(payload).unwrap();
       let createdGoogleEvent = null;
       let createdAppleEvent = null;
@@ -1228,7 +1226,6 @@ const CreateMeetingScheduleScreen = () => {
           setGoogleCalendarSyncMessage(
             googleError?.message || "Google Calendar sync failed.",
           );
-          console.log("Google Calendar sync failed:", googleError);
         }
       } else {
         setGoogleCalendarSyncStatus("idle");
@@ -1264,7 +1261,6 @@ const CreateMeetingScheduleScreen = () => {
           setAppleCalendarSyncMessage(
             appleError?.message || "Apple Calendar sync failed.",
           );
-          console.log("Apple Calendar sync failed:", appleError);
         }
       } else {
         setAppleCalendarSyncStatus("idle");
@@ -1277,7 +1273,6 @@ const CreateMeetingScheduleScreen = () => {
         appleCalendarEvent: createdAppleEvent,
       });
     } catch (error) {
-      console.log("Error creating meeting schedule:", error);
       Alert.alert(
         "Schedule failed",
         error?.data?.message || "Could not create the meeting schedule.",

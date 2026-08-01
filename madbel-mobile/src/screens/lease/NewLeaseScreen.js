@@ -306,8 +306,6 @@ const NewLeaseScreen = () => {
           }).unwrap()
         : await createLease(buildPayload()).unwrap();
 
-        console.log('LINE AT 309' , response);
-        
       const createdLease = response?.data || response;
       const leaseId = extractLeaseId(createdLease);
       const signingUrl = resolveSigningUrl(response) || resolveSigningUrl(createdLease);
@@ -367,8 +365,8 @@ const NewLeaseScreen = () => {
   const isBusy = generating || creating || updating;
   const footerBottomMargin =
     keyboardHeight > 0
-      ? keyboardHeight + insets.bottom + responsiveHeight(1)
-      : insets.bottom + responsiveHeight(5);
+      ? keyboardHeight
+      : insets.bottom + responsiveHeight(9);
 
   return (
     <View style={styles.safeArea}>
@@ -605,36 +603,6 @@ const NewLeaseScreen = () => {
             />
           </View>
 
-          {/* <View style={styles.card}>
-            <View style={styles.rowTitle}>
-              <PenLine size={20} color="#11CDE8" />
-              <Text style={styles.blockTitle}>{tr("signature_fields", "Signature Fields")}</Text>
-            </View>
-            <View style={styles.switchRow}>
-              <View style={styles.switchLabelWrap}>
-                <UserRoundIcon />
-                <Text style={styles.switchText}>{tr("tenant_signature", "Tenant Signature")}</Text>
-              </View>
-              <Switch
-                value={tenantSignature}
-                onValueChange={setTenantSignature}
-                trackColor={{ false: "#2C3445", true: "#10CDE9" }}
-                thumbColor="#F2F8FF"
-              />
-            </View>
-            <View style={styles.switchRow}>
-              <View style={styles.switchLabelWrap}>
-                <BuildingIcon />
-                <Text style={styles.switchText}>{tr("landlord_signature", "Landlord Signature")}</Text>
-              </View>
-              <Switch
-                value={landlordSignature}
-                onValueChange={setLandlordSignature}
-                trackColor={{ false: "#2C3445", true: "#10CDE9" }}
-                thumbColor="#F2F8FF"
-              />
-            </View>
-          </View> */}
 
           <VoiceFormFillCard
             label={tr("lease", "Lease")}

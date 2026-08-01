@@ -45,8 +45,6 @@ const ProfileHomeScreen = () => {
 
   const profileData = userData?.data || authUser || {};
 
-  console.log("LINE AT 57", profileData, showLogoutModal);
-
   const normalizedEmail = String(
     profileData?.email || profileData?.client_email || authUser?.email || "",
   ).trim();

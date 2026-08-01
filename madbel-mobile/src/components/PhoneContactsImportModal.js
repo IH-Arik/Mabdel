@@ -5,6 +5,7 @@ import {
 import * as Contacts from "expo-contacts";
 import { Check, Search, X } from "lucide-react-native";
 import { useMadbelCreateContactMutation } from "../redux/slices/madbelApiSlice";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
   const { t } = useAppLanguage();
@@ -173,123 +174,126 @@ const PhoneContactsImportModal = ({ visible, onClose, onImported }) => {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.safeArea}>
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Pressable onPress={onClose} style={styles.closeBtn}>
-              <X size={26} color="#F3F9FF" />
-            </Pressable>
-            <Text style={styles.title}>{t("import_from_phone")}</Text>
-            <View style={{ width: 38 }} />
-          </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#020406" }}>
+        <View style={styles.safeArea}>
+          <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Pressable onPress={onClose} style={styles.closeBtn}>
+                <X size={26} color="#F3F9FF" />
+              </Pressable>
+              <Text style={styles.title}>{t("import_from_phone")}</Text>
+              <View style={{ width: 38 }} />
+            </View>
 
-          {/* Search */}
-          <View style={styles.searchWrap}>
-            <Search size={16} color="#8FC9D7" />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t("search")}
-              placeholderTextColor="#7FA6B3"
-              style={styles.searchInput}
-            />
-          </View>
+            {/* Search */}
+            <View style={styles.searchWrap}>
+              <Search size={16} color="#8FC9D7" />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder={t("search")}
+                placeholderTextColor="#7FA6B3"
+                style={styles.searchInput}
+              />
+            </View>
 
-          {/* Select all row */}
-          {!loadingContacts && filtered.length > 0 && (
-            <Pressable style={styles.selectAllRow} onPress={toggleAll}>
-              <View
-                style={[
-                  styles.checkbox,
-                  allFilteredSelected && styles.checkboxChecked,
-                ]}
-              >
-                {allFilteredSelected && (
-                  <Check size={14} color="#020406" strokeWidth={3} />
+            {/* Select all row */}
+            {!loadingContacts && filtered.length > 0 && (
+              <Pressable style={styles.selectAllRow} onPress={toggleAll}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    allFilteredSelected && styles.checkboxChecked,
+                  ]}
+                >
+                  {allFilteredSelected && (
+                    <Check size={14} color="#020406" strokeWidth={3} />
+                  )}
+                </View>
+                <Text style={styles.selectAllText}>
+                  {allFilteredSelected ? t("deselect_all") : t("select_all")} ({filtered.length})
+                </Text>
+              </Pressable>
+            )}
+
+            {/* List */}
+            {loadingContacts ? (
+              <View style={styles.centerState}>
+                <ActivityIndicator color="#12D0ED" size="large" />
+                <Text style={styles.stateText}>{t("loading_contacts")}</Text>
+              </View>
+            ) : debugError ? (
+              <View style={styles.centerState}>
+                <Text style={[styles.stateText, { color: "#FF6B6B", marginBottom: 20, textAlign: "center" }]}>
+                  {debugError}
+                </Text>
+                <Pressable
+                  style={styles.importBtn}
+                  onPress={() => {
+                    waitingForSettings.current = true;
+                    Linking.openSettings();
+                  }}
+                >
+                  <Text style={styles.importBtnText}>{t("open_settings")}</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.importBtn, { marginTop: 10, backgroundColor: "#1B3A44" }]}
+                  onPress={loadContacts}
+                >
+                  <Text style={[styles.importBtnText, { color: "#12D0ED" }]}>{t("retry")}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <FlatList
+                data={filtered}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.listContent}
+                ListEmptyComponent={
+                  <View style={styles.centerState}>
+                    <Text style={styles.stateText}>
+                      {query.trim()
+                        ? t("no_matches_found")
+                        : t("no_contacts_on_device")}
+                    </Text>
+                  </View>
+                }
+              />
+            )}
+
+            {/* Import button */}
+            {!loadingContacts && (
+              <View style={styles.footer}>
+                {importProgress ? (
+                  <View style={styles.progressWrap}>
+                    <ActivityIndicator color="#12D0ED" />
+                    <Text style={styles.progressText}>
+                      {t("importing")} {importProgress.done}/{importProgress.total}...
+                    </Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    style={[
+                      styles.importBtn,
+                      selected.size === 0 && styles.importBtnDisabled,
+                    ]}
+                    onPress={handleImport}
+                    disabled={selected.size === 0}
+                  >
+                    <Text style={styles.importBtnText}>
+                      {t("import")} {selected.size > 0 ? `(${selected.size})` : ""}
+                    </Text>
+                  </Pressable>
                 )}
               </View>
-              <Text style={styles.selectAllText}>
-                {allFilteredSelected ? t("deselect_all") : t("select_all")} ({filtered.length})
-              </Text>
-            </Pressable>
-          )}
-
-          {/* List */}
-          {loadingContacts ? (
-            <View style={styles.centerState}>
-              <ActivityIndicator color="#12D0ED" size="large" />
-              <Text style={styles.stateText}>{t("loading_contacts")}</Text>
-            </View>
-          ) : debugError ? (
-            <View style={styles.centerState}>
-              <Text style={[styles.stateText, { color: "#FF6B6B", marginBottom: 20, textAlign: "center" }]}>
-                {debugError}
-              </Text>
-              <Pressable
-                style={styles.importBtn}
-                onPress={() => {
-                  waitingForSettings.current = true;
-                  Linking.openSettings();
-                }}
-              >
-                <Text style={styles.importBtnText}>{t("open_settings")}</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.importBtn, { marginTop: 10, backgroundColor: "#1B3A44" }]}
-                onPress={loadContacts}
-              >
-                <Text style={[styles.importBtnText, { color: "#12D0ED" }]}>{t("retry")}</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <FlatList
-              data={filtered}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContent}
-              ListEmptyComponent={
-                <View style={styles.centerState}>
-                  <Text style={styles.stateText}>
-                    {query.trim()
-                      ? t("no_matches_found")
-                      : t("no_contacts_on_device")}
-                  </Text>
-                </View>
-              }
-            />
-          )}
-
-          {/* Import button */}
-          {!loadingContacts && (
-            <View style={styles.footer}>
-              {importProgress ? (
-                <View style={styles.progressWrap}>
-                  <ActivityIndicator color="#12D0ED" />
-                  <Text style={styles.progressText}>
-                    {t("importing")} {importProgress.done}/{importProgress.total}...
-                  </Text>
-                </View>
-              ) : (
-                <Pressable
-                  style={[
-                    styles.importBtn,
-                    selected.size === 0 && styles.importBtnDisabled,
-                  ]}
-                  onPress={handleImport}
-                  disabled={selected.size === 0}
-                >
-                  <Text style={styles.importBtnText}>
-                    {t("import")} {selected.size > 0 ? `(${selected.size})` : ""}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-          )}
+            )}
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
+
   );
 };
 
