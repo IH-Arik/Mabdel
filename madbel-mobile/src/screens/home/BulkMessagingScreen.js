@@ -199,7 +199,6 @@ const BulkMessagingScreen = () => {
       scheduled_at: scheduledAt,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     };
-    console.log("upsertBulk payload:", payload);
 
     const response = bulkMessageId
       ? await updateBulkMessage({ bulk_message_id: bulkMessageId, ...payload }).unwrap()

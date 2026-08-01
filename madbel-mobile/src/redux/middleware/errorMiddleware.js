@@ -17,11 +17,6 @@ export const errorMiddleware = api => next => action => {
   if (isRejectedWithValue(action)) {
     const error = action.payload;
 
-    console.warn('API Error:', {
-      status: error.status,
-      data: error.data,
-    });
-
     let errorMessage = 'An error occurred';
 
     if (error.data) {

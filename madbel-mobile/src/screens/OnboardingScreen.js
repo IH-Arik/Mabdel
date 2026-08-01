@@ -1,8 +1,17 @@
 import { useAppLanguage } from "../context/LanguageContext";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Image, Pressable, ScrollView, StyleSheet, Switch, Text, View, ActivityIndicator } from "react-native";
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+  ActivityIndicator,
+  useWindowDimensions,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import {
   ArrowLeft, Bell, ChevronRight, IdCard, Mic, ShieldCheck, } from "lucide-react-native";
@@ -57,6 +66,8 @@ const getOrCreateDeviceId = async () => {
 
 export default function OnboardingScreen() {
   const navigation = useNavigation();
+  const window = useWindowDimensions();
+  const slidesScrollRef = useRef(null);
   const [deviceId, setDeviceId] = useState(null);
   const [slideIndex, setSlideIndex] = useState(0);
   const [showPermissionPage, setShowPermissionPage] = useState(false);
@@ -84,14 +95,14 @@ export default function OnboardingScreen() {
 
   // Fallback to local slides if API slides are empty or loading
   const slides = useMemo(() => {
-    if (apiSlides && apiSlides.length > 0) {
-      return apiSlides.map((slide) => ({
-        ...slide,
-        image: slide.image_url,
-      }));
-    }
+    // if (apiSlides && apiSlides.length > 0) {
+    //   return apiSlides.map((slide) => ({
+    //     ...slide,
+    //     image: slide.image_url,
+    //   }));
+    // }
     return featureSlides;
-  }, [apiSlides]);
+  }, );
 
   // Fetch progress
   const {
@@ -159,6 +170,15 @@ export default function OnboardingScreen() {
   const isProgressChecking = !deviceId || isProgressLoading;
   const isLastFeatureSlide = slideIndex === slides.length - 1;
   const currentSlide = slides[slideIndex];
+  const slideWidth = Math.max(1, window.width - 48);
+
+  useEffect(() => {
+    if (showPermissionPage) return;
+    slidesScrollRef.current?.scrollTo?.({
+      x: slideIndex * slideWidth,
+      animated: false,
+    });
+  }, [slideIndex, showPermissionPage, slideWidth]);
 
   const dots = useMemo(
     () =>
@@ -187,6 +207,10 @@ export default function OnboardingScreen() {
     }
     const nextIndex = slideIndex + 1;
     setSlideIndex(nextIndex);
+    slidesScrollRef.current?.scrollTo?.({
+      x: nextIndex * slideWidth,
+      animated: true,
+    });
     if (deviceId) {
       try {
         await saveProgress({ device_id: deviceId, current_step: nextIndex }).unwrap();
@@ -203,6 +227,10 @@ export default function OnboardingScreen() {
     if (slideIndex > 0) {
       const prevIndex = slideIndex - 1;
       setSlideIndex(prevIndex);
+      slidesScrollRef.current?.scrollTo?.({
+        x: prevIndex * slideWidth,
+        animated: true,
+      });
       if (deviceId) {
         saveProgress({ device_id: deviceId, current_step: prevIndex }).catch((err) => {
         });
@@ -311,8 +339,6 @@ export default function OnboardingScreen() {
   if (showPermissionPage) {
     return (
       <SafeAreaView style={styles.safeArea}>
-
-      <View style={styles.safeArea}>
         <LinearGradient
           colors={["#02080B", "#010405"]}
           start={{ x: 0, y: 0 }}
@@ -362,20 +388,17 @@ export default function OnboardingScreen() {
               style={styles.ctaButton}
               onPress={handleAcceptAll}
             >
-              <Text style={styles.ctaText}>{t("accept_all")}</Text>
+            <Text style={styles.ctaText}>{t("accept_all")}</Text>
             </Pressable>
           </ScrollView>
         </LinearGradient>
-      </View>
       </SafeAreaView>
 
     );
   }
 
   return (
-      <SafeAreaView style={styles.safeArea}>
-
-    <View style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
       <LinearGradient
         colors={["#031218", "#02080B", "#010406"]}
         start={{ x: 0, y: 0 }}
@@ -392,16 +415,38 @@ export default function OnboardingScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.illustrationWrapper}>
-          <FeatureIllustration source={currentSlide?.image} />
-        </View>
+        <ScrollView
+          ref={slidesScrollRef}
+          style={styles.slidePager}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          bounces={false}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={(event) => {
+            const nextIndex = Math.round(
+              event.nativeEvent.contentOffset.x / slideWidth,
+            );
+            setSlideIndex(nextIndex);
+          }}
+          contentContainerStyle={styles.slideStrip}
+        >
+          {slides.map((slide) => (
+            <View key={slide.id} style={[styles.slidePage, { width: slideWidth }]}>
+              {/* <View style={styles.illustrationWrapper}>
+                <FeatureIllustration source={slide?.image} />
+              </View> */}
 
-        <View style={styles.textSection}>
-          <Text style={styles.featureTitle}>
-            {renderTitle(currentSlide)}
-          </Text>
-          <Text style={styles.featureDescription}>{currentSlide?.description}</Text>
-        </View>
+           <Image source={slide.image} style={styles.featureImage} resizeMode="contain" />
+
+
+              <View style={styles.textSection}>
+                <Text style={styles.featureTitle}>{renderTitle(slide)}</Text>
+                <Text style={styles.featureDescription}>{slide?.description}</Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
 
         <Pressable
           style={[styles.ctaButton, isProgressChecking && { opacity: 0.7 }]}
@@ -420,16 +465,13 @@ export default function OnboardingScreen() {
 
         <View style={styles.dotsRow}>{dots}</View>
       </LinearGradient>
-    </View>
-      </SafeAreaView>
+    </SafeAreaView>
 
   );
 }
 
 function PermissionCard({ title, description, icon, value, onToggle }) {
   return (
-      <SafeAreaView style={styles.safeArea}>
-    
     <View style={styles.permissionCard}>
       <View style={styles.permissionIconBox}>{icon}</View>
       <View style={styles.permissionTextWrap}>
@@ -444,8 +486,6 @@ function PermissionCard({ title, description, icon, value, onToggle }) {
         ios_backgroundColor={colors.toggleOff}
       />
     </View>
-      </SafeAreaView>
-
   );
 }
 
@@ -453,12 +493,9 @@ function FeatureIllustration({ source }) {
   const imageSource = typeof source === "string" ? { uri: source } : source;
   if (!imageSource) return null;
   return (
-      <SafeAreaView style={styles.safeArea}>
-   
-   <View style={styles.illuCanvas}>
+    <View style={styles.illuCanvas}>
       <Image source={imageSource} style={styles.featureImage} resizeMode="contain" />
     </View>
-      </SafeAreaView>
 
   );
 }
@@ -494,6 +531,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  slidePager: {
+    flex: 1,
+  },
+  slideStrip: {
+    flexDirection: "row",
+    flexGrow: 1,
+  },
+  slidePage: {
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100%",
+  },
   illuCanvas: {
     width: "100%",
     height: "100%",
@@ -525,7 +574,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 28 / 2,
     lineHeight: 34 / 2,
-    width: "94%",
+    width: "100%",
+    maxWidth: 340,
+    alignSelf: "center",
   },
   ctaButton: {
     borderRadius: 22,

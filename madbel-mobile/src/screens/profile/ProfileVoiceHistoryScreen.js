@@ -54,10 +54,9 @@ const ProfileVoiceHistoryScreen = () => {
   const { data, isLoading, isError } = useMadbelListAiHistoryQuery({ page: 1, page_size: 50 });
 
   const calls = normalizeHistoryItems(data);
-  console.log("ProfileVoiceHistoryScreen calls:", calls , data?.data?.items);
 
   const renderItem = ({ item }) => {
-    
+
     const label = item?.command_text || item?.title || "Voice command";
     const typeLabel = item?.command_type_label || item?.command_type || item?.related_resource?.type || "";
     const statusLabel = item?.status_label || item?.status || "";

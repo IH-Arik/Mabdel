@@ -51,7 +51,7 @@ const ContactsScreen = () => {
     search: query.trim() || undefined,
   });
 
-  console.log('LINE AT 65' , contactsResponse);
+  // console.log('LINE AT 65' , contactsResponse);
   
 
   const contactsData = contactsResponse?.data;
@@ -113,30 +113,7 @@ const ContactsScreen = () => {
           </Text>
         </View>
 
-        {/* <View style={styles.actionCol}>
-          {!item.is_app_user && (
-            <Pressable style={styles.inviteBtn} onPress={() => handleInvite(item)} hitSlop={8}>
-              <Text style={styles.inviteBtnText}>{t("invite")}</Text>
-            </Pressable>
-          )}
-          {item.phone && (
-            <Pressable
-              style={styles.callBtn}
-              onPress={() => handleCall(item)}
-              disabled={isCalling}
-              hitSlop={8}
-            >
-              {isCalling ? (
-                <ActivityIndicator size="small" color="#12D0ED" />
-              ) : (
-                <Phone size={18} color="#12D0ED" />
-              )}
-            </Pressable>
-          )}
-          {item.phone && (
-            <Text style={styles.callNumText} numberOfLines={1}>{item.phone}</Text>
-          )}
-        </View> */}
+
 
         <ChevronRight size={22} color="#93DBEA" />
       </Pressable>
@@ -195,12 +172,6 @@ const ContactsScreen = () => {
             refreshControl={
               <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor="#12D0ED" />
             }
-            // renderSectionHeader={({ section }) => (
-            //   <View style={styles.sectionHeader}>
-            //     <Text style={styles.sectionTitle}>{section.title}</Text>
-            //     <Text style={styles.sectionCount}>{section.data.length}</Text>
-            //   </View>
-            // )}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
             stickySectionHeadersEnabled={false}
@@ -456,7 +427,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: responsiveWidth(6),
-    bottom: responsiveHeight(8),
+    bottom: responsiveHeight(10),
     width: 64,
     height: 64,
     borderRadius: 42,

@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  "https://energize-dyslexic-frisbee.ngrok-free.dev";
+  "https://api.gocustify.com";
 
 const isPlainObject = (value) =>
   value !== null &&

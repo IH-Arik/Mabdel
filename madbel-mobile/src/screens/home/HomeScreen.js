@@ -119,8 +119,7 @@ const HomeScreenSkeleton = () => (
 const HomeScreen = () => {
   const navigation = useNavigation();
   const authUser = useSelector((state) => state?.auth?.user || {});
-  console.log('LINE AT 122' , authUser);
-  
+
   const { t } = useAppLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const { data: threads = [] } = useFetchConversationsQuery();
