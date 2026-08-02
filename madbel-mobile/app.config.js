@@ -33,7 +33,7 @@ module.exports = {
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff",
+      backgroundColor: "#000000",
     },
     ios: {
       supportsTablet: true,
@@ -100,6 +100,15 @@ module.exports = {
         },
       ],
       "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/splash-icon.png",
+          imageWidth: 220,
+          resizeMode: "contain",
+          backgroundColor: "#000000",
+        },
+      ],
       [
         "expo-notifications",
         {

@@ -1,5 +1,6 @@
 import "./global.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import RootAppNavigator from "./src/root/RootAppNavigator";
@@ -9,6 +10,11 @@ import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { LanguageProvider } from "./src/context/LanguageContext";
 import * as Notifications from "expo-notifications";
+import * as SplashScreen from "expo-splash-screen";
+
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // Splash may already be controlled by a previous reload.
+});
 
 // Show notifications as banners even when the app is in the foreground.
 Notifications.setNotificationHandler({
@@ -32,6 +38,8 @@ export default function App() {
   const navigationRef = useRef(null);
   const notificationResponseListener = useRef(null);
   const notificationReceivedListener = useRef(null);
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
+  const [isPersistReady, setIsPersistReady] = useState(false);
 
   useEffect(() => {
     // Handle a notification tap (app in background/killed).
@@ -66,17 +74,36 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (isLayoutReady && isPersistReady) {
+      SplashScreen.hideAsync().catch(() => {
+        // Ignore hide errors if the splash was already dismissed.
+      });
+    }
+  }, [isLayoutReady, isPersistReady]);
+
   return (
-    <SafeAreaProvider>
-      <Provider store={store}>
-        <PersistGate loading={null} persistor={persistor}>
-          <LanguageProvider>
-            <NavigationContainer ref={navigationRef} linking={linking}>
-              <RootAppNavigator />
-            </NavigationContainer>
-          </LanguageProvider>
-        </PersistGate>
-      </Provider>
-    </SafeAreaProvider>
+    <View
+      style={{ flex: 1 }}
+      onLayout={() => {
+        setIsLayoutReady(true);
+      }}
+    >
+      <SafeAreaProvider>
+        <Provider store={store}>
+          <PersistGate
+            loading={null}
+            persistor={persistor}
+            onBeforeLift={() => setIsPersistReady(true)}
+          >
+            <LanguageProvider>
+              <NavigationContainer ref={navigationRef} linking={linking}>
+                <RootAppNavigator />
+              </NavigationContainer>
+            </LanguageProvider>
+          </PersistGate>
+        </Provider>
+      </SafeAreaProvider>
+    </View>
   );
 }
