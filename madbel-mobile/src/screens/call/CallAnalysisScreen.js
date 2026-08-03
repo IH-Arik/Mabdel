@@ -103,7 +103,10 @@ const CallAnalysisScreen = () => {
   };
 
   const handleSendMessage = () => {
-    navigation.navigate("AllChat");
+    navigation.navigate("BottomNavigator", {
+      screen: "Chat",
+      params: { screen: "AllChat" },
+    });
   };
 
   const renderBulletText = (text) => (

@@ -27,12 +27,14 @@ import {
   AlertTriangle,
 } from "lucide-react-native";
 import { useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import {
   useMadbelCreateAgreementMutation,
   useMadbelGenerateAgreementDraftMutation,
   useMadbelGetAgreementTypesQuery,
   useMadbelReviewAgreementDraftMutation,
 } from "../../redux/slices/madbelApiSlice";
+import { clearAuth } from "../../redux/reducers/authReducer";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 import SystemCalendarModal from "../../components/SystemCalendarModal";
 import useKeyboard from "../../hooks/useKeyboard";
@@ -90,6 +92,7 @@ const AgreementCreateScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboard();
+  const dispatch = useDispatch();
   const [voiceTrigger, setVoiceTrigger] = useState(0);
   const accessToken = useSelector(
     (state) => state?.auth?.accessToken || state?.auth?.token,
@@ -219,13 +222,14 @@ const AgreementCreateScreen = () => {
 
   const handleCreate = async () => {
     if (!accessToken) {
+      dispatch(clearAuth());
       Alert.alert(
         t("session_expired"),
         t("please_login_again_to_create_an_agreement"),
         [
           {
             text: "OK",
-            onPress: () => navigation.navigate("Auth"),
+            onPress: () => {},
           },
         ],
       );
@@ -281,10 +285,11 @@ const AgreementCreateScreen = () => {
         error?.originalStatus === 401 ||
         error?.data?.message === "Not authenticated"
       ) {
+        dispatch(clearAuth());
         Alert.alert(t("session_expired"), t("please_login_again_to_continue"), [
           {
             text: "OK",
-            onPress: () => navigation.navigate("Auth"),
+            onPress: () => {},
           },
         ]);
         return;
