@@ -40,7 +40,7 @@ const ForgotPasswordVerifyCodeScreen = () => {
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
-    const id = setInterval(() => setSecondsLeft((prev) => prev - 1), 5000);
+    const id = setInterval(() => setSecondsLeft((prev) => prev - 1), 1000);
     return () => clearInterval(id);
   }, [secondsLeft]);
 

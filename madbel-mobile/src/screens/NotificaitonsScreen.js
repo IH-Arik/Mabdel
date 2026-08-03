@@ -8,6 +8,7 @@ import { useNavigation } from "@react-navigation/native";
 import {
   useMadbelListNotificationsQuery, useMadbelMarkAllNotificationsReadMutation, useMadbelDeleteNotificationMutation, } from "../redux/slices/madbelApiSlice";
 import { useAppLanguage } from '../context/LanguageContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const FILTER_OPTIONS = [
   { key: "all", label: "All" },
@@ -177,6 +178,8 @@ const NotificationScreen = () => {
   const newCount = notifications.filter((n) => n.isNew).length;
 
   return (
+    <SafeAreaView style={{flex: 1, backgroundColor: "#020406"}}>
+
     <View style={styles.container}>
       {/* <StatusBar barStyle="light-content" backgroundColor="#020406" /> */}
       
@@ -235,6 +238,8 @@ const NotificationScreen = () => {
         </View>
       )}
     </View>
+    </SafeAreaView>
+
   );
 };
 

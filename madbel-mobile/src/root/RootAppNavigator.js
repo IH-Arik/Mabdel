@@ -12,7 +12,6 @@ import ActiveCallScreen from "../screens/call/ActiveCallScreen";
 import AiCallScreen from "../screens/call/AiCallScreen";
 import * as Notifications from "expo-notifications";
 import { useMadbelRegisterPushTokenMutation } from "../redux/slices/madbelApiSlice";
-import PublicSigningScreen from "../screens/signing/PublicSigningScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -21,10 +20,8 @@ const RootAppNavigator = () => {
     (state) => state?.auth?.accessToken || state?.auth?.token,
   );
 
-  const authUser = useSelector((state) => state?.auth?.user);
   const isAuthenticated =
-    (typeof accessToken === "string" && accessToken.trim().length > 0) ||
-    Boolean(authUser);
+    typeof accessToken === "string" && accessToken.trim().length > 0;
 
   const [registerPushToken] = useMadbelRegisterPushTokenMutation();
 
@@ -74,17 +71,14 @@ const RootAppNavigator = () => {
   }, [isAuthenticated]);
 
   return (
-    // <View style={{ flex: 1 }} edges={["top", "left", "right"]}>
 
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
       initialRouteName={isAuthenticated ? "BottomNavigator"
         : "Begin"}
     >
-      {/* <Stack.Screen name="PublicSigning" component={PublicSigningScreen} /> */}
       {isAuthenticated ? (
         <>
-          {/* <Stack.Screen name="SubscriptionTrial" component={SubscriptionTrialScreen} /> */}
 
           <Stack.Screen name="BottomNavigator" component={BottomNavigator} />
           <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
@@ -102,7 +96,6 @@ const RootAppNavigator = () => {
         <Stack.Screen name="Notification" component={NotificationScreen} />
       )}
     </Stack.Navigator>
-    // </View>
 
   );
 };

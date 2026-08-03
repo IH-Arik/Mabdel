@@ -5,6 +5,9 @@ import { ChevronLeft, ChevronDown, ChevronUp, Mail, MessageCircle, Phone } from 
 import { responsiveHeight, responsiveWidth } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
 
+const SUPPORT_EMAIL = "support@mabdel.com";
+const SUPPORT_PHONE = "+18001234567";
+
 const FAQ_ITEMS = [
   {
     id: "1",
@@ -57,13 +60,46 @@ const ProfileSupportScreen = () => {
   const navigation = useNavigation();
   const [message, setMessage] = useState("");
 
-  const handleSendEmail = () => {
+  const openExternalLink = async (url, unavailableTitle, unavailableMessage) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert(unavailableTitle, unavailableMessage);
+        return;
+      }
+
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert(unavailableTitle, unavailableMessage);
+    }
+  };
+
+  const handleSendEmail = async () => {
     if (!message.trim()) {
       Alert.alert(t("empty_message"), t("please_describe_your_issue_before_sending"));
       return;
     }
-    Linking.openURL(
-      `mailto:support@mabdel.com?subject=Support Request&body=${encodeURIComponent(message)}`
+
+    await openExternalLink(
+      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Support Request")}&body=${encodeURIComponent(message)}`,
+      "Unavailable",
+      "Email is not available on this device.",
+    );
+  };
+
+  const handleContactUs = async () => {
+    await openExternalLink(
+      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Contact Us")}`,
+      "Unavailable",
+      "Email is not available on this device.",
+    );
+  };
+
+  const handleCallUs = async () => {
+    await openExternalLink(
+      `tel:${SUPPORT_PHONE}`,
+      "Unavailable",
+      "Phone calling is not available on this device.",
     );
   };
 
@@ -79,19 +115,33 @@ const ProfileSupportScreen = () => {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-          <Text style={styles.sectionTitle}>{t("contact_us")}</Text>
+          <Pressable style={styles.contactUsBtn} onPress={handleContactUs}>
+            <View style={styles.contactUsContent}>
+              <Mail size={20} color="#17b4c9" />
+              <View style={styles.contactUsTextWrap}>
+                <Text style={styles.contactUsTitle}>{t("contact_us")}</Text>
+                <Text style={styles.contactUsSubtitle}>Open email support</Text>
+              </View>
+            </View>
+          </Pressable>
 
           <View style={styles.contactRow}>
             <Pressable
               style={styles.contactCard}
-              onPress={() => Linking.openURL("mailto:support@mabdel.com")}
+              onPress={() =>
+                openExternalLink(
+                  `mailto:${SUPPORT_EMAIL}`,
+                  "Unavailable",
+                  "Email is not available on this device.",
+                )
+              }
             >
               <Mail size={22} color="#17b4c9" />
               <Text style={styles.contactLabel}>{t("email")}</Text>
             </Pressable>
             <Pressable
               style={styles.contactCard}
-              onPress={() => Linking.openURL("tel:+18001234567")}
+              onPress={handleCallUs}
             >
               <Phone size={22} color="#17b4c9" />
               <Text style={styles.contactLabel}>{t("call_us")}</Text>
@@ -149,6 +199,33 @@ const styles = StyleSheet.create({
   title: { color: "#F8FAFC", fontSize: 25, fontWeight: "700" },
   spacer: { width: responsiveWidth(9) },
   scroll: { paddingBottom: responsiveHeight(4), gap: responsiveHeight(1.6) },
+  contactUsBtn: {
+    backgroundColor: "#1B1C21",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#212530",
+    paddingHorizontal: responsiveWidth(4.4),
+    paddingVertical: responsiveHeight(1.8),
+  },
+  contactUsContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveWidth(3),
+  },
+  contactUsTextWrap: {
+    flex: 1,
+    gap: responsiveHeight(0.2),
+  },
+  contactUsTitle: {
+    color: "#F8FAFC",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  contactUsSubtitle: {
+    color: "#9AA6B3",
+    fontSize: 12,
+    fontWeight: "500",
+  },
   sectionTitle: {
     color: "#F8FAFC",
     fontSize: 18,

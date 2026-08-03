@@ -385,6 +385,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 16,
     alignItems: "center",
+    paddingHorizontal: 24,
   },
   importBtnDisabled: { backgroundColor: "#1B3A44", opacity: 0.6 },
   importBtnText: { color: "#020406", fontSize: 16, fontWeight: "700" },

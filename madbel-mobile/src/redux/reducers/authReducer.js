@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createSlice } from "@reduxjs/toolkit";
 
 const authReducer = createSlice({
@@ -30,12 +29,10 @@ const authReducer = createSlice({
       if (typeof accessToken === "string" && accessToken.trim().length > 0) {
         state.accessToken = accessToken;
         state.token = accessToken;
-        AsyncStorage.setItem("accessToken", accessToken);
       }
 
       if (typeof refreshToken === "string" && refreshToken.trim().length > 0) {
         state.refreshToken = refreshToken;
-        AsyncStorage.setItem("refreshToken", refreshToken);
       }
 
       if (user !== undefined) {
@@ -43,10 +40,6 @@ const authReducer = createSlice({
       }
 
       state.isAuthenticated = Boolean(state.accessToken || state.user);
-
-      if (user) {
-        AsyncStorage.setItem("user", JSON.stringify(user));
-      }
     },
 
     setResetEmail: (state, action) => {
@@ -68,9 +61,6 @@ const authReducer = createSlice({
       state.refreshToken = null;
       state.isAuthenticated = false;
       state.player_type = null;
-      AsyncStorage.removeItem("accessToken");
-      AsyncStorage.removeItem("refreshToken");
-      AsyncStorage.removeItem("user");
     },
   },
 });

@@ -43,7 +43,6 @@ const colors = {
 const DEVICE_ID_KEY = "@device_id";
 
 const generateUUID = () => {
-  const { t } = useAppLanguage();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === "x" ? r : (r & 0x3) | 0x8;
@@ -433,9 +432,7 @@ export default function OnboardingScreen() {
         >
           {slides.map((slide) => (
             <View key={slide.id} style={[styles.slidePage, { width: slideWidth }]}>
-              {/* <View style={styles.illustrationWrapper}>
-                <FeatureIllustration source={slide?.image} />
-              </View> */}
+             
 
            <Image source={slide.image} style={styles.featureImage} resizeMode="contain" />
 

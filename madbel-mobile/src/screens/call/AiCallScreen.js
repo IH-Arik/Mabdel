@@ -101,7 +101,10 @@ const AiCallScreen = () => {
     } catch (e) {
       // call may already be ended
     }
-    navigation.navigate("HomeActivity");
+    navigation.navigate("BottomNavigator", {
+      screen: "Home",
+      params: { screen: "HomeActivity" },
+    });
   };
 
   const spin = rotateAnim.interpolate({

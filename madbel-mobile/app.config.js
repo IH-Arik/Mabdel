@@ -46,6 +46,8 @@ module.exports = {
           "Allow Mabdel to record voice commands for AI assistance.",
         NSContactsUsageDescription:
           "Allow Mabdel to import contacts from your phone.",
+        NSPhotoLibraryUsageDescription:
+          "Allow Mabdel to choose photos and videos for uploads.",
         NSCalendarsUsageDescription:
           "Allow Mabdel to access your calendar so meetings can be synced to Apple Calendar.",
         NSCalendarsFullAccessUsageDescription:
@@ -70,6 +72,8 @@ module.exports = {
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
       ],
       googleServicesFile: "./google-services.json",
       package: "com.madbelai.madbel",
@@ -92,6 +96,7 @@ module.exports = {
         },
       ],
       "expo-speech-recognition",
+      "expo-secure-store",
       [
         "expo-contacts",
         {

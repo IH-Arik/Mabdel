@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, S
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import {
   responsiveHeight,
   responsiveWidth,
@@ -23,6 +24,7 @@ import {
   useMadbelGenerateLeaseDraftMutation,
   useMadbelUpdateLeaseMutation,
 } from "../../redux/slices/madbelApiSlice";
+import { clearAuth } from "../../redux/reducers/authReducer";
 import { useAppLanguage } from "../../context/LanguageContext";
 import VoiceFormFillCard from "../../components/VoiceFormFillCard";
 import SystemCalendarModal from "../../components/SystemCalendarModal";
@@ -103,6 +105,7 @@ const NewLeaseScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboard();
+  const dispatch = useDispatch();
   const authToken = useSelector(
     (state) => state?.auth?.accessToken || state?.auth?.token,
   );
@@ -263,10 +266,11 @@ const NewLeaseScreen = () => {
 
   const handleCreate = async () => {
     if (!authToken) {
+      dispatch(clearAuth());
       Alert.alert(tr("session_expired", "Session expired"), tr("please_login_again_to_continue", "Please login again to continue."), [
         {
           text: "OK",
-          onPress: () => navigation.navigate("Auth"),
+          onPress: () => {},
         },
       ]);
       return;
@@ -346,10 +350,11 @@ const NewLeaseScreen = () => {
         error?.originalStatus === 401 ||
         error?.data?.message === "Not authenticated"
       ) {
+        dispatch(clearAuth());
         Alert.alert(tr("session_expired", "Session expired"), tr("please_login_again_to_continue", "Please login again to continue."), [
           {
             text: "OK",
-            onPress: () => navigation.navigate("Auth"),
+            onPress: () => {},
           },
         ]);
         return;
