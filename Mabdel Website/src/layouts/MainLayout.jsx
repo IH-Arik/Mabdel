@@ -155,7 +155,7 @@ export default function MainLayout() {
             <img 
               src={logoImg} 
               alt="GoCustify logo" 
-              className="w-9 h-9 object-contain drop-shadow-[0_0_15px_rgba(17,199,229,0.2)]" 
+              className="w-9 h-9 rounded-full object-cover drop-shadow-[0_0_15px_rgba(17,199,229,0.2)]" 
             />
             <div className="text-left">
               <h1 className="text-sm font-black text-white tracking-tight leading-none uppercase">
