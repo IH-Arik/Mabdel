@@ -22,21 +22,23 @@ import IncomingCallOverlay from '../components/Calls/IncomingCallOverlay';
 import ActiveCallOverlay from '../components/Calls/ActiveCallOverlay';
 import NotificationBellButton from '../components/NotificationBellButton';
 import { useNotificationStore } from '../store/useNotificationStore';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
 // Sidebar links match the primary mobile tabs + new desktop extensions
-const primaryNavItems = [
-  { name: 'Home', icon: LayoutDashboard, path: '/dashboard' },
-  { name: 'Messages', icon: MessageSquare, path: '/conversations' },
-  { name: 'Voice Assistant', icon: Mic, path: '/voice-conversation' },
-  { name: 'AI Calling', icon: PhoneCall, path: '/calls' },
-  { name: 'Contacts', icon: Contact, path: '/contacts' },
-  { name: 'Documents', icon: FileText, path: '/documents' },
-  { name: 'Groups', icon: Users2, path: '/groups' },
-  { name: 'Profile', icon: Settings, path: '/profile' },
+const primaryNavItemDefs = [
+  { key: 'layout_home', icon: LayoutDashboard, path: '/dashboard' },
+  { key: 'layout_messages', icon: MessageSquare, path: '/conversations' },
+  { key: 'layout_voice_assistant', icon: Mic, path: '/voice-conversation' },
+  { key: 'layout_ai_calling', icon: PhoneCall, path: '/calls' },
+  { key: 'layout_contacts', icon: Contact, path: '/contacts' },
+  { key: 'layout_documents', icon: FileText, path: '/documents' },
+  { key: 'layout_groups', icon: Users2, path: '/groups' },
+  { key: 'layout_profile', icon: Settings, path: '/profile' },
 ];
 
 // Team Management dashboard is a separate app (madbel-dashboard) shared with
@@ -99,9 +101,12 @@ export default function MainLayout() {
   const { user, token, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const syncUnreadCount = useNotificationStore((state) => state.syncUnreadCount);
   const showTeamDashboardLink = TEAM_DASHBOARD_ROLES.has(user?.role || user?.primary_role);
+
+  const primaryNavItems = primaryNavItemDefs.map((item) => ({ ...item, name: t(item.key) }));
 
   const openTeamDashboard = () => {
     const ssoUrl = token
@@ -118,17 +123,17 @@ export default function MainLayout() {
   // Map sub-page paths to friendly titles
   const getSubPageTitle = () => {
     switch (path) {
-      case '/contacts': return 'Contacts Directory';
-      case '/calendar': return 'Calendar Events';
-      case '/invoices': return 'Billing Invoices';
-      case '/documents': return 'Document Templates';
-      case '/calls': return 'AI Call Analytics';
-      case '/integrations': return 'Social Integrations';
-      case '/notifications': return 'System Notifications';
-      case '/bulk-messaging': return 'Bulk Messaging';
-      case '/create-post': return 'Create Social Post';
-      case '/admin': return 'System Administration';
-      default: return 'Back to Home';
+      case '/contacts': return t('subpage_contacts_directory');
+      case '/calendar': return t('subpage_calendar_events');
+      case '/invoices': return t('subpage_billing_invoices');
+      case '/documents': return t('subpage_document_templates');
+      case '/calls': return t('subpage_ai_call_analytics');
+      case '/integrations': return t('subpage_social_integrations');
+      case '/notifications': return t('subpage_system_notifications');
+      case '/bulk-messaging': return t('subpage_bulk_messaging');
+      case '/create-post': return t('subpage_create_social_post');
+      case '/admin': return t('subpage_system_administration');
+      default: return t('subpage_back_to_home');
     }
   };
 
@@ -157,7 +162,7 @@ export default function MainLayout() {
                 GoCustify
               </h1>
               <p className="text-[7.5px] font-bold text-[#9333ea]/80 tracking-[0.2em] uppercase mt-1">
-                AI CRM PLATFORM
+                {t('layout_tagline')}
               </p>
             </div>
           </div>
@@ -203,7 +208,7 @@ export default function MainLayout() {
                 className="flex items-center gap-3.5 px-4 py-2.5 w-full rounded-xl text-xs font-bold text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white transition-all text-left cursor-pointer"
               >
                 <ExternalLink size={16} />
-                <span>Team Dashboard</span>
+                <span>{t('layout_team_dashboard')}</span>
               </button>
             )}
             <button
@@ -211,7 +216,7 @@ export default function MainLayout() {
               className="flex items-center gap-3.5 px-4 py-2.5 w-full rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-950/20 hover:text-rose-300 transition-all text-left"
             >
               <LogOut size={16} />
-              <span>Logout</span>
+              <span>{t('layout_logout')}</span>
             </button>
           </div>
         </div>
@@ -239,14 +244,16 @@ export default function MainLayout() {
             ) : (
               /* If on a primary page, show simple title */
               <h2 className="text-base font-extrabold text-white tracking-tight uppercase">
-                {path === '/dashboard' ? 'Dashboard' : primaryNavItems.find(i => i.path === path)?.name}
+                {path === '/dashboard' ? t('layout_dashboard_title') : primaryNavItems.find(i => i.path === path)?.name}
               </h2>
             )}
           </div>
 
           {/* Header Right Section */}
           <div className="flex items-center gap-6">
-            
+
+            <LanguageSwitcher />
+
             {/* Notification Bell */}
             <NotificationBellButton
               count={unreadCount}

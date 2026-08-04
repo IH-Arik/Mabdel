@@ -27,37 +27,7 @@ import {
   normalizeVoiceWorkflowTranscript,
   setStoredAiLanguage,
 } from '../utils/voiceAgentConfig';
-
-const ACTION_CHIPS = [
-  { id: 'create_invoice', label: 'Create Invoice', path: '/invoices', state: { prefill: {}, action: 'new_invoice' }, icon: FileText },
-  { id: 'bulk_message', label: 'Bulk Message', path: '/bulk-messaging', state: { prefill: {}, action: 'new_bulk_message' }, icon: MessageSquare },
-  { id: 'schedule_meeting', label: 'Schedule Meeting', path: '/calendar', state: { prefill: {}, action: 'new_meeting' }, icon: Calendar },
-  { id: 'new_lease', label: 'New Lease', path: '/documents', state: { tab: 'leases', prefill: { type: 'lease' }, action: 'new_lease' }, icon: FileText },
-  { id: 'new_agreement', label: 'New Agreement', path: '/documents', state: { prefill: { type: 'agreement' }, action: 'new_agreement' }, icon: FileText },
-  { id: 'history', label: 'History', path: '/profile?tab=voice', state: null, icon: History },
-];
-
-const PROMPT_BUTTONS = [
-  'Read my latest messages',
-  'Create a new invoice',
-  "What's on my schedule?",
-];
-
-const WORKFLOW_LABELS = {
-  invoice: 'invoice',
-  bulk_message: 'bulk message',
-  calendar: 'meeting',
-  lease: 'lease',
-  agreement: 'agreement',
-};
-
-const WORKFLOW_DESTINATIONS = {
-  invoice: 'create_invoice',
-  bulk_message: 'bulk_message',
-  calendar: 'schedule_meeting',
-  lease: 'new_lease',
-  agreement: 'new_agreement',
-};
+import { useLanguage } from '../context/LanguageContext';
 
 const DESIRED_FIELDS = {
   invoice: ['client_name', 'client_email', 'items', 'due_date'],
@@ -69,6 +39,22 @@ const FALLBACK_VOICE = 'neutral_assistant';
 const AI_CONVERSATION_STORAGE_KEY = 'voice_conversation_id';
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
+
+const formatValue = (key, value, t) => {
+  if (isEmptyValue(value)) return null;
+  if (Array.isArray(value)) {
+    if (!value.length) return null;
+    if (key === 'items') {
+      return value
+        .map((item) => `${item.description || t('vcon_fallback_service')} x${item.quantity || 1} @ $${item.unit_price || 0}`)
+        .join(', ');
+    }
+    return value.join(', ');
+  }
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
 const toMessageArray = (value) => {
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.items)) return value.items;
@@ -89,22 +75,6 @@ const humanizeField = (value) =>
   String(value || '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
-
-const normalizeDateInput = (value) => {
-  if (!value) return undefined;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return undefined;
-  return parsed.toISOString().slice(0, 10);
-};
-
-const normalizeDateTime = (dateValue, timeValue = '10:00') => {
-  const date = normalizeDateInput(dateValue);
-  if (!date) return undefined;
-  const parsed = new Date(`${date}T${timeValue}`);
-  if (Number.isNaN(parsed.getTime())) return undefined;
-  return parsed.toISOString();
-};
 
 const ensureArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -127,225 +97,86 @@ const mergePrefill = (previous = {}, incoming = {}) => {
   return merged;
 };
 
-const buildWorkflowPayload = (intent, prefill = {}) => {
-  if (intent === 'invoice') {
-    const today = new Date();
-    const defaultIssueDate = today.toISOString().slice(0, 10);
-    const issueDate = normalizeDateInput(prefill.issue_date) || defaultIssueDate;
-    let dueDate = normalizeDateInput(prefill.due_date);
-    if (!dueDate || new Date(`${dueDate}T00:00:00`).getTime() < new Date(`${issueDate}T00:00:00`).getTime()) {
-      const fallbackDue = new Date(`${issueDate}T00:00:00`);
-      fallbackDue.setDate(fallbackDue.getDate() + 7);
-      dueDate = fallbackDue.toISOString().slice(0, 10);
-    }
-
-    const rawItems = ensureArray(prefill.items).filter(Boolean);
-    const items = rawItems.length
-      ? rawItems.map((item) => ({
-          description: item.description || item.name || 'Service',
-          quantity: Number(item.quantity || 1),
-          unit_price: Number(item.unit_price || item.amount || item.price || 0),
-        }))
-      : [
-          {
-            description: prefill.description || prefill.notes || 'Service',
-            quantity: Number(prefill.quantity || 1),
-            unit_price: Number(prefill.amount || prefill.total_amount || 0),
-          },
-        ];
-
-    return {
-      client_name: prefill.client_name || prefill.client || prefill.name || '',
-      client_email: prefill.client_email || undefined,
-      billing_address: prefill.billing_address || undefined,
-      currency: prefill.currency || 'USD',
-      issue_date: issueDate,
-      due_date: dueDate,
-      tax_rate: Number(prefill.tax_rate || 0),
-      notes: prefill.notes || undefined,
-      items,
-    };
+const getWorkflowLabel = (intent, t) => {
+  switch (intent) {
+    case 'invoice': return t('vcon_wf_invoice');
+    case 'bulk_message': return t('vcon_wf_bulk_message');
+    case 'calendar': return t('vcon_wf_meeting');
+    case 'lease': return t('vcon_wf_lease');
+    case 'agreement': return t('vcon_wf_agreement');
+    default: return intent;
   }
-
-  if (intent === 'calendar') {
-    const startsAt = normalizeDateTime(prefill.date || prefill.starts_at || prefill.start_date, prefill.time || prefill.start_time || '10:00');
-    let endsAt = normalizeDateTime(
-      prefill.date || prefill.ends_at || prefill.end_date,
-      prefill.end_time || '11:00',
-    );
-    const startDate = startsAt ? new Date(startsAt) : null;
-    const endDate = endsAt ? new Date(endsAt) : null;
-    if (startDate && (!endDate || endDate <= startDate)) {
-      endsAt = new Date(startDate.getTime() + 60 * 60 * 1000).toISOString();
-    }
-
-    return {
-      title: prefill.title || prefill.subject || 'Scheduled Meeting',
-      description: prefill.description || prefill.notes || undefined,
-      starts_at: startsAt,
-      ends_at: endsAt,
-      meeting_mode: prefill.mode || prefill.meeting_mode || 'online',
-      location: prefill.location || undefined,
-      meeting_link: prefill.link || prefill.meeting_link || undefined,
-      contact_ids: ensureArray(prefill.contact_ids),
-      notify_via_push: true,
-      notify_via_email: Boolean(prefill.notify_via_email),
-      notify_via_sms: Boolean(prefill.notify_via_sms),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      reminder_minutes: Number(prefill.reminder_minutes || 15),
-    };
-  }
-
-  if (intent === 'bulk_message') {
-    const recipients = ensureArray(prefill.recipient_emails || prefill.recipients || prefill.emails)
-      .map((item) => (typeof item === 'string' ? item : item?.email || item?.value))
-      .filter(Boolean);
-
-    const attachments = ensureArray(prefill.attachments || prefill.attachment_urls)
-      .map((item) =>
-        typeof item === 'string'
-          ? { label: item.split('/').pop() || 'Attachment', url: item }
-          : { label: item.label || item.file_name || 'Attachment', url: item.url },
-      )
-      .filter((item) => item.url);
-
-    return {
-      channel: prefill.channel || 'email',
-      recipient_emails: recipients,
-      contact_ids: ensureArray(prefill.contact_ids),
-      group_ids: ensureArray(prefill.group_ids),
-      subject: prefill.subject || undefined,
-      content: prefill.message || prefill.content || prefill.body || '',
-      attachments,
-      scheduled_at: prefill.scheduled_at || undefined,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      send_now: !prefill.scheduled_at,
-      ai_transcript: prefill.ai_transcript || undefined,
-    };
-  }
-
-  if (intent === 'agreement') {
-    return {
-      title: prefill.title || 'New Agreement',
-      client_name: prefill.client_name || prefill.client || prefill.name || '',
-      client_email: prefill.client_email || undefined,
-      client_phone: prefill.client_phone || undefined,
-      agreement_type: prefill.agreement_type || 'contract',
-      start_date: normalizeDateInput(prefill.start_date) || undefined,
-      end_date: normalizeDateInput(prefill.end_date) || undefined,
-      content: prefill.content || prefill.body || prefill.prompt || '',
-      status: 'pending_signature',
-    };
-  }
-
-  if (intent === 'lease') {
-    return {
-      prompt: prefill.prompt || prefill.content || '',
-      property_address: prefill.property_address || prefill.address || '',
-      property_type: prefill.property_type || 'apartment',
-      landlord_name: prefill.landlord_name || prefill.landlord || '',
-      tenant_name: prefill.tenant_name || prefill.tenant || prefill.name || '',
-      tenant_email: prefill.tenant_email || undefined,
-      tenant_phone: prefill.tenant_phone || undefined,
-      monthly_rent: prefill.monthly_rent || prefill.rent || '',
-      security_deposit: prefill.security_deposit || prefill.deposit || '',
-      start_date: normalizeDateInput(prefill.start_date) || undefined,
-      end_date: normalizeDateInput(prefill.end_date) || undefined,
-      custom_terms: prefill.custom_terms || prefill.terms || '',
-    };
-  }
-
-  return null;
 };
 
-const getWorkflowQuestion = (intent, fieldKey) =>
-  getFieldQuestion(getStoredAiLanguage(), intent, fieldKey) || `What is the ${humanizeField(fieldKey)}?`;
+const getWorkflowQuestion = (intent, fieldKey, t) =>
+  getFieldQuestion(getStoredAiLanguage(), intent, fieldKey) || t('vcon_wf_fallback_question').replace('{field}', humanizeField(fieldKey));
 
-const getWorkflowDestination = (intent, prefill = {}) => {
+const getWorkflowDestination = (intent, prefill = {}, t) => {
   if (intent === 'invoice') {
-    return { path: '/invoices', state: { prefill, action: 'new_invoice' }, label: 'Create Invoice' };
+    return { path: '/invoices', state: { prefill, action: 'new_invoice' }, label: t('vcon_chip_create_invoice') };
   }
   if (intent === 'calendar') {
-    return { path: '/calendar', state: { prefill, action: 'new_meeting' }, label: 'Schedule Meeting' };
+    return { path: '/calendar', state: { prefill, action: 'new_meeting' }, label: t('vcon_chip_schedule_meeting') };
   }
   if (intent === 'bulk_message') {
-    return { path: '/bulk-messaging', state: { prefill, action: 'new_bulk_message' }, label: 'Bulk Message' };
+    return { path: '/bulk-messaging', state: { prefill, action: 'new_bulk_message' }, label: t('vcon_chip_bulk_message') };
   }
   if (intent === 'agreement') {
     return {
       path: '/documents',
       state: { prefill: { ...prefill, type: 'agreement' }, action: 'new_agreement', tab: 'agreements' },
-      label: 'New Agreement',
+      label: t('vcon_chip_new_agreement'),
     };
   }
   if (intent === 'lease') {
     return {
       path: '/documents',
       state: { prefill: { ...prefill, type: 'lease' }, action: 'new_lease', tab: 'leases' },
-      label: 'New Lease',
+      label: t('vcon_chip_new_lease'),
     };
   }
   return null;
 };
 
-const buildConfirmationText = (intent, prefill = {}, missingFields = []) => {
-  const label = WORKFLOW_LABELS[intent] || intent;
+const buildConfirmationText = (intent, prefill = {}, missingFields = [], t) => {
+  const label = getWorkflowLabel(intent, t);
   const previewParts = [];
 
   if (intent === 'invoice') {
-    if (prefill.client_name) previewParts.push(`client ${prefill.client_name}`);
-    if (prefill.amount || prefill.total_amount) previewParts.push(`amount ${prefill.amount || prefill.total_amount}`);
+    if (prefill.client_name) previewParts.push(`${t('vcon_lbl_client')} ${prefill.client_name}`);
+    if (prefill.amount || prefill.total_amount) previewParts.push(`${t('vcon_lbl_amount')} ${prefill.amount || prefill.total_amount}`);
   }
 
   if (intent === 'calendar') {
-    if (prefill.title) previewParts.push(`title "${prefill.title}"`);
-    if (prefill.date || prefill.starts_at) previewParts.push(`date ${prefill.date || prefill.starts_at}`);
+    if (prefill.title) previewParts.push(`${t('vcon_lbl_title')} "${prefill.title}"`);
+    if (prefill.date || prefill.starts_at) previewParts.push(`${t('vcon_lbl_date')} ${prefill.date || prefill.starts_at}`);
   }
 
   if (intent === 'bulk_message') {
     const recipientCount = ensureArray(prefill.recipient_emails || prefill.recipients).length;
-    if (recipientCount) previewParts.push(`${recipientCount} recipients`);
-    if (prefill.subject) previewParts.push(`subject "${prefill.subject}"`);
+    if (recipientCount) previewParts.push(`${recipientCount} ${t('vcon_lbl_recipients')}`);
+    if (prefill.subject) previewParts.push(`${t('vcon_lbl_subject')} "${prefill.subject}"`);
   }
 
   if (intent === 'agreement') {
-    if (prefill.client_name) previewParts.push(`client ${prefill.client_name}`);
-    if (prefill.title) previewParts.push(`title "${prefill.title}"`);
+    if (prefill.client_name) previewParts.push(`${t('vcon_lbl_client')} ${prefill.client_name}`);
+    if (prefill.title) previewParts.push(`${t('vcon_lbl_title')} "${prefill.title}"`);
   }
 
   if (intent === 'lease') {
-    if (prefill.tenant_name) previewParts.push(`tenant ${prefill.tenant_name}`);
-    if (prefill.monthly_rent || prefill.rent) previewParts.push(`rent ${prefill.monthly_rent || prefill.rent}`);
+    if (prefill.tenant_name) previewParts.push(`${t('vcon_lbl_tenant')} ${prefill.tenant_name}`);
+    if (prefill.monthly_rent || prefill.rent) previewParts.push(`${t('vcon_lbl_rent')} ${prefill.monthly_rent || prefill.rent}`);
   }
 
   if (missingFields.length) {
-    return getWorkflowQuestion(intent, missingFields[0]);
+    return getWorkflowQuestion(intent, missingFields[0], t);
   }
 
   if (previewParts.length) {
-    return `I prepared the ${label} workflow for ${previewParts.join(', ')}. Confirm and I'll open the form with everything filled in.`;
+    return t('vcon_wf_prepared_confirm', { label, preview: previewParts.join(', ') });
   }
 
-  return `I prepared the ${label} workflow. Confirm and I'll open the form with everything filled in.`;
-};
-
-const mapWorkflowResultToMessage = (intent, payload = {}) => {
-  if (intent === 'invoice') {
-    return `Invoice ${payload.invoice_number || ''} created for ${payload.client_name || 'the client'}.`.trim();
-  }
-  if (intent === 'calendar') {
-    return `Meeting "${payload.title || 'Meeting'}" scheduled successfully.`;
-  }
-  if (intent === 'bulk_message') {
-    return `Bulk message created with status ${payload.status || 'draft'}.`;
-  }
-  if (intent === 'agreement') {
-    return `Agreement ${payload.agreement_number || ''} created for ${payload.client_name || 'the client'}.`.trim();
-  }
-  if (intent === 'lease') {
-    return `Lease drafted for ${payload.tenant_name || 'the tenant'}.`;
-  }
-  return 'Workflow executed successfully.';
+  return t('vcon_wf_prepared_simple', { label });
 };
 
 const buildAudioSrc = (audioPayload) => {
@@ -354,6 +185,7 @@ const buildAudioSrc = (audioPayload) => {
 };
 
 export default function VoiceConversation() {
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const recognitionRef = useRef(null);
@@ -375,11 +207,26 @@ export default function VoiceConversation() {
   const [aiLanguage, setAiLanguage] = useState(() => getStoredAiLanguage());
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [activeWorkflow, setActiveWorkflow] = useState(null);
-  const [workflowBusy, setWorkflowBusy] = useState(false);
+  const [workflowBusy] = useState(false);
   const [conversationId, setConversationId] = useState(() => {
     if (typeof window === 'undefined') return null;
     return window.localStorage.getItem(AI_CONVERSATION_STORAGE_KEY);
   });
+
+  const actionChips = useMemo(() => [
+    { id: 'create_invoice', label: t('vcon_chip_create_invoice'), path: '/invoices', state: { prefill: {}, action: 'new_invoice' }, icon: FileText },
+    { id: 'bulk_message', label: t('vcon_chip_bulk_message'), path: '/bulk-messaging', state: { prefill: {}, action: 'new_bulk_message' }, icon: MessageSquare },
+    { id: 'schedule_meeting', label: t('vcon_chip_schedule_meeting'), path: '/calendar', state: { prefill: {}, action: 'new_meeting' }, icon: Calendar },
+    { id: 'new_lease', label: t('vcon_chip_new_lease'), path: '/documents', state: { tab: 'leases', prefill: { type: 'lease' }, action: 'new_lease' }, icon: FileText },
+    { id: 'new_agreement', label: t('vcon_chip_new_agreement'), path: '/documents', state: { prefill: { type: 'agreement' }, action: 'new_agreement' }, icon: FileText },
+    { id: 'history', label: t('vcon_chip_history'), path: '/profile?tab=voice', state: null, icon: History },
+  ], [t]);
+
+  const promptButtons = useMemo(() => [
+    t('vcon_prompt_read_messages'),
+    t('vcon_prompt_create_invoice'),
+    t('vcon_prompt_schedule'),
+  ], [t]);
 
   const pushMessage = useCallback((message) => {
     setMessages((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, ...message }]);
@@ -428,24 +275,24 @@ export default function VoiceConversation() {
   const executeWorkflow = useCallback(async () => {
     if (!activeWorkflow?.intent || workflowBusy) return;
 
-    const destination = getWorkflowDestination(activeWorkflow.intent, activeWorkflow.prefill);
+    const destination = getWorkflowDestination(activeWorkflow.intent, activeWorkflow.prefill, t);
     if (!destination) {
-      pushMessage({ role: 'assistant', text: 'I could not prepare that workflow form yet.', tone: 'error' });
+      pushMessage({ role: 'assistant', text: t('vcon_err_workflow_prep'), tone: 'error' });
       return;
     }
 
     pushMessage({
       role: 'assistant',
-      text: `Opening the ${destination.label} form now.`,
+      text: t('vcon_opening_form', { label: destination.label }),
       tone: 'success',
       action: {
-        label: `Open ${destination.label}`,
+        label: t('vcon_btn_open_form', { label: destination.label }),
         onClick: () => navigate(destination.path, { state: destination.state }),
       },
     });
     setActiveWorkflow(null);
     navigate(destination.path, { state: destination.state });
-  }, [activeWorkflow, navigate, pushMessage, workflowBusy]);
+  }, [activeWorkflow, navigate, pushMessage, t, workflowBusy]);
 
   const handleWorkflowPrefill = useCallback(
     async (text) => {
@@ -470,20 +317,20 @@ export default function VoiceConversation() {
         prefill: mergedPrefill,
         missingFields,
         readyToCreate: Boolean(data.ready_to_create),
-        submitLabel: 'Open Form',
+        submitLabel: t('vcon_btn_open_form', { label: getWorkflowLabel(intent, t) }),
       };
 
       setActiveWorkflow(nextWorkflow);
       pushMessage({
         role: 'assistant',
-        text: buildConfirmationText(intent, mergedPrefill, missingFields),
+        text: buildConfirmationText(intent, mergedPrefill, missingFields, t),
         tone: missingFields.length ? 'muted' : 'success',
         workflow: nextWorkflow,
       });
 
       return nextWorkflow;
     },
-    [activeWorkflow, pushMessage],
+    [activeWorkflow, pushMessage, t],
   );
 
   const handleAiChat = useCallback(
@@ -493,7 +340,7 @@ export default function VoiceConversation() {
         voice_id: selectedVoiceId,
       });
       const data = getApiData(response);
-      const aiText = data?.ai_message?.content || data?.response || 'I processed that request.';
+      const aiText = data?.ai_message?.content || data?.response || t('vcon_processed_request');
       const nextConversationId = data?.conversation_id || conversationId;
 
       pushMessage({
@@ -508,7 +355,7 @@ export default function VoiceConversation() {
       playVoice(aiText, data.audio);
       return data;
     },
-    [conversationId, persistConversationId, playVoice, pushMessage, selectedVoiceId],
+    [conversationId, persistConversationId, playVoice, pushMessage, selectedVoiceId, t],
   );
 
   const loadStoredConversation = useCallback(async (preferredConversationId = null) => {
@@ -562,14 +409,14 @@ export default function VoiceConversation() {
       } catch (error) {
         pushMessage({
           role: 'assistant',
-          text: error?.response?.data?.message || 'Sorry, I could not process that request.',
+          text: error?.response?.data?.message || t('vcon_err_process_request'),
           tone: 'error',
         });
       } finally {
         setIsThinking(false);
       }
     },
-    [conversationId, handleAiChat, handleWorkflowPrefill, isThinking, loadStoredConversation, pushMessage, workflowBusy],
+    [conversationId, handleAiChat, handleWorkflowPrefill, isThinking, loadStoredConversation, pushMessage, t, workflowBusy],
   );
 
   const startListening = useCallback(async () => {
@@ -577,10 +424,10 @@ export default function VoiceConversation() {
 
     if (!SpeechRecognition) {
       setPermissionState('unsupported');
-      setMicError('Speech recognition is not supported in this browser.');
+      setMicError(t('vcon_err_speech_unsupported'));
       pushMessage({
         role: 'assistant',
-        text: 'Speech recognition is not supported in this browser. You can keep chatting with text.',
+        text: t('vcon_err_speech_unsupported_chat'),
         tone: 'error',
       });
       return;
@@ -629,7 +476,7 @@ export default function VoiceConversation() {
       recognition.onerror = (event) => {
         const errorCode = event.error || 'unknown';
         setPermissionState(errorCode === 'not-allowed' ? 'denied' : 'error');
-        setMicError(errorCode === 'not-allowed' ? 'Microphone access denied.' : `Microphone error: ${errorCode}`);
+        setMicError(errorCode === 'not-allowed' ? t('vcon_err_mic_denied') : t('vcon_err_mic_code', { code: errorCode }));
       };
 
       recognition.onend = () => {
@@ -644,18 +491,18 @@ export default function VoiceConversation() {
 
       recognitionRef.current = recognition;
       recognition.start();
-    } catch (error) {
+    } catch {
       setPermissionState('denied');
-      setMicError('Microphone access denied.');
+      setMicError(t('vcon_err_mic_denied'));
       pushMessage({
         role: 'assistant',
-        text: 'Microphone permission was denied. You can still use text chat.',
+        text: t('vcon_err_mic_denied_chat'),
         tone: 'error',
       });
     } finally {
       setVoiceLoading(false);
     }
-  }, [aiLanguage, pushMessage, sendPrompt]);
+  }, [aiLanguage, pushMessage, sendPrompt, t]);
 
   useEffect(() => {
     setStoredAiLanguage(aiLanguage);
@@ -704,7 +551,7 @@ export default function VoiceConversation() {
     consumedStateRef.current.replayResult = replayResult?.history_item?.id || 'replay';
     const data = getApiData({ data: replayResult });
     const userText = data?.history_item?.command_text;
-    const aiText = data?.ai_message?.content || data?.response || data?.history_item?.command_text || 'Replay completed.';
+    const aiText = data?.ai_message?.content || data?.response || data?.history_item?.command_text || t('vcon_replay_completed');
     setIsSessionActive(true);
     if (userText) {
       pushMessage({
@@ -715,11 +562,11 @@ export default function VoiceConversation() {
     }
     pushMessage({
       role: 'assistant',
-      text: `Replay: ${aiText}`,
+      text: t('vcon_replay_prefix', { text: aiText }),
       tone: 'success',
     });
     playVoice(aiText, data.audio);
-  }, [location.state, playVoice, pushMessage]);
+  }, [location.state, playVoice, pushMessage, t]);
 
   useEffect(() => {
     if (location.state?.autoStart && !consumedStateRef.current.autoStart) {
@@ -736,36 +583,36 @@ export default function VoiceConversation() {
   }, [stopListening]);
 
   const assistantStatus = useMemo(() => {
-    if (isListening) return 'Listening';
-    if (isThinking || workflowBusy) return 'Thinking';
-    if (permissionState === 'denied') return 'Permission denied';
-    if (permissionState === 'unsupported') return 'Voice unavailable';
-    return 'Ready';
-  }, [isListening, isThinking, permissionState, workflowBusy]);
+    if (isListening) return t('vcon_status_listening');
+    if (isThinking || workflowBusy) return t('vcon_status_thinking');
+    if (permissionState === 'denied') return t('vcon_status_perm_denied');
+    if (permissionState === 'unsupported') return t('vcon_status_voice_unavailable');
+    return t('vcon_status_ready');
+  }, [isListening, isThinking, permissionState, t, workflowBusy]);
 
   return (
-    <div className="flex h-[calc(100vh-10rem)] bg-[#0c101b] border border-[#243041]/60 rounded-3xl overflow-hidden shadow-xl">
+    <div className="flex h-[calc(100vh-10rem)] bg-[#0c101b] border border-[#243041]/60 rounded-3xl overflow-hidden shadow-xl text-left">
       <div className="w-80 border-r border-[#243041]/40 bg-slate-950/20 p-6 hidden lg:flex flex-col gap-6">
         <div>
           <h2 className="text-white font-bold text-lg flex items-center gap-2">
             <Sparkles className="text-purple-400" size={18} />
-            AI Voice Assistant
+            {t('vcon_title')}
           </h2>
           <p className="text-slate-400 text-xs mt-2 leading-relaxed">
-            One conversation thread for voice, text, workflow execution, and history replay.
+            {t('vcon_subtitle')}
           </p>
         </div>
 
         <div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Action Chips</p>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{t('vcon_lbl_action_chips')}</p>
           <div className="flex flex-wrap gap-2">
-            {ACTION_CHIPS.map((chip) => {
+            {actionChips.map((chip) => {
               const Icon = chip.icon;
               return (
                 <button
                   key={chip.id}
                   onClick={() => handleActionChip(chip)}
-                  className="px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-200 hover:text-purple-300 hover:border-purple-500/40 transition-colors text-xs font-semibold flex items-center gap-2"
+                  className="px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-200 hover:text-purple-300 hover:border-purple-500/40 transition-colors text-xs font-semibold flex items-center gap-2 cursor-pointer"
                 >
                   <Icon size={14} />
                   {chip.label}
@@ -776,13 +623,13 @@ export default function VoiceConversation() {
         </div>
 
         <div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Prompt Buttons</p>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{t('vcon_lbl_prompt_buttons')}</p>
           <div className="space-y-2">
-            {PROMPT_BUTTONS.map((prompt) => (
+            {promptButtons.map((prompt) => (
               <button
                 key={prompt}
                 onClick={() => sendPrompt(prompt, 'prompt')}
-                className="w-full text-left px-4 py-3 bg-[#9333ea]/5 border border-[#9333ea]/10 rounded-xl text-xs text-purple-300 font-semibold hover:bg-[#9333ea]/10 transition-colors"
+                className="w-full text-left px-4 py-3 bg-[#9333ea]/5 border border-[#9333ea]/10 rounded-xl text-xs text-purple-300 font-semibold hover:bg-[#9333ea]/10 transition-colors cursor-pointer"
               >
                 "{prompt}"
               </button>
@@ -792,13 +639,13 @@ export default function VoiceConversation() {
 
         <div className="mt-auto space-y-3">
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Assistant Status</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t('vcon_lbl_assistant_status')}</p>
             <p className="text-white font-semibold mt-2">{assistantStatus}</p>
             {micError ? <p className="text-rose-300 text-xs mt-2">{micError}</p> : null}
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Voice Output</label>
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t('vcon_lbl_voice_output')}</label>
             <select
               value={selectedVoiceId}
               onChange={(event) => setSelectedVoiceId(event.target.value)}
@@ -806,12 +653,12 @@ export default function VoiceConversation() {
             >
               {voices.length ? voices.map((voice) => (
                 <option key={voice.id} value={voice.id}>{voice.label}</option>
-              )) : <option value={FALLBACK_VOICE}>Default Voice</option>}
+              )) : <option value={FALLBACK_VOICE}>{t('vcon_default_voice')}</option>}
             </select>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">AI Language</label>
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t('vcon_lbl_ai_language')}</label>
             <select
               value={aiLanguage}
               onChange={(event) => setAiLanguage(event.target.value)}
@@ -822,7 +669,7 @@ export default function VoiceConversation() {
               ))}
             </select>
             <p className="mt-2 text-xs text-slate-400">
-              Mobile parity: prompts, follow-up questions, and speech recognition follow the selected AI language.
+              {t('vcon_mobile_parity_hint')}
             </p>
           </div>
         </div>
@@ -834,9 +681,9 @@ export default function VoiceConversation() {
             <div className="w-32 h-32 rounded-full bg-purple-500/10 flex items-center justify-center mb-8 border border-purple-500/20">
               <Mic size={48} className="text-purple-400" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Start AI Voice Assistant</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">{t('vcon_hero_title')}</h2>
             <p className="text-slate-400 text-sm mb-8 text-center max-w-sm">
-              Talk to GoCustify AI, switch to text instantly, and execute business workflows from the same thread.
+              {t('vcon_hero_subtitle')}
             </p>
             <p className="text-purple-300 text-xs font-semibold mb-5">
               {getInitialPrompt(aiLanguage, 'agreement')}
@@ -844,17 +691,17 @@ export default function VoiceConversation() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSessionActive(true)}
-                className="px-8 py-4 bg-purple-500 hover:bg-purple-400 text-[#070a13] font-bold rounded-full transition-all shadow-lg shadow-purple-500/20 text-lg flex items-center gap-2"
+                className="px-8 py-4 bg-purple-500 hover:bg-purple-400 text-[#070a13] font-bold rounded-full transition-all shadow-lg shadow-purple-500/20 text-lg flex items-center gap-2 cursor-pointer"
               >
                 <Phone size={20} />
-                Connect
+                {t('vcon_btn_connect')}
               </button>
               <button
                 onClick={startListening}
-                className="px-6 py-4 bg-slate-900 border border-slate-800 text-purple-300 rounded-full font-bold text-sm flex items-center gap-2"
+                className="px-6 py-4 bg-slate-900 border border-slate-800 text-purple-300 rounded-full font-bold text-sm flex items-center gap-2 cursor-pointer"
               >
                 <Mic size={18} />
-                Start Listening
+                {t('vcon_btn_start_listening')}
               </button>
             </div>
           </div>
@@ -863,7 +710,7 @@ export default function VoiceConversation() {
             <div className="p-4 border-b border-[#243041]/40 flex items-center justify-between bg-slate-950/40">
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-purple-400 animate-pulse' : isThinking ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-                <span className="text-white font-bold text-sm">AI Assistant Session</span>
+                <span className="text-white font-bold text-sm">{t('vcon_session_title')}</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -871,8 +718,8 @@ export default function VoiceConversation() {
                   onClick={() => {
                     if (audioRef.current) audioRef.current.play().catch(() => {});
                   }}
-                  className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition-colors"
-                  title="Replay audio"
+                  className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title={t('vcon_title_replay_audio')}
                 >
                   <Volume2 size={16} />
                 </button>
@@ -883,8 +730,8 @@ export default function VoiceConversation() {
                     setActiveWorkflow(null);
                     setInterimTranscript('');
                   }}
-                  className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-300 hover:text-white transition-colors"
-                  title="End session"
+                  className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-300 hover:text-white transition-colors cursor-pointer"
+                  title={t('vcon_title_end_session')}
                 >
                   <Phone size={16} className="rotate-[135deg]" />
                 </button>
@@ -894,7 +741,7 @@ export default function VoiceConversation() {
             <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-5 bg-slate-900/10">
               {messages.length === 0 ? (
                 <div className="max-w-xl bg-slate-800 border border-slate-700 text-white rounded-3xl rounded-bl-none p-4">
-                  Hello, I am ready to help with voice chat, text chat, invoices, meetings, bulk messages, and agreements.
+                  {t('vcon_welcome_message')}
                 </div>
               ) : null}
 
@@ -921,7 +768,7 @@ export default function VoiceConversation() {
                     {message.action ? (
                       <button
                         onClick={message.action.onClick}
-                        className="mt-3 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
+                        className="mt-3 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold cursor-pointer"
                       >
                         {message.action.label}
                       </button>
@@ -935,7 +782,7 @@ export default function VoiceConversation() {
                   <div className="max-w-[78%] px-4 py-3 bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded-3xl rounded-br-none">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2">
                       <Activity size={14} className="animate-pulse" />
-                      Partial Transcript
+                      {t('vcon_partial_transcript')}
                     </div>
                     <p className="text-sm">{interimTranscript}</p>
                   </div>
@@ -946,7 +793,7 @@ export default function VoiceConversation() {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                   <div className="px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-3xl rounded-bl-none text-sm font-medium flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin text-purple-400" />
-                    AI is thinking...
+                    {t('vcon_ai_thinking')}
                   </div>
                 </motion.div>
               ) : null}
@@ -956,27 +803,27 @@ export default function VoiceConversation() {
                   <div className="max-w-[78%] p-4 rounded-3xl rounded-bl-none bg-[#9333ea]/8 border border-[#9333ea]/20 text-white">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-purple-300 mb-3">
                       <CheckCircle2 size={14} />
-                      Confirmation Required
+                      {t('vcon_confirm_required')}
                     </div>
                     <p className="text-sm text-slate-200 mb-4">
-                      {buildConfirmationText(activeWorkflow.intent, activeWorkflow.prefill, [])}
+                      {buildConfirmationText(activeWorkflow.intent, activeWorkflow.prefill, [], t)}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={executeWorkflow}
                         disabled={workflowBusy}
-                        className="px-4 py-2 rounded-xl bg-purple-500 text-[#031218] font-bold text-sm disabled:opacity-60"
+                        className="px-4 py-2 rounded-xl bg-purple-500 text-[#031218] font-bold text-sm disabled:opacity-60 cursor-pointer"
                       >
-                        {workflowBusy ? 'Executing...' : activeWorkflow.submitLabel || 'Confirm and Execute'}
+                        {workflowBusy ? t('vcon_executing') : (activeWorkflow.submitLabel || t('vcon_btn_confirm_execute'))}
                       </button>
                       <button
                         onClick={() => {
                           setActiveWorkflow(null);
-                          pushMessage({ role: 'assistant', text: 'Okay, I cancelled that workflow.', tone: 'muted' });
+                          pushMessage({ role: 'assistant', text: t('vcon_msg_cancelled'), tone: 'muted' });
                         }}
-                        className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-semibold text-sm"
+                        className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-semibold text-sm cursor-pointer"
                       >
-                        Cancel
+                        {t('vcon_btn_cancel')}
                       </button>
                     </div>
                   </div>
@@ -990,7 +837,7 @@ export default function VoiceConversation() {
               {permissionState === 'denied' ? (
                 <div className="text-xs text-rose-300 flex items-center gap-2">
                   <XCircle size={14} />
-                  Microphone permission is denied. Text chat is still available.
+                  {t('vcon_mic_denied_bar')}
                 </div>
               ) : null}
 
@@ -998,12 +845,12 @@ export default function VoiceConversation() {
                 <button
                   onClick={isListening ? stopListening : startListening}
                   disabled={voiceLoading || isThinking || workflowBusy}
-                  className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg ${
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg cursor-pointer ${
                     isListening
                       ? 'bg-purple-500 text-[#070a13] shadow-purple-500/20'
                       : 'bg-slate-800 text-white hover:bg-slate-700'
                   } disabled:opacity-60`}
-                  title={isListening ? 'Stop Listening' : 'Start Listening'}
+                  title={isListening ? t('vcon_title_stop_listening') : t('vcon_title_start_listening')}
                 >
                   {voiceLoading ? <Loader2 size={22} className="animate-spin" /> : isListening ? <MicOff size={22} /> : <Mic size={22} />}
                 </button>
@@ -1012,7 +859,7 @@ export default function VoiceConversation() {
                   <textarea
                     value={inputText}
                     onChange={(event) => setInputText(event.target.value)}
-                    placeholder="Type a message or continue a workflow..."
+                    placeholder={t('vcon_ph_type_message')}
                     className="w-full bg-transparent text-white placeholder:text-slate-500 outline-none resize-none min-h-[68px] text-sm"
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && !event.shiftKey) {
@@ -1026,8 +873,8 @@ export default function VoiceConversation() {
                 <button
                   onClick={() => sendPrompt(inputText, 'text')}
                   disabled={!inputText.trim() || isThinking || workflowBusy}
-                  className="w-14 h-14 rounded-2xl bg-purple-500 text-[#031218] flex items-center justify-center font-bold disabled:opacity-60"
-                  title="Send text"
+                  className="w-14 h-14 rounded-2xl bg-purple-500 text-[#031218] flex items-center justify-center font-bold disabled:opacity-60 cursor-pointer"
+                  title={t('vcon_title_send_text')}
                 >
                   <Send size={18} />
                 </button>

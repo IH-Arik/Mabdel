@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Building2, Bell, CreditCard, Mic, LifeBuoy, Cpu, Shield } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { useLanguage } from '../../context/LanguageContext';
 
 import ProfileTab from './tabs/ProfileTab';
 import BusinessProfileTab from './tabs/BusinessProfileTab';
@@ -14,19 +15,20 @@ import SecurityTab from './tabs/SecurityTab';
 import AccountSettingsTab from './tabs/AccountSettingsTab';
 
 export default function Profile() {
+  const { t } = useLanguage();
   const location = useLocation();
   const [active, setActive] = useState('profile');
 
   const tabs = [
-    { id: 'profile', label: 'Personal Info', icon: User },
-    { id: 'business', label: 'Business Profile', icon: Building2 },
-    { id: 'subscription', label: 'Subscription', icon: CreditCard },
-    { id: 'voice', label: 'Voice History', icon: Mic },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'account', label: 'Account Settings', icon: Shield },
-    { id: 'support', label: 'Support', icon: LifeBuoy },
-    { id: 'ai', label: 'AI Configuration', icon: Cpu },
-    { id: 'security', label: 'Security', icon: Shield },
+    { id: 'profile', labelKey: 'prof_tab_personal', icon: User },
+    { id: 'business', labelKey: 'prof_tab_business', icon: Building2 },
+    { id: 'subscription', labelKey: 'prof_tab_subscription', icon: CreditCard },
+    { id: 'voice', labelKey: 'prof_tab_voice', icon: Mic },
+    { id: 'notifications', labelKey: 'prof_tab_notifications', icon: Bell },
+    { id: 'account', labelKey: 'prof_tab_account', icon: Shield },
+    { id: 'support', labelKey: 'prof_tab_support', icon: LifeBuoy },
+    { id: 'ai', labelKey: 'prof_tab_ai', icon: Cpu },
+    { id: 'security', labelKey: 'prof_tab_security', icon: Shield },
   ];
 
   const components = {
@@ -61,8 +63,8 @@ export default function Profile() {
   return (
     <div className="space-y-6">
       <div className="border-b border-[#243041]/40 pb-4 text-left">
-        <h1 className="text-3xl font-extrabold tracking-tight text-white">Settings</h1>
-        <p className="text-[#A4B0B7] text-xs mt-1">Manage your profile, business, security, and integrations.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('prof_title')}</h1>
+        <p className="text-[#A4B0B7] text-xs mt-1">{t('prof_subtitle')}</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -75,7 +77,7 @@ export default function Profile() {
                 <button key={tab.id} onClick={()=>setActive(tab.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer text-left ${active===tab.id ? 'bg-[#9333ea]/10 text-white border border-[#9333ea]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border border-transparent'}`}>
                   <Icon size={15} className={active===tab.id ? 'text-[#9333ea]' : ''}/>
-                  {tab.label}
+                  {t(tab.labelKey)}
                 </button>
               );
             })}

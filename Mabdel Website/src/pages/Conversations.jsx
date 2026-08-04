@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { useLanguage } from '../context/LanguageContext';
 
 const PLATFORM_COLORS = {
   ai: '#9333ea',
@@ -35,8 +36,8 @@ const PLATFORM_COLORS = {
   email: '#F59E0B',
 };
 
-const FILTER_OPTIONS = [
-  { key: 'all', label: 'All' },
+const FILTER_OPTION_DEFS = [
+  { key: 'all', labelKey: 'conv_filter_all' },
   { key: 'ai', label: 'AI' },
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'sms', label: 'SMS' },
@@ -82,18 +83,18 @@ const normalizePlatform = (value) => {
   return lower || 'ai';
 };
 
-const getConversationName = (conversation) =>
+const getConversationName = (conversation, t) =>
   conversation?.contact_name ||
   conversation?.title ||
   conversation?.group?.name ||
   conversation?.directPeer?.fullName ||
   conversation?.directPeer?.name ||
-  'Anonymous';
+  t('conv_anonymous');
 
-const normalizeConversation = (conversation) => ({
+const normalizeConversation = (conversation, t) => ({
   ...conversation,
   id: conversation?.id || conversation?._id,
-  contact_name: getConversationName(conversation),
+  contact_name: getConversationName(conversation, t),
   platform: normalizePlatform(conversation?.platform || conversation?.channel || conversation?.source || conversation?.type),
   last_message_preview:
     conversation?.last_message_preview ||
@@ -110,8 +111,8 @@ const normalizeConversation = (conversation) => ({
   unread_count: Number(conversation?.unread_count || conversation?.unreadCount || 0),
 });
 
-const mergeConversationIntoList = (list, conversation) => {
-  const normalized = normalizeConversation(conversation);
+const mergeConversationIntoList = (list, conversation, t) => {
+  const normalized = normalizeConversation(conversation, t);
   const withoutCurrent = list.filter((item) => item.id !== normalized.id);
   return [normalized, ...withoutCurrent].sort(
     (left, right) => new Date(right.last_message_time || 0).getTime() - new Date(left.last_message_time || 0).getTime(),
@@ -285,7 +286,7 @@ function useVoiceRecorder(onError) {
   return { recording, loading, durationSeconds, audioBlob, audioUrl, start, stop, cancel, clearPreview, setLoading };
 }
 
-function ConvItem({ conversation, selected, onClick }) {
+function ConvItem({ conversation, selected, onClick, t }) {
   return (
     <button
       onClick={onClick}
@@ -307,7 +308,7 @@ function ConvItem({ conversation, selected, onClick }) {
           <div className="mt-0.5 flex items-center gap-1">
             <PLATFORM_BADGE platform={conversation.platform} />
             <span className="ml-1 truncate text-[10px] text-[#A4B0B7]">
-              {conversation.last_message_preview || 'No messages'}
+              {conversation.last_message_preview || t('conv_no_messages')}
             </span>
           </div>
         </div>
@@ -331,7 +332,7 @@ function MessagePreview({ label, preview }) {
   );
 }
 
-function MsgBubble({ message, onReply, onForward }) {
+function MsgBubble({ message, onReply, onForward, t }) {
   const outbound = message.direction === 'outbound';
   const attachment = getPrimaryAttachment(message);
   const audioAttachment = isAudioAttachment(attachment) ? attachment : null;
@@ -350,10 +351,10 @@ function MsgBubble({ message, onReply, onForward }) {
 
       {outbound ? (
         <div className="mr-2 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <button aria-label="Reply to message" title="Reply" onClick={() => onReply(message)} className="text-slate-500 hover:text-[#9333ea]">
+          <button aria-label={t('conv_reply_label')} title={t('conv_reply_label')} onClick={() => onReply(message)} className="text-slate-500 hover:text-[#9333ea]">
             <Reply size={14} />
           </button>
-          <button aria-label="Forward message" title="Forward" onClick={() => onForward(message)} className="text-slate-500 hover:text-[#9333ea]">
+          <button aria-label={t('conv_forwarded_label')} title={t('conv_forwarded_label')} onClick={() => onForward(message)} className="text-slate-500 hover:text-[#9333ea]">
             <Forward size={14} />
           </button>
         </div>
@@ -366,8 +367,8 @@ function MsgBubble({ message, onReply, onForward }) {
             : 'rounded-tl-none border border-slate-900 bg-[#121625]/60 text-slate-200'
         }`}
       >
-        <MessagePreview label="Reply" preview={message.reply_to_message_preview} />
-        <MessagePreview label="Forwarded" preview={message.forward_from_message_preview} />
+        <MessagePreview label={t('conv_reply_label')} preview={message.reply_to_message_preview} />
+        <MessagePreview label={t('conv_forwarded_label')} preview={message.forward_from_message_preview} />
         {message.content ? <p className="whitespace-pre-wrap text-left">{message.content}</p> : null}
         {audioAttachment ? (
           <audio
@@ -384,7 +385,7 @@ function MsgBubble({ message, onReply, onForward }) {
             rel="noreferrer"
             className={`mt-2 block text-[11px] underline ${outbound ? 'text-[#031218]' : 'text-purple-300'}`}
           >
-            Open attachment
+            {t('conv_open_attachment')}
           </a>
         ) : null}
         <div className={`mt-1.5 flex items-center justify-end gap-1 ${outbound ? 'text-[#070a13]/50' : 'text-slate-500'}`}>
@@ -395,10 +396,10 @@ function MsgBubble({ message, onReply, onForward }) {
 
       {!outbound ? (
         <div className="ml-2 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <button aria-label="Reply to message" title="Reply" onClick={() => onReply(message)} className="text-slate-500 hover:text-[#9333ea]">
+          <button aria-label={t('conv_reply_label')} title={t('conv_reply_label')} onClick={() => onReply(message)} className="text-slate-500 hover:text-[#9333ea]">
             <Reply size={14} />
           </button>
-          <button aria-label="Forward message" title="Forward" onClick={() => onForward(message)} className="text-slate-500 hover:text-[#9333ea]">
+          <button aria-label={t('conv_forwarded_label')} title={t('conv_forwarded_label')} onClick={() => onForward(message)} className="text-slate-500 hover:text-[#9333ea]">
             <Forward size={14} />
           </button>
         </div>
@@ -407,12 +408,13 @@ function MsgBubble({ message, onReply, onForward }) {
   );
 }
 
-function AISuggestion({ conversationId, onUse }) {
+function AISuggestion({ conversationId, onUse, t }) {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const generate = async () => {
     setLoading(true);
+    const fallback = [t('conv_fallback_reply_1'), t('conv_fallback_reply_2'), t('conv_fallback_reply_3')];
     try {
       const response = await smartflowApi.aiChat('Suggest 3 short reply options for this conversation', {
         response_mode: 'text',
@@ -424,9 +426,9 @@ function AISuggestion({ conversationId, onUse }) {
         .map((line) => line.trim())
         .filter(Boolean)
         .slice(0, 3);
-      setSuggestions(lines.length ? lines : ['How can I help you further?', 'I understand, let me check on that.', 'Thank you for reaching out!']);
+      setSuggestions(lines.length ? lines : fallback);
     } catch {
-      setSuggestions(['How can I help you further?', 'I understand, let me check on that.', 'Thank you for reaching out!']);
+      setSuggestions(fallback);
     } finally {
       setLoading(false);
     }
@@ -443,14 +445,14 @@ function AISuggestion({ conversationId, onUse }) {
           className="flex cursor-pointer items-center gap-1.5 text-xs font-bold text-[#9333ea] hover:underline disabled:opacity-60"
         >
           {loading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-          {loading ? 'Generating suggestions...' : 'AI Reply Suggestions'}
+          {loading ? t('conv_generating_suggestions') : t('conv_ai_reply_suggestions')}
         </button>
       ) : (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1 text-xs font-bold text-[#9333ea]">
               <Sparkles size={11} />
-              AI Suggestions
+              {t('conv_ai_suggestions')}
             </span>
             <button onClick={() => setSuggestions([])} className="cursor-pointer text-[#A4B0B7] hover:text-white">
               <X size={12} />
@@ -478,6 +480,7 @@ function AISuggestion({ conversationId, onUse }) {
 
 export default function Conversations() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [allConversations, setAllConversations] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [summary, setSummary] = useState({});
@@ -501,10 +504,16 @@ export default function Conversations() {
   const searchTimeoutRef = useRef(null);
   const conversationSocketRef = useRef(null);
   const inboxSocketRef = useRef(null);
+  const messagesCacheRef = useRef({});
 
   const setComposerError = useCallback((message) => {
     setError(message);
   }, []);
+
+  const filterOptions = useMemo(
+    () => FILTER_OPTION_DEFS.map((option) => ({ ...option, label: option.labelKey ? t(option.labelKey) : option.label })),
+    [t],
+  );
 
   const {
     recording,
@@ -539,8 +548,8 @@ export default function Conversations() {
       const allData = getApiData(allResponse);
       const visibleData = getApiData(visibleResponse);
 
-      const allItems = toArray(allData).map(normalizeConversation);
-      const visibleItems = toArray(visibleData).map(normalizeConversation);
+      const allItems = toArray(allData).map((item) => normalizeConversation(item, t));
+      const visibleItems = toArray(visibleData).map((item) => normalizeConversation(item, t));
 
       setAllConversations(allItems);
       setConversations(visibleItems);
@@ -551,28 +560,44 @@ export default function Conversations() {
         setMessages([]);
       }
     },
-    [filterPlatform, search, selectedId],
+    [filterPlatform, search, selectedId, t],
   );
 
-  const fetchMessages = useCallback(async (conversationId) => {
+  const fetchMessages = useCallback(async (conversationId, forceRefresh = false) => {
     if (!conversationId) return;
-    setThreadLoading(true);
+
+    // Check cache
+    const cached = messagesCacheRef.current[conversationId];
+    if (cached) {
+      setMessages(cached);
+      if (!forceRefresh) {
+        setThreadLoading(false);
+      }
+    } else {
+      setMessages([]);
+      setThreadLoading(true);
+    }
+
     try {
       const response = await smartflowApi.getMessages(conversationId);
       const data = getApiData(response);
       const nextMessages = toMessageArray(data)
         .map(normalizeMessage)
         .sort((left, right) => new Date(left.timestamp || 0).getTime() - new Date(right.timestamp || 0).getTime());
+      
+      messagesCacheRef.current[conversationId] = nextMessages;
       setMessages(nextMessages);
       setError('');
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80);
     } catch (threadError) {
-      setMessages([]);
-      setError(threadError?.response?.data?.message || 'Could not load this conversation thread.');
+      if (!messagesCacheRef.current[conversationId]) {
+        setMessages([]);
+      }
+      setError(threadError?.response?.data?.message || t('conv_err_load_thread'));
     } finally {
       setThreadLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchTypingState = useCallback(async (conversationId) => {
     if (!conversationId) return;
@@ -608,8 +633,8 @@ export default function Conversations() {
 
         const allData = getApiData(allResponse);
         const visibleData = getApiData(visibleResponse);
-        const allItems = toArray(allData).map(normalizeConversation);
-        const visibleItems = toArray(visibleData).map(normalizeConversation);
+        const allItems = toArray(allData).map((item) => normalizeConversation(item, t));
+        const visibleItems = toArray(visibleData).map((item) => normalizeConversation(item, t));
 
         if (!active) return;
 
@@ -627,7 +652,7 @@ export default function Conversations() {
         setAllConversations([]);
         setConversations([]);
         setSummary({});
-        setError(loadError?.response?.data?.message || 'Could not load conversations.');
+        setError(loadError?.response?.data?.message || t('conv_err_load_list'));
       } finally {
         if (active) setLoading(false);
       }
@@ -637,7 +662,7 @@ export default function Conversations() {
       active = false;
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, [filterPlatform, search, selectedId]);
+  }, [filterPlatform, search, selectedId, t]);
 
   useEffect(() => {
     const token = getStoredAccessToken();
@@ -655,9 +680,9 @@ export default function Conversations() {
         const nextSummary = payload?.data?.summary;
 
         if (nextConversation) {
-          setAllConversations((previous) => mergeConversationIntoList(previous, nextConversation));
+          setAllConversations((previous) => mergeConversationIntoList(previous, nextConversation, t));
           setConversations((previous) => {
-            const merged = mergeConversationIntoList(previous, nextConversation);
+            const merged = mergeConversationIntoList(previous, nextConversation, t);
             return filterPlatform === 'all'
               ? merged
               : merged.filter((item) => normalizePlatform(item.platform) === filterPlatform);
@@ -676,7 +701,7 @@ export default function Conversations() {
       socket.close();
       inboxSocketRef.current = null;
     };
-  }, [filterPlatform]);
+  }, [filterPlatform, t]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -697,7 +722,11 @@ export default function Conversations() {
         try {
           const payload = JSON.parse(event.data);
           if (payload?.event === 'message.created' || payload?.event === 'message.updated') {
-            setMessages((previous) => mergeMessages(previous, [payload.data]));
+            setMessages((previous) => {
+              const updated = mergeMessages(previous, [payload.data]);
+              messagesCacheRef.current[selectedId] = updated;
+              return updated;
+            });
           }
           if (payload?.event === 'typing.updated') {
             setTypingState(payload.data || { is_typing: false, actor_name: null, preview_text: null });
@@ -725,19 +754,19 @@ export default function Conversations() {
   );
 
   const visibleFilters = useMemo(
-    () => FILTER_OPTIONS.filter((option) => option.key !== 'ai' || allConversations.some((item) => normalizePlatform(item.platform) === 'ai')),
-    [allConversations],
+    () => filterOptions.filter((option) => option.key !== 'ai' || allConversations.some((item) => normalizePlatform(item.platform) === 'ai')),
+    [allConversations, filterOptions],
   );
 
   const filterCounts = useMemo(() => {
-    const counts = Object.fromEntries(FILTER_OPTIONS.map((option) => [option.key, 0]));
+    const counts = Object.fromEntries(filterOptions.map((option) => [option.key, 0]));
     counts.all = allConversations.length;
     allConversations.forEach((conversation) => {
       const platform = normalizePlatform(conversation.platform);
       counts[platform] = (counts[platform] || 0) + 1;
     });
     return counts;
-  }, [allConversations]);
+  }, [allConversations, filterOptions]);
 
   const handleSend = async (event) => {
     event?.preventDefault();
@@ -750,8 +779,8 @@ export default function Conversations() {
     const optimisticId = `temp-${Date.now()}`;
 
     if (!isAiAssistantConversation(selectedConversation)) {
-      setMessages((previous) =>
-        mergeMessages(previous, [
+      setMessages((previous) => {
+        const updated = mergeMessages(previous, [
           {
             id: optimisticId,
             content,
@@ -766,8 +795,10 @@ export default function Conversations() {
                 }
               : null,
           },
-        ]),
-      );
+        ]);
+        messagesCacheRef.current[selectedId] = updated;
+        return updated;
+      });
       setNewMessage('');
       setReplyToMessage(null);
     }
@@ -788,7 +819,7 @@ export default function Conversations() {
         }
 
         await Promise.all([
-          fetchMessages(conversationId),
+          fetchMessages(conversationId, true),
           fetchConversationCollections(),
         ]);
       } else if (replyToMessage) {
@@ -807,12 +838,16 @@ export default function Conversations() {
 
       setNewMessage('');
       setReplyToMessage(null);
-      await Promise.all([fetchMessages(selectedId), fetchConversationCollections()]);
+      await Promise.all([fetchMessages(selectedId, true), fetchConversationCollections()]);
     } catch (sendError) {
-      setMessages((previous) => previous.filter((item) => item.id !== optimisticId));
+      setMessages((previous) => {
+        const filtered = previous.filter((item) => item.id !== optimisticId);
+        messagesCacheRef.current[selectedId] = filtered;
+        return filtered;
+      });
       setNewMessage(content);
       setReplyToMessage(replyContext);
-      setError(sendError?.response?.data?.message || 'Send failed.');
+      setError(sendError?.response?.data?.message || t('conv_err_send_failed'));
     } finally {
       setSending(false);
     }
@@ -829,7 +864,7 @@ export default function Conversations() {
       setForwardMessage(null);
       setError('');
     } catch (forwardError) {
-      setError(forwardError?.response?.data?.message || 'Forward failed.');
+      setError(forwardError?.response?.data?.message || t('conv_err_forward_failed'));
     }
   };
 
@@ -842,7 +877,7 @@ export default function Conversations() {
       setMessages([]);
       await fetchConversationCollections();
     } catch (archiveError) {
-      setError(archiveError?.response?.data?.message || 'Archive failed.');
+      setError(archiveError?.response?.data?.message || t('conv_err_archive_failed'));
     } finally {
       setArchiving(false);
     }
@@ -867,9 +902,9 @@ export default function Conversations() {
         attachments: [attachment],
       });
       clearVoicePreview();
-      await Promise.all([fetchMessages(selectedId), fetchConversationCollections()]);
+      await Promise.all([fetchMessages(selectedId, true), fetchConversationCollections()]);
     } catch (sendError) {
-      setError(sendError?.response?.data?.message || 'Audio message failed.');
+      setError(sendError?.response?.data?.message || t('conv_err_audio_failed'));
     } finally {
       setVoiceLoading(false);
       setAudioSending(false);
@@ -899,7 +934,7 @@ export default function Conversations() {
     }, 2500);
   };
 
-  const headerName = selectedConversation?.contact_name || 'Conversation';
+  const headerName = selectedConversation?.contact_name || t('conv_header_fallback');
   const isLiveSupport = headerName.toLowerCase() === 'live support';
   const isAiAssistant = isAiAssistantConversation(selectedConversation);
   const isGlobalChat = Boolean(selectedConversation?.is_global_chat);
@@ -914,7 +949,7 @@ export default function Conversations() {
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search conversations..."
+              placeholder={t('conv_search_placeholder')}
               className="w-full rounded-xl border border-slate-900 bg-slate-950 py-2 pl-9 pr-10 text-xs font-semibold text-white placeholder-slate-600 transition-all focus:border-[#9333ea]/40 focus:outline-none"
             />
             {search ? (
@@ -932,12 +967,12 @@ export default function Conversations() {
               <button
                 key={option.key}
                 onClick={() => setFilterPlatform(option.key)}
-                className={`cursor-pointer rounded-lg px-2 py-1 text-[10px] font-bold transition-all ${
-                  filterPlatform === option.key ? 'bg-[#9333ea]/10 text-[#9333ea]' : 'text-slate-500 hover:text-white'
+                className={`cursor-pointer rounded-xl px-3 py-1.5 text-xs font-black transition-all ${
+                  filterPlatform === option.key ? 'bg-[#9333ea]/20 text-[#c084fc] shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 {option.label}
-                <span className="ml-1 opacity-70">({filterCounts[option.key] || 0})</span>
+                <span className="ml-1 opacity-80">({filterCounts[option.key] || 0})</span>
               </button>
             ))}
           </div>
@@ -955,12 +990,13 @@ export default function Conversations() {
                 conversation={conversation}
                 selected={selectedId === conversation.id}
                 onClick={() => setSelectedId(conversation.id)}
+                t={t}
               />
             ))
           ) : (
             <div className="p-8 text-center text-slate-500">
               <MessageSquare size={32} className="mx-auto mb-2 opacity-40" />
-              <p className="text-xs font-semibold">{search.trim() ? 'No conversations match your search' : 'No conversations found'}</p>
+              <p className="text-xs font-semibold">{search.trim() ? t('conv_no_search_match') : t('conv_none_found')}</p>
             </div>
           )}
         </div>
@@ -991,21 +1027,21 @@ export default function Conversations() {
               </div>
               <div className="flex items-center gap-2 text-slate-400">
                 <button
-                  title="Call"
+                  title={t('conv_call')}
                   disabled={isGlobalChat}
                   onClick={() => smartflowApi.createOutboundCall({ contact_id: selectedConversation?.contact_id, call_type: 'ai_call' }).catch(() => {})}
                   className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea] disabled:opacity-40"
                 >
                   <Phone size={16} />
                 </button>
-                <button title="Video" className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
+                <button title={t('conv_video')} className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
                   <Video size={16} />
                 </button>
-                <button title="Info" className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
+                <button title={t('conv_info')} className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
                   <Info size={16} />
                 </button>
                 <button
-                  title="Archive"
+                  title={t('conv_archive')}
                   disabled={archiving || isGlobalChat}
                   onClick={handleArchive}
                   className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-rose-950/20 hover:text-rose-400 disabled:opacity-60"
@@ -1019,7 +1055,7 @@ export default function Conversations() {
               {threadLoading ? (
                 <div className="flex h-full items-center justify-center text-slate-400">
                   <Loader2 size={18} className="mr-2 animate-spin text-[#9333ea]" />
-                  Loading conversation...
+                  {t('conv_loading_thread')}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1034,12 +1070,13 @@ export default function Conversations() {
                             setForwardMessage(item);
                             setForwardModalVisible(true);
                           }}
+                          t={t}
                         />
                       ))
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center py-16 text-slate-500">
                         <MessageSquare size={36} className="mb-2 opacity-30" />
-                        <p className="text-xs font-semibold">No messages yet - start the conversation!</p>
+                        <p className="text-xs font-semibold">{t('conv_no_messages_yet')}</p>
                       </div>
                     )}
                   </AnimatePresence>
@@ -1047,7 +1084,7 @@ export default function Conversations() {
                   {typingState?.is_typing ? (
                     <div className="flex justify-start">
                       <div className="rounded-2xl rounded-tl-none border border-slate-900 bg-[#121625]/60 px-3.5 py-2.5 text-xs font-semibold text-slate-300">
-                        {typingState.actor_name || selectedConversation?.contact_name || 'Someone'} is typing
+                        {typingState.actor_name || selectedConversation?.contact_name || t('conv_someone')} {t('conv_is_typing')}
                         {typingState.preview_text ? `: ${typingState.preview_text}` : '...'}
                       </div>
                     </div>
@@ -1058,11 +1095,11 @@ export default function Conversations() {
               )}
             </div>
 
-            <AISuggestion conversationId={selectedId} onUse={setNewMessage} />
+            <AISuggestion conversationId={selectedId} onUse={setNewMessage} t={t} />
 
             {isLiveSupport ? (
               <div className="flex flex-wrap gap-2 px-4 pb-2">
-                {['billing issue', 'technical help', 'account problem'].map((item) => (
+                {[t('conv_quick_billing'), t('conv_quick_technical'), t('conv_quick_account')].map((item) => (
                   <button
                     key={item}
                     onClick={() => setNewMessage(item)}
@@ -1079,14 +1116,14 @@ export default function Conversations() {
                 <div className="flex items-center justify-between rounded-lg border border-[#9333ea]/20 bg-slate-900 px-3 py-2">
                   <div className="flex items-center gap-2 text-xs font-bold text-[#9333ea]">
                     <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
-                    Recording {String(Math.floor(durationSeconds / 60)).padStart(2, '0')}:{String(durationSeconds % 60).padStart(2, '0')}
+                    {t('conv_recording_label')} {String(Math.floor(durationSeconds / 60)).padStart(2, '0')}:{String(durationSeconds % 60).padStart(2, '0')}
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={cancelVoiceRecording} className="cursor-pointer p-1 text-slate-500 hover:text-white">
                       <X size={14} />
                     </button>
                     <button type="button" onClick={stopVoiceRecording} className="cursor-pointer rounded-lg bg-[#9333ea] px-3 py-1 text-[11px] font-bold text-[#031218]">
-                      Stop
+                      {t('conv_stop')}
                     </button>
                   </div>
                 </div>
@@ -1095,7 +1132,7 @@ export default function Conversations() {
               {!recording && audioUrl ? (
                 <div className="flex flex-col gap-2 rounded-lg border border-[#9333ea]/20 bg-slate-900 px-3 py-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#9333ea]">Voice message preview</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#9333ea]">{t('conv_voice_preview')}</p>
                     <button type="button" onClick={cancelVoiceRecording} className="cursor-pointer p-1 text-slate-500 hover:text-white">
                       <X size={14} />
                     </button>
@@ -1108,7 +1145,7 @@ export default function Conversations() {
                       disabled={audioSending || voiceLoading}
                       className="cursor-pointer rounded-lg bg-[#9333ea] px-3 py-1.5 text-[11px] font-bold text-[#031218] disabled:opacity-60"
                     >
-                      {audioSending || voiceLoading ? 'Sending...' : 'Send voice message'}
+                      {audioSending || voiceLoading ? t('conv_sending') : t('conv_send_voice_message')}
                     </button>
                   </div>
                 </div>
@@ -1118,7 +1155,7 @@ export default function Conversations() {
                 <div className="flex items-center justify-between rounded-lg border-l-2 border-[#9333ea] bg-slate-900 px-3 py-2">
                   <div className="min-w-0 flex-1">
                     <p className="mb-0.5 text-[10px] font-bold text-[#9333ea]">
-                      Replying to {replyToMessage.direction === 'outbound' ? 'yourself' : selectedConversation?.contact_name || 'them'}
+                      {replyToMessage.direction === 'outbound' ? t('conv_replying_to_self') : t('conv_replying_to_them', { name: selectedConversation?.contact_name || t('conv_them_fallback') })}
                     </p>
                     <p className="truncate text-xs text-slate-400">{replyToMessage.content}</p>
                   </div>
@@ -1132,15 +1169,15 @@ export default function Conversations() {
                 <button
                   type="button"
                   className="shrink-0 cursor-pointer rounded-xl border border-slate-900 bg-slate-950 p-3 text-slate-500 transition-all hover:text-white"
-                  title="Attach"
-                  aria-label="Attach file"
+                  title={t('conv_attach')}
+                  aria-label={t('conv_attach')}
                 >
                   <Paperclip size={15} />
                 </button>
                 <textarea
                   value={newMessage}
                   onChange={(event) => handleComposerChange(event.target.value)}
-                  placeholder="Type a message..."
+                  placeholder={t('conv_message_placeholder')}
                   rows={2}
                   className="max-h-32 min-h-[48px] flex-1 resize-none rounded-xl border border-slate-900 bg-slate-950 px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 transition-all focus:border-[#9333ea]/40 focus:outline-none"
                 />
@@ -1148,8 +1185,8 @@ export default function Conversations() {
                   type="button"
                   onClick={recording ? stopVoiceRecording : startVoiceRecording}
                   disabled={voiceLoading || audioSending || Boolean(audioUrl)}
-                  title={recording ? 'Stop recording' : 'Record voice message'}
-                  aria-label={recording ? 'Stop recording' : 'Record voice message'}
+                  title={recording ? t('conv_stop_recording') : t('conv_record_voice')}
+                  aria-label={recording ? t('conv_stop_recording') : t('conv_record_voice')}
                   className="shrink-0 cursor-pointer rounded-xl border border-slate-900 bg-slate-950 p-3 text-slate-500 transition-all hover:text-[#9333ea] disabled:opacity-60"
                 >
                   {voiceLoading ? <Loader2 size={15} className="animate-spin" /> : recording ? <MicOff size={15} /> : <Mic size={15} />}
@@ -1157,7 +1194,7 @@ export default function Conversations() {
                 <button
                   type="submit"
                   disabled={sending || !newMessage.trim()}
-                  aria-label="Send message"
+                  aria-label={t('conv_send_message')}
                   className="flex shrink-0 cursor-pointer items-center justify-center rounded-xl bg-[#9333ea] p-3 text-[#070a13] shadow-lg shadow-purple-400/10 transition-all active:scale-95 hover:bg-[#a855f7] disabled:opacity-60"
                 >
                   {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
@@ -1171,8 +1208,8 @@ export default function Conversations() {
               <MessageSquare size={32} className="text-[#9333ea]" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-bold text-white">Select a conversation</p>
-              <p className="mt-1 text-xs">Choose from the left to start chatting</p>
+              <p className="text-sm font-bold text-white">{t('conv_select_conversation')}</p>
+              <p className="mt-1 text-xs">{t('conv_choose_from_left')}</p>
             </div>
           </div>
         )}
@@ -1182,7 +1219,7 @@ export default function Conversations() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="flex max-h-[80vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-[#243041] bg-[#0c101b] shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#243041] p-4">
-              <h3 className="text-sm font-bold text-white">Forward to...</h3>
+              <h3 className="text-sm font-bold text-white">{t('conv_forward_to')}</h3>
               <button onClick={() => setForwardModalVisible(false)} className="cursor-pointer text-slate-500 hover:text-white">
                 <X size={16} />
               </button>
@@ -1207,7 +1244,7 @@ export default function Conversations() {
                     </button>
                   ))
               ) : (
-                <div className="p-6 text-center text-xs text-slate-500">No other conversations to forward to.</div>
+                <div className="p-6 text-center text-xs text-slate-500">{t('conv_no_forward_targets')}</div>
               )}
             </div>
           </div>

@@ -10,6 +10,7 @@ import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import { formatCalendarDate } from '../utils/dateUtils';
 import { DatePickerInput } from '../components/ui/DateTimeInputs';
+import { useLanguage } from '../context/LanguageContext';
 
 const IMPORT_HEADERS = ['name', 'first_name', 'last_name', 'email', 'phone', 'address', 'notes', 'company', 'job_title'];
 
@@ -53,6 +54,7 @@ function mapPickerContacts(entries) {
 }
 
 export default function Contacts() {
+  const { t } = useLanguage();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -133,7 +135,7 @@ export default function Contacts() {
         return {
           ...item,
           id: item.id || item._id,
-          name: item.name || [item.first_name, item.last_name].filter(Boolean).join(' ').trim() || 'Unnamed Contact',
+          name: item.name || [item.first_name, item.last_name].filter(Boolean).join(' ').trim() || t('contacts_unnamed'),
           avatarText,
           is_app_user: isAppUser,
           status: item.status || (isAppUser ? 'active' : 'pending'),
@@ -166,11 +168,11 @@ export default function Contacts() {
     } catch (error) {
       console.error('Error fetching contacts from backend:', error);
       setContacts([]);
-      setError(error?.response?.data?.message || 'Could not load contacts.');
+      setError(error?.response?.data?.message || t('contacts_err_load'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchContacts();
@@ -222,14 +224,14 @@ export default function Contacts() {
   const handleSaveContact = async (e) => {
     e.preventDefault();
     if (!firstName.trim()) {
-      setError('First name is required.');
+      setError(t('contacts_err_first_name_required'));
       return;
     }
 
     const trimmedEmail = email.trim();
     const trimmedPhone = phone.trim();
     if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('Enter a valid email address.');
+      setError(t('contacts_err_invalid_email'));
       return;
     }
 
@@ -268,11 +270,11 @@ export default function Contacts() {
       await fetchContacts();
       setSelectedContactId(savedContactId || null);
       resetForm();
-      setSuccessMessage(editId ? 'Contact updated successfully.' : 'Contact created successfully.');
+      setSuccessMessage(editId ? t('contacts_success_updated') : t('contacts_success_created'));
       setViewMode('dashboard');
     } catch (err) {
       console.error('Failed to save contact:', err);
-      setError(err?.response?.data?.message || 'Failed to save contact.');
+      setError(err?.response?.data?.message || t('contacts_err_save_failed'));
     } finally {
       setSubmitting(false);
     }
@@ -282,11 +284,11 @@ export default function Contacts() {
     const file = e.target.files[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        setError('Please choose an image file.');
+        setError(t('contacts_err_choose_image'));
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        setError('Image must be smaller than 5MB.');
+        setError(t('contacts_err_image_too_large'));
         return;
       }
       if (avatarPreview?.startsWith('blob:')) {
@@ -300,7 +302,7 @@ export default function Contacts() {
 
   const submitImportedContacts = useCallback(async (entries, sourceLabel) => {
     if (!Array.isArray(entries) || entries.length === 0) {
-      setError('No contacts were available to import.');
+      setError(t('contacts_err_no_import_contacts'));
       return;
     }
 
@@ -314,37 +316,42 @@ export default function Contacts() {
       await fetchContacts();
       setImportReport(data);
       setSuccessMessage(
-        `${sourceLabel} import finished: ${data.summary?.imported || 0} imported, ${data.summary?.duplicates || 0} duplicates, ${data.summary?.invalid || 0} invalid.`
+        t('contacts_import_finished', {
+          source: sourceLabel,
+          imported: data.summary?.imported || 0,
+          duplicates: data.summary?.duplicates || 0,
+          invalid: data.summary?.invalid || 0,
+        })
       );
       setActiveTab((data.summary?.imported || 0) > 0 ? 'invite' : activeTab);
     } catch (importError) {
       console.error('Import contacts failed:', importError);
-      setError(importError?.response?.data?.message || 'Contacts import failed.');
+      setError(importError?.response?.data?.message || t('contacts_err_import_failed'));
     } finally {
       setImporting(false);
       if (importInputRef.current) {
         importInputRef.current.value = '';
       }
     }
-  }, [activeTab, fetchContacts]);
+  }, [activeTab, fetchContacts, t]);
 
   const handleImportFallbackClick = useCallback(() => {
     if (importInputRef.current) {
       importInputRef.current.click();
       return;
     }
-    setError('This browser does not support contact import.');
-  }, []);
+    setError(t('contacts_err_import_unsupported'));
+  }, [t]);
 
   const handleImportContacts = useCallback(async () => {
     if (navigator.contacts?.select) {
       try {
         const selected = await navigator.contacts.select(['name', 'email', 'tel', 'address'], { multiple: true });
-        await submitImportedContacts(mapPickerContacts(selected), 'Phone contacts');
+        await submitImportedContacts(mapPickerContacts(selected), t('contacts_source_phone'));
         return;
       } catch (pickerError) {
         if (pickerError?.name === 'NotAllowedError') {
-          setError('Contact access was denied.');
+          setError(t('contacts_err_import_denied'));
           return;
         }
         if (pickerError?.name !== 'AbortError') {
@@ -356,11 +363,11 @@ export default function Contacts() {
     }
 
     if (typeof FileReader === 'undefined') {
-      setError('This browser does not support contact import.');
+      setError(t('contacts_err_import_unsupported'));
       return;
     }
     handleImportFallbackClick();
-  }, [handleImportFallbackClick, submitImportedContacts]);
+  }, [handleImportFallbackClick, submitImportedContacts, t]);
 
   const handleImportFile = async (event) => {
     const file = event.target.files?.[0];
@@ -368,10 +375,10 @@ export default function Contacts() {
     try {
       const text = await file.text();
       const entries = parseContactCsv(text);
-      await submitImportedContacts(entries, 'CSV');
+      await submitImportedContacts(entries, t('contacts_source_csv'));
     } catch (fileError) {
       console.error('Could not read import file:', fileError);
-      setError('Could not read the selected import file.');
+      setError(t('contacts_err_import_read_failed'));
       setImporting(false);
     }
   };
@@ -379,13 +386,13 @@ export default function Contacts() {
   const handleCallContact = async (contact) => {
     const rawPhone = String(contact?.phone || '').trim();
     if (!rawPhone) {
-      setError('No phone number exists for this contact.');
+      setError(t('contacts_err_no_phone'));
       return;
     }
 
     const sanitizedPhone = rawPhone.replace(/[^\d+]/g, '');
     if (!/^\+?\d{7,}$/.test(sanitizedPhone)) {
-      setError('This contact phone number is not valid for calling.');
+      setError(t('contacts_err_invalid_phone'));
       return;
     }
 
@@ -412,7 +419,7 @@ export default function Contacts() {
 
   // Delete Contact trigger
   const handleDeleteContact = async (id) => {
-    if (!window.confirm('Delete this contact?')) return;
+    if (!window.confirm(t('contacts_confirm_delete'))) return;
     try {
       setDeletingId(id);
       setError('');
@@ -422,10 +429,10 @@ export default function Contacts() {
       setContacts(remaining);
       setSelectedContactId(remaining.length > 0 ? remaining[0].id : null);
       setViewMode('dashboard');
-      setSuccessMessage('Contact deleted successfully.');
+      setSuccessMessage(t('contacts_success_deleted'));
     } catch (err) {
       console.error('Delete Contact API failed:', err);
-      setError(err?.response?.data?.message || 'Failed to delete contact.');
+      setError(err?.response?.data?.message || t('contacts_err_delete_failed'));
     } finally {
       setDeletingId(null);
     }
@@ -470,50 +477,50 @@ export default function Contacts() {
           {/* Header row */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="text-left">
-              <h1 className="text-3xl font-extrabold text-white tracking-tight">Contacts</h1>
+              <h1 className="text-3xl font-extrabold text-white tracking-tight">{t('contacts_title')}</h1>
               <p className="text-slate-400 text-sm mt-1">
-                You have {contacts.length} total contacts.
+                {t('contacts_total_count', { n: contacts.length })}
               </p>
             </div>
-            
+
             <div className="flex bg-slate-900/50 p-1 rounded-xl">
               <button
                 onClick={() => setActiveTab('on_mabdel')}
                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                  activeTab === 'on_mabdel' 
-                    ? 'bg-purple-500/20 text-purple-400 shadow-sm' 
+                  activeTab === 'on_mabdel'
+                    ? 'bg-purple-500/20 text-purple-400 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                On Mabdel ({onMabdelContacts.length})
+                {t('contacts_tab_on_mabdel', { n: onMabdelContacts.length })}
               </button>
               <button
                 onClick={() => setActiveTab('invite')}
                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                  activeTab === 'invite' 
-                    ? 'bg-purple-500/20 text-purple-400 shadow-sm' 
+                  activeTab === 'invite'
+                    ? 'bg-purple-500/20 text-purple-400 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Invite to Mabdel ({inviteContacts.length})
+                {t('contacts_tab_invite', { n: inviteContacts.length })}
               </button>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <button className="px-4 py-2.5 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer">
-                <Filter size={14} /> Filter
+                <Filter size={14} /> {t('contacts_filter')}
               </button>
               <button className="px-4 py-2.5 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer">
-                <Download size={14} /> Export
+                <Download size={14} /> {t('contacts_export')}
               </button>
               <button
                 onClick={handleImportContacts}
                 disabled={importing}
                 className="px-4 py-2.5 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
               >
-                <Upload size={14} /> {importing ? 'Importing...' : 'Import'}
+                <Upload size={14} /> {importing ? t('contacts_importing') : t('contacts_import')}
               </button>
-              <button 
+              <button
                 onClick={() => {
                   resetForm();
                   setError('');
@@ -522,7 +529,7 @@ export default function Contacts() {
                 }}
                 className="px-4 py-2.5 bg-purple-400 hover:bg-purple-300 text-[#070a13] hover:shadow-purple-400/10 rounded-xl text-xs font-extrabold shadow-lg shadow-purple-500/5 active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <UserPlus size={14} /> Add Contact
+                <UserPlus size={14} /> {t('contacts_add_contact')}
               </button>
               <input
                 ref={importInputRef}
@@ -549,17 +556,17 @@ export default function Contacts() {
           {importReport ? (
             <div className="rounded-3xl border border-slate-900 bg-[#0c101b]/95 p-4 text-left space-y-3">
               <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-300">
-                <span>Imported: {importReport.summary?.imported || 0}</span>
-                <span>Duplicates: {importReport.summary?.duplicates || 0}</span>
-                <span>Invalid: {importReport.summary?.invalid || 0}</span>
+                <span>{t('contacts_report_imported', { n: importReport.summary?.imported || 0 })}</span>
+                <span>{t('contacts_report_duplicates', { n: importReport.summary?.duplicates || 0 })}</span>
+                <span>{t('contacts_report_invalid', { n: importReport.summary?.invalid || 0 })}</span>
               </div>
               {importReport.duplicates?.length ? (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Duplicates</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">{t('contacts_duplicates_label')}</p>
                   <div className="mt-2 space-y-1 text-xs text-slate-400">
                     {importReport.duplicates.slice(0, 5).map((item) => (
                       <p key={`duplicate-${item.row_index}-${item.email || item.phone || item.name}`}>
-                        Row {item.row_index}: {item.reason}
+                        {t('contacts_row_reason', { n: item.row_index, reason: item.reason })}
                       </p>
                     ))}
                   </div>
@@ -567,11 +574,11 @@ export default function Contacts() {
               ) : null}
               {importReport.invalid?.length ? (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Invalid</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-rose-400">{t('contacts_invalid_label')}</p>
                   <div className="mt-2 space-y-1 text-xs text-slate-400">
                     {importReport.invalid.slice(0, 5).map((item) => (
                       <p key={`invalid-${item.row_index}-${item.email || item.phone || item.name}`}>
-                        Row {item.row_index}: {item.reason}
+                        {t('contacts_row_reason', { n: item.row_index, reason: item.reason })}
                       </p>
                     ))}
                   </div>
@@ -586,19 +593,19 @@ export default function Contacts() {
             {/* Top Prospects Box (2/3 width) */}
             <div className="lg:col-span-8 bg-[#0c101b]/90 border border-slate-900 rounded-3xl p-6 text-left flex flex-col justify-between space-y-4">
               <div className="flex justify-between items-center pb-2">
-                <h3 className="text-xs font-bold text-slate-500 tracking-widest uppercase">Top Prospects</h3>
-                <button className="text-[10px] font-bold text-purple-400 hover:underline">View All</button>
+                <h3 className="text-xs font-bold text-slate-500 tracking-widest uppercase">{t('contacts_top_prospects')}</h3>
+                <button className="text-[10px] font-bold text-purple-400 hover:underline">{t('contacts_view_all')}</button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {loading ? (
                   <div className="md:col-span-2 rounded-2xl border border-slate-900 bg-slate-950/40 px-4 py-8 text-center text-sm font-semibold text-slate-400">
-                    Loading contacts...
+                    {t('contacts_loading')}
                   </div>
                 ) : null}
                 {!loading && showcasedContacts.length === 0 ? (
                   <div className="md:col-span-2 rounded-2xl border border-slate-900 bg-slate-950/40 px-4 py-8 text-center text-sm font-semibold text-slate-400">
-                    {normalizedSearch ? 'No contacts match this search.' : 'No contacts in this section yet.'}
+                    {normalizedSearch ? t('contacts_no_search_match') : t('contacts_no_contacts_section')}
                   </div>
                 ) : null}
                 {showcasedContacts.slice(0, 2).map((item, idx) => (
@@ -640,14 +647,14 @@ export default function Contacts() {
             {/* Network Reach Panel (1/3 width) */}
             <div className="lg:col-span-4 bg-gradient-to-br from-purple-400 to-blue-500 rounded-3xl p-6 text-[#070a13] flex flex-col justify-between text-left shadow-lg shadow-purple-500/10 min-h-[150px]">
               <div className="flex justify-between items-start">
-                <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">Network Reach</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">{t('contacts_network_reach')}</span>
                 <span className="p-1 bg-[#070a13]/10 rounded-lg">
                   <Plus size={14} />
                 </span>
               </div>
               <div>
                 <p className="text-4xl font-extrabold tracking-tight">94.2k</p>
-                <p className="text-[10px] font-bold opacity-80 mt-1">+12.4% vs last month</p>
+                <p className="text-[10px] font-bold opacity-80 mt-1">{t('contacts_vs_last_month')}</p>
               </div>
               <div className="flex items-center -space-x-2 pt-2">
                 {showcasedContacts.map((item, idx) => (
@@ -667,9 +674,9 @@ export default function Contacts() {
           <div className="bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 flex flex-col space-y-4 text-left">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-900/60">
               <div className="flex items-center gap-3">
-                <h3 className="text-sm font-extrabold text-white">Directory</h3>
+                <h3 className="text-sm font-extrabold text-white">{t('contacts_directory')}</h3>
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider bg-slate-950 border border-slate-900 px-2 py-0.5 rounded-full">
-                  Showing {filteredContacts.length} connections
+                  {t('contacts_showing_connections', { n: filteredContacts.length })}
                 </span>
               </div>
 
@@ -677,9 +684,9 @@ export default function Contacts() {
               <div className="flex items-center gap-4">
                 <div className="relative w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={13} />
-                  <input 
-                    type="text" 
-                    placeholder="Search directory..."
+                  <input
+                    type="text"
+                    placeholder={t('contacts_search_placeholder')}
                     className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition-colors"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -687,17 +694,17 @@ export default function Contacts() {
                 </div>
 
                 <div className="flex items-center gap-1 bg-slate-950 border border-slate-900 p-1 rounded-xl">
-                  <button 
+                  <button
                     onClick={() => setLayoutMode('grid')}
                     className={`p-1.5 rounded-lg transition-colors cursor-pointer ${layoutMode === 'grid' ? 'bg-slate-900 text-purple-400' : 'text-slate-500 hover:text-slate-300'}`}
-                    title="Grid layout"
+                    title={t('contacts_grid_layout')}
                   >
                     <Grid size={14} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => setLayoutMode('list')}
                     className={`p-1.5 rounded-lg transition-colors cursor-pointer ${layoutMode === 'list' ? 'bg-slate-900 text-purple-400' : 'text-slate-500 hover:text-slate-300'}`}
-                    title="List layout"
+                    title={t('contacts_list_layout')}
                   >
                     <List size={14} />
                   </button>
@@ -711,19 +718,19 @@ export default function Contacts() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b border-slate-900/60 bg-slate-950/20 text-slate-500 text-[10px] font-bold uppercase tracking-wider text-left">
-                      <th className="px-6 py-4">Contact</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4">Company</th>
-                      <th className="px-6 py-4">Location</th>
-                      <th className="px-6 py-4">Last Interaction</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
+                      <th className="px-6 py-4">{t('contacts_col_contact')}</th>
+                      <th className="px-6 py-4">{t('contacts_col_status')}</th>
+                      <th className="px-6 py-4">{t('contacts_col_company')}</th>
+                      <th className="px-6 py-4">{t('contacts_col_location')}</th>
+                      <th className="px-6 py-4">{t('contacts_col_last_interaction')}</th>
+                      <th className="px-6 py-4 text-right">{t('contacts_col_actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-900/50">
                     {!loading && filteredContacts.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-6 py-10 text-center text-sm font-semibold text-slate-400">
-                          {normalizedSearch ? 'No contacts matched your search.' : 'No contacts available in this section.'}
+                          {normalizedSearch ? t('contacts_no_search_results') : t('contacts_no_contacts_available')}
                         </td>
                       </tr>
                     ) : null}
@@ -806,7 +813,7 @@ export default function Contacts() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
                 {!loading && filteredContacts.length === 0 ? (
                   <div className="md:col-span-2 lg:col-span-3 rounded-2xl border border-slate-900 bg-slate-950/40 px-4 py-10 text-center text-sm font-semibold text-slate-400">
-                    {normalizedSearch ? 'No contacts matched your search.' : 'No contacts available in this section.'}
+                    {normalizedSearch ? t('contacts_no_search_results') : t('contacts_no_contacts_available')}
                   </div>
                 ) : null}
                 {filteredContacts.map(item => (
@@ -858,7 +865,7 @@ export default function Contacts() {
             {/* Pagination Footer */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-slate-900/60">
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                Showing 1 to {filteredContacts.length} of {filteredContacts.length} entries
+                {t('contacts_showing_entries', { n: filteredContacts.length })}
               </span>
 
               <div className="flex items-center gap-1.5">
@@ -891,9 +898,9 @@ export default function Contacts() {
               className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
             >
               <ArrowLeft size={16} />
-              <span>Back to Directory</span>
+              <span>{t('contacts_back_to_directory')}</span>
             </button>
-            <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">Contact Profile</span>
+            <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">{t('contacts_profile')}</span>
           </div>
 
           {error ? (
@@ -940,18 +947,18 @@ export default function Contacts() {
             <div className="flex items-center gap-3">
               <button onClick={() => handleCallContact(activeContact)} className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer">
                 <PhoneCall size={16} className="text-purple-400 mb-1" />
-                <span>Call</span>
+                <span>{t('contacts_call')}</span>
               </button>
-              <button 
+              <button
                 onClick={() => window.location.href = `/conversations`}
                 className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all"
               >
                 <MessageSquare size={16} className="text-purple-400 mb-1" />
-                <span>Message</span>
+                <span>{t('contacts_message')}</span>
               </button>
               <button onClick={() => openEdit(activeContact)} className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer">
                 <Pencil size={16} className="text-purple-400 mb-1" />
-                <span>Edit</span>
+                <span>{t('contacts_edit')}</span>
               </button>
             </div>
           </div>
@@ -965,16 +972,16 @@ export default function Contacts() {
                 <span className="w-8 h-8 rounded-lg bg-slate-950 border border-slate-900 flex items-center justify-center text-purple-400">
                   <Activity size={14} />
                 </span>
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Quick Stats</span>
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">{t('contacts_quick_stats')}</span>
               </div>
 
               <div className="space-y-4 mt-6">
                 <div>
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Last Contact</span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{t('contacts_last_contact')}</span>
                   <p className="text-base font-extrabold text-white mt-0.5">{activeContact.last_contact_days}</p>
                 </div>
                 <div>
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Total Calls</span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{t('contacts_total_calls')}</span>
                   <p className="text-2xl font-extrabold text-white tracking-tight mt-0.5">{activeContact.total_calls}</p>
                 </div>
               </div>
@@ -982,11 +989,11 @@ export default function Contacts() {
               {/* mini bar chart */}
               <div className="flex items-end gap-1.5 h-10 mt-6 pt-2 w-full justify-start">
                 {(activeContact.activity_chart || [4, 2, 8, 12, 5]).map((val, idx) => (
-                  <div 
+                  <div
                     key={idx}
                     className="flex-1 bg-purple-950/40 border border-purple-500/20 rounded-md transition-all hover:bg-purple-500/50 hover:border-purple-400"
                     style={{ height: `${(val / 15) * 100}%` }}
-                    title={`Calls count: ${val}`}
+                    title={t('contacts_calls_count', { n: val })}
                   />
                 ))}
               </div>
@@ -994,15 +1001,15 @@ export default function Contacts() {
 
             {/* Contact Details card (2/3 width) */}
             <div className="lg:col-span-8 bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 space-y-5 flex flex-col justify-between">
-              <h3 className="text-xs font-bold text-slate-500 tracking-widest uppercase pb-2 border-b border-slate-900/60">Contact Information</h3>
-              
+              <h3 className="text-xs font-bold text-slate-500 tracking-widest uppercase pb-2 border-b border-slate-900/60">{t('contacts_information')}</h3>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-xs font-semibold text-slate-400">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-slate-950 border border-slate-900 text-slate-500 rounded-xl">
                     <Mail size={14} />
                   </div>
                   <div>
-                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Email</span>
+                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">{t('contacts_field_email')}</span>
                     <span className="text-white mt-0.5 block truncate">{activeContact.email}</span>
                   </div>
                 </div>
@@ -1012,7 +1019,7 @@ export default function Contacts() {
                     <Phone size={14} />
                   </div>
                   <div>
-                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Phone</span>
+                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">{t('contacts_field_phone')}</span>
                     <span className="text-white mt-0.5 block">{activeContact.phone}</span>
                   </div>
                 </div>
@@ -1022,8 +1029,8 @@ export default function Contacts() {
                     <Building size={14} />
                   </div>
                   <div>
-                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Address</span>
-                    <span className="text-white mt-0.5 block truncate">{activeContact.address || activeContact.billing_address || 'No Address Listed'}</span>
+                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">{t('contacts_field_address')}</span>
+                    <span className="text-white mt-0.5 block truncate">{activeContact.address || activeContact.billing_address || t('contacts_no_address')}</span>
                   </div>
                 </div>
 
@@ -1032,17 +1039,17 @@ export default function Contacts() {
                     <Calendar size={14} />
                   </div>
                   <div>
-                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Date of Birth (DOB)</span>
+                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">{t('contacts_field_dob')}</span>
                     <span className="text-white mt-0.5 block">
-                      {activeContact.date_of_birth || activeContact.dob ? formatCalendarDate(activeContact.date_of_birth || activeContact.dob) : 'Not provided'}
+                      {activeContact.date_of_birth || activeContact.dob ? formatCalendarDate(activeContact.date_of_birth || activeContact.dob) : t('contacts_not_provided')}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="pt-2 flex justify-between items-center text-[10px] text-slate-500">
-                <span>Account Company: <strong className="text-slate-350 font-bold">{activeContact.company}</strong></span>
-                <span>Location Area: <strong className="text-slate-350 font-bold">{activeContact.location}</strong></span>
+                <span>{t('contacts_account_company')} <strong className="text-slate-350 font-bold">{activeContact.company}</strong></span>
+                <span>{t('contacts_location_area')} <strong className="text-slate-350 font-bold">{activeContact.location}</strong></span>
               </div>
             </div>
 
@@ -1052,10 +1059,10 @@ export default function Contacts() {
           <div className="bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 space-y-6 text-left flex flex-col justify-between">
             <div className="space-y-4">
               <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase flex items-center gap-1.5">
-                <FileText size={12} /> Notes
+                <FileText size={12} /> {t('contacts_notes')}
               </span>
               <p className="p-4 bg-slate-950/40 border border-slate-900 rounded-2xl text-xs font-semibold text-slate-300 leading-relaxed max-w-none">
-                {activeContact.notes || 'No administrative notes added to this contact directory.'}
+                {activeContact.notes || t('contacts_no_notes')}
               </p>
             </div>
 
@@ -1065,7 +1072,7 @@ export default function Contacts() {
                 className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white hover:shadow-rose-500/10 rounded-2xl text-xs font-extrabold shadow-md active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Trash2 size={13} />
-                <span>Remove Contact</span>
+                <span>{t('contacts_remove_contact')}</span>
               </button>
             </div>
           </div>
@@ -1086,10 +1093,10 @@ export default function Contacts() {
               className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
             >
               <ArrowLeft size={16} />
-              <span>Back to Directory</span>
+              <span>{t('contacts_back_to_directory')}</span>
             </button>
             <span className="px-2.5 py-0.5 bg-purple-950/80 border border-purple-500/20 text-purple-400 text-[9px] font-bold rounded-full uppercase tracking-wider">
-              {editId ? 'Editing Contact' : 'Creating Draft'}
+              {editId ? t('contacts_editing') : t('contacts_creating')}
             </span>
           </div>
 
@@ -1129,19 +1136,19 @@ export default function Contacts() {
                   onChange={handleAvatarSelect}
                 />
               </label>
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Upload Profile Picture</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{t('contacts_upload_picture')}</span>
             </div>
 
             {/* Fields Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
+
               {/* First Name */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">First Name</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('contacts_field_first_name')}</label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="e.g. Alex"
                     required
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
@@ -1153,11 +1160,11 @@ export default function Contacts() {
 
               {/* Last Name */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Last Name</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('contacts_field_last_name')}</label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="e.g. Thompson"
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={lastName}
@@ -1168,11 +1175,11 @@ export default function Contacts() {
 
               {/* Phone Number */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Phone Number</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('contacts_field_phone_number')}</label>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="+1 (415) 555-0123"
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={phone}
@@ -1183,11 +1190,11 @@ export default function Contacts() {
 
               {/* Email Address */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Email Address</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('contacts_field_email_address')}</label>
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     placeholder="alex.t@lumina.ai"
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={email}
@@ -1198,11 +1205,11 @@ export default function Contacts() {
 
               {/* Physical Address */}
               <div className="col-span-1 md:col-span-2 space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Physical Address</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('contacts_field_physical_address')}</label>
                 <div className="relative">
                   <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="123 Innovation Drive, San Francisco, CA"
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={address}
@@ -1213,7 +1220,7 @@ export default function Contacts() {
 
               {/* DOB */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Date of Birth (DOB)</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('contacts_field_dob')}</label>
                 <DatePickerInput
                   value={dob}
                   onChange={setDob}
@@ -1224,28 +1231,28 @@ export default function Contacts() {
 
               {/* Lead Status select */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Lead Status</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('contacts_field_lead_status')}</label>
                 <div className="relative">
                   <Sparkles className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <select 
+                  <select
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white"
                     value={leadStatus}
                     onChange={(e) => setLeadStatus(e.target.value)}
                   >
-                    <option value="New Prospect">New Prospect</option>
-                    <option value="Active Partner">Active Partner</option>
-                    <option value="Client Partner">Client Partner</option>
+                    <option value="New Prospect">{t('contacts_status_new_prospect')}</option>
+                    <option value="Active Partner">{t('contacts_status_active_partner')}</option>
+                    <option value="Client Partner">{t('contacts_status_client_partner')}</option>
                   </select>
                 </div>
               </div>
 
               {/* Admin Notes */}
               <div className="col-span-1 md:col-span-2 space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Administrative Notes</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('contacts_field_admin_notes')}</label>
                 <div className="relative">
                   <FileText className="absolute left-3.5 top-3.5 text-slate-500" size={14} />
-                  <textarea 
-                    placeholder="Add key decision maker insights, communication preferences, or relevant background information here..."
+                  <textarea
+                    placeholder={t('contacts_notes_placeholder')}
                     className="w-full pl-9 pr-4 py-3 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700 min-h-[100px]"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
@@ -1262,9 +1269,9 @@ export default function Contacts() {
                 disabled={submitting}
                 className="px-6 py-3 bg-purple-400 hover:bg-purple-300 disabled:opacity-50 text-[#070a13] hover:shadow-purple-400/15 rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer"
               >
-                {submitting ? 'Saving...' : 'Save Contact'}
+                {submitting ? t('contacts_saving') : t('contacts_save_contact')}
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={() => {
                   resetForm();
@@ -1274,23 +1281,23 @@ export default function Contacts() {
                 }}
                 className="px-6 py-3 bg-transparent border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
               >
-                Cancel
+                {t('contacts_cancel')}
               </button>
             </div>
           </form>
 
           {/* Privacy & Safety, and Welcome workflow triggers panels (Image 3 bottom) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch text-left">
-            
+
             {/* Privacy details */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-5 flex items-start gap-4">
               <div className="p-2.5 bg-slate-950 border border-slate-900 text-purple-400 rounded-xl flex-shrink-0 mt-0.5">
                 <ShieldCheck size={16} />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Privacy & Safety</h4>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">{t('contacts_privacy_safety')}</h4>
                 <p className="text-[10px] text-slate-500 leading-relaxed mt-1.5 font-semibold">
-                  This contact data is encrypted and only visible to your assigned team members.
+                  {t('contacts_privacy_desc')}
                 </p>
               </div>
             </div>
@@ -1298,33 +1305,33 @@ export default function Contacts() {
             {/* Automated Sequence switch */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-5 flex flex-col justify-between">
               <div>
-                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Automated Workflow</h4>
-                <p className="text-xs text-white mt-1.5 font-bold leading-normal">Schedule welcome sequence upon saving?</p>
+                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('contacts_automated_workflow')}</h4>
+                <p className="text-xs text-white mt-1.5 font-bold leading-normal">{t('contacts_workflow_question')}</p>
               </div>
 
               {/* Yes/No switch buttons */}
               <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-900 p-1 rounded-xl self-start mt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setWorkflowSequence(true)}
                   className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                    workflowSequence 
-                      ? 'bg-purple-950/40 text-purple-400 border border-purple-500/20' 
+                    workflowSequence
+                      ? 'bg-purple-950/40 text-purple-400 border border-purple-500/20'
                       : 'text-slate-500 hover:text-slate-300 border border-transparent'
                   }`}
                 >
-                  Yes
+                  {t('contacts_yes')}
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={() => setWorkflowSequence(false)}
                   className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                    !workflowSequence 
-                      ? 'bg-purple-950/40 text-purple-400 border border-purple-500/20' 
+                    !workflowSequence
+                      ? 'bg-purple-950/40 text-purple-400 border border-purple-500/20'
                       : 'text-slate-500 hover:text-slate-300 border border-transparent'
                   }`}
                 >
-                  No
+                  {t('contacts_no')}
                 </button>
               </div>
             </div>

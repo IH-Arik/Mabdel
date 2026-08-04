@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Bell, Calendar, CheckCircle2, Loader2, Mail, Phone, Save, Volume2, Vibrate } from 'lucide-react';
 
 import { smartflowApi } from '../../../api/services';
+import { useLanguage } from '../../../context/LanguageContext';
 
 const ITEMS = [
   { key: 'general_notification', label: 'General Notifications', icon: Bell },
@@ -15,6 +16,7 @@ const ITEMS = [
 ];
 
 function NotificationsTab() {
+  const { t } = useLanguage();
   const [prefs, setPrefs] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,7 +33,7 @@ function NotificationsTab() {
       })
       .catch((loadError) => {
         if (ignore) return;
-        setError(loadError?.response?.data?.message || 'Could not load notification settings.');
+        setError(loadError?.response?.data?.message || t('nprof_err_load'));
         setPrefs({});
       })
       .finally(() => {
@@ -53,9 +55,9 @@ function NotificationsTab() {
     try {
       const response = await smartflowApi.updateNotificationSettings(prefs);
       setPrefs(response?.data?.data || prefs);
-      setSuccess('Notification settings saved.');
+      setSuccess(t('nprof_saved'));
     } catch (saveError) {
-      setError(saveError?.response?.data?.message || 'Could not save notification settings.');
+      setError(saveError?.response?.data?.message || t('nprof_save_failed'));
     } finally {
       setSaving(false);
     }
@@ -90,7 +92,7 @@ function NotificationsTab() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#9333ea]/10">
               <item.icon size={16} className="text-[#9333ea]" />
             </div>
-            <span className="text-sm font-semibold text-white">{item.label}</span>
+            <span className="text-sm font-semibold text-white">{t(`nprof_lbl_${item.key.replace('notification', '')}`.replace('__', '_').replace(/_$/, ''))}</span>
           </div>
 
           <button
@@ -108,7 +110,7 @@ function NotificationsTab() {
         className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#9333ea] px-6 py-3 font-bold text-[#02080B] transition-colors hover:bg-[#a855f7] disabled:opacity-60"
       >
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-        Save Preferences
+        {saving ? t('prof_saving') : t('nprof_btn_save')}
       </button>
     </div>
   );

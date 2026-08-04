@@ -16,12 +16,13 @@ import { smartflowApi } from '../api/services';
 import { formatCstDateTime } from '../utils/dateUtils';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNotificationStore } from '../store/useNotificationStore';
+import { useLanguage } from '../context/LanguageContext';
 
-const HOME_DOC_ITEMS = [
-  { id: 'agreement', title: 'Agreement', icon: FileText, action: { path: '/documents', state: { tab: 'agreements' } } },
-  { id: 'invoice', title: 'Invoice', icon: ReceiptText, action: { path: '/invoices' } },
-  { id: 'lease', title: 'Lease', icon: Bot, action: { path: '/documents', state: { tab: 'leases' } } },
-  { id: 'post', title: 'Create Post', icon: Plus, action: { path: '/create-post' } },
+const HOME_DOC_ITEM_DEFS = [
+  { id: 'agreement', key: 'dash_doc_agreement', icon: FileText, action: { path: '/documents', state: { tab: 'agreements' } } },
+  { id: 'invoice', key: 'dash_doc_invoice', icon: ReceiptText, action: { path: '/invoices' } },
+  { id: 'lease', key: 'dash_doc_lease', icon: Bot, action: { path: '/documents', state: { tab: 'leases' } } },
+  { id: 'post', key: 'dash_doc_create_post', icon: Plus, action: { path: '/create-post' } },
 ];
 
 const PLATFORM_BADGE_CONFIG = {
@@ -35,7 +36,7 @@ const PLATFORM_BADGE_CONFIG = {
   linkedin: { label: 'in', backgroundColor: '#0A66C2', color: '#FFFFFF' },
 };
 
-function getDisplayName(user) {
+function getDisplayName(user, t) {
   const emailPrefix = String(user?.email || user?.client_email || '')
     .split('@')[0]
     .trim();
@@ -45,7 +46,7 @@ function getDisplayName(user) {
     user?.fullName ||
     user?.name ||
     user?.username ||
-    (emailPrefix ? emailPrefix : 'there')
+    (emailPrefix ? emailPrefix : t('dash_fallback_there'))
   );
 }
 
@@ -90,7 +91,7 @@ function normalizeCalendarEvents(payload) {
   return [];
 }
 
-function getLatestPeerName(thread) {
+function getLatestPeerName(thread, t) {
   return (
     thread?.contact_name ||
     thread?.contactName ||
@@ -100,11 +101,11 @@ function getLatestPeerName(thread) {
     thread?.peer?.full_name ||
     thread?.peer?.fullName ||
     thread?.peer?.name ||
-    'No Contact'
+    t('dash_no_contact')
   );
 }
 
-function getLatestMessageText(thread) {
+function getLatestMessageText(thread, t) {
   const text =
     thread?.last_message_preview ||
     thread?.lastMessagePreview ||
@@ -114,14 +115,14 @@ function getLatestMessageText(thread) {
     thread?.lastMessage?.body ||
     '';
 
-  return String(text || '').trim() || 'No messages yet';
+  return String(text || '').trim() || t('dash_no_messages_yet');
 }
 
-function getAvatarLabel(name) {
-  return String(name || 'User').trim().charAt(0).toUpperCase() || 'U';
+function getAvatarLabel(name, t) {
+  return String(name || t('dash_fallback_user')).trim().charAt(0).toUpperCase() || 'U';
 }
 
-function AvatarStack({ avatars, countText, size = 36, overlap = -10 }) {
+function AvatarStack({ avatars, countText, size = 36, overlap = -10, t }) {
   return (
     <div className="flex items-center">
       {avatars.map((avatar, index) => (
@@ -138,7 +139,7 @@ function AvatarStack({ avatars, countText, size = 36, overlap = -10 }) {
           {avatar.uri ? (
             <img src={avatar.uri} alt={avatar.name} className="w-full h-full object-cover" />
           ) : (
-            getAvatarLabel(avatar.name)
+            getAvatarLabel(avatar.name, t)
           )}
         </div>
       ))}
@@ -210,6 +211,7 @@ function SectionCard({ children, className = '', onClick }) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { user } = useAuthStore();
   const syncUnreadCount = useNotificationStore((state) => state.syncUnreadCount);
   const [isLoading, setIsLoading] = useState(true);
@@ -281,11 +283,11 @@ export default function Dashboard() {
     };
   }, [fetchAll]);
 
-  const displayName = getDisplayName(user);
+  const displayName = getDisplayName(user, t);
   const totalChats = threads.length;
   const latestThread = totalChats > 0 ? threads[0] : null;
-  const latestPeerName = latestThread ? getLatestPeerName(latestThread) : 'No Contact';
-  const latestMessage = latestThread ? getLatestMessageText(latestThread) : 'No messages yet';
+  const latestPeerName = latestThread ? getLatestPeerName(latestThread, t) : t('dash_no_contact');
+  const latestMessage = latestThread ? getLatestMessageText(latestThread, t) : t('dash_no_messages_yet');
   const truncatedLatestMessage =
     latestMessage.length > 50 ? `${latestMessage.slice(0, 47)}...` : latestMessage;
 
@@ -298,7 +300,7 @@ export default function Dashboard() {
       thread?.peer?.avatar_url ||
       thread?.peer?.avatar ||
       '',
-    name: getLatestPeerName(thread),
+    name: getLatestPeerName(thread, t),
   }));
   const inboxCountText = totalChats > inboxAvatars.length ? `+${totalChats - inboxAvatars.length}` : null;
 
@@ -316,7 +318,7 @@ export default function Dashboard() {
       contact?.first_name ||
       contact?.firstName ||
       String(contact?.email || '').split('@')[0] ||
-      'User',
+      t('dash_fallback_user'),
   }));
   const totalContacts = contacts.length;
   const contactCountText =
@@ -342,19 +344,19 @@ export default function Dashboard() {
   const nextUpcomingEvent = upcomingEvents[0] ?? null;
   const upcomingEventLabel = nextUpcomingEvent
     ? formatCstDateTime(nextUpcomingEvent.starts_at)
-    : 'No upcoming meetings scheduled.';
+    : t('dash_no_upcoming_meetings');
   const analyticsCallRows = recentCalls.slice(0, 3).map((call, index) => {
     const durationMinutes = call?.duration ? Math.round(Number(call.duration) / 60) : null;
     return {
       id: call?._id || call?.id || `call-${index}`,
-      name: call?.contact_name || call?.caller_name || call?.phone_number || 'Unknown',
+      name: call?.contact_name || call?.caller_name || call?.phone_number || t('dash_unknown_caller'),
       subtitle: call?.ai_summary?.purpose || call?.summary || call?.status || '',
       rightType: durationMinutes ? 'text' : 'badge',
       rightText: durationMinutes
         ? `${durationMinutes}m`
         : call?.status === 'completed'
-          ? 'Done.'
-          : 'AI Ready',
+          ? t('dash_call_done')
+          : t('dash_ai_ready'),
       status: call?.status,
     };
   });
@@ -375,7 +377,7 @@ export default function Dashboard() {
     <div className="max-w-7xl mx-auto space-y-5 pb-12 text-white">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[30px] leading-tight font-bold tracking-tight text-[#F3F8FF]">
-          Good Morning, {displayName}
+          {t('dash_good_morning', { name: displayName })}
         </h1>
       </div>
 
@@ -387,7 +389,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-4">
           <Mic size={22} className="text-[#60A5FA]" />
           <span className="text-sm font-semibold text-[#A4B0B7]">
-            Tap to ask SmartFlow
+            {t('dash_tap_ask_smartflow')}
           </span>
         </div>
         <span className="text-xl font-bold text-[#60A5FA]">...</span>
@@ -400,34 +402,34 @@ export default function Dashboard() {
       >
         <div className="flex items-center gap-3">
           <Megaphone size={18} className="text-[#60A5FA]" />
-          <span className="text-sm font-bold text-[#EAF8FF]">Bulk Messaging</span>
+          <span className="text-sm font-bold text-[#EAF8FF]">{t('dash_bulk_messaging')}</span>
         </div>
-        <span className="text-xs font-bold text-[#93C5FD]">Open</span>
+        <span className="text-xs font-bold text-[#93C5FD]">{t('dash_open')}</span>
       </button>
 
       <SectionCard>
         <div className="flex justify-between items-center">
           <div className="bg-[#13263D] text-[#60A5FA] font-extrabold px-3 py-1 rounded-[6px] tracking-wider uppercase text-[10px]">
-            Inbox
+            {t('dash_inbox')}
           </div>
           <span className="text-xs text-[#8093AC] font-semibold">
-            {totalChats} Chats
+            {t('dash_chats_count', { n: totalChats })}
           </span>
         </div>
 
-        <h3 className="text-xl font-bold text-white mt-4 tracking-tight">Unified Conversations</h3>
+        <h3 className="text-xl font-bold text-white mt-4 tracking-tight">{t('dash_unified_conversations')}</h3>
         <p className="text-xs text-[#A4B0B7] mt-2 leading-relaxed">
-          Latest: {latestPeerName} - "{truncatedLatestMessage}"
+          {t('dash_latest_message', { name: latestPeerName, message: truncatedLatestMessage })}
         </p>
 
         <div className="flex items-center justify-between mt-6 pt-2">
-          <AvatarStack avatars={inboxAvatars} countText={inboxCountText} />
+          <AvatarStack avatars={inboxAvatars} countText={inboxCountText} t={t} />
             <button
               type="button"
               onClick={openUnifiedConversations}
             className="px-6 py-2.5 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#9333ea]/10 cursor-pointer"
             >
-              View All
+              {t('dash_view_all')}
             </button>
         </div>
       </SectionCard>
@@ -438,13 +440,13 @@ export default function Dashboard() {
             <Users size={24} className="text-[#60A5FA]" />
           </div>
           <div className="mt-5 flex items-center justify-between gap-3">
-            <h3 className="text-xl font-bold text-white">Contacts</h3>
+            <h3 className="text-xl font-bold text-white">{t('dash_contacts')}</h3>
             <span className="text-xs font-semibold text-[#8093AC]">
-              {totalContacts} {totalContacts === 1 ? 'Contact' : 'Contacts'}
+              {t('dash_contacts_count', { n: totalContacts })}
             </span>
           </div>
           <div className="mt-5">
-            <AvatarStack avatars={contactAvatars} countText={contactCountText} size={34} overlap={-10} />
+            <AvatarStack avatars={contactAvatars} countText={contactCountText} size={34} overlap={-10} t={t} />
           </div>
           <div className="mt-8">
             <button
@@ -452,7 +454,7 @@ export default function Dashboard() {
               onClick={openContacts}
               className="px-6 py-2.5 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#9333ea]/10 cursor-pointer"
             >
-              View All
+              {t('dash_view_all')}
             </button>
           </div>
         </SectionCard>
@@ -460,16 +462,16 @@ export default function Dashboard() {
         <div className="space-y-5">
           <SectionCard onClick={openScheduleMeeting}>
             <div className="flex justify-between items-center">
-              <span className="text-[10px] font-bold text-[#8093AC] tracking-wider uppercase">Upcoming</span>
+              <span className="text-[10px] font-bold text-[#8093AC] tracking-wider uppercase">{t('dash_upcoming')}</span>
               <CalendarCheck2 size={23} className="text-[#60A5FA]" />
             </div>
-            <h3 className="text-xl font-bold text-white mt-3">Calendar</h3>
+            <h3 className="text-xl font-bold text-white mt-3">{t('dash_calendar')}</h3>
             <div className="mt-4 min-h-[52px] text-left">
               {nextUpcomingEvent ? (
                 <>
-                  <p className="text-sm font-bold text-white truncate">{nextUpcomingEvent.title || 'Untitled meeting'}</p>
+                  <p className="text-sm font-bold text-white truncate">{nextUpcomingEvent.title || t('dash_untitled_meeting')}</p>
                   <p className="text-xs text-[#A4B0B7] mt-1">
-                    {upcomingEvents.length} upcoming {upcomingEvents.length === 1 ? 'meeting' : 'meetings'}
+                    {t('dash_upcoming_meetings_count', { n: upcomingEvents.length })}
                   </p>
                   <p className="text-xs text-[#A4B0B7] mt-1">{upcomingEventLabel}</p>
                 </>
@@ -482,12 +484,12 @@ export default function Dashboard() {
               onClick={openScheduleMeeting}
               className="mt-5 px-6 py-2.5 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#9333ea]/10 cursor-pointer"
             >
-              Add Your Calendar
+              {t('dash_add_your_calendar')}
             </button>
           </SectionCard>
 
           <SectionCard>
-            <span className="text-[10px] font-bold text-[#8093AC] tracking-wider uppercase">Integrations</span>
+            <span className="text-[10px] font-bold text-[#8093AC] tracking-wider uppercase">{t('dash_integrations')}</span>
             <div className="flex items-center gap-2.5 mt-3">
               {connectedBadges.map((item) => (
                 <div
@@ -503,7 +505,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={openSocialIntegrations}
                 className="w-8 h-8 rounded-full bg-[#0D131D] border border-[#243041] border-dashed flex items-center justify-center text-slate-500 hover:text-white transition-colors cursor-pointer"
-                aria-label="Open social integrations"
+                aria-label={t('dash_open_social_integrations')}
               >
                 <Plus size={16} />
               </button>
@@ -513,9 +515,9 @@ export default function Dashboard() {
       </div>
 
       <SectionCard>
-        <h3 className="text-xl font-bold text-white">Documents</h3>
+        <h3 className="text-xl font-bold text-white">{t('dash_documents')}</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
-          {HOME_DOC_ITEMS.map((item) => (
+          {HOME_DOC_ITEM_DEFS.map((item) => (
             <button
               type="button"
               key={item.id}
@@ -525,7 +527,7 @@ export default function Dashboard() {
               <div className="w-11 h-11 rounded-2xl bg-[#13263D] flex items-center justify-center text-[#60A5FA]">
                 <item.icon size={22} />
               </div>
-              <span className="text-xs font-bold text-[#E9F2FF] leading-tight">{item.title}</span>
+              <span className="text-xs font-bold text-[#E9F2FF] leading-tight">{t(item.key)}</span>
             </button>
           ))}
         </div>
@@ -534,16 +536,16 @@ export default function Dashboard() {
       <SectionCard onClick={openCallHistory}>
         <div className="flex items-center gap-2">
           <PhoneCall size={21} className="text-[#12D2ED]" />
-          <h3 className="text-xl font-bold text-white tracking-tight">AI Call Analytics</h3>
+          <h3 className="text-xl font-bold text-white tracking-tight">{t('dash_ai_call_analytics')}</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
           <div className="bg-[#0A1019] border border-[#243246] rounded-2xl p-4">
-            <span className="text-[10px] font-bold text-[#8E9FB5] uppercase tracking-wider block">Total Calls</span>
+            <span className="text-[10px] font-bold text-[#8E9FB5] uppercase tracking-wider block">{t('dash_total_calls')}</span>
             <span className="text-3xl font-black text-white mt-1 block">{totalCallsCount}</span>
           </div>
           <div className="bg-[#0A1019] border border-[#243246] rounded-2xl p-4">
-            <span className="text-[10px] font-bold text-[#8E9FB5] uppercase tracking-wider block">Minutes Saved</span>
+            <span className="text-[10px] font-bold text-[#8E9FB5] uppercase tracking-wider block">{t('dash_minutes_saved')}</span>
             <span className="text-3xl font-black text-[#9333ea] mt-1 block">{minutesSavedCount}</span>
           </div>
         </div>
@@ -573,7 +575,7 @@ export default function Dashboard() {
               </div>
             ))
           ) : (
-            <p className="text-xs text-slate-500">No recent calls found.</p>
+            <p className="text-xs text-slate-500">{t('dash_no_recent_calls')}</p>
           )}
         </div>
       </SectionCard>

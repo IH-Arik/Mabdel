@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronUp,
-  CircleAlert, Download, FileCheck2, FileText, House, Loader2, Mail, Mic, PenLine,
-  Plus, RefreshCw, ScrollText, Sparkles, Trash2, Upload, Users, Wallet, X,
+  CircleAlert, Download, FileCheck2, FileText, House, Loader2, Mail, PenLine,
+  Plus, RefreshCw, ScrollText, Sparkles, Trash2, Users, Wallet, X,
   Search,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,11 +11,12 @@ import { smartflowApi } from '../api/services';
 import { formatCalendarDate, formatCstDateTime } from '../utils/dateUtils';
 import VoiceFormFillModal from '../components/Documents/VoiceFormFillModal';
 import { DatePickerInput } from '../components/ui/DateTimeInputs';
+import { useLanguage } from '../context/LanguageContext';
 
 // ── Tab definition ─────────────────────────────────────────────────────────────
 const tabs = [
-  { id: 'leases',     label: 'Leases',      icon: ScrollText },
-  { id: 'agreements', label: 'Agreements',  icon: FileCheck2 },
+  { id: 'leases',     labelKey: 'docs_tab_leases',      icon: ScrollText },
+  { id: 'agreements', labelKey: 'docs_tab_agreements',  icon: FileCheck2 },
 ];
 
 // ── Small helpers ──────────────────────────────────────────────────────────────
@@ -88,9 +89,10 @@ function formatLeaseMoney(value, currency = 'USD', suffix = '') {
 
 // ── AI Review Panel ─────────────────────────────────────────────────────────────
 function AIReviewPanel({ review }) {
+  const { t } = useLanguage();
   if (!review?.length) return (
     <div className="p-4 text-[#A4B0B7] text-sm text-center">
-      No review yet. Generate content first, then click "Run AI Review".
+      {t('docs_no_review_yet')}
     </div>
   );
   return (
@@ -115,6 +117,7 @@ function AIReviewPanel({ review }) {
 
 // ── Agreement Creator ──────────────────────────────────────────────────────────
 function AgreementCreator({ onCreated, prefill }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     title: prefill?.title || '', 
     client_name: prefill?.client_name || prefill?.clientName || prefill?.name || '', 
@@ -152,11 +155,11 @@ function AgreementCreator({ onCreated, prefill }) {
       if (draft.content) setContent(draft.content);
       if (draft.ai_review) setAiReview(draft.ai_review);
     } catch (err) {
-      setError(err.response?.data?.message || 'AI generation failed.');
+      setError(err.response?.data?.message || t('docs_err_ai_gen_failed'));
     } finally {
       setGenerating(false);
     }
-  }, []);
+  }, [t]);
 
   const applyVoicePrefill = useCallback((voicePrefill) => {
     const nextForm = {
@@ -191,7 +194,7 @@ function AgreementCreator({ onCreated, prefill }) {
   }, [form.agreement_type, form.client_email, form.client_name, form.client_phone, form.start_date, form.title, generateDraftWithValues, prompt]);
 
   async function runGenerate() {
-    if (!prompt.trim()) { setError('Please enter a prompt to generate the agreement.'); return; }
+    if (!prompt.trim()) { setError(t('docs_err_enter_prompt')); return; }
     await generateDraftWithValues({
       nextPrompt: prompt,
       nextTitle: form.title,
@@ -201,20 +204,20 @@ function AgreementCreator({ onCreated, prefill }) {
   }
 
   async function runReview() {
-    if (!content.trim()) { setError('Generate or write agreement content first.'); return; }
+    if (!content.trim()) { setError(t('docs_err_write_content_first')); return; }
     setError(''); setReviewing(true);
     try {
       const res = await smartflowApi.reviewAgreement({ content: content.trim(), agreement_type: form.agreement_type });
       const data = res.data?.data;
       setAiReview(Array.isArray(data?.ai_review) ? data.ai_review : Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.response?.data?.message || 'AI review failed.');
+      setError(err.response?.data?.message || t('docs_err_ai_review_failed'));
     } finally { setReviewing(false); }
   }
 
   async function handleCreate() {
     if (!form.title.trim() || !form.client_name.trim() || !content.trim()) {
-      setError('Title, client name, and agreement content are required.'); return;
+      setError(t('docs_err_required_fields')); return;
     }
     setError(''); setCreating(true);
     try {
@@ -224,12 +227,12 @@ function AgreementCreator({ onCreated, prefill }) {
         content: content.trim(),
         status: signatureEnabled ? 'pending_signature' : 'draft',
       });
-      setSuccess('Agreement created successfully!');
+      setSuccess(t('docs_msg_agreement_created'));
       setForm({ title: '', client_name: '', client_email: '', client_phone: '', agreement_type: 'contract', start_date: '' });
       setPrompt(''); setContent(''); setAiReview([]);
       onCreated?.();
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not create agreement.');
+      setError(err.response?.data?.message || t('docs_err_create_agreement_failed'));
     } finally { setCreating(false); }
   }
 
@@ -240,30 +243,30 @@ function AgreementCreator({ onCreated, prefill }) {
 
       {/* Basic Info */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <SectionHeader icon={CircleAlert} title="Agreement Basic Info" />
+        <SectionHeader icon={CircleAlert} title={t('docs_agreement_basic_info')} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Agreement Title">
-            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Website Design Service" className={INPUT_CLS} />
+          <Field label={t('docs_agreement_title')}>
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={t('docs_ph_website_design')} className={INPUT_CLS} />
           </Field>
-          <Field label="Agreement Type">
+          <Field label={t('docs_agreement_type')}>
             <select value={form.agreement_type} onChange={e => set('agreement_type', e.target.value)} className={INPUT_CLS}>
-              <option value="contract">Contract</option>
-              <option value="nda">NDA</option>
-              <option value="service">Service</option>
-              <option value="lease">Lease</option>
-              <option value="legal">Legal</option>
+              <option value="contract">{t('docs_type_contract')}</option>
+              <option value="nda">{t('docs_type_nda')}</option>
+              <option value="service">{t('docs_type_service')}</option>
+              <option value="lease">{t('docs_type_lease')}</option>
+              <option value="legal">{t('docs_type_legal')}</option>
             </select>
           </Field>
-          <Field label="Client Name">
-            <input value={form.client_name} onChange={e => set('client_name', e.target.value)} placeholder="Enter client name" className={INPUT_CLS} />
+          <Field label={t('docs_client_name')}>
+            <input value={form.client_name} onChange={e => set('client_name', e.target.value)} placeholder={t('docs_ph_enter_client_name')} className={INPUT_CLS} />
           </Field>
-          <Field label="Client Email">
+          <Field label={t('docs_client_email')}>
             <input value={form.client_email} onChange={e => set('client_email', e.target.value)} placeholder="email@example.com" className={INPUT_CLS} />
           </Field>
-          <Field label="Client Phone">
+          <Field label={t('docs_client_phone')}>
             <input value={form.client_phone} onChange={e => set('client_phone', e.target.value)} placeholder="+1 234 567 890" className={INPUT_CLS} />
           </Field>
-          <Field label="Date">
+          <Field label={t('docs_date')}>
             <input type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} className={INPUT_CLS} />
           </Field>
         </div>
@@ -271,11 +274,11 @@ function AgreementCreator({ onCreated, prefill }) {
 
       {/* AI Generate */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <SectionHeader icon={Sparkles} title="Generate with AI" />
+        <SectionHeader icon={Sparkles} title={t('docs_generate_with_ai')} />
         <div className="relative">
           <textarea
             value={prompt} onChange={e => setPrompt(e.target.value)}
-            placeholder="Create agreement draft... e.g. A 6-month freelance contract for Acme Corp covering web development services at $5,000/month"
+            placeholder={t('docs_ph_agreement_prompt')}
             className={`${INPUT_CLS} min-h-28 resize-none pr-12`}
           />
           <VoiceFormFillModal
@@ -291,16 +294,16 @@ function AgreementCreator({ onCreated, prefill }) {
           className="mt-3 w-full py-3.5 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
         >
           {generating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-          {generating ? 'Generating…' : 'Generate Agreement'}
+          {generating ? t('docs_generating') : t('docs_btn_generate_agreement')}
         </button>
       </div>
 
       {/* Content + AI Review */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <SectionHeader icon={PenLine} title="Agreement Content" />
+        <SectionHeader icon={PenLine} title={t('docs_agreement_content')} />
         <textarea
           value={content} onChange={e => setContent(e.target.value)}
-          placeholder="Agreement content will appear here after generation, or write your own..."
+          placeholder={t('docs_ph_agreement_content')}
           className={`${INPUT_CLS} min-h-48 resize-none font-mono`}
         />
         <button
@@ -308,7 +311,7 @@ function AgreementCreator({ onCreated, prefill }) {
           className="mt-3 w-full py-3 border border-[#9333ea]/30 text-[#9333ea] hover:bg-[#9333ea]/10 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
         >
           {reviewing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-          {reviewing ? 'Reviewing…' : 'Run AI Review'}
+          {reviewing ? t('docs_reviewing') : t('docs_btn_run_ai_review')}
         </button>
       </div>
 
@@ -316,8 +319,8 @@ function AgreementCreator({ onCreated, prefill }) {
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 bg-[#0C1420] border-b border-[#243041]/40">
           <Sparkles size={16} className="text-[#9333ea]" />
-          <span className="text-white font-bold text-sm">AI Review</span>
-          {aiReview.length > 0 && <span className="ml-auto text-xs text-[#A4B0B7]">{aiReview.length} item{aiReview.length !== 1 ? 's' : ''}</span>}
+          <span className="text-white font-bold text-sm">{t('docs_ai_review')}</span>
+          {aiReview.length > 0 && <span className="ml-auto text-xs text-[#A4B0B7]">{t('docs_review_items_count', { n: aiReview.length })}</span>}
         </div>
         <div className="p-4">
           <AIReviewPanel review={aiReview} />
@@ -326,7 +329,7 @@ function AgreementCreator({ onCreated, prefill }) {
 
       {/* Signature toggle + Create button */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5 flex items-center justify-between">
-        <span className="text-white font-semibold text-sm">Require Signature Field</span>
+        <span className="text-white font-semibold text-sm">{t('docs_require_signature')}</span>
         <button
           onClick={() => setSig(s => !s)}
           className={`relative w-12 h-6 rounded-full transition-colors ${signatureEnabled ? 'bg-[#9333ea]' : 'bg-[#243041]'}`}
@@ -340,7 +343,18 @@ function AgreementCreator({ onCreated, prefill }) {
         className="w-full py-4 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer text-base"
       >
         {creating ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
-        {creating ? 'Creating…' : signatureEnabled ? 'Send For Signature' : 'Save as Draft'}
+        {creating ? t('docs_creating') : signatureEnabled ? t('docs_btn_send_signature') : t('docs_btn_save_draft')}
+      </button>
+    </div>
+  );
+}
+
+function SigToggle({ label, icon: Icon, value, onChange }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3.5 bg-[#0A1019] border border-[#243246] rounded-xl">
+      <span className="flex items-center gap-2.5 text-white text-sm font-semibold"><Icon size={16} className="text-[#A4B0B7]" />{label}</span>
+      <button onClick={() => onChange(!value)} className={`relative w-12 h-6 rounded-full transition-colors ${value ? 'bg-[#9333ea]' : 'bg-[#243041]'}`}>
+        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-0.5'}`} />
       </button>
     </div>
   );
@@ -348,6 +362,7 @@ function AgreementCreator({ onCreated, prefill }) {
 
 // ── Lease Creator ──────────────────────────────────────────────────────────────
 function LeaseCreator({ onCreated, prefill }) {
+  const { t } = useLanguage();
   const [prompt, setPrompt]       = useState(prefill?.prompt || '');
   const [address, setAddress]     = useState(prefill?.address || prefill?.property_address || '');
   const [propType, setPropType]   = useState(prefill?.propType || prefill?.property_type || 'apartment');
@@ -401,7 +416,7 @@ function LeaseCreator({ onCreated, prefill }) {
   });
 
   async function runGenerate() {
-    if (!prompt.trim()) { setError('Please enter a prompt to generate the lease.'); return; }
+    if (!prompt.trim()) { setError(t('docs_err_enter_lease_prompt')); return; }
     setError(''); setGenerating(true);
     try {
       const res = await smartflowApi.generateLease({ prompt: prompt.trim(), ...buildPayload() });
@@ -418,37 +433,26 @@ function LeaseCreator({ onCreated, prefill }) {
       if (draft.end_date)         setEndDate(draft.end_date);
       if (draft.custom_terms)     setTerms(draft.custom_terms);
     } catch (err) {
-      setError(err.response?.data?.message || 'AI lease generation failed.');
+      setError(err.response?.data?.message || t('docs_err_ai_lease_failed'));
     } finally { setGenerating(false); }
   }
 
   async function handleCreate() {
     const otherPartyName = selfRole === 'landlord' ? tenant : landlord;
     if (!address.trim() || !otherPartyName.trim() || !rent) {
-      setError(`Property address, ${selfRole === 'landlord' ? 'tenant' : 'landlord'} name, and monthly rent are required.`); return;
+      setError(selfRole === 'landlord' ? t('docs_err_lease_required_tenant') : t('docs_err_lease_required_landlord')); return;
     }
     setError(''); setCreating(true);
     try {
       await smartflowApi.createLease(buildPayload());
-      setSuccess('Lease created successfully!');
+      setSuccess(t('docs_msg_lease_created'));
       setPrompt(''); setAddress(''); setLandlord(''); setLandlordEmail(''); setTenant('');
       setTenantEmail(''); setTenantPhone(''); setRent(''); setDeposit('');
       setStartDate(''); setEndDate(''); setTerms(''); setSelfRole('landlord');
       onCreated?.();
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not create lease.');
+      setError(err.response?.data?.message || t('docs_err_create_lease_failed'));
     } finally { setCreating(false); }
-  }
-
-  function SigToggle({ label, icon: Icon, value, onChange }) {
-    return (
-      <div className="flex items-center justify-between px-4 py-3.5 bg-[#0A1019] border border-[#243246] rounded-xl">
-        <span className="flex items-center gap-2.5 text-white text-sm font-semibold"><Icon size={16} className="text-[#A4B0B7]" />{label}</span>
-        <button onClick={() => onChange(!value)} className={`relative w-12 h-6 rounded-full transition-colors ${value ? 'bg-[#9333ea]' : 'bg-[#243041]'}`}>
-          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-0.5'}`} />
-        </button>
-      </div>
-    );
   }
 
   return (
@@ -458,11 +462,11 @@ function LeaseCreator({ onCreated, prefill }) {
 
       {/* AI Generate */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <p className="text-[#9333ea] text-xs font-bold uppercase tracking-widest mb-3">Generate Lease with AI</p>
+        <p className="text-[#9333ea] text-xs font-bold uppercase tracking-widest mb-3">{t('docs_generate_lease_ai')}</p>
         <div className="relative">
           <textarea
             value={prompt} onChange={e => setPrompt(e.target.value)}
-            placeholder="Create a 1-year apartment lease for tenant John Smith at $2,500/month..."
+            placeholder={t('docs_ph_lease_prompt')}
             className={`${INPUT_CLS} min-h-24 resize-none pr-12`}
           />
           <VoiceFormFillModal
@@ -491,24 +495,24 @@ function LeaseCreator({ onCreated, prefill }) {
           className="mt-3 w-full py-3.5 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
         >
           {generating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-          {generating ? 'Generating…' : 'Generate Lease'}
+          {generating ? t('docs_generating') : t('docs_btn_generate_lease')}
         </button>
       </div>
 
       {/* Property Details */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <SectionHeader icon={House} title="Property Details" />
+        <SectionHeader icon={House} title={t('docs_property_details')} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Property Address">
-            <input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Skyview Terrace, Suite 402" className={INPUT_CLS} />
+          <Field label={t('docs_property_address')}>
+            <input value={address} onChange={e => setAddress(e.target.value)} placeholder={t('docs_ph_address')} className={INPUT_CLS} />
           </Field>
-          <Field label="Property Type">
+          <Field label={t('docs_property_type')}>
             <select value={propType} onChange={e => setPropType(e.target.value)} className={INPUT_CLS}>
-              <option value="apartment">Apartment</option>
-              <option value="house">House</option>
-              <option value="commercial">Commercial</option>
-              <option value="studio">Studio</option>
-              <option value="villa">Villa</option>
+              <option value="apartment">{t('docs_prop_apartment')}</option>
+              <option value="house">{t('docs_prop_house')}</option>
+              <option value="commercial">{t('docs_prop_commercial')}</option>
+              <option value="studio">{t('docs_prop_studio')}</option>
+              <option value="villa">{t('docs_prop_villa')}</option>
             </select>
           </Field>
         </div>
@@ -516,39 +520,39 @@ function LeaseCreator({ onCreated, prefill }) {
 
       {/* Parties Info */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <SectionHeader icon={Users} title="Parties Info" />
-        <Field label="I am signing this lease as">
+        <SectionHeader icon={Users} title={t('docs_parties_info')} />
+        <Field label={t('docs_signing_as')}>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setSelfRole('landlord')}
               className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${selfRole === 'landlord' ? 'bg-[#9333ea]/10 border-[#9333ea] text-[#9333ea]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
             >
-              Landlord
+              {t('docs_landlord')}
             </button>
             <button
               type="button"
               onClick={() => setSelfRole('tenant')}
               className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${selfRole === 'tenant' ? 'bg-[#9333ea]/10 border-[#9333ea] text-[#9333ea]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
             >
-              Tenant
+              {t('docs_tenant')}
             </button>
           </div>
         </Field>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-          <Field label={selfRole === 'landlord' ? 'Landlord Full Name (you)' : 'Landlord Full Name'}>
+          <Field label={selfRole === 'landlord' ? t('docs_landlord_name_you') : t('docs_landlord_name')}>
             <input value={landlord} onChange={e => setLandlord(e.target.value)} placeholder="e.g. John Doe" className={INPUT_CLS} />
           </Field>
-          <Field label={selfRole === 'landlord' ? 'Landlord Email (leave blank to use your account email)' : 'Landlord Email'}>
+          <Field label={selfRole === 'landlord' ? t('docs_landlord_email_hint') : t('docs_landlord_email')}>
             <input value={landlordEmail} onChange={e => setLandlordEmail(e.target.value)} placeholder="email@example.com" className={INPUT_CLS} />
           </Field>
-          <Field label={selfRole === 'tenant' ? 'Tenant Full Name (you)' : 'Tenant Full Name'}>
+          <Field label={selfRole === 'tenant' ? t('docs_tenant_name_you') : t('docs_tenant_name')}>
             <input value={tenant} onChange={e => setTenant(e.target.value)} placeholder="e.g. Jane Smith" className={INPUT_CLS} />
           </Field>
-          <Field label={selfRole === 'tenant' ? 'Tenant Email (leave blank to use your account email)' : 'Tenant Email'}>
+          <Field label={selfRole === 'tenant' ? t('docs_tenant_email_hint') : t('docs_tenant_email')}>
             <input value={tenantEmail} onChange={e => setTenantEmail(e.target.value)} placeholder="email@example.com" className={INPUT_CLS} />
           </Field>
-          <Field label="Tenant Phone">
+          <Field label={t('docs_tenant_phone')}>
             <input value={tenantPhone} onChange={e => setTenantPhone(e.target.value)} placeholder="+1 234 567 890" className={INPUT_CLS} />
           </Field>
         </div>
@@ -556,12 +560,12 @@ function LeaseCreator({ onCreated, prefill }) {
 
       {/* Payment Details */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <SectionHeader icon={Wallet} title="Payment Details" />
+        <SectionHeader icon={Wallet} title={t('docs_payment_details')} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Monthly Rent ($)">
+          <Field label={t('docs_monthly_rent')}>
             <input type="number" value={rent} onChange={e => setRent(e.target.value)} placeholder="2500" className={INPUT_CLS} />
           </Field>
-          <Field label="Security Deposit ($)">
+          <Field label={t('docs_security_deposit')}>
             <input type="number" value={deposit} onChange={e => setDeposit(e.target.value)} placeholder="5000" className={INPUT_CLS} />
           </Field>
         </div>
@@ -569,12 +573,12 @@ function LeaseCreator({ onCreated, prefill }) {
 
       {/* Lease Duration */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <SectionHeader icon={CalendarDays} title="Lease Duration" />
+        <SectionHeader icon={CalendarDays} title={t('docs_lease_duration')} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Start Date">
+          <Field label={t('docs_start_date')}>
             <DatePickerInput value={startDate} onChange={setStartDate} className="focus:border-[#9333ea]/50" />
           </Field>
-          <Field label="End Date">
+          <Field label={t('docs_end_date')}>
             <DatePickerInput value={endDate} onChange={setEndDate} className="focus:border-[#9333ea]/50" />
           </Field>
         </div>
@@ -582,19 +586,19 @@ function LeaseCreator({ onCreated, prefill }) {
 
       {/* Lease Terms */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5">
-        <SectionHeader icon={PenLine} title="Lease Terms" />
+        <SectionHeader icon={PenLine} title={t('docs_lease_terms')} />
         <textarea
           value={terms} onChange={e => setTerms(e.target.value)}
-          placeholder="Enter custom terms or let AI generate legal clauses..."
+          placeholder={t('docs_ph_lease_terms')}
           className={`${INPUT_CLS} min-h-32 resize-none`}
         />
       </div>
 
       {/* Signature Fields */}
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-5 space-y-3">
-        <SectionHeader icon={PenLine} title="Signature Fields" />
-        <SigToggle label="Tenant Signature" icon={Users} value={tenantSig} onChange={setTenantSig} />
-        <SigToggle label="Landlord Signature" icon={Building2} value={landlordSig} onChange={setLandlordSig} />
+        <SectionHeader icon={PenLine} title={t('docs_signature_fields')} />
+        <SigToggle label={t('docs_tenant_signature')} icon={Users} value={tenantSig} onChange={setTenantSig} />
+        <SigToggle label={t('docs_landlord_signature')} icon={Building2} value={landlordSig} onChange={setLandlordSig} />
       </div>
 
       <button
@@ -602,14 +606,16 @@ function LeaseCreator({ onCreated, prefill }) {
         className="w-full py-4 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer text-base"
       >
         {creating ? <Loader2 size={20} className="animate-spin" /> : <ScrollText size={20} />}
-        {creating ? 'Creating…' : 'Preview Lease'}
+        {creating ? t('docs_creating') : t('docs_btn_preview_lease')}
       </button>
     </div>
   );
 }
 
 // ── Record row ────────────────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
 function RecordRow({ item, type, onDelete, onRefresh }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState('');
@@ -630,7 +636,7 @@ function RecordRow({ item, type, onDelete, onRefresh }) {
       const a = document.createElement('a'); a.href = url;
       a.download = `${item.title || 'document'}.pdf`; a.click();
       URL.revokeObjectURL(url);
-    } catch { setMsg('PDF download failed.'); }
+    } catch { setMsg(t('docs_err_pdf_download_failed')); }
     finally { setBusy(null); }
   }
 
@@ -683,30 +689,30 @@ function RecordRow({ item, type, onDelete, onRefresh }) {
               {item.property_address && <p>📍 {item.property_address}</p>}
               {item.monthly_rent && <p>💰 ${item.monthly_rent}/month</p>}
               {item.start_date && <p>📅 {item.start_date} → {item.end_date || '—'}</p>}
-              {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" className="text-[#9333ea] hover:underline">View File ↗</a>}
+              {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" className="text-[#9333ea] hover:underline">{t('docs_view_file')}</a>}
 
               {/* Action buttons for lease/agreement */}
               {showActions && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button onClick={e=>{e.stopPropagation();downloadPdf();}} disabled={busy==='pdf'}
                     className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='pdf' ? <Loader2 size={12} className="animate-spin"/> : <Download size={12}/>} PDF
+                    {busy==='pdf' ? <Loader2 size={12} className="animate-spin"/> : <Download size={12}/>} {t('docs_btn_pdf')}
                   </button>
                   <button onClick={e=>{e.stopPropagation(); action('Send Signature', ()=>(isLease ? smartflowApi.leaseSendSignature(item.id,{}) : smartflowApi.agreementSendSignature(item.id,{})));}} disabled={!!busy}
                     className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#9333ea] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='Send Signature' ? <Loader2 size={12} className="animate-spin"/> : <Mail size={12}/>} Send for Signature
+                    {busy==='Send Signature' ? <Loader2 size={12} className="animate-spin"/> : <Mail size={12}/>} {t('docs_btn_send_for_signature')}
                   </button>
                   <button onClick={e=>{e.stopPropagation(); action('Sign', ()=>(isLease ? smartflowApi.leaseSign(item.id,{signature:'web'}) : smartflowApi.agreementSign(item.id,{signature:'web'})));}} disabled={!!busy}
                     className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-950/50 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='Sign' ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle2 size={12}/>} Sign
+                    {busy==='Sign' ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle2 size={12}/>} {t('docs_btn_sign')}
                   </button>
                   <button onClick={e=>{e.stopPropagation(); action('Renew', ()=>(isLease ? smartflowApi.leaseRenew(item.id,{}) : smartflowApi.agreementRenew(item.id,{})));}} disabled={!!busy}
                     className="flex items-center gap-1.5 px-3 py-2 bg-[#9333ea]/10 border border-[#9333ea]/20 text-[#9333ea] hover:bg-[#9333ea]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='Renew' ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12}/>} Renew
+                    {busy==='Renew' ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12}/>} {t('docs_btn_renew')}
                   </button>
                   <button onClick={e=>{e.stopPropagation(); action('Improve', ()=>(isLease ? smartflowApi.leaseEnhanceTerms(item.id,{}) : smartflowApi.agreementImprove(item.id,{})));}} disabled={!!busy}
                     className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-amber-400 hover:bg-amber-950/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='Improve' ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} AI Improve
+                    {busy==='Improve' ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} {t('docs_btn_ai_improve')}
                   </button>
                 </div>
               )}
@@ -719,6 +725,7 @@ function RecordRow({ item, type, onDelete, onRefresh }) {
 }
 
 function LeaseRecordRow({ item, onDelete, onRefresh }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState('');
@@ -747,8 +754,8 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
   const record = detail || item;
   const reviewItems = record?.ai_review || [];
   const otherParty = record.self_role === 'tenant'
-    ? { role: 'Landlord', name: record.landlord_name, email: record.landlord_email }
-    : { role: 'Tenant', name: record.tenant_name || record.client_name, email: record.tenant_email || record.client_email };
+    ? { role: t('docs_landlord'), name: record.landlord_name, email: record.landlord_email }
+    : { role: t('docs_tenant'), name: record.tenant_name || record.client_name, email: record.tenant_email || record.client_email };
 
   useEffect(() => {
     setDetail(item);
@@ -785,18 +792,15 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
         setRenewEndDate(next.end_date || '');
         setRenewRent(next.monthly_rent != null ? String(next.monthly_rent) : '');
       } catch (err) {
-        if (!ignore) setMsg(err.response?.data?.message || 'Lease preview failed to load.');
+        if (!ignore) setMsg(err.response?.data?.message || t('docs_err_lease_preview_failed'));
       } finally {
         if (!ignore) setLoadingDetail(false);
       }
     }
     loadDetail();
     return () => { ignore = true; };
-  }, [open, item, item.id]);
+  }, [open, item, item.id, t]);
 
-  // While a lease is out for DocuSign signature, poll periodically so the
-  // status flips to "active" automatically once both parties finish signing,
-  // without the user having to manually reload/re-expand the row.
   useEffect(() => {
     if (!open || record.signature_provider !== 'docusign' || record.status !== 'pending_signature') return undefined;
     const interval = window.setInterval(async () => {
@@ -808,7 +812,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
           onRefresh?.();
         }
       } catch {
-        // Ignore transient polling errors; next tick will retry.
+        // Ignore transient polling errors
       }
     }, 15000);
     return () => window.clearInterval(interval);
@@ -854,9 +858,9 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
     try {
       const res = await smartflowApi.startAgreementDocusignOAuth();
       const authUrl = res.data?.data?.auth_url;
-      if (!authUrl) throw new Error('OAuth URL missing.');
+      if (!authUrl) throw new Error(t('docs_err_docusign_conn_failed'));
       const popup = window.open(authUrl, 'mabdel-docusign-oauth', 'width=680,height=860');
-      setMsg('DocuSign connection window opened.');
+      setMsg(t('docs_msg_docusign_window_opened'));
       const startedAt = Date.now();
       const timer = window.setInterval(async () => {
         const closed = !popup || popup.closed;
@@ -867,7 +871,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
         setDocusignStatus(statusRes.data?.data || null);
       }, 1500);
     } catch (err) {
-      setMsg(err.response?.data?.message || err.message || 'Could not start DocuSign connection.');
+      setMsg(err.response?.data?.message || err.message || t('docs_err_docusign_conn_failed'));
     } finally {
       setBusy(null);
     }
@@ -884,7 +888,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setMsg(err.response?.data?.message || 'PDF download failed.');
+      setMsg(err.response?.data?.message || t('docs_err_pdf_download_failed'));
     } finally {
       setBusy(null);
     }
@@ -901,7 +905,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setMsg(err.response?.data?.message || 'Signed PDF download failed.');
+      setMsg(err.response?.data?.message || t('docs_err_signed_pdf_failed'));
     } finally {
       setBusy(null);
     }
@@ -918,7 +922,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setMsg(err.response?.data?.message || 'Completion certificate download failed.');
+      setMsg(err.response?.data?.message || t('docs_err_certificate_failed'));
     } finally {
       setBusy(null);
     }
@@ -926,7 +930,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
 
   async function sendForSignature() {
     if (signatureProvider === 'docusign' && !docusignStatus?.connected) {
-      setMsg('Connect DocuSign before sending with DocuSign.');
+      setMsg(t('docs_err_connect_docusign_first'));
       return;
     }
     setBusy('send-signature');
@@ -946,7 +950,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       onRefresh?.();
       setShowSendPanel(false);
       if (signatureProvider === 'docusign' && ownSigningUrl) {
-        setMsg('Sent — sign your own copy now in the popup, then the other party will be emailed automatically.');
+        setMsg(t('docs_msg_sent_sign_popup'));
         const popup = window.open(ownSigningUrl, 'mabdel-docusign-self-sign', 'width=800,height=900');
         const startedAt = Date.now();
         const timer = window.setInterval(async () => {
@@ -958,10 +962,10 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
           onRefresh?.();
         }, 1500);
       } else {
-        setMsg('Lease sent for signature successfully.');
+        setMsg(t('docs_msg_lease_sent_sig'));
       }
     } catch (err) {
-      setMsg(err.response?.data?.message || 'Send signature failed.');
+      setMsg(err.response?.data?.message || t('docs_err_send_sig_failed'));
     } finally {
       setBusy(null);
     }
@@ -969,7 +973,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
 
   async function signLeaseNow() {
     if (!signerName.trim() || !signatureText.trim()) {
-      setMsg('Signer name and signature text are required.');
+      setMsg(t('docs_err_signer_required'));
       return;
     }
     setBusy('sign');
@@ -984,9 +988,9 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       onRefresh?.();
       setShowSignPanel(false);
       setSignatureText('');
-      setMsg('Lease signed successfully.');
+      setMsg(t('docs_msg_lease_signed'));
     } catch (err) {
-      setMsg(err.response?.data?.message || 'Lease signing failed.');
+      setMsg(err.response?.data?.message || t('docs_err_lease_signing_failed'));
     } finally {
       setBusy(null);
     }
@@ -1006,9 +1010,9 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       setImprovePreview(next.content || record.content || '');
       setImproveReview(next.ai_review || []);
       setShowImprovePanel(true);
-      setMsg('AI preview ready.');
+      setMsg(t('docs_msg_ai_preview_ready'));
     } catch (err) {
-      setMsg(err.response?.data?.message || 'AI improve failed.');
+      setMsg(err.response?.data?.message || t('docs_err_ai_improve_failed'));
     } finally {
       setBusy(null);
     }
@@ -1025,9 +1029,9 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       await refreshDetail();
       onRefresh?.();
       setShowImprovePanel(false);
-      setMsg('Lease improvements saved.');
+      setMsg(t('docs_msg_lease_improvements_saved'));
     } catch (err) {
-      setMsg(err.response?.data?.message || 'Could not save AI improvements.');
+      setMsg(err.response?.data?.message || t('docs_err_save_improvements_failed'));
     } finally {
       setBusy(null);
     }
@@ -1045,9 +1049,9 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
       const renewedLease = res.data?.data;
       onRefresh?.();
       setShowRenewPanel(false);
-      setMsg(`Lease renewed as ${renewedLease?.lease_number || renewedLease?.agreement_number || 'a new lease'}.`);
+      setMsg(t('docs_msg_lease_renewed', { leaseNumber: renewedLease?.lease_number || renewedLease?.agreement_number || 'a new lease' }));
     } catch (err) {
-      setMsg(err.response?.data?.message || 'Lease renewal failed.');
+      setMsg(err.response?.data?.message || t('docs_err_lease_renewal_failed'));
     } finally {
       setBusy(null);
     }
@@ -1064,7 +1068,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
             {item.lease_number || item.title || item.id}
           </h3>
           <p className="text-xs text-[#A4B0B7] mt-0.5 truncate">
-            {item.tenant_name || item.client_name || 'Tenant'}
+            {item.tenant_name || item.client_name || t('docs_tenant')}
             {item.landlord_name ? ` · ${item.landlord_name}` : ''}
             {item.property_address ? ` · ${item.property_address}` : ''}
           </p>
@@ -1098,55 +1102,55 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
             <div className="px-5 pb-4 text-sm text-[#A4B0B7] border-t border-[#243041]/30 pt-4 space-y-4">
               {msg && <p className={/failed|required|could not|connect/i.test(msg) ? 'text-rose-400' : 'text-emerald-400'}>{msg}</p>}
               {loadingDetail ? (
-                <div className="flex items-center gap-2 text-[#A4B0B7]"><Loader2 size={14} className="animate-spin" /> Loading lease preview…</div>
+                <div className="flex items-center gap-2 text-[#A4B0B7]"><Loader2 size={14} className="animate-spin" /> {t('docs_loading_lease_preview')}</div>
               ) : (
                 <>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-xl border border-[#243246] bg-[#0A1019] p-3">
-                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">Lease Number</p>
+                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">{t('docs_lbl_lease_number')}</p>
                       <p className="mt-1 text-sm font-semibold text-white">{record.lease_number || record.agreement_number || '—'}</p>
                     </div>
                     <div className="rounded-xl border border-[#243246] bg-[#0A1019] p-3">
-                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">Rent</p>
+                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">{t('docs_lbl_rent')}</p>
                       <p className="mt-1 text-sm font-semibold text-white">{formatLeaseMoney(record.monthly_rent, record.currency, '/mo')}</p>
                     </div>
                     <div className="rounded-xl border border-[#243246] bg-[#0A1019] p-3">
-                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">Deposit</p>
+                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">{t('docs_lbl_deposit')}</p>
                       <p className="mt-1 text-sm font-semibold text-white">{formatLeaseMoney(record.security_deposit, record.currency)}</p>
                     </div>
                     <div className="rounded-xl border border-[#243246] bg-[#0A1019] p-3">
-                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">Duration</p>
+                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">{t('docs_lbl_duration')}</p>
                       <p className="mt-1 text-sm font-semibold text-white">{record.duration_label || `${formatDisplayDate(record.start_date)} → ${formatDisplayDate(record.end_date)}`}</p>
                     </div>
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-xl border border-[#243246] bg-[#0A1019] p-4">
-                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">Parties</p>
-                      <p className="mt-2 text-sm text-white"><span className="text-[#A4B0B7]">Tenant:</span> {record.tenant_name || '—'}</p>
-                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">Landlord:</span> {record.landlord_name || '—'}</p>
-                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">Email:</span> {record.client_email || record.tenant_email || '—'}</p>
-                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">Phone:</span> {record.client_phone || record.tenant_phone || '—'}</p>
+                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">{t('docs_lbl_parties')}</p>
+                      <p className="mt-2 text-sm text-white"><span className="text-[#A4B0B7]">{t('docs_tenant')}:</span> {record.tenant_name || '—'}</p>
+                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">{t('docs_landlord')}:</span> {record.landlord_name || '—'}</p>
+                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">{t('docs_email_label')}:</span> {record.client_email || record.tenant_email || '—'}</p>
+                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">{t('docs_phone_label')}:</span> {record.client_phone || record.tenant_phone || '—'}</p>
                     </div>
                     <div className="rounded-xl border border-[#243246] bg-[#0A1019] p-4">
-                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">Property</p>
+                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">{t('docs_lbl_property')}</p>
                       <p className="mt-2 text-sm text-white">{record.property_address || '—'}</p>
-                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">Type:</span> {record.property_type_label || record.property_type || '—'}</p>
-                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">Start:</span> {formatDisplayDate(record.start_date)}</p>
-                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">End:</span> {formatDisplayDate(record.end_date)}</p>
+                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">{t('docs_lbl_type_colon')}</span> {record.property_type_label || record.property_type || '—'}</p>
+                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">{t('docs_lbl_start_colon')}</span> {formatDisplayDate(record.start_date)}</p>
+                      <p className="mt-1 text-sm text-white"><span className="text-[#A4B0B7]">{t('docs_lbl_end_colon')}</span> {formatDisplayDate(record.end_date)}</p>
                     </div>
                   </div>
 
                   {record.content && (
                     <div className="rounded-xl border border-[#243246] bg-[#0A1019] p-4">
-                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91] mb-2">Preview</p>
+                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91] mb-2">{t('docs_lbl_preview')}</p>
                       <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-[#D5DCE7] font-sans">{record.content}</pre>
                     </div>
                   )}
 
                   <div className="rounded-xl border border-[#243246] bg-[#0A1019] p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
-                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">AI Review</p>
+                      <p className="text-[11px] uppercase tracking-wider text-[#6E7C91]">{t('docs_ai_review')}</p>
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
@@ -1155,9 +1159,9 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                           try {
                             await smartflowApi.leaseReview(record.id, {});
                             await refreshDetail();
-                            setMsg('Lease review refreshed.');
+                            setMsg(t('docs_msg_lease_review_refreshed'));
                           } catch (err) {
-                            setMsg(err.response?.data?.message || 'Lease review failed.');
+                            setMsg(err.response?.data?.message || t('docs_err_lease_review_failed'));
                           } finally {
                             setBusy(null);
                           }
@@ -1165,7 +1169,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                         disabled={busy === 'review'}
                         className="text-xs font-semibold text-[#9333ea] disabled:opacity-60 cursor-pointer"
                       >
-                        {busy === 'review' ? 'Refreshing…' : 'Refresh Review'}
+                        {busy === 'review' ? t('docs_refreshing') : t('docs_btn_refresh_review')}
                       </button>
                     </div>
                     <AIReviewPanel review={reviewItems} />
@@ -1173,72 +1177,72 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
 
                   <div className="flex flex-wrap gap-2">
                     <button onClick={downloadPdf} disabled={busy === 'pdf'} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                      {busy === 'pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} PDF
+                      {busy === 'pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} {t('docs_btn_pdf')}
                     </button>
                     {record.signed_pdf_url && (
                       <button onClick={downloadSignedPdf} disabled={busy === 'signed-pdf'} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/25 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-950/40 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                        {busy === 'signed-pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Signed PDF
+                        {busy === 'signed-pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} {t('docs_btn_signed_pdf')}
                       </button>
                     )}
                     {record.completion_certificate_url && (
                       <button onClick={downloadCertificate} disabled={busy === 'certificate'} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#9333ea] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                        {busy === 'certificate' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Certificate
+                        {busy === 'certificate' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} {t('docs_btn_certificate')}
                       </button>
                     )}
                     <button onClick={() => setShowSendPanel(s => !s)} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#9333ea] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                      <Mail size={12} /> Send for Signature
+                      <Mail size={12} /> {t('docs_btn_send_for_signature')}
                     </button>
                     <button onClick={() => setShowSignPanel(s => !s)} disabled={!!busy || record.signature_provider === 'docusign'} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-950/50 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                      <CheckCircle2 size={12} /> Sign
+                      <CheckCircle2 size={12} /> {t('docs_btn_sign')}
                     </button>
                     <button onClick={() => setShowRenewPanel(s => !s)} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#9333ea]/10 border border-[#9333ea]/20 text-[#9333ea] hover:bg-[#9333ea]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                      <RefreshCw size={12} /> Renew
+                      <RefreshCw size={12} /> {t('docs_btn_renew')}
                     </button>
                     <button onClick={previewImprove} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-amber-400 hover:bg-amber-950/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                      {busy === 'improve' ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} AI Improve
+                      {busy === 'improve' ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} {t('docs_btn_ai_improve')}
                     </button>
                   </div>
 
                   {showSendPanel && (
                     <div className="grid gap-4 sm:grid-cols-2 rounded-xl border border-[#243246] bg-[#0A1019] p-4">
-                      <Field label="Signature Provider">
+                      <Field label={t('docs_signature_provider')}>
                         <div className="grid grid-cols-2 gap-3">
                           <button
                             type="button"
                             onClick={() => setSignatureProvider('native')}
                             className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${signatureProvider === 'native' ? 'bg-[#9333ea]/10 border-[#9333ea] text-[#9333ea]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
                           >
-                            Native (link)
+                            {t('docs_sig_provider_native')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setSignatureProvider('docusign')}
                             className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${signatureProvider === 'docusign' ? 'bg-[#9333ea]/10 border-[#9333ea] text-[#9333ea]' : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'}`}
                           >
-                            DocuSign
+                            {t('docs_sig_provider_docusign')}
                           </button>
                         </div>
                       </Field>
                       <div />
                       {signatureProvider === 'docusign' ? (
                         <div className="sm:col-span-2 rounded-xl border border-[#243246] bg-[#131A24] p-3 text-xs text-[#A4B0B7]">
-                          <p>You'll sign first (right here), then DocuSign automatically emails the {otherParty.role.toLowerCase()} to sign.</p>
+                          <p>{t('docs_docusign_flow_hint', { role: String(otherParty.role).toLowerCase() })}</p>
                           <p className="mt-1 text-white font-semibold">{otherParty.role}: {otherParty.name || '—'} · {otherParty.email || 'no email on file'}</p>
-                          {!otherParty.email && <p className="mt-1 text-amber-300">Add a {otherParty.role.toLowerCase()} email on this lease before sending with DocuSign.</p>}
+                          {!otherParty.email && <p className="mt-1 text-amber-300">{t('docs_docusign_add_email_warning', { role: String(otherParty.role).toLowerCase() })}</p>}
                         </div>
                       ) : (
                         <>
-                          <Field label="Recipient Name"><input value={recipientName} onChange={e => setRecipientName(e.target.value)} className={INPUT_CLS} /></Field>
-                          <Field label="Recipient Email"><input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} className={INPUT_CLS} /></Field>
-                          <Field label="Recipient Phone"><input value={recipientPhone} onChange={e => setRecipientPhone(e.target.value)} className={INPUT_CLS} /></Field>
+                          <Field label={t('docs_recipient_name')}><input value={recipientName} onChange={e => setRecipientName(e.target.value)} className={INPUT_CLS} /></Field>
+                          <Field label={t('docs_recipient_email')}><input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} className={INPUT_CLS} /></Field>
+                          <Field label={t('docs_recipient_phone')}><input value={recipientPhone} onChange={e => setRecipientPhone(e.target.value)} className={INPUT_CLS} /></Field>
                         </>
                       )}
                       {signatureProvider === 'docusign' && (
                         <div className="sm:col-span-2 rounded-xl border border-amber-500/20 bg-amber-950/20 p-3 text-xs text-amber-200">
-                          <p>DocuSign status: {docusignStatus?.connection_status || 'disconnected'}</p>
+                          <p>{t('docs_docusign_status', { status: docusignStatus?.connection_status || 'disconnected' })}</p>
                           {!docusignStatus?.connected && (
                             <button onClick={startDocusignConnect} disabled={busy === 'connect-docusign'} className="mt-3 px-3 py-2 rounded-lg bg-[#9333ea] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
-                              {busy === 'connect-docusign' ? 'Opening…' : 'Connect DocuSign'}
+                              {busy === 'connect-docusign' ? t('docs_opening') : t('docs_btn_connect_docusign')}
                             </button>
                           )}
                         </div>
@@ -1249,7 +1253,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                           disabled={!!busy || (signatureProvider === 'docusign' && !otherParty.email)}
                           className="px-4 py-3 rounded-xl bg-[#9333ea] text-[#02080B] font-bold cursor-pointer disabled:opacity-60"
                         >
-                          {busy === 'send-signature' ? 'Sending…' : 'Send Lease'}
+                          {busy === 'send-signature' ? t('docs_sending') : t('docs_btn_send_lease')}
                         </button>
                       </div>
                     </div>
@@ -1257,14 +1261,14 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
 
                   {showSignPanel && (
                     <div className="grid gap-4 sm:grid-cols-2 rounded-xl border border-[#243246] bg-[#0A1019] p-4">
-                      <Field label="Signer Name"><input value={signerName} onChange={e => setSignerName(e.target.value)} className={INPUT_CLS} /></Field>
-                      <Field label="Signer Email"><input value={signerEmail} onChange={e => setSignerEmail(e.target.value)} className={INPUT_CLS} /></Field>
-                      <Field label="Signature Text">
+                      <Field label={t('docs_signer_name')}><input value={signerName} onChange={e => setSignerName(e.target.value)} className={INPUT_CLS} /></Field>
+                      <Field label={t('docs_signer_email')}><input value={signerEmail} onChange={e => setSignerEmail(e.target.value)} className={INPUT_CLS} /></Field>
+                      <Field label={t('docs_signature_text')}>
                         <textarea value={signatureText} onChange={e => setSignatureText(e.target.value)} className={`${INPUT_CLS} min-h-24 resize-none`} />
                       </Field>
                       <div className="sm:col-span-2 flex justify-end">
                         <button onClick={signLeaseNow} disabled={!!busy} className="px-4 py-3 rounded-xl bg-emerald-500 text-[#03110B] font-bold cursor-pointer disabled:opacity-60">
-                          {busy === 'sign' ? 'Signing…' : 'Sign Lease'}
+                          {busy === 'sign' ? t('docs_signing') : t('docs_btn_sign_lease')}
                         </button>
                       </div>
                     </div>
@@ -1273,29 +1277,29 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
                   {showImprovePanel && (
                     <div className="space-y-4 rounded-xl border border-[#243246] bg-[#0A1019] p-4">
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Improve Focus">
+                        <Field label={t('docs_improve_focus')}>
                           <select value={improveFocus} onChange={e => setImproveFocus(e.target.value)} className={INPUT_CLS}>
-                            <option value="balanced">Balanced</option>
-                            <option value="tenant">Tenant</option>
-                            <option value="landlord">Landlord</option>
-                            <option value="compliance">Compliance</option>
+                            <option value="balanced">{t('docs_focus_balanced')}</option>
+                            <option value="tenant">{t('docs_focus_tenant')}</option>
+                            <option value="landlord">{t('docs_focus_landlord')}</option>
+                            <option value="compliance">{t('docs_focus_compliance')}</option>
                           </select>
                         </Field>
-                        <Field label="Custom Terms Preview">
+                        <Field label={t('docs_custom_terms_preview')}>
                           <textarea value={improveTerms} onChange={e => setImproveTerms(e.target.value)} className={`${INPUT_CLS} min-h-24 resize-none`} />
                         </Field>
                       </div>
                       {improvePreview && (
                         <div className="rounded-xl border border-[#243246] bg-[#091019] p-4">
-                          <p className="text-[11px] uppercase tracking-wider text-[#6E7C91] mb-2">Improved Preview</p>
+                          <p className="text-[11px] uppercase tracking-wider text-[#6E7C91] mb-2">{t('docs_improved_preview')}</p>
                           <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-[#D5DCE7] font-sans">{improvePreview}</pre>
                         </div>
                       )}
                       {!!improveReview.length && <AIReviewPanel review={improveReview} />}
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => setShowImprovePanel(false)} className="px-4 py-3 rounded-xl border border-[#243246] text-[#A4B0B7] font-bold cursor-pointer">Discard</button>
+                        <button onClick={() => setShowImprovePanel(false)} className="px-4 py-3 rounded-xl border border-[#243246] text-[#A4B0B7] font-bold cursor-pointer">{t('docs_btn_discard')}</button>
                         <button onClick={acceptImprove} disabled={!!busy} className="px-4 py-3 rounded-xl bg-[#9333ea] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
-                          {busy === 'save-improve' ? 'Saving…' : 'Accept Changes'}
+                          {busy === 'save-improve' ? t('docs_saving') : t('docs_btn_accept_changes')}
                         </button>
                       </div>
                     </div>
@@ -1303,15 +1307,15 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
 
                   {showRenewPanel && (
                     <div className="grid gap-4 sm:grid-cols-3 rounded-xl border border-[#243246] bg-[#0A1019] p-4">
-                      <Field label="Renewal Start"><input type="date" value={renewStartDate} onChange={e => setRenewStartDate(e.target.value)} className={INPUT_CLS} /></Field>
-                      <Field label="Renewal End"><input type="date" value={renewEndDate} onChange={e => setRenewEndDate(e.target.value)} className={INPUT_CLS} /></Field>
-                      <Field label="Monthly Rent"><input type="number" value={renewRent} onChange={e => setRenewRent(e.target.value)} className={INPUT_CLS} /></Field>
+                      <Field label={t('docs_renewal_start')}><input type="date" value={renewStartDate} onChange={e => setRenewStartDate(e.target.value)} className={INPUT_CLS} /></Field>
+                      <Field label={t('docs_renewal_end')}><input type="date" value={renewEndDate} onChange={e => setRenewEndDate(e.target.value)} className={INPUT_CLS} /></Field>
+                      <Field label={t('docs_monthly_rent')}><input type="number" value={renewRent} onChange={e => setRenewRent(e.target.value)} className={INPUT_CLS} /></Field>
                       <div className="sm:col-span-3 rounded-xl border border-[#243246] bg-[#091019] p-3 text-xs text-[#A4B0B7]">
-                        Renewal creates a brand-new lease linked to {record.lease_number || record.agreement_number}.
+                        {t('docs_renewal_hint', { number: record.lease_number || record.agreement_number })}
                       </div>
                       <div className="sm:col-span-3 flex justify-end">
                         <button onClick={renewLeaseNow} disabled={!!busy} className="px-4 py-3 rounded-xl bg-[#9333ea] text-[#02080B] font-bold cursor-pointer disabled:opacity-60">
-                          {busy === 'renew' ? 'Renewing…' : 'Create Renewal Lease'}
+                          {busy === 'renew' ? t('docs_renewing') : t('docs_btn_create_renewal_lease')}
                         </button>
                       </div>
                     </div>
@@ -1327,6 +1331,7 @@ function LeaseRecordRow({ item, onDelete, onRefresh }) {
 }
 
 function AgreementRecordRow({ item, onDelete, onRefresh }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState('');
@@ -1374,14 +1379,14 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
         setSignerName(next.client_name || '');
         setSignerEmail(next.client_email || '');
       } catch (err) {
-        if (!ignore) setMsg(err.response?.data?.message || 'Agreement preview failed to load.');
+        if (!ignore) setMsg(err.response?.data?.message || t('docs_err_agreement_preview_failed'));
       } finally {
         if (!ignore) setLoadingDetail(false);
       }
     }
     loadDetail();
     return () => { ignore = true; };
-  }, [open, item, item.id, record?.content, record?.ai_review]);
+  }, [open, item, item.id, record?.content, record?.ai_review, t]);
 
   useEffect(() => {
     let ignore = false;
@@ -1435,7 +1440,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      setMsg('PDF download failed.');
+      setMsg(t('docs_err_pdf_download_failed'));
     } finally {
       setBusy(null);
     }
@@ -1452,7 +1457,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setMsg(err.response?.data?.message || 'Signed PDF download failed.');
+      setMsg(err.response?.data?.message || t('docs_err_signed_pdf_failed'));
     } finally {
       setBusy(null);
     }
@@ -1469,7 +1474,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setMsg(err.response?.data?.message || 'Completion certificate download failed.');
+      setMsg(err.response?.data?.message || t('docs_err_certificate_failed'));
     } finally {
       setBusy(null);
     }
@@ -1480,7 +1485,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
       const response = await smartflowApi.startAgreementDocusignOAuth();
       const authUrl = response?.data?.data?.auth_url || response?.data?.auth_url;
       if (!authUrl) {
-        setMsg('Did not receive a DocuSign authorization URL from the server.');
+        setMsg(t('docs_err_no_docusign_url'));
         return;
       }
       const popup = window.open(authUrl, 'mabdel-docusign-oauth', 'width=680,height=860');
@@ -1494,7 +1499,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
         setDocusignStatus(statusRes.data?.data || null);
       }, 1500);
     } catch (err) {
-      setMsg(err.response?.data?.message || 'DocuSign connection could not be started.');
+      setMsg(err.response?.data?.message || t('docs_err_docusign_start_failed'));
     }
   }
 
@@ -1523,7 +1528,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
 
   async function previewImprovement() {
     if (!record.content?.trim()) {
-      setMsg('Agreement content is required before AI improvement.');
+      setMsg(t('docs_err_agreement_content_required'));
       return;
     }
     setBusy('Improve');
@@ -1538,7 +1543,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
       setImproveReview(Array.isArray(data.ai_review) ? data.ai_review : []);
       setShowImprovePanel(true);
     } catch (err) {
-      setMsg(err.response?.data?.message || 'Improve failed.');
+      setMsg(err.response?.data?.message || t('docs_err_improve_failed'));
     } finally {
       setBusy(null);
     }
@@ -1557,11 +1562,11 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
 
   async function signAgreement() {
     if (!signingToken) {
-      setMsg('Signing link is not available for this agreement.');
+      setMsg(t('docs_err_signing_link_unavailable'));
       return;
     }
     if (!signerName.trim() || !signatureText.trim()) {
-      setMsg('Signer name and signature text are required.');
+      setMsg(t('docs_err_signer_required'));
       return;
     }
     await action('Sign', async () => {
@@ -1617,94 +1622,94 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
           >
             <div className="px-5 pb-4 text-sm text-[#A4B0B7] border-t border-[#243041]/30 pt-3 space-y-3">
               {msg && <p className={msg.toLowerCase().includes('failed') ? 'text-rose-400' : 'text-emerald-400'}>{msg}</p>}
-              {loadingDetail && <p className="flex items-center gap-2 text-[#9333ea]"><Loader2 size={14} className="animate-spin" /> Loading agreement details…</p>}
+              {loadingDetail && <p className="flex items-center gap-2 text-[#9333ea]"><Loader2 size={14} className="animate-spin" /> {t('docs_loading_agreement_details')}</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <p>Agreement No: {record.agreement_number || '--'}</p>
-                <p>Status: {record.status || '--'}</p>
-                <p>Type: {record.agreement_type_label || record.agreement_type || '--'}</p>
-                <p>Updated: {record.updated_at ? formatCstDateTime(record.updated_at) : '--'}</p>
-                <p>Start: {record.start_date || '--'}</p>
-                <p>End: {record.end_date || '--'}</p>
-                <p>Signature Provider: {record.signature_provider || 'native'}</p>
-                <p>Provider Status: {record.provider_status || '--'}</p>
+                <p>{t('docs_lbl_agreement_no')} {record.agreement_number || '--'}</p>
+                <p>{t('docs_lbl_status_colon')} {record.status || '--'}</p>
+                <p>{t('docs_lbl_type_colon')} {record.agreement_type_label || record.agreement_type || '--'}</p>
+                <p>{t('docs_lbl_updated_colon')} {record.updated_at ? formatCstDateTime(record.updated_at) : '--'}</p>
+                <p>{t('docs_lbl_start_colon')} {record.start_date || '--'}</p>
+                <p>{t('docs_lbl_end_colon')} {record.end_date || '--'}</p>
+                <p>{t('docs_signature_provider')}: {record.signature_provider || 'native'}</p>
+                <p>{t('docs_lbl_provider_status_colon')} {record.provider_status || '--'}</p>
               </div>
               {record.content && <p className="leading-relaxed whitespace-pre-wrap text-[#D5DFEC]">{record.content}</p>}
               {Array.isArray(record.ai_review) && record.ai_review.length > 0 && <AIReviewPanel review={record.ai_review} />}
 
               <div className="flex flex-wrap gap-2 pt-1">
                 <button onClick={e => { e.stopPropagation(); downloadPdf(); }} disabled={busy === 'pdf'} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                  {busy === 'pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} PDF
+                  {busy === 'pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} {t('docs_btn_pdf')}
                 </button>
                 {record.signed_pdf_url && (
                   <button onClick={e => { e.stopPropagation(); downloadSignedPdf(); }} disabled={busy === 'signed-pdf'} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/25 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-950/40 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy === 'signed-pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Signed PDF
+                    {busy === 'signed-pdf' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} {t('docs_btn_signed_pdf')}
                   </button>
                 )}
                 {record.completion_certificate_url && (
                   <button onClick={e => { e.stopPropagation(); downloadCertificate(); }} disabled={busy === 'certificate'} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#9333ea] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy === 'certificate' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Certificate
+                    {busy === 'certificate' ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} {t('docs_btn_certificate')}
                   </button>
                 )}
                 <button onClick={e => { e.stopPropagation(); setShowSendPanel(s => !s); }} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#9333ea] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                  <Mail size={12} /> Send for Signature
+                  <Mail size={12} /> {t('docs_btn_send_for_signature')}
                 </button>
                 <button onClick={e => { e.stopPropagation(); setShowSignPanel(s => !s); }} disabled={!!busy || record.signature_provider === 'docusign'} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-950/50 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                  <CheckCircle2 size={12} /> Sign
+                  <CheckCircle2 size={12} /> {t('docs_btn_sign')}
                 </button>
                 <button onClick={e => { e.stopPropagation(); action('Renew', () => smartflowApi.agreementRenew(item.id, {})); }} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#9333ea]/10 border border-[#9333ea]/20 text-[#9333ea] hover:bg-[#9333ea]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                  {busy === 'Renew' ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Renew
+                  {busy === 'Renew' ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} {t('docs_btn_renew')}
                 </button>
                 <button onClick={e => { e.stopPropagation(); previewImprovement(); }} disabled={!!busy} className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-amber-400 hover:bg-amber-950/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                  {busy === 'Improve' ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} AI Improve
+                  {busy === 'Improve' ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} {t('docs_btn_ai_improve')}
                 </button>
               </div>
 
               {showSendPanel && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <select value={signatureProvider} onChange={e => setSignatureProvider(e.target.value)} className={INPUT_CLS}>
-                    <option value="native">Native signing</option>
-                    <option value="docusign">DocuSign</option>
+                    <option value="native">{t('docs_sig_provider_native_signing')}</option>
+                    <option value="docusign">{t('docs_sig_provider_docusign')}</option>
                   </select>
                   <div className="sm:col-span-1 flex items-center text-xs text-[#A4B0B7]">
                     {signatureProvider === 'docusign'
-                      ? (docusignStatus?.connected ? `Connected to ${docusignStatus.account_name || 'DocuSign'}` : (docusignStatus?.last_error || 'DocuSign is not connected yet.'))
-                      : 'Use the existing Mabdel signing link flow.'}
+                      ? (docusignStatus?.connected ? t('docs_docusign_connected_to', { name: docusignStatus.account_name || 'DocuSign' }) : (docusignStatus?.last_error || t('docs_docusign_not_connected')))
+                      : t('docs_native_signing_hint')}
                   </div>
-                  <input value={recipientName} onChange={e => setRecipientName(e.target.value)} placeholder="Recipient name" className={INPUT_CLS} />
-                  <input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="Recipient email" className={INPUT_CLS} />
+                  <input value={recipientName} onChange={e => setRecipientName(e.target.value)} placeholder={t('docs_ph_recipient_name')} className={INPUT_CLS} />
+                  <input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder={t('docs_ph_recipient_email')} className={INPUT_CLS} />
                   {signatureProvider === 'docusign' && !docusignStatus?.connected && (
                     <button onClick={connectDocusign} type="button" className="sm:col-span-2 py-3 border border-[#9333ea]/30 text-[#9333ea] rounded-xl font-bold cursor-pointer">
-                      Connect DocuSign
+                      {t('docs_btn_connect_docusign')}
                     </button>
                   )}
                   <button onClick={sendAgreementForSignature} disabled={!!busy || (signatureProvider === 'docusign' && !docusignStatus?.connected)} className="sm:col-span-2 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold disabled:opacity-60 cursor-pointer">
-                    Confirm Send for Signature
+                    {t('docs_btn_confirm_send_signature')}
                   </button>
                 </div>
               )}
 
               {showSignPanel && (
                 <div className="grid grid-cols-1 gap-3 pt-2">
-                  <input value={signerName} onChange={e => setSignerName(e.target.value)} placeholder="Signer name" className={INPUT_CLS} />
-                  <input value={signerEmail} onChange={e => setSignerEmail(e.target.value)} placeholder="Signer email" className={INPUT_CLS} />
-                  <textarea value={signatureText} onChange={e => setSignatureText(e.target.value)} placeholder="Type your signature" className={`${INPUT_CLS} min-h-24 resize-none`} />
+                  <input value={signerName} onChange={e => setSignerName(e.target.value)} placeholder={t('docs_ph_signer_name')} className={INPUT_CLS} />
+                  <input value={signerEmail} onChange={e => setSignerEmail(e.target.value)} placeholder={t('docs_ph_signer_email')} className={INPUT_CLS} />
+                  <textarea value={signatureText} onChange={e => setSignatureText(e.target.value)} placeholder={t('docs_ph_type_signature')} className={`${INPUT_CLS} min-h-24 resize-none`} />
                   <button onClick={signAgreement} disabled={!!busy || !signingToken} className="py-3 bg-emerald-500 text-[#04120d] rounded-xl font-bold disabled:opacity-60 cursor-pointer">
-                    Complete Signature
+                    {t('docs_btn_complete_signature')}
                   </button>
                 </div>
               )}
 
               {showImprovePanel && (
                 <div className="space-y-3 pt-2">
-                  <input value={improveInstruction} onChange={e => setImproveInstruction(e.target.value)} placeholder="Improve instruction" className={INPUT_CLS} />
+                  <input value={improveInstruction} onChange={e => setImproveInstruction(e.target.value)} placeholder={t('docs_ph_improve_instruction')} className={INPUT_CLS} />
                   {improvePreview ? <textarea value={improvePreview} readOnly className={`${INPUT_CLS} min-h-36 resize-none`} /> : null}
                   {improveReview.length ? <AIReviewPanel review={improveReview} /> : null}
                   <div className="flex flex-wrap gap-2">
                     <button onClick={acceptImprovement} disabled={!!busy || !improvePreview.trim()} className="px-4 py-2.5 bg-[#9333ea] text-[#02080B] rounded-xl font-bold disabled:opacity-60 cursor-pointer">
-                      Accept Improvement
+                      {t('docs_btn_accept_improvement')}
                     </button>
                     <button onClick={() => { setShowImprovePanel(false); setImprovePreview(''); setImproveReview([]); }} className="px-4 py-2.5 border border-[#243246] text-[#A4B0B7] rounded-xl font-bold cursor-pointer">
-                      Discard
+                      {t('docs_btn_discard')}
                     </button>
                   </div>
                 </div>
@@ -1719,6 +1724,7 @@ function AgreementRecordRow({ item, onDelete, onRefresh }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function Documents() {
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -1755,11 +1761,6 @@ export default function Documents() {
     }
   }, [location, navigate]);
 
-  // list_leases/list_agreements read straight from the DB and never call DocuSign,
-  // so a row can keep showing "Pending Signature" after both parties have actually
-  // finished signing until someone opens that specific row (which does trigger a
-  // live refresh). Reconcile any docusign-pending rows in the background right
-  // after each list load so the list itself self-heals without requiring a click.
   const reconcilePendingDocusign = useCallback((items, kind) => {
     const pending = (items || []).filter(it => it.signature_provider === 'docusign' && it.status === 'pending_signature');
     if (!pending.length) return;
@@ -1774,7 +1775,7 @@ export default function Documents() {
             setter(prev => prev.map(p => (p.id === next.id ? next : p)));
           }
         } catch {
-          // Best-effort reconciliation; a stale row just stays stale until next load.
+          // Best-effort reconciliation
         }
       }
     })();
@@ -1853,25 +1854,22 @@ export default function Documents() {
           leases: leaseList.reason,
           agreements: agreementList.reason,
         });
+        setError('Failed to load documents data from server.');
       }
     } catch (err) {
-      console.error('Documents page fetch crashed.', err);
-    } finally { setLoading(false); }
+      if (fetchVersion !== fetchVersionRef.current) return;
+      console.error('Documents page fetchAll error.', err);
+      setError(err.response?.data?.message || 'Could not load documents.');
+    } finally {
+      if (fetchVersion === fetchVersionRef.current) {
+        setLoading(false);
+      }
+    }
   }, [active, agreementSearch, leaseSearch, reconcilePendingDocusign]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
-
   useEffect(() => {
-    if (active === 'leases') setLoading(false);
-  }, [active, leases]);
-
-  useEffect(() => {
-    if (active === 'agreements') setLoading(false);
-  }, [active, agreements]);
-
-  useEffect(() => {
-    if (active === 'documents') setLoading(false);
-  }, [active, documents]);
+    fetchAll();
+  }, [fetchAll]);
 
   const rows = useMemo(() => {
     if (active === 'leases') return leases;
@@ -1879,28 +1877,16 @@ export default function Documents() {
     return documents;
   }, [active, agreements, documents, leases]);
 
-  async function quickCreateDocument() {
-    setError('');
-    try {
-      await smartflowApi.createDocument({ name: `Document ${Date.now()}`, type: 'others', file_url: 'https://example.com/document.pdf' });
-      fetchAll();
-    } catch (err) { setError(err.response?.data?.message || 'Create failed.'); }
-  }
-
-  async function deleteDoc(id) {
-    try { await smartflowApi.deleteDocument(id); fetchAll(); }
-    catch (err) { setError(err.response?.data?.message || 'Delete failed.'); }
-  }
-
   async function deleteAgreement(id) {
+    if (!window.confirm(t('docs_confirm_delete_agreement'))) return;
     try { await smartflowApi.deleteAgreement(id); fetchAll(); }
-    catch (err) { setError(err.response?.data?.message || 'Delete failed.'); }
+    catch (err) { setError(err.response?.data?.message || t('docs_err_delete_failed')); }
   }
 
   async function deleteLease(id) {
-    if (!window.confirm('Are you sure you want to delete this lease?')) return;
+    if (!window.confirm(t('docs_confirm_delete_lease'))) return;
     try { await smartflowApi.deleteLease(id); fetchAll(); }
-    catch (err) { setError(err.response?.data?.message || 'Delete failed.'); }
+    catch (err) { setError(err.response?.data?.message || t('docs_err_delete_failed')); }
   }
 
   const showForm = active === 'leases' || active === 'agreements';
@@ -1910,15 +1896,15 @@ export default function Documents() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 border-b border-[#243041]/40 pb-4">
         <div className="text-left">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">Documents</h1>
-          <p className="text-[#A4B0B7] text-xs mt-1">Manage files, leases, agreements, AI drafts, reviews, and signatures.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('docs_title')}</h1>
+          <p className="text-[#A4B0B7] text-xs mt-1">{t('docs_subtitle')}</p>
         </div>
         <button
           onClick={() => { setShowCreate(c => !c); }}
           className="px-5 py-3 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shrink-0"
         >
           {showCreate ? <X size={18} /> : <Plus size={18} />}
-          {showCreate ? 'Close Form' : active === 'leases' ? 'New Lease' : 'New Agreement'}
+          {showCreate ? t('docs_btn_close_form') : active === 'leases' ? t('docs_btn_new_lease') : t('docs_btn_new_agreement')}
         </button>
       </div>
 
@@ -1931,17 +1917,18 @@ export default function Documents() {
           className="px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent"
         >
           <FileText size={16} />
-          Invoice
+          {t('docs_nav_invoice')}
         </button>
         <button
           onClick={() => navigate('/create-post')}
           className="px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent"
         >
           <PenLine size={16} />
-          Create Post
+          {t('docs_nav_create_post')}
         </button>
         {tabs.map(tab => {
           const Icon = tab.icon;
+          const tabLabel = t(tab.labelKey);
           return (
             <button
               key={tab.id}
@@ -1949,7 +1936,7 @@ export default function Documents() {
               className={`px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer ${active === tab.id ? 'bg-[#9333ea]/10 text-white border-[#9333ea]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent'}`}
             >
               <Icon size={16} className={active === tab.id ? 'text-[#9333ea]' : ''} />
-              {tab.label}
+              {tabLabel}
               <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#243041] text-[#A4B0B7] text-xs">
                 {tab.id === 'leases' ? leases.length : agreements.length}
               </span>
@@ -1962,7 +1949,7 @@ export default function Documents() {
         {/* Records list */}
         <div className="bg-[#131A24] border border-[#243041] rounded-[22px] overflow-hidden text-left order-2 xl:order-1">
           <div className="p-5 border-b border-[#243041]/40 flex items-center justify-between">
-            <span className="font-bold text-white text-base">{tabs.find(t => t.id === active)?.label}</span>
+            <span className="font-bold text-white text-base">{t(tabs.find(t => t.id === active)?.labelKey)}</span>
           </div>
           {(active === 'agreements' || active === 'leases') && (
             <div className="p-5 border-b border-[#243041]/30">
@@ -1972,8 +1959,8 @@ export default function Documents() {
                   value={active === 'leases' ? leaseSearch : agreementSearch}
                   onChange={e => active === 'leases' ? setLeaseSearch(e.target.value) : setAgreementSearch(e.target.value)}
                   placeholder={active === 'leases'
-                    ? 'Search leases by title, number, tenant, landlord, property, email, phone, or status'
-                    : 'Search agreements by title, number, client, or email'}
+                    ? t('docs_ph_search_leases')
+                    : t('docs_ph_search_agreements')}
                   className={`${INPUT_CLS} pl-10`}
                 />
               </div>
@@ -1981,7 +1968,7 @@ export default function Documents() {
           )}
           {loading ? (
             <div className="p-12 flex items-center justify-center gap-3 text-[#A4B0B7]/60 text-sm">
-              <Loader2 size={20} className="animate-spin" /> Loading…
+              <Loader2 size={20} className="animate-spin" /> {t('docs_loading')}
             </div>
           ) : rows.length ? (
             <div className="divide-y divide-[#243041]/30">
@@ -1998,9 +1985,9 @@ export default function Documents() {
               <div className="w-14 h-14 rounded-2xl bg-[#9333ea]/10 flex items-center justify-center mx-auto mb-4">
                 {active === 'leases' ? <ScrollText size={24} className="text-[#9333ea]" /> : <FileCheck2 size={24} className="text-[#9333ea]" />}
               </div>
-              <p className="text-white font-bold">No {tabs.find(t => t.id === active)?.label.toLowerCase()} yet</p>
+              <p className="text-white font-bold">{active === 'leases' ? t('docs_no_leases_yet') : t('docs_no_agreements_yet')}</p>
               <p className="text-[#A4B0B7] text-sm mt-1">
-                {`Click "${active === 'leases' ? 'New Lease' : 'New Agreement'}" to create one with AI.`}
+                {t('docs_click_new_to_create', { btn: active === 'leases' ? t('docs_btn_new_lease') : t('docs_btn_new_agreement') })}
               </p>
             </div>
           )}
@@ -2023,6 +2010,3 @@ export default function Documents() {
     </div>
   );
 }
-
-
-

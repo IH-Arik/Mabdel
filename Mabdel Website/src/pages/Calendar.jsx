@@ -27,6 +27,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { smartflowApi } from '../api/services';
 import { DatePickerInput, TimePickerInput } from '../components/ui/DateTimeInputs';
 import { formatCstDate, formatCstDateTime, formatCstTime } from '../utils/dateUtils';
+import { useLanguage } from '../context/LanguageContext';
 
 const INPUT = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-sm placeholder:text-[#4A5568]';
 const LABEL = 'block text-[#A4B0B7] text-xs font-semibold uppercase tracking-wider mb-1.5';
@@ -83,10 +84,10 @@ function combineLocalDateTime(date, time) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function formatDateTimeRange(event) {
+function formatDateTimeRange(event, t) {
   const startsAt = parseDate(event?.starts_at);
   const endsAt = parseDate(event?.ends_at);
-  if (!startsAt) return 'Date unavailable';
+  if (!startsAt) return t ? t('cal_date_unavailable') : 'Date unavailable';
 
   const sameDay = endsAt
     && startsAt.getFullYear() === endsAt.getFullYear()
@@ -154,6 +155,7 @@ function Toggle({ label, value, onChange }) {
 }
 
 function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConnected = false }) {
+  const { t } = useLanguage();
   const isEditing = Boolean(event?.id);
   const seed = useMemo(() => getInitialFormState(event || prefill || {}), [event, prefill]);
   const [title, setTitle] = useState(seed.title);
@@ -202,15 +204,15 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
     const endsAt = combineLocalDateTime(date, endTime);
 
     if (!title.trim()) {
-      setError('Meeting title is required.');
+      setError(t('cal_err_title_required'));
       return;
     }
     if (!startsAt || !endsAt) {
-      setError('Meeting start and end time are required.');
+      setError(t('cal_err_times_required'));
       return;
     }
     if (endsAt <= startsAt) {
-      setError('Meeting end time must be later than start time.');
+      setError(t('cal_err_end_after_start'));
       return;
     }
 
@@ -238,14 +240,25 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
         : await smartflowApi.createCalendarEvent(payload);
       onSaved?.(normalizeEventPayload(response));
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.error?.message || `Meeting could not be ${isEditing ? 'updated' : 'created'}.`);
+      setError(err.response?.data?.message || err.response?.data?.error?.message || t('cal_err_save_failed', { action: isEditing ? t('cal_action_updated') : t('cal_action_created') }));
     } finally {
       setSaving(false);
     }
   }
 
+  const getReminderLabel = (remKey) => {
+    switch (remKey) {
+      case '10 min': return t('cal_rem_10min');
+      case '30 min': return t('cal_rem_30min');
+      case '1 hr': return t('cal_rem_1hr');
+      case '2 hr': return t('cal_rem_2hr');
+      case '1 day': return t('cal_rem_1day');
+      default: return remKey;
+    }
+  };
+
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4 text-left">
       {error ? (
         <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl text-rose-300 text-sm flex gap-2 items-center">
           <AlertTriangle size={14} />
@@ -253,22 +266,22 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
         </div>
       ) : null}
 
-      <Field label="Meeting Title">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Project Sync with Team" className={INPUT} required />
+      <Field label={t('cal_lbl_meeting_title')}>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('cal_ph_meeting_title')} className={INPUT} required />
       </Field>
 
-      <Field label="Description">
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Agenda or notes..." className={`${INPUT} min-h-20 resize-none`} />
+      <Field label={t('cal_lbl_description')}>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('cal_ph_description')} className={`${INPUT} min-h-20 resize-none`} />
       </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Field label="Date">
+        <Field label={t('cal_lbl_date')}>
           <DatePickerInput value={date} onChange={setDate} className="focus:border-[#9333ea]/50" />
         </Field>
-        <Field label="Start Time">
+        <Field label={t('cal_lbl_start_time')}>
           <TimePickerInput value={startTime} onChange={setStartTime} className="focus:border-[#9333ea]/50" />
         </Field>
-        <Field label="End Time">
+        <Field label={t('cal_lbl_end_time')}>
           <TimePickerInput value={endTime} onChange={setEndTime} className="focus:border-[#9333ea]/50" />
         </Field>
       </div>
@@ -279,9 +292,9 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
             key={option}
             type="button"
             onClick={() => setMode(option)}
-            className={`py-3 rounded-xl font-bold text-sm transition-all capitalize ${mode === option ? 'bg-[#9333ea] text-[#02080B]' : 'bg-[#0A1019] border border-[#243246] text-[#A4B0B7]'}`}
+            className={`py-3 rounded-xl font-bold text-sm transition-all capitalize cursor-pointer ${mode === option ? 'bg-[#9333ea] text-[#02080B]' : 'bg-[#0A1019] border border-[#243246] text-[#A4B0B7]'}`}
           >
-            {option === 'online' ? <><Video size={14} className="inline mr-1" />Online</> : <><MapPin size={14} className="inline mr-1" />Offline</>}
+            {option === 'online' ? <><Video size={14} className="inline mr-1" />{t('cal_opt_online')}</> : <><MapPin size={14} className="inline mr-1" />{t('cal_opt_offline')}</>}
           </button>
         ))}
       </div>
@@ -291,24 +304,24 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
           <div className="flex items-center gap-2.5 p-3 bg-[#0A1019] border border-[#9333ea]/25 rounded-xl">
             <Video size={15} className="text-[#9333ea] shrink-0" />
             <p className="text-[#A4B0B7] text-xs leading-5">
-              <span className="text-white font-semibold">Google Meet link</span> will be generated automatically and
-              emailed to attendees when you save.
+              <span className="text-white font-semibold">{t('cal_lbl_google_meet_link')}</span>
+              {t('cal_google_meet_hint')}
             </p>
           </div>
         ) : (
-          <Field label="Meeting Link">
+          <Field label={t('cal_lbl_meeting_link')}>
             <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://meet.google.com/..." className={INPUT} />
           </Field>
         )
       ) : (
-        <Field label="Location">
+        <Field label={t('cal_lbl_location')}>
           <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="HQ - Room 4, 2nd Floor" className={INPUT} />
         </Field>
       )}
 
       {contacts.length > 0 ? (
         <div>
-          <label className={LABEL}>Attendees ({recipientIds.length} selected)</label>
+          <label className={LABEL}>{t('cal_lbl_attendees_selected', { count: recipientIds.length })}</label>
           <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
             {contacts.map((contact) => {
               const selected = recipientIds.includes(contact.id);
@@ -317,7 +330,7 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
                   key={contact.id}
                   type="button"
                   onClick={() => toggleRecipient(contact.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${selected ? 'border-[#9333ea] bg-[#9333ea]/10 text-[#9333ea]' : 'border-[#243246] bg-[#0A1019] text-[#A4B0B7]'}`}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all cursor-pointer ${selected ? 'border-[#9333ea] bg-[#9333ea]/10 text-[#9333ea]' : 'border-[#243246] bg-[#0A1019] text-[#A4B0B7]'}`}
                 >
                   <span className="w-5 h-5 rounded-full bg-[#243041] flex items-center justify-center text-[9px] text-[#9333ea] font-black">
                     {(contact.name || '?')[0].toUpperCase()}
@@ -331,25 +344,25 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
       ) : null}
 
       <div>
-        <label className={LABEL}>Notify Via</label>
+        <label className={LABEL}>{t('cal_lbl_notify_via')}</label>
         <div className="space-y-2">
-          <Toggle label="Push Notification" value={notifyPush} onChange={setNotifyPush} />
-          <Toggle label="Email" value={notifyEmail} onChange={setNotifyEmail} />
-          <Toggle label="SMS" value={notifySMS} onChange={setNotifySMS} />
+          <Toggle label={t('cal_lbl_push_notification')} value={notifyPush} onChange={setNotifyPush} />
+          <Toggle label={t('cal_lbl_email')} value={notifyEmail} onChange={setNotifyEmail} />
+          <Toggle label={t('cal_lbl_sms')} value={notifySMS} onChange={setNotifySMS} />
         </div>
       </div>
 
       <div>
-        <label className={LABEL}>Reminder Time</label>
+        <label className={LABEL}>{t('cal_lbl_reminder_time')}</label>
         <div className="flex flex-wrap gap-2">
           {REMINDERS.map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setReminder(option)}
-              className={`px-4 py-2 rounded-full text-xs font-bold border transition-all ${reminder === option ? 'border-[#9333ea] bg-[#9333ea]/10 text-[#9333ea]' : 'border-[#243246] bg-[#0A1019] text-[#A4B0B7]'}`}
+              className={`px-4 py-2 rounded-full text-xs font-bold border transition-all cursor-pointer ${reminder === option ? 'border-[#9333ea] bg-[#9333ea]/10 text-[#9333ea]' : 'border-[#243246] bg-[#0A1019] text-[#A4B0B7]'}`}
             >
-              {option}
+              {getReminderLabel(option)}
             </button>
           ))}
         </div>
@@ -361,14 +374,14 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
           onClick={onCancel}
           className="flex-1 py-4 bg-[#0A1019] border border-[#243246] text-white rounded-xl font-bold cursor-pointer"
         >
-          Cancel
+          {t('cal_btn_cancel')}
         </button>
         <button
           disabled={saving}
           className="flex-1 py-4 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
         >
           {saving ? <Loader2 size={18} className="animate-spin" /> : <CalendarDays size={18} />}
-          {saving ? (isEditing ? 'Saving...' : 'Adding...') : (isEditing ? 'Save Changes' : 'Add to Calendar')}
+          {saving ? (isEditing ? t('cal_saving') : t('cal_adding')) : (isEditing ? t('cal_btn_save_changes') : t('cal_btn_add_to_calendar'))}
         </button>
       </div>
     </form>
@@ -376,21 +389,22 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
 }
 
 function EventCard({ item, onOpen }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const startsAt = parseDate(item.starts_at);
-  const detailText = formatDateTimeRange(item);
+  const detailText = formatDateTimeRange(item, t);
   const statusColor = item.meeting_mode === 'online' ? 'text-[#9333ea]' : 'text-amber-400';
 
   return (
-    <div className="border-b border-[#243041]/30 last:border-0">
+    <div className="border-b border-[#243041]/30 last:border-0 text-left">
       <div className="p-5 hover:bg-[#1C2635]/10 transition-colors">
         <div className="flex items-start justify-between gap-4">
           <button type="button" onClick={() => onOpen(item.id)} className="min-w-0 flex-1 text-left cursor-pointer">
             <div className="flex items-center gap-2 mb-1">
               <span className={`text-[10px] font-bold uppercase tracking-widest ${statusColor}`}>
-                {item.meeting_mode || 'event'}
+                {item.meeting_mode || t('cal_lbl_event')}
               </span>
-              {item.sync_status === 'synced' ? <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">synced</span> : null}
+              {item.sync_status === 'synced' ? <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">{t('cal_lbl_synced')}</span> : null}
             </div>
             <h3 className="font-bold text-white truncate text-sm">{item.title}</h3>
             <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-[#A4B0B7]">
@@ -398,7 +412,7 @@ function EventCard({ item, onOpen }) {
               {(item.meeting_link || item.location) ? (
                 <span className="flex items-center gap-1 min-w-0"><MapPin size={11} />{item.meeting_link || item.location}</span>
               ) : null}
-              <span className="flex items-center gap-1"><Users size={11} />{item.attendee_count || 0} attendees</span>
+              <span className="flex items-center gap-1"><Users size={11} />{t('cal_attendees_count', { n: item.attendee_count || 0 })}</span>
             </div>
           </button>
           <button type="button" onClick={() => setOpen((current) => !current)} className="text-[#A4B0B7] hover:text-white p-2 cursor-pointer">
@@ -412,12 +426,12 @@ function EventCard({ item, onOpen }) {
             <div className="px-5 pb-4 border-t border-[#243041]/30 pt-3 space-y-2 text-sm text-[#A4B0B7]">
               {item.description ? <p>{item.description}</p> : null}
               <p className="flex items-center gap-1.5"><Clock size={12} />{formatRelativeMeta(item)}</p>
-              {startsAt ? <p className="flex items-center gap-1.5"><CalendarDays size={12} />Starts {formatCstDateTime(startsAt)}</p> : null}
-              {item.notify_via_push ? <p className="flex items-center gap-1.5"><Bell size={12} />Push notification enabled</p> : null}
-              {item.notify_via_email ? <p className="flex items-center gap-1.5"><Mail size={12} />Email notification enabled</p> : null}
-              {item.reminder_minutes ? <p className="flex items-center gap-1.5"><Clock size={12} />Reminder: {item.reminder_minutes} min before</p> : null}
+              {startsAt ? <p className="flex items-center gap-1.5"><CalendarDays size={12} />{t('cal_starts_at', { time: formatCstDateTime(startsAt) })}</p> : null}
+              {item.notify_via_push ? <p className="flex items-center gap-1.5"><Bell size={12} />{t('cal_push_enabled')}</p> : null}
+              {item.notify_via_email ? <p className="flex items-center gap-1.5"><Mail size={12} />{t('cal_email_enabled')}</p> : null}
+              {item.reminder_minutes ? <p className="flex items-center gap-1.5"><Clock size={12} />{t('cal_reminder_minutes_before', { n: item.reminder_minutes })}</p> : null}
               <button type="button" onClick={() => onOpen(item.id)} className="pt-1 text-[#9333ea] font-semibold cursor-pointer">
-                View details
+                {t('cal_btn_view_details')}
               </button>
             </div>
           </motion.div>
@@ -428,15 +442,16 @@ function EventCard({ item, onOpen }) {
 }
 
 function CalendarStats({ events }) {
+  const { t } = useLanguage();
   const online = events.filter((event) => event.meeting_mode === 'online').length;
   const upcoming = events.filter((event) => parseDate(event.starts_at) && parseDate(event.starts_at) > new Date()).length;
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-3 gap-4 text-left">
       {[
-        { label: 'Total Events', value: events.length, icon: CalIcon, color: '#9333ea' },
-        { label: 'Online Meetings', value: online, icon: Video, color: '#8B5CF6' },
-        { label: 'Upcoming', value: upcoming, icon: Clock, color: '#10B981' },
+        { label: t('cal_stat_total_events'), value: events.length, icon: CalIcon, color: '#9333ea' },
+        { label: t('cal_stat_online_meetings'), value: online, icon: Video, color: '#8B5CF6' },
+        { label: t('cal_stat_upcoming'), value: upcoming, icon: Clock, color: '#10B981' },
       ].map((stat) => (
         <div key={stat.label} className={`${PANEL} p-4 flex items-center gap-3`}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${stat.color}18` }}>
@@ -482,6 +497,7 @@ function buildICSFile(event) {
 }
 
 function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnected = false }) {
+  const { t } = useLanguage();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -502,11 +518,9 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
       setEvent(normalizeEventPayload(eventResponse));
       setContacts(normalizeListPayload(contactsResponse));
     } catch (err) {
-      setError(err.response?.data?.message || 'Meeting details could not be loaded.');
-    } finally {
-      setLoading(false);
+      setError(err.response?.data?.message || t('cal_err_load_details'));
     }
-  }, [eventId]);
+  }, [eventId, t]);
 
   useEffect(() => {
     fetchDetails();
@@ -514,14 +528,14 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
 
   async function handleDelete() {
     if (!event?.id) return;
-    if (!window.confirm(`Delete "${event.title}"?`)) return;
+    if (!window.confirm(t('cal_confirm_delete', { title: event.title }))) return;
 
     setDeleting(true);
     try {
       await smartflowApi.deleteCalendarEvent(event.id);
       onDeleted?.(event.id);
     } catch (err) {
-      setError(err.response?.data?.message || 'Delete failed.');
+      setError(err.response?.data?.message || t('cal_err_delete'));
     } finally {
       setDeleting(false);
     }
@@ -537,7 +551,7 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
       const shareUrl = share?.share_url || share?.shareUrl;
       const message = [
         event.title,
-        formatDateTimeRange(event),
+        formatDateTimeRange(event, t),
         event.meeting_link || event.location || '',
         shareUrl || '',
       ].filter(Boolean).join('\n');
@@ -546,13 +560,13 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
         await navigator.share({ title: event.title, text: message, url: shareUrl || undefined });
       } else if (shareUrl && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        window.alert('Meeting link copied to clipboard.');
+        window.alert(t('cal_msg_link_copied'));
       } else {
         window.alert(shareUrl || message);
       }
       setEvent((current) => ({ ...current, share_url: shareUrl || current?.share_url || null }));
     } catch (err) {
-      setError(err.response?.data?.message || 'Share failed.');
+      setError(err.response?.data?.message || t('cal_err_share'));
     } finally {
       setSharing(false);
     }
@@ -562,7 +576,7 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
     if (!event) return;
     const content = buildICSFile(event);
     if (!content) {
-      setError('This event does not have valid time data for calendar export.');
+      setError(t('cal_err_invalid_time_export'));
       return;
     }
     const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
@@ -577,12 +591,12 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 p-4 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black/70 z-50 p-4 flex items-center justify-center text-left">
       <div className={`${PANEL} w-full max-w-4xl max-h-[90vh] overflow-hidden`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#243041]/40">
           <div>
-            <h2 className="font-bold text-white text-lg">Meeting Details</h2>
-            <p className="text-[#A4B0B7] text-xs mt-1">Live data from the calendar service.</p>
+            <h2 className="font-bold text-white text-lg">{t('cal_details_title')}</h2>
+            <p className="text-[#A4B0B7] text-xs mt-1">{t('cal_details_subtitle')}</p>
           </div>
           <button type="button" onClick={onClose} className="text-[#A4B0B7] hover:text-white p-2 cursor-pointer">
             <X size={18} />
@@ -593,7 +607,7 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
           {loading ? (
             <div className="h-48 flex items-center justify-center gap-3 text-[#A4B0B7]">
               <Loader2 size={20} className="animate-spin" />
-              Loading meeting details...
+              {t('cal_loading_details')}
             </div>
           ) : error ? (
             <div className="p-4 bg-rose-950/30 border border-rose-500/30 rounded-xl text-rose-300 text-sm">
@@ -622,25 +636,25 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
                     <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">{event.sync_status}</span>
                   </div>
                   <h3 className="text-2xl font-extrabold text-white">{event.title}</h3>
-                  <p className="text-[#A4B0B7]">{formatDateTimeRange(event)}</p>
+                  <p className="text-[#A4B0B7]">{formatDateTimeRange(event, t)}</p>
                   <p className="text-[#6F8092] text-sm">{formatRelativeMeta(event)}</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={() => setEditing(true)} className="px-4 py-2 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold cursor-pointer">
-                    Edit
+                    {t('cal_btn_edit')}
                   </button>
                   <button type="button" onClick={handleShare} disabled={sharing} className="px-4 py-2 rounded-xl bg-[#9333ea] text-[#02080B] font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60">
                     {sharing ? <Loader2 size={15} className="animate-spin" /> : <Share2 size={15} />}
-                    Share
+                    {t('cal_btn_share')}
                   </button>
                   <button type="button" onClick={handleAppleExport} className="px-4 py-2 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer">
                     <ExternalLink size={15} />
-                    Apple Calendar
+                    {t('cal_btn_apple_calendar')}
                   </button>
                   <button type="button" onClick={handleDelete} disabled={deleting} className="px-4 py-2 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60">
                     {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                    Delete
+                    {t('cal_btn_delete')}
                   </button>
                 </div>
               </div>
@@ -650,29 +664,29 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
                   <div className="flex items-start gap-3">
                     <Clock size={16} className="text-[#9333ea] mt-1" />
                     <div>
-                      <p className="text-white font-semibold">Date & Time</p>
-                      <p className="text-[#A4B0B7] text-sm">{formatDateTimeRange(event)}</p>
+                      <p className="text-white font-semibold">{t('cal_lbl_date_time')}</p>
+                      <p className="text-[#A4B0B7] text-sm">{formatDateTimeRange(event, t)}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <MapPin size={16} className="text-[#9333ea] mt-1" />
                     <div>
-                      <p className="text-white font-semibold">{event.meeting_mode === 'online' ? 'Meeting Link' : 'Location'}</p>
-                      <p className="text-[#A4B0B7] text-sm break-all">{event.meeting_mode === 'online' ? (event.meeting_link || 'Auto-generated when available') : (event.location || 'Not provided')}</p>
+                      <p className="text-white font-semibold">{event.meeting_mode === 'online' ? t('cal_lbl_meeting_link') : t('cal_lbl_location')}</p>
+                      <p className="text-[#A4B0B7] text-sm break-all">{event.meeting_mode === 'online' ? (event.meeting_link || t('cal_auto_generated')) : (event.location || t('cal_not_provided'))}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Bell size={16} className="text-[#9333ea] mt-1" />
                     <div>
-                      <p className="text-white font-semibold">Reminder</p>
-                      <p className="text-[#A4B0B7] text-sm">{event.reminder_minutes ? `${event.reminder_minutes} min before` : 'No reminder'}</p>
+                      <p className="text-white font-semibold">{t('cal_lbl_reminder')}</p>
+                      <p className="text-[#A4B0B7] text-sm">{event.reminder_minutes ? t('cal_min_before', { n: event.reminder_minutes }) : t('cal_no_reminder')}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Link2 size={16} className="text-[#9333ea] mt-1" />
                     <div>
-                      <p className="text-white font-semibold">Share Link</p>
-                      <p className="text-[#A4B0B7] text-sm break-all">{event.share_url || 'Generate via Share'}</p>
+                      <p className="text-white font-semibold">{t('cal_lbl_share_link')}</p>
+                      <p className="text-[#A4B0B7] text-sm break-all">{event.share_url || t('cal_generate_via_share')}</p>
                     </div>
                   </div>
                 </div>
@@ -681,7 +695,7 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
                   <div className="flex items-start gap-3">
                     <Users size={16} className="text-[#9333ea] mt-1" />
                     <div className="min-w-0">
-                      <p className="text-white font-semibold">Attendees</p>
+                      <p className="text-white font-semibold">{t('cal_lbl_attendees')}</p>
                       {event.attendees?.length ? (
                         <div className="mt-2 space-y-2">
                           {event.attendees.map((attendee) => (
@@ -695,35 +709,35 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
                           ))}
                         </div>
                       ) : (
-                        <p className="text-[#A4B0B7] text-sm">No attendees selected</p>
+                        <p className="text-[#A4B0B7] text-sm">{t('cal_no_attendees')}</p>
                       )}
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <UserRound size={16} className="text-[#9333ea] mt-1" />
                     <div>
-                      <p className="text-white font-semibold">Organizer</p>
-                      <p className="text-[#A4B0B7] text-sm">Current signed-in workspace owner</p>
+                      <p className="text-white font-semibold">{t('cal_lbl_organizer')}</p>
+                      <p className="text-[#A4B0B7] text-sm">{t('cal_signed_in_owner')}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <CalendarDays size={16} className="text-[#9333ea] mt-1" />
                     <div>
-                      <p className="text-white font-semibold">Created / Updated</p>
-                      <p className="text-[#A4B0B7] text-sm">{event.created_at ? formatCstDateTime(event.created_at) : 'Unavailable'}</p>
-                      <p className="text-[#6F8092] text-xs mt-1">{event.updated_at ? `Updated ${formatCstDateTime(event.updated_at)}` : ''}</p>
+                      <p className="text-white font-semibold">{t('cal_lbl_created_updated')}</p>
+                      <p className="text-[#A4B0B7] text-sm">{event.created_at ? formatCstDateTime(event.created_at) : t('cal_unavailable')}</p>
+                      <p className="text-[#6F8092] text-xs mt-1">{event.updated_at ? t('cal_updated_time', { time: formatCstDateTime(event.updated_at) }) : ''}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className={`${PANEL} p-4`}>
-                <p className="text-white font-semibold mb-2">Description</p>
-                <p className="text-[#A4B0B7] text-sm whitespace-pre-wrap">{event.description || 'No description provided.'}</p>
+                <p className="text-white font-semibold mb-2">{t('cal_lbl_description')}</p>
+                <p className="text-[#A4B0B7] text-sm whitespace-pre-wrap">{event.description || t('cal_no_description')}</p>
               </div>
             </div>
           ) : (
-            <div className="text-[#A4B0B7]">Meeting not found.</div>
+            <div className="text-[#A4B0B7]">{t('cal_meeting_not_found')}</div>
           )}
         </div>
       </div>
@@ -743,15 +757,16 @@ function CalendarSyncPanel({
   onConnectApple,
   onDisconnectApple,
 }) {
-  const label = googleNeedsReauth ? 'Reconnect Google Calendar' : googleConnected ? 'Google Connected' : 'Connect Google Calendar';
+  const { t } = useLanguage();
+  const label = googleNeedsReauth ? t('cal_btn_reconnect_google') : googleConnected ? t('cal_btn_google_connected') : t('cal_btn_connect_google');
   return (
-    <div className={`${PANEL} p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4`}>
+    <div className={`${PANEL} p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 text-left`}>
       <div>
-        <h2 className="font-bold text-white text-base">Calendar Providers</h2>
+        <h2 className="font-bold text-white text-base">{t('cal_sync_providers')}</h2>
         <p className="text-[#A4B0B7] text-sm mt-1">
           {appleConnected
-            ? 'Apple Calendar is your primary synced calendar. Google stays connected only to generate Meet links.'
-            : 'Connect Google Calendar for full sync with real Meet links, or connect Apple Calendar for two-way sync via CalDAV.'}
+            ? t('cal_sync_apple_primary_hint')
+            : t('cal_sync_google_apple_hint')}
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -772,7 +787,7 @@ function CalendarSyncPanel({
           )}
           {label}
           {googleConnected && googleSyncMode === 'meet_link_only' ? (
-            <span className="text-[10px] font-normal text-[#6F8092] normal-case ml-1">(Meet links only)</span>
+            <span className="text-[10px] font-normal text-[#6F8092] normal-case ml-1">{t('cal_meet_links_only')}</span>
           ) : null}
         </button>
         {appleConnected ? (
@@ -783,7 +798,7 @@ function CalendarSyncPanel({
             className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
           >
             {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} className="text-emerald-400" />}
-            Apple Connected{appleUsername ? ` (${appleUsername})` : ''}
+            {t('cal_btn_apple_connected', { user: appleUsername ? ` (${appleUsername})` : '' })}
           </button>
         ) : (
           <button
@@ -793,7 +808,7 @@ function CalendarSyncPanel({
             className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
           >
             {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
-            Connect Apple Calendar
+            {t('cal_btn_connect_apple')}
           </button>
         )}
       </div>
@@ -802,21 +817,23 @@ function CalendarSyncPanel({
 }
 
 function AppleCalendarConnectModal({ onClose, onSubmit, submitting, error }) {
+  const { t } = useLanguage();
   const [username, setUsername] = useState('');
   const [appPassword, setAppPassword] = useState('');
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 text-left">
       <div className={`${PANEL} w-full max-w-md p-6`}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-bold text-lg">Connect Apple Calendar</h3>
+          <h3 className="text-white font-bold text-lg">{t('cal_apple_modal_title')}</h3>
           <button type="button" onClick={onClose} className="text-[#A4B0B7] hover:text-white cursor-pointer">
             <X size={18} />
           </button>
         </div>
         <p className="text-[#A4B0B7] text-sm mb-4">
-          Sign in with your Apple ID and an <strong className="text-white">app-specific password</strong> (not your regular
-          Apple ID password). Generate one at{' '}
+          {t('cal_apple_modal_hint_1')}
+          <strong className="text-white">{t('cal_apple_modal_hint_2')}</strong>
+          {t('cal_apple_modal_hint_3')}
           <a
             href="https://appleid.apple.com/account/manage"
             target="_blank"
@@ -824,8 +841,8 @@ function AppleCalendarConnectModal({ onClose, onSubmit, submitting, error }) {
             className="text-[#9333ea] underline"
           >
             appleid.apple.com
-          </a>{' '}
-          under Sign-In and Security → App-Specific Passwords.
+          </a>
+          {t('cal_apple_modal_hint_4')}
         </p>
         <form
           onSubmit={(event) => {
@@ -834,7 +851,7 @@ function AppleCalendarConnectModal({ onClose, onSubmit, submitting, error }) {
           }}
           className="space-y-4"
         >
-          <Field label="Apple ID email">
+          <Field label={t('cal_lbl_apple_id')}>
             <input
               type="email"
               required
@@ -844,7 +861,7 @@ function AppleCalendarConnectModal({ onClose, onSubmit, submitting, error }) {
               onChange={(event) => setUsername(event.target.value)}
             />
           </Field>
-          <Field label="App-specific password">
+          <Field label={t('cal_lbl_app_password')}>
             <input
               type="password"
               required
@@ -861,7 +878,7 @@ function AppleCalendarConnectModal({ onClose, onSubmit, submitting, error }) {
               onClick={onClose}
               className="flex-1 px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold cursor-pointer"
             >
-              Cancel
+              {t('cal_btn_cancel')}
             </button>
             <button
               type="submit"
@@ -869,7 +886,7 @@ function AppleCalendarConnectModal({ onClose, onSubmit, submitting, error }) {
               className="flex-1 px-4 py-3 rounded-xl bg-[#9333ea] text-[#06131B] font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
               {submitting ? <Loader2 size={15} className="animate-spin" /> : null}
-              Connect
+              {t('cal_btn_connect')}
             </button>
           </div>
         </form>
@@ -879,6 +896,7 @@ function AppleCalendarConnectModal({ onClose, onSubmit, submitting, error }) {
 }
 
 export default function Calendar() {
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -931,11 +949,11 @@ export default function Calendar() {
       setEvents(normalizedEvents);
       setContacts(normalizeListPayload(contactsResponse));
     } catch (err) {
-      setError(err.response?.data?.message || 'Calendar events could not be loaded.');
+      setError(err.response?.data?.message || t('cal_err_load_events'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchIntegrationState = useCallback(async () => {
     try {
@@ -984,7 +1002,7 @@ export default function Calendar() {
       await fetchAppleState();
       await fetchIntegrationState();
     } catch (err) {
-      setAppleError(err.response?.data?.message || 'Apple Calendar connection failed. Check your Apple ID and app-specific password.');
+      setAppleError(err.response?.data?.message || t('cal_err_apple_connect'));
     } finally {
       setAppleSubmitting(false);
     }
@@ -996,7 +1014,7 @@ export default function Calendar() {
       await smartflowApi.disconnectCalDAV();
       await fetchAppleState();
     } catch (err) {
-      window.alert(err.response?.data?.message || 'Apple Calendar could not be disconnected.');
+      window.alert(err.response?.data?.message || t('cal_err_apple_disconnect'));
     } finally {
       setAppleLoading(false);
     }
@@ -1007,7 +1025,7 @@ export default function Calendar() {
       const response = await smartflowApi.startIntegrationOAuth('google_business');
       const authUrl = response?.data?.data?.auth_url || response?.data?.auth_url;
       if (!authUrl) {
-        window.alert('Did not receive authorization URL from server.');
+        window.alert(t('cal_err_no_auth_url'));
         return;
       }
       const popup = window.open(authUrl, 'mabdel-google-calendar', 'width=640,height=820');
@@ -1021,7 +1039,7 @@ export default function Calendar() {
         await fetchAll();
       }, 1500);
     } catch (err) {
-      window.alert(err.response?.data?.message || 'Google Calendar connection could not be started.');
+      window.alert(err.response?.data?.message || t('cal_err_google_start'));
     }
   }
 
@@ -1073,8 +1091,8 @@ export default function Calendar() {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 border-b border-[#243041]/40 pb-4">
         <div className="text-left">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">Calendar</h1>
-          <p className="text-[#A4B0B7] text-xs mt-1">Schedule meetings, set reminders, notify attendees - all from one place.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('cal_title')}</h1>
+          <p className="text-[#A4B0B7] text-xs mt-1">{t('cal_subtitle')}</p>
         </div>
         <button
           onClick={() => {
@@ -1084,12 +1102,12 @@ export default function Calendar() {
           className="px-5 py-3 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shrink-0"
         >
           {showCreate ? <X size={18} /> : <Plus size={18} />}
-          {showCreate ? 'Close' : 'Add to Calendar'}
+          {showCreate ? t('cal_btn_close') : t('cal_btn_add_to_calendar')}
         </button>
       </div>
 
       {error ? (
-        <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl text-rose-300 text-sm">
+        <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl text-rose-300 text-sm text-left">
           {error}
         </div>
       ) : null}
@@ -1126,10 +1144,10 @@ export default function Calendar() {
           <div className="p-5 border-b border-[#243041]/40 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 font-bold text-white text-base">
               <CalendarDays size={20} className="text-[#9333ea]" />
-              Upcoming Events
+              {t('cal_upcoming_events')}
             </div>
             <button type="button" onClick={fetchAll} className="text-sm text-[#9333ea] font-semibold cursor-pointer">
-              Refresh
+              {t('cal_btn_refresh')}
             </button>
           </div>
 
@@ -1146,8 +1164,8 @@ export default function Calendar() {
               <div className="w-14 h-14 rounded-2xl bg-[#9333ea]/10 flex items-center justify-center mx-auto mb-4">
                 <CalendarDays size={24} className="text-[#9333ea]" />
               </div>
-              <p className="text-white font-bold">No upcoming events</p>
-              <p className="text-[#A4B0B7] text-sm mt-1">Create a meeting to see it here and on the dashboard.</p>
+              <p className="text-white font-bold">{t('cal_no_upcoming_events')}</p>
+              <p className="text-[#A4B0B7] text-sm mt-1">{t('cal_no_events_hint')}</p>
             </div>
           )}
         </div>
@@ -1159,12 +1177,12 @@ export default function Calendar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 40 }}
               transition={{ duration: 0.25 }}
-              className={`order-1 xl:order-2 ${PANEL} p-6 max-h-[80vh] overflow-y-auto scrollbar-thin`}
+              className={`order-1 xl:order-2 ${PANEL} p-6 max-h-[80vh] overflow-y-auto scrollbar-thin text-left`}
             >
               <div className="flex items-center justify-between mb-5 pb-4 border-b border-[#243041]/40">
                 <h2 className="font-bold text-white flex items-center gap-2">
                   <Sparkles size={16} className="text-[#9333ea]" />
-                  New Meeting
+                  {t('cal_new_meeting')}
                 </h2>
                 <button type="button" onClick={() => setShowCreate(false)} className="text-[#A4B0B7] hover:text-white p-1 cursor-pointer">
                   <X size={16} />

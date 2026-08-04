@@ -3,8 +3,10 @@ import { smartflowApi } from '../api/services';
 import { Sparkles, Send, CheckCircle2, AlertCircle, Mic, Image as ImageIcon, Calendar, FileText, MessageSquare, History } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function AIWorkflow() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export default function AIWorkflow() {
     }
 
     if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.");
+      window.alert(t('wf_err_speech_unsupported'));
       return;
     }
 
@@ -37,7 +39,7 @@ export default function AIWorkflow() {
 
       rec.onstart = () => {
         setVoiceActive(true);
-        setPrompt('Listening...');
+        setPrompt(t('wf_status_listening'));
       };
 
       rec.onresult = (event) => {
@@ -52,7 +54,7 @@ export default function AIWorkflow() {
 
       rec.onend = () => {
         setVoiceActive(false);
-        setPrompt(prev => prev === 'Listening...' ? '' : prev);
+        setPrompt(prev => prev === t('wf_status_listening') ? '' : prev);
       };
 
       setRecognitionInstance(rec);
@@ -146,19 +148,19 @@ export default function AIWorkflow() {
         <div className="text-left space-y-4">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#9333ea]/10 border border-[#9333ea]/25 text-[#9333ea] font-bold text-xs uppercase tracking-wider">
             <Sparkles size={14} className="fill-current" />
-            Mabdel Intelligence
+            {t('wf_hero_badge')}
           </div>
           <h1 className="text-4xl font-black text-white tracking-tight leading-none uppercase">
-            What can I help you <span className="text-[#9333ea]">with today?</span>
+            {t('wf_hero_title_1')}<span className="text-[#9333ea]">{t('wf_hero_title_2')}</span>
           </h1>
-          <p className="text-slate-400 text-sm font-semibold">Generate invoices, schedule meetings, create documents, or generate images by asking.</p>
+          <p className="text-slate-400 text-sm font-semibold">{t('wf_hero_subtitle')}</p>
         </div>
         <button 
           onClick={() => navigate('/profile?tab=voice')}
           className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 hover:text-[#9333ea] hover:border-[#9333ea]/50 transition-all cursor-pointer shadow-lg"
         >
           <History size={16} />
-          <span className="text-sm font-bold">History</span>
+          <span className="text-sm font-bold">{t('wf_btn_history')}</span>
         </button>
       </div>
 
@@ -167,7 +169,7 @@ export default function AIWorkflow() {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g., Generate an invoice for Sarah Jenkins for $500 for web design services..."
+            placeholder={t('wf_ph_prompt')}
             className="w-full h-40 p-6 rounded-2xl bg-slate-950 border border-slate-900 focus:border-purple-500/20 text-slate-300 placeholder-slate-600 focus:ring-0 text-lg outline-none resize-none"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -180,7 +182,7 @@ export default function AIWorkflow() {
             <button
               type="button"
               onClick={startVoiceRecognition}
-              title="Voice Input"
+              title={t('wf_title_voice_input')}
               className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
                 voiceActive 
                   ? 'bg-purple-500 text-[#070a13] border-purple-500 shadow-[0_0_15px_rgba(6,182,212,0.3)] animate-pulse'
@@ -189,7 +191,7 @@ export default function AIWorkflow() {
             >
               <Mic size={18} />
             </button>
-            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider hidden sm:inline">Enter to submit</span>
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider hidden sm:inline">{t('wf_hint_enter_submit')}</span>
             <button 
               disabled={loading}
               className="bg-[#9333ea] text-[#070a13] px-6 py-3 rounded-xl font-extrabold flex items-center gap-2 hover:bg-purple-400 transition-all disabled:opacity-50 shadow-lg shadow-purple-400/10 active:scale-95 cursor-pointer"
@@ -199,7 +201,7 @@ export default function AIWorkflow() {
               ) : (
                 <>
                   <Send size={18} />
-                  Run
+                  {t('wf_btn_run')}
                 </>
               )}
             </button>
@@ -212,31 +214,31 @@ export default function AIWorkflow() {
           onClick={() => { setPrompt("Create an invoice for "); }}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/50 border border-slate-800 text-slate-300 hover:bg-[#9333ea]/10 hover:border-[#9333ea]/50 hover:text-[#9333ea] transition-all text-sm font-semibold cursor-pointer"
         >
-          <FileText size={16} /> Create Invoice
+          <FileText size={16} /> {t('wf_chip_create_invoice')}
         </button>
         <button 
           onClick={() => { setPrompt("Send a bulk message to "); }}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/50 border border-slate-800 text-slate-300 hover:bg-[#9333ea]/10 hover:border-[#9333ea]/50 hover:text-[#9333ea] transition-all text-sm font-semibold cursor-pointer"
         >
-          <MessageSquare size={16} /> Bulk Message
+          <MessageSquare size={16} /> {t('wf_chip_bulk_message')}
         </button>
         <button 
           onClick={() => { setPrompt("Schedule a meeting for "); }}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/50 border border-slate-800 text-slate-300 hover:bg-[#9333ea]/10 hover:border-[#9333ea]/50 hover:text-[#9333ea] transition-all text-sm font-semibold cursor-pointer"
         >
-          <Calendar size={16} /> Schedule Meeting
+          <Calendar size={16} /> {t('wf_chip_schedule_meeting')}
         </button>
         <button 
           onClick={() => { setPrompt("Draft a new agreement for "); }}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/50 border border-slate-800 text-slate-300 hover:bg-[#9333ea]/10 hover:border-[#9333ea]/50 hover:text-[#9333ea] transition-all text-sm font-semibold cursor-pointer"
         >
-          <FileText size={16} /> New Agreement
+          <FileText size={16} /> {t('wf_chip_new_agreement')}
         </button>
         <button 
           onClick={() => { setPrompt("Generate an image of "); }}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/50 border border-slate-800 text-slate-300 hover:bg-[#9333ea]/10 hover:border-[#9333ea]/50 hover:text-[#9333ea] transition-all text-sm font-semibold cursor-pointer"
         >
-          <ImageIcon size={16} /> Generate Image
+          <ImageIcon size={16} /> {t('wf_chip_generate_image')}
         </button>
       </div>
 
@@ -246,8 +248,8 @@ export default function AIWorkflow() {
           animate={{ opacity: 1, scale: 1 }}
           className="bg-[#0c101b]/95 border border-[#9333ea]/35 p-6 rounded-3xl"
         >
-           <h3 className="text-xl font-extrabold text-white mb-4">Generated Image</h3>
-           <img src={generatedImage} alt="AI Generated" className="w-full max-w-2xl mx-auto rounded-2xl shadow-lg border border-slate-800" />
+           <h3 className="text-xl font-extrabold text-white mb-4">{t('wf_hdr_generated_image')}</h3>
+           <img src={generatedImage} alt={t('wf_alt_ai_generated')} className="w-full max-w-2xl mx-auto rounded-2xl shadow-lg border border-slate-800" />
         </motion.div>
       )}
 
@@ -263,8 +265,8 @@ export default function AIWorkflow() {
             </div>
             <div className="flex-1 space-y-6">
               <div>
-                <h3 className="text-xl font-extrabold text-white">AI Successfully Prepared Workflow</h3>
-                <p className="text-slate-400 text-sm mt-1">Intent detected: <span className="font-bold uppercase text-[#9333ea]">{result.workflow?.intent}</span></p>
+                <h3 className="text-xl font-extrabold text-white">{t('wf_hdr_prepared')}</h3>
+                <p className="text-slate-400 text-sm mt-1">{t('wf_lbl_intent_detected')} <span className="font-bold uppercase text-[#9333ea]">{result.workflow?.intent}</span></p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -279,7 +281,7 @@ export default function AIWorkflow() {
               {result.missing_fields?.length > 0 && (
                 <div className="p-4 bg-yellow-950/20 border border-yellow-500/20 rounded-xl flex items-center gap-3 text-yellow-500">
                   <AlertCircle size={20} />
-                  <p className="text-sm font-medium">Missing fields: {result.missing_fields.join(', ')}</p>
+                  <p className="text-sm font-medium">{t('wf_lbl_missing_fields')} {result.missing_fields.join(', ')}</p>
                 </div>
               )}
 
@@ -287,7 +289,7 @@ export default function AIWorkflow() {
                 onClick={executeWorkflow}
                 className="w-full py-4 bg-[#9333ea] hover:bg-purple-400 text-[#070a13] rounded-xl font-extrabold transition-all shadow-lg shadow-purple-400/10 active:scale-98 cursor-pointer"
               >
-                Confirm and Execute {result.workflow?.intent}
+                {t('wf_btn_confirm_execute', { intent: result.workflow?.intent })}
               </button>
             </div>
           </div>
