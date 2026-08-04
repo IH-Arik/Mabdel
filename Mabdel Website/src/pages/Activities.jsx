@@ -1,24 +1,26 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Search, Plus, MapPin, Calendar, Clock, Users, X, Info, CheckCircle2, Ticket } from 'lucide-react';
+import { Flame, Search, Plus, MapPin, Calendar, Clock, Users, X, CheckCircle2, Ticket } from 'lucide-react';
 import { smartflowApi } from '../api/services';
+import { useLanguage } from '../context/LanguageContext';
 
 
-const categories = [
-  { id: 'all', label: 'All Activities' },
-  { id: 'walking', label: 'Walking' },
-  { id: 'running', label: 'Running' },
-  { id: 'cycling', label: 'Cycling' },
-  { id: 'swimming', label: 'Swimming' },
-  { id: 'workout', label: 'Workout' }
+const CATEGORY_IDS = [
+  { id: 'all', labelKey: 'act_cat_all' },
+  { id: 'walking', labelKey: 'act_type_walking' },
+  { id: 'running', labelKey: 'act_type_running' },
+  { id: 'cycling', labelKey: 'act_type_cycling' },
+  { id: 'swimming', labelKey: 'act_type_swimming' },
+  { id: 'workout', labelKey: 'act_type_workout' },
 ];
 
 export default function Activities() {
+  const { t } = useLanguage();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Modals state
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [showHostModal, setShowHostModal] = useState(false);
@@ -64,14 +66,14 @@ export default function Activities() {
       setErrorMessage('');
       const response = await smartflowApi.joinActivity(activityId);
       if (response.data?.success) {
-        setSuccessMessage('Successfully joined the activity! Get ready to meet your fitness partners.');
+        setSuccessMessage(t('act_success_joined'));
         setSelectedActivity(null);
         loadActivities();
       } else {
-        setErrorMessage(response.data?.message || 'Could not join activity.');
+        setErrorMessage(response.data?.message || t('act_err_join'));
       }
     } catch (err) {
-      setErrorMessage('Could not join activity. Backend error.');
+      setErrorMessage(t('act_err_join'));
       setSelectedActivity(null);
     }
   };
@@ -80,9 +82,9 @@ export default function Activities() {
     e.preventDefault();
     setSuccessMessage('');
     setErrorMessage('');
-    
+
     if (!hostForm.name || !hostForm.location || !hostForm.date || !hostForm.time) {
-      setErrorMessage('Please fill in all required fields.');
+      setErrorMessage(t('act_err_required_fields'));
       return;
     }
 
@@ -92,12 +94,11 @@ export default function Activities() {
         price: parseFloat(hostForm.price) || 0.0,
         maxParticipants: parseInt(hostForm.maxParticipants) || 15
       };
-      
+
       const response = await smartflowApi.createActivity(payload);
       if (response.data?.success) {
-        setSuccessMessage('Activity hosted successfully! Event is now visible in the community feed.');
+        setSuccessMessage(t('act_success_hosted'));
         setShowHostModal(false);
-        // Reset form
         setHostForm({
           name: '',
           category: 'running',
@@ -112,7 +113,7 @@ export default function Activities() {
       }
     } catch (err) {
       console.warn('Backend hosting failed:', err);
-      setErrorMessage('Could not host activity.');
+      setErrorMessage(t('act_err_host'));
     }
   };
 
@@ -129,14 +130,14 @@ export default function Activities() {
       {/* Top Title Header */}
       <div className="border-b border-[#243041]/40 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-left">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">Community Activities</h1>
-          <p className="text-[#A4B0B7] text-xs mt-1">Browse, join, and host local physical fitness and networking events.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('act_title')}</h1>
+          <p className="text-[#A4B0B7] text-xs mt-1">{t('act_subtitle')}</p>
         </div>
         <button
           onClick={() => setShowHostModal(true)}
           className="flex items-center gap-2 px-5 py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl shadow-lg shadow-[#9333ea]/10 active:scale-95 transition-all cursor-pointer"
         >
-          <Plus size={16} /> Host Activity
+          <Plus size={16} /> {t('act_btn_host')}
         </button>
       </div>
 
@@ -155,7 +156,7 @@ export default function Activities() {
       <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
         {/* Category Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
-          {categories.map((cat) => (
+          {CATEGORY_IDS.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
@@ -165,7 +166,7 @@ export default function Activities() {
                   : 'bg-[#0c101b] text-[#A4B0B7] border-[#243041]/40 hover:text-white hover:border-[#243041]/80'
               }`}
             >
-              {cat.label}
+              {cat.labelKey ? t(cat.labelKey) : cat.label}
             </button>
           ))}
         </div>
@@ -174,7 +175,7 @@ export default function Activities() {
         <div className="relative w-full md:w-80">
           <input
             type="text"
-            placeholder="Search activities or hosts..."
+            placeholder={t('act_ph_search')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-[#0c101b] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
@@ -190,8 +191,8 @@ export default function Activities() {
       ) : filteredActivities.length === 0 ? (
         <div className="py-20 text-center bg-[#0c101b] rounded-3xl border border-[#243041]/60">
           <Flame size={48} className="mx-auto text-slate-600 mb-3" />
-          <h3 className="text-lg font-bold text-white">No Activities Found</h3>
-          <p className="text-slate-500 text-xs mt-1">Be the first to host one by clicking the "Host Activity" button!</p>
+          <h3 className="text-lg font-bold text-white">{t('act_empty_title')}</h3>
+          <p className="text-slate-500 text-xs mt-1">{t('act_empty_hint')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -218,7 +219,7 @@ export default function Activities() {
                 <div className="flex-1 p-5 text-left flex flex-col justify-between space-y-3">
                   <div>
                     <h3 className="font-extrabold text-white text-base leading-snug line-clamp-1">{act.name}</h3>
-                    <p className="text-[10px] text-[#A4B0B7] mt-0.5 font-bold">Hosted by <span className="text-white">{act.hostName || 'Organizer'}</span></p>
+                    <p className="text-[10px] text-[#A4B0B7] mt-0.5 font-bold">{t('act_hosted_by')} <span className="text-white">{act.hostName || 'Organizer'}</span></p>
                     <p className="text-[#A4B0B7] text-xs mt-2 line-clamp-2 leading-relaxed">{act.description}</p>
                   </div>
 
@@ -245,13 +246,13 @@ export default function Activities() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-black text-white px-2 py-1 bg-[#131A24] border border-[#243041] rounded-lg">
-                        {act.price > 0 ? `$${act.price.toFixed(2)}` : 'Free'}
+                        {act.price > 0 ? `$${act.price.toFixed(2)}` : t('act_free')}
                       </span>
                       <button
                         onClick={() => setSelectedActivity(act)}
                         className="px-3.5 py-1.5 bg-[#9333ea]/10 hover:bg-[#9333ea] text-[#9333ea] hover:text-[#02080B] font-extrabold text-[10px] rounded-lg border border-[#9333ea]/20 hover:border-transparent transition-all cursor-pointer"
                       >
-                        Join
+                        {t('act_btn_join')}
                       </button>
                     </div>
                   </div>
@@ -302,7 +303,7 @@ export default function Activities() {
                     {selectedActivity.category}
                   </span>
                   <h2 className="text-xl font-extrabold text-white mt-3">{selectedActivity.name}</h2>
-                  <p className="text-[11px] text-[#A4B0B7] font-bold">Hosted by {selectedActivity.hostName}</p>
+                  <p className="text-[11px] text-[#A4B0B7] font-bold">{t('act_hosted_by')} {selectedActivity.hostName}</p>
                 </div>
 
                 <p className="text-[#A4B0B7] text-xs leading-relaxed">{selectedActivity.description}</p>
@@ -311,29 +312,29 @@ export default function Activities() {
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3 flex items-center gap-3">
                     <Calendar size={18} className="text-[#9333ea]" />
                     <div>
-                      <span className="text-slate-500 block mb-0.5 text-[10px]">Date</span>
+                      <span className="text-slate-500 block mb-0.5 text-[10px]">{t('act_lbl_date')}</span>
                       <span className="font-bold text-white">{selectedActivity.date}</span>
                     </div>
                   </div>
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3 flex items-center gap-3">
                     <Clock size={18} className="text-[#9333ea]" />
                     <div>
-                      <span className="text-slate-500 block mb-0.5 text-[10px]">Time</span>
+                      <span className="text-slate-500 block mb-0.5 text-[10px]">{t('act_lbl_time')}</span>
                       <span className="font-bold text-white">{selectedActivity.time}</span>
                     </div>
                   </div>
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3 flex items-center gap-3">
                     <MapPin size={18} className="text-[#9333ea]" />
                     <div>
-                      <span className="text-slate-500 block mb-0.5 text-[10px]">Location</span>
+                      <span className="text-slate-500 block mb-0.5 text-[10px]">{t('act_lbl_location')}</span>
                       <span className="font-bold text-white truncate max-w-[140px] block">{selectedActivity.location}</span>
                     </div>
                   </div>
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3 flex items-center gap-3">
                     <Users size={18} className="text-[#9333ea]" />
                     <div>
-                      <span className="text-slate-500 block mb-0.5 text-[10px]">Participants</span>
-                      <span className="font-bold text-white">{selectedActivity.joinedCount}/{selectedActivity.maxParticipants || 15} Joined</span>
+                      <span className="text-slate-500 block mb-0.5 text-[10px]">{t('act_lbl_participants')}</span>
+                      <span className="font-bold text-white">{selectedActivity.joinedCount}/{selectedActivity.maxParticipants || 15} {t('act_joined')}</span>
                     </div>
                   </div>
                 </div>
@@ -342,7 +343,7 @@ export default function Activities() {
                   <div className="p-4 bg-[#0C2028] border border-[#1B5E6E]/60 text-[#EAF8FF] rounded-2xl flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <Ticket size={16} className="text-[#9333ea]" />
-                      <span className="text-xs font-bold">Entry Fee</span>
+                      <span className="text-xs font-bold">{t('act_entry_fee')}</span>
                     </div>
                     <span className="font-black text-sm text-[#9333ea]">${selectedActivity.price.toFixed(2)}</span>
                   </div>
@@ -353,13 +354,13 @@ export default function Activities() {
                     onClick={() => setSelectedActivity(null)}
                     className="flex-1 py-3 border border-[#243041] hover:border-[#A4B0B7]/40 rounded-xl text-xs font-bold text-slate-300 transition-colors cursor-pointer text-center"
                   >
-                    Cancel
+                    {t('act_btn_cancel')}
                   </button>
                   <button
                     onClick={() => handleJoin(selectedActivity.id || selectedActivity._id)}
                     className="flex-1 py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
                   >
-                    Confirm & Join
+                    {t('act_btn_confirm_join')}
                   </button>
                 </div>
               </div>
@@ -394,18 +395,18 @@ export default function Activities() {
               </button>
 
               <div>
-                <h3 className="text-xl font-extrabold text-white">Host Community Activity</h3>
-                <p className="text-[#A4B0B7] text-xs mt-1">Fill out the information below to schedule and publish your session.</p>
+                <h3 className="text-xl font-extrabold text-white">{t('act_modal_host_title')}</h3>
+                <p className="text-[#A4B0B7] text-xs mt-1">{t('act_modal_host_sub')}</p>
               </div>
 
               <form onSubmit={handleHostSubmit} className="space-y-4 pt-2">
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">Activity Title *</label>
+                    <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">{t('act_lbl_activity_title')}</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Evening Running / Cycling Session"
+                      placeholder={t('act_ph_title')}
                       value={hostForm.name}
                       onChange={(e) => setHostForm({ ...hostForm, name: e.target.value })}
                       className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
@@ -414,21 +415,21 @@ export default function Activities() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">Category *</label>
+                      <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">{t('act_lbl_category')}</label>
                       <select
                         value={hostForm.category}
                         onChange={(e) => setHostForm({ ...hostForm, category: e.target.value })}
                         className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                       >
-                        <option value="walking">Walking</option>
-                        <option value="running">Running</option>
-                        <option value="cycling">Cycling</option>
-                        <option value="swimming">Swimming</option>
-                        <option value="workout">Workout</option>
+                        <option value="walking">{t('act_type_walking')}</option>
+                        <option value="running">{t('act_type_running')}</option>
+                        <option value="cycling">{t('act_type_cycling')}</option>
+                        <option value="swimming">{t('act_type_swimming')}</option>
+                        <option value="workout">{t('act_type_workout')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">Participant Limit</label>
+                      <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">{t('act_lbl_participant_limit')}</label>
                       <input
                         type="number"
                         min="2"
@@ -440,9 +441,9 @@ export default function Activities() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">Description</label>
+                    <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">{t('act_lbl_description')}</label>
                     <textarea
-                      placeholder="Describe the fitness session goals, pace, target participants, etc."
+                      placeholder={t('act_ph_description')}
                       value={hostForm.description}
                       onChange={(e) => setHostForm({ ...hostForm, description: e.target.value })}
                       className="w-full min-h-20 px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
@@ -450,11 +451,11 @@ export default function Activities() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">Location Address *</label>
+                    <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">{t('act_lbl_location_addr')}</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Greenwood Park Main Gate"
+                      placeholder={t('act_ph_location')}
                       value={hostForm.location}
                       onChange={(e) => setHostForm({ ...hostForm, location: e.target.value })}
                       className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
@@ -463,22 +464,22 @@ export default function Activities() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">Date *</label>
+                      <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">{t('act_lbl_date_field')}</label>
                       <input
                         type="text"
                         required
-                        placeholder="e.g. June 24, 2026"
+                        placeholder={t('act_ph_date')}
                         value={hostForm.date}
                         onChange={(e) => setHostForm({ ...hostForm, date: e.target.value })}
                         className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">Time *</label>
+                      <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">{t('act_lbl_time_field')}</label>
                       <input
                         type="text"
                         required
-                        placeholder="e.g. 7:00 AM"
+                        placeholder={t('act_ph_time')}
                         value={hostForm.time}
                         onChange={(e) => setHostForm({ ...hostForm, time: e.target.value })}
                         className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
@@ -487,7 +488,7 @@ export default function Activities() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">Entry Price ($)</label>
+                    <label className="text-[10px] text-[#A4B0B7] uppercase font-bold block mb-1">{t('act_lbl_price')}</label>
                     <input
                       type="number"
                       step="0.01"
@@ -505,13 +506,13 @@ export default function Activities() {
                     onClick={() => setShowHostModal(false)}
                     className="flex-1 py-3 border border-[#243041] hover:border-[#A4B0B7]/40 rounded-xl text-xs font-bold text-slate-300 transition-colors cursor-pointer text-center"
                   >
-                    Cancel
+                    {t('act_btn_cancel')}
                   </button>
                   <button
                     type="submit"
                     className="flex-1 py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
                   >
-                    Publish Activity
+                    {t('act_btn_publish')}
                   </button>
                 </div>
               </form>

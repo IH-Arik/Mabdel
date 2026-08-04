@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import logoMark from '../assets/gocustify-mark.png';
 import { formatCstDate } from '../utils/dateUtils';
+import { useLanguage } from '../context/LanguageContext';
 
 const PAGE_META = {
   'privacy-policy': { request: () => smartflowApi.getPrivacyPolicy(), eyebrow: 'Legal' },
@@ -31,6 +32,7 @@ export default function ContentPage({ forcedSlug = '' }) {
   const { slug: routeSlug } = useParams();
   const slug = forcedSlug || routeSlug || '';
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [page, setPage] = useState(null);
   const [extraSections, setExtraSections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function ContentPage({ forcedSlug = '' }) {
         );
       })
       .catch((loadError) => {
-        if (!ignore) setError(loadError?.response?.data?.message || 'Could not load this page.');
+        if (!ignore) setError(loadError?.response?.data?.message || t('content_err_load'));
       })
       .finally(() => {
         if (!ignore) setLoading(false);
@@ -78,11 +80,11 @@ export default function ContentPage({ forcedSlug = '' }) {
             className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft size={16} />
-            Back to Home
+            {t('content_btn_back')}
           </button>
 
           <div className="flex items-center gap-2">
-            <img src={logoMark} alt="GoCustify logo" className="w-9 h-9 rounded-lg shadow-lg shadow-purple-500/20" />
+            <img src={logoMark} alt={t('content_alt_logo')} className="w-9 h-9 rounded-lg shadow-lg shadow-purple-500/20" />
             <span className="text-lg font-bold tracking-tight text-white">GoCustify</span>
           </div>
         </div>
@@ -100,7 +102,7 @@ export default function ContentPage({ forcedSlug = '' }) {
             <div className="space-y-5">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-purple-400">{config.eyebrow}</p>
               <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">{page.title}</h1>
-              {updatedLabel ? <p className="text-sm text-gray-500">Updated {updatedLabel}</p> : null}
+              {updatedLabel ? <p className="text-sm text-gray-500">{t('content_updated')} {updatedLabel}</p> : null}
             </div>
 
             <div className="space-y-8 rounded-[28px] border border-gray-900 bg-[#0c101b]/80 px-6 py-7 md:px-8 md:py-9">
@@ -118,7 +120,7 @@ export default function ContentPage({ forcedSlug = '' }) {
                   <p className="text-xs font-bold uppercase tracking-[0.28em] text-purple-400">{section.eyebrow}</p>
                   <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">{section.content.title}</h1>
                   {formatUpdatedLabel(section.content.updated_at) ? (
-                    <p className="text-sm text-gray-500">Updated {formatUpdatedLabel(section.content.updated_at)}</p>
+                    <p className="text-sm text-gray-500">{t('content_updated')} {formatUpdatedLabel(section.content.updated_at)}</p>
                   ) : null}
                 </div>
 

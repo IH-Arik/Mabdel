@@ -3,6 +3,7 @@ import { AlertCircle, CalendarClock, Loader2, RefreshCw, Send, Sparkles } from '
 import { smartflowApi } from '../api/services';
 import { formatCstDateTime } from '../utils/dateUtils';
 import { DateTimePickerInput } from '../components/ui/DateTimeInputs';
+import { useLanguage } from '../context/LanguageContext';
 
 const PUBLISHABLE_PLATFORM_MAP = {
   facebook_messenger: { publishId: 'facebook', label: 'Facebook', accent: '#1877F2' },
@@ -41,6 +42,7 @@ function summarizePostStatus(results = []) {
 }
 
 export default function CreatePost() {
+  const { t } = useLanguage();
   const [prompt, setPrompt] = useState('');
   const [content, setContent] = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState([]);
@@ -133,7 +135,7 @@ export default function CreatePost() {
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      setFeedback({ type: 'error', message: 'Enter a prompt to generate your post.' });
+      setFeedback({ type: 'error', message: t('post_err_enter_prompt') });
       return;
     }
 
@@ -165,22 +167,22 @@ export default function CreatePost() {
 
   const handlePublish = async (scheduled = false) => {
     if (!content.trim()) {
-      setFeedback({ type: 'error', message: 'Write or generate content before publishing.' });
+      setFeedback({ type: 'error', message: t('post_err_write_content') });
       return;
     }
     if (!hasPublishablePlatforms) {
       setFeedback({
         type: 'error',
-        message: 'Connect a supported social account before creating a post.',
+        message: t('post_err_connect_account'),
       });
       return;
     }
     if (!selectedPlatforms.length) {
-      setFeedback({ type: 'error', message: 'Select at least one connected platform.' });
+      setFeedback({ type: 'error', message: t('post_err_select_platform') });
       return;
     }
     if (scheduled && !scheduleDate) {
-      setFeedback({ type: 'error', message: 'Choose a schedule date first.' });
+      setFeedback({ type: 'error', message: t('post_err_choose_date') });
       return;
     }
 
@@ -233,9 +235,9 @@ export default function CreatePost() {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 border-b border-[#243041]/40 pb-4">
         <div className="text-left">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">Create Post</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('post_title')}</h1>
           <p className="text-[#A4B0B7] text-xs mt-1">
-            Generate with AI and publish only to currently connected providers that the backend can actually post to.
+            {t('post_subtitle')}
           </p>
         </div>
       </div>
@@ -266,7 +268,7 @@ export default function CreatePost() {
 
       {!integrationLoading && !hasPublishablePlatforms ? (
         <div className="rounded-2xl border border-dashed border-[#243041] bg-[#0A1019] p-5 text-sm text-[#A4B0B7]">
-          No supported connected social publishing accounts are available for this organization yet.
+          {t('post_no_platforms')}
         </div>
       ) : null}
 
@@ -275,15 +277,15 @@ export default function CreatePost() {
           <div className="bg-[#131A24] border border-[#243041] rounded-[22px] p-6 space-y-4">
             <div className="flex items-center gap-2">
               <Sparkles size={18} className="text-[#9333ea]" />
-              <h2 className="text-white font-bold">AI Generator</h2>
+              <h2 className="text-white font-bold">{t('post_hdr_ai')}</h2>
             </div>
 
             <div>
-              <label className={LABEL}>Prompt</label>
+              <label className={LABEL}>{t('post_lbl_prompt')}</label>
               <textarea
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Describe the post you want GoCustify AI to create..."
+                placeholder={t('post_ph_prompt')}
                 className={`${INPUT} min-h-28 resize-none`}
               />
             </div>
@@ -294,29 +296,29 @@ export default function CreatePost() {
               className="inline-flex items-center gap-2 rounded-xl bg-[#9333ea] px-4 py-3 text-sm font-extrabold text-[#02080B] transition-all disabled:cursor-not-allowed disabled:opacity-60"
             >
               {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-              Generate Post
+              {t('post_btn_generate')}
             </button>
           </div>
 
           <div className="bg-[#131A24] border border-[#243041] rounded-[22px] p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-white font-bold">Content</h2>
-              <span className="text-xs font-semibold text-[#A4B0B7]">{characterCount} characters</span>
+              <h2 className="text-white font-bold">{t('post_hdr_content')}</h2>
+              <span className="text-xs font-semibold text-[#A4B0B7]">{characterCount} {t('post_characters')}</span>
             </div>
 
             <textarea
               value={content}
               onChange={(event) => setContent(event.target.value)}
-              placeholder="Your final post content appears here..."
+              placeholder={t('post_ph_content')}
               className={`${INPUT} min-h-64 resize-none`}
             />
 
             <div>
-              <label className={LABEL}>Connected Platforms</label>
+              <label className={LABEL}>{t('post_lbl_platforms')}</label>
               {integrationLoading ? (
                 <div className="flex items-center gap-2 text-sm text-[#A4B0B7]">
                   <Loader2 size={16} className="animate-spin" />
-                  Loading connected accounts...
+                  {t('post_loading_accounts')}
                 </div>
               ) : hasPublishablePlatforms ? (
                 <div className="flex flex-wrap gap-2">
@@ -346,14 +348,14 @@ export default function CreatePost() {
               ) : (
                 <div className="inline-flex items-center gap-2 rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-3 text-sm text-[#A4B0B7]">
                   <AlertCircle size={16} />
-                  No publishable connected platforms found.
+                  {t('post_no_platforms_short')}
                 </div>
               )}
             </div>
 
             <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
               <div>
-                <label className={LABEL}>Schedule Date</label>
+                <label className={LABEL}>{t('post_lbl_schedule')}</label>
                 <DateTimePickerInput
                   value={scheduleDate}
                   onChange={setScheduleDate}
@@ -368,7 +370,7 @@ export default function CreatePost() {
                 className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-[#9333ea] px-4 py-3 text-sm font-extrabold text-[#02080B] transition-all disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {publishing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                Publish Now
+                {t('post_btn_publish_now')}
               </button>
 
               <button
@@ -378,7 +380,7 @@ export default function CreatePost() {
                 className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-3 text-sm font-extrabold text-white transition-all disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <CalendarClock size={16} />
-                Schedule
+                {t('post_btn_schedule')}
               </button>
             </div>
           </div>
@@ -386,17 +388,17 @@ export default function CreatePost() {
 
         <div className="bg-[#131A24] border border-[#243041] rounded-[22px] p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-white font-bold">Recent Posts</h2>
+            <h2 className="text-white font-bold">{t('post_hdr_recent')}</h2>
             <button type="button" onClick={loadHistory} className="inline-flex items-center gap-2 text-xs font-bold text-[#9333ea]">
               <RefreshCw size={14} />
-              Refresh
+              {t('post_btn_refresh')}
             </button>
           </div>
 
           {historyLoading ? (
             <div className="flex items-center gap-2 rounded-2xl border border-[#243041] bg-[#0A1019] p-4 text-sm text-[#A4B0B7]">
               <Loader2 size={16} className="animate-spin" />
-              Loading social posts...
+              {t('post_loading_posts')}
             </div>
           ) : historyError ? (
             <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 p-4 text-sm text-rose-300">
@@ -446,7 +448,7 @@ export default function CreatePost() {
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-[#243041] bg-[#0A1019] p-8 text-center text-sm text-[#A4B0B7]">
-              No social posts yet.
+              {t('post_no_history')}
             </div>
           )}
         </div>

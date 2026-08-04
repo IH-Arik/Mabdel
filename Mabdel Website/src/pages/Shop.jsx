@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Search, Tag, X, CreditCard, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
+import { useLanguage } from '../context/LanguageContext';
 
 const FALLBACK_PRODUCTS = [
   {
@@ -69,6 +70,7 @@ const categories = [
 ];
 
 export default function Shop() {
+  const { t } = useLanguage();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -109,7 +111,7 @@ export default function Shop() {
     e.preventDefault();
     setPaymentError('');
     if (!cardDetails.number || !cardDetails.expiry || !cardDetails.cvc || !cardDetails.name) {
-      setPaymentError('Please fill in all credit card details.');
+      setPaymentError(t('shop_err_card_details'));
       return;
     }
     
@@ -130,8 +132,8 @@ export default function Shop() {
     <div className="space-y-6 text-white pb-12 max-w-7xl mx-auto">
       {/* Top Title Row */}
       <div className="border-b border-[#243041]/40 pb-4 text-left">
-        <h1 className="text-3xl font-extrabold tracking-tight text-white">Shop</h1>
-        <p className="text-[#A4B0B7] text-xs mt-1">Browse and purchase official Mabdel fitness products, gear, and nutrition.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('shop_title')}</h1>
+        <p className="text-[#A4B0B7] text-xs mt-1">{t('shop_subtitle')}</p>
       </div>
 
       {/* Filter and Search Bar */}
@@ -157,7 +159,7 @@ export default function Shop() {
         <div className="relative w-full md:w-80">
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder={t('shop_ph_search')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-[#0c101b] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
@@ -173,8 +175,8 @@ export default function Shop() {
       ) : filteredProducts.length === 0 ? (
         <div className="py-20 text-center bg-[#0c101b] rounded-3xl border border-[#243041]/60">
           <ShoppingBag size={48} className="mx-auto text-slate-600 mb-3" />
-          <h3 className="text-lg font-bold text-white">No Products Found</h3>
-          <p className="text-slate-500 text-xs mt-1">Try adjusting your filters or search query.</p>
+          <h3 className="text-lg font-bold text-white">{t('shop_empty_title')}</h3>
+          <p className="text-slate-500 text-xs mt-1">{t('shop_empty_hint')}</p>
         </div>
       ) : (
         <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -213,13 +215,13 @@ export default function Shop() {
                     onClick={() => setSelectedProduct(product)}
                     className="px-4 py-2 border border-[#243041] hover:border-[#A4B0B7]/40 rounded-xl text-xs font-bold text-[#A4B0B7] hover:text-white transition-colors cursor-pointer"
                   >
-                    Details
+                    {t('shop_btn_details')}
                   </button>
                   <button
                     onClick={() => setCheckoutProduct(product)}
                     className="px-4 py-2 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer"
                   >
-                    Buy Now
+                    {t('shop_btn_buy')}
                   </button>
                 </div>
               </div>
@@ -279,12 +281,12 @@ export default function Shop() {
 
                 <div className="grid grid-cols-2 gap-4 py-2 text-xs">
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3">
-                    <span className="text-slate-500 block mb-1">Availability</span>
-                    <span className="font-bold text-white">In Stock ({selectedProduct.stock || 24} left)</span>
+                    <span className="text-slate-500 block mb-1">{t('shop_lbl_availability')}</span>
+                    <span className="font-bold text-white">{t('shop_in_stock').replace('{count}', selectedProduct.stock || 24)}</span>
                   </div>
                   <div className="bg-[#131A24] border border-[#243041]/40 rounded-xl p-3">
-                    <span className="text-slate-500 block mb-1">Delivery</span>
-                    <span className="font-bold text-white">Free Express (3-5 Days)</span>
+                    <span className="text-slate-500 block mb-1">{t('shop_lbl_delivery')}</span>
+                    <span className="font-bold text-white">{t('shop_delivery_val')}</span>
                   </div>
                 </div>
 
@@ -293,7 +295,7 @@ export default function Shop() {
                     onClick={() => setSelectedProduct(null)}
                     className="flex-1 py-3 border border-[#243041] hover:border-[#A4B0B7]/40 rounded-xl text-xs font-bold text-slate-300 transition-colors cursor-pointer text-center"
                   >
-                    Close
+                    {t('shop_btn_close')}
                   </button>
                   <button
                     onClick={() => {
@@ -302,7 +304,7 @@ export default function Shop() {
                     }}
                     className="flex-1 py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
                   >
-                    Buy Now
+                    {t('shop_btn_buy')}
                   </button>
                 </div>
               </div>
@@ -340,8 +342,8 @@ export default function Shop() {
                 <form onSubmit={handleCheckoutSubmit} className="space-y-5">
                   <div className="text-center">
                     <CreditCard size={28} className="mx-auto text-[#9333ea] mb-2" />
-                    <h3 className="text-lg font-black text-white">Payment Checkout</h3>
-                    <p className="text-[#A4B0B7] text-xs">Enter your card details to complete your checkout purchase.</p>
+                    <h3 className="text-lg font-black text-white">{t('shop_checkout_title')}</h3>
+                    <p className="text-[#A4B0B7] text-xs">{t('shop_checkout_sub')}</p>
                   </div>
 
                   {/* Summary Box */}
@@ -354,7 +356,7 @@ export default function Shop() {
                       />
                       <div>
                         <span className="font-bold text-white block truncate max-w-[150px]">{checkoutProduct.name}</span>
-                        <span className="text-[#A4B0B7] text-[10px]">Qty: 1</span>
+                        <span className="text-[#A4B0B7] text-[10px]">{t('shop_qty')}</span>
                       </div>
                     </div>
                     <span className="font-black text-[#9333ea] text-sm">${checkoutProduct.price?.toFixed(2)}</span>
@@ -366,14 +368,14 @@ export default function Shop() {
                   <div className="space-y-3">
                     <input
                       type="text"
-                      placeholder="Cardholder Name"
+                      placeholder={t('shop_ph_cardholder')}
                       value={cardDetails.name}
                       onChange={(e) => setCardDetails({ ...cardDetails, name: e.target.value })}
                       className="w-full px-4 py-2.5 bg-[#131A24] border border-[#243041] text-xs text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors"
                     />
                     <input
                       type="text"
-                      placeholder="Card Number"
+                      placeholder={t('shop_ph_card_number')}
                       maxLength={16}
                       value={cardDetails.number}
                       onChange={(e) => setCardDetails({ ...cardDetails, number: e.target.value.replace(/\D/g, '') })}
@@ -401,14 +403,14 @@ export default function Shop() {
 
                   <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500">
                     <ShieldCheck size={14} className="text-[#9333ea]" />
-                    <span>Secured Stripe Gateway Integration</span>
+                    <span>{t('shop_security')}</span>
                   </div>
 
                   <button
                     type="submit"
                     className="w-full py-3 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-xl transition-all cursor-pointer text-center"
                   >
-                    Confirm & Pay
+                    {t('shop_btn_confirm_pay')}
                   </button>
                 </form>
               )}
@@ -416,8 +418,8 @@ export default function Shop() {
               {checkoutStep === 'processing' && (
                 <div className="py-12 flex flex-col justify-center items-center space-y-4">
                   <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#9333ea]" />
-                  <h4 className="font-extrabold text-white">Processing Transaction...</h4>
-                  <p className="text-[#A4B0B7] text-xs">Authenticating and verifying payment credentials with card issuer...</p>
+                  <h4 className="font-extrabold text-white">{t('shop_processing_title')}</h4>
+                  <p className="text-[#A4B0B7] text-xs">{t('shop_processing_sub')}</p>
                 </div>
               )}
 
@@ -427,16 +429,16 @@ export default function Shop() {
                     <CheckCircle2 size={54} className="mx-auto text-emerald-400" />
                   </motion.div>
                   <div className="space-y-1">
-                    <h4 className="text-lg font-black text-white">Payment Successful</h4>
+                    <h4 className="text-lg font-black text-white">{t('shop_success_title')}</h4>
                     <p className="text-slate-400 text-xs leading-relaxed">
-                      Your purchase of <span className="text-white font-bold">{checkoutProduct.name}</span> has been confirmed. A receipt has been sent to your email.
+                      {t('shop_success_sub').replace('{name}', checkoutProduct.name)}
                     </p>
                   </div>
                   <button
                     onClick={closeCheckout}
                     className="w-full py-2.5 bg-slate-900 border border-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
                   >
-                    Done
+                    {t('shop_btn_done')}
                   </button>
                 </div>
               )}

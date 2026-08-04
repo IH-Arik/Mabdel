@@ -4,6 +4,7 @@ import { AlertTriangle, Camera, CheckCircle2, Loader2, Save } from 'lucide-react
 import { smartflowApi } from '../../../api/services';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Field, INPUT } from '../shared';
+import { useLanguage } from '../../../context/LanguageContext';
 
 const LANGUAGE_OPTIONS = [
   { code: 'en-US', label: 'English (US)' },
@@ -24,6 +25,7 @@ const toDateInputValue = (value) => {
 };
 
 function ProfileTab() {
+  const { t } = useLanguage();
   const { user, setUser } = useAuthStore();
   const [form, setForm] = useState({
     full_name: '',
@@ -58,7 +60,7 @@ function ProfileTab() {
       })
       .catch((loadError) => {
         if (ignore) return;
-        setError(loadError?.response?.data?.message || 'Could not load your profile settings.');
+        setError(loadError?.response?.data?.message || t('prof_err_load'));
       })
       .finally(() => {
         if (!ignore) setLoading(false);
@@ -71,8 +73,8 @@ function ProfileTab() {
 
   const languageHelpText = useMemo(() => {
     const selected = LANGUAGE_OPTIONS.find((item) => item.code === form.language_preference);
-    return selected ? `${selected.label} preference is stored on your account.` : 'Language preference is stored on your account.';
-  }, [form.language_preference]);
+    return selected ? t('prof_language_preference_hint').replace('{language}', selected.label) : t('prof_language_preference_hint').replace(' {language}', '');
+  }, [form.language_preference, t]);
 
   async function save() {
     setSaving(true);
@@ -97,9 +99,9 @@ function ProfileTab() {
         date_of_birth: toDateInputValue(next.date_of_birth || current.date_of_birth),
         language_preference: next.language_preference || current.language_preference,
       }));
-      setSuccess('Profile saved.');
+      setSuccess(t('prof_saved'));
     } catch (saveError) {
-      setError(saveError?.response?.data?.message || 'Save failed.');
+      setError(saveError?.response?.data?.message || t('prof_save_failed'));
     } finally {
       setSaving(false);
     }
@@ -120,9 +122,9 @@ function ProfileTab() {
       const response = await smartflowApi.uploadAvatar(formData);
       const next = response?.data?.data || {};
       setUser?.(next);
-      setSuccess('Profile photo updated.');
+      setSuccess(t('prof_avatar_updated'));
     } catch (uploadError) {
-      setError(uploadError?.response?.data?.message || 'Avatar upload failed.');
+      setError(uploadError?.response?.data?.message || t('prof_avatar_failed'));
     } finally {
       setUploading(false);
       event.target.value = '';
@@ -171,37 +173,37 @@ function ProfileTab() {
         <div>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-2.5 text-sm font-semibold text-[#A4B0B7] transition-all hover:border-[#9333ea]/40 hover:text-white">
             <Camera size={15} />
-            Upload Photo
+            {t('prof_btn_upload')}
             <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleAvatarUpload} />
           </label>
-          <p className="mt-1.5 text-xs text-[#A4B0B7]">PNG, JPG, or WEBP up to 5MB.</p>
+          <p className="mt-1.5 text-xs text-[#A4B0B7]">{t('prof_avatar_hint') || 'PNG, JPG, or WEBP up to 5MB.'}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Full Name">
+        <Field label={t('prof_lbl_name')}>
           <input
             value={form.full_name}
             onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))}
             className={INPUT}
-            placeholder="Your name"
+            placeholder={t('prof_ph_name')}
           />
         </Field>
 
-        <Field label="Email Address">
+        <Field label={t('prof_lbl_email')}>
           <input value={form.email} disabled className={`${INPUT} cursor-not-allowed opacity-50`} placeholder="email@example.com" />
         </Field>
 
-        <Field label="Country">
+        <Field label={t('prof_lbl_country')}>
           <input
             value={form.country}
             onChange={(event) => setForm((current) => ({ ...current, country: event.target.value }))}
             className={INPUT}
-            placeholder="Country"
+            placeholder={t('prof_lbl_country')}
           />
         </Field>
 
-        <Field label="Date of Birth">
+        <Field label={t('prof_lbl_dob')}>
           <input
             type="date"
             value={form.date_of_birth}
@@ -210,7 +212,7 @@ function ProfileTab() {
           />
         </Field>
 
-        <Field label="Language Preference">
+        <Field label={t('prof_lbl_lang')}>
           <select
             value={form.language_preference}
             onChange={(event) => setForm((current) => ({ ...current, language_preference: event.target.value }))}
@@ -232,7 +234,7 @@ function ProfileTab() {
         className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#9333ea] px-6 py-3 font-bold text-[#02080B] transition-colors hover:bg-[#a855f7] disabled:opacity-60"
       >
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-        {saving ? 'Saving...' : 'Save Profile'}
+        {saving ? t('prof_saving') : t('prof_btn_save')}
       </button>
     </div>
   );

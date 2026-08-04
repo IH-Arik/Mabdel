@@ -23,6 +23,7 @@ import { buildWebSocketUrl } from '../api/client';
 import { smartflowApi } from '../api/services';
 import { formatCstDateTime, formatCstTime } from '../utils/dateUtils';
 import { useAuthStore } from '../store/useAuthStore';
+import { useLanguage } from '../context/LanguageContext';
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
 
@@ -68,7 +69,7 @@ const normalizeGroup = (group) => ({
   is_system_managed: Boolean(group?.is_system_managed || group?.is_global_chat),
 });
 
-const normalizeMessage = (message) => ({
+const normalizeMessage = (message, t) => ({
   ...message,
   id: message?.id || message?._id || `${Date.now()}-${Math.random()}`,
   content: message?.content || message?.text || '',
@@ -87,13 +88,13 @@ const normalizeMessage = (message) => ({
     message?.sender?.name ||
     message?.sender?.full_name ||
     message?.sender?.fullName ||
-    'Member',
+    (t ? t('grp_lbl_member') : 'Member'),
 });
 
-const formatDateTime = (value) => {
-  if (!value) return 'Unknown';
+const formatDateTime = (value, t) => {
+  if (!value) return t ? t('grp_unknown') : 'Unknown';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Unknown';
+  if (Number.isNaN(date.getTime())) return t ? t('grp_unknown') : 'Unknown';
   return formatCstDateTime(date);
 };
 
@@ -149,6 +150,7 @@ function MessageBubble({ message }) {
 }
 
 export default function Groups() {
+  const { t } = useLanguage();
   const location = useLocation();
   const [viewMode, setViewMode] = useState('dashboard');
   const [groups, setGroups] = useState([]);
@@ -227,11 +229,11 @@ export default function Groups() {
       setContacts(toItems(data));
     } catch (contactError) {
       setContacts([]);
-      setError(contactError?.response?.data?.message || 'Could not load contacts for group member selection.');
+      setError(contactError?.response?.data?.message || t('grp_err_load_contacts'));
     } finally {
       setContactsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchGroups = useCallback(async (search = '') => {
     setLoading(true);
@@ -249,11 +251,11 @@ export default function Groups() {
     } catch (groupError) {
       setGroups([]);
       setSelectedGroupId(null);
-      setError(groupError?.response?.data?.message || 'Could not load groups.');
+      setError(groupError?.response?.data?.message || t('grp_err_load_groups'));
     } finally {
       setLoading(false);
     }
-  }, [selectedGroupId]);
+  }, [selectedGroupId, t]);
 
   const fetchGroupDetail = useCallback(async (groupId) => {
     if (!groupId) return;
@@ -268,9 +270,9 @@ export default function Groups() {
         role_slug: normalized.role_slug || '',
       });
     } catch (detailError) {
-      setError(detailError?.response?.data?.message || 'Could not load group details.');
+      setError(detailError?.response?.data?.message || t('grp_err_load_details'));
     }
-  }, []);
+  }, [t]);
 
   const fetchMessages = useCallback(async (conversationId) => {
     if (!conversationId) {
@@ -283,17 +285,17 @@ export default function Groups() {
       const response = await smartflowApi.getMessages(conversationId, { page: 1, page_size: 100 });
       const data = getApiData(response);
       const nextMessages = toMessages(data)
-        .map(normalizeMessage)
+        .map((m) => normalizeMessage(m, t))
         .sort((left, right) => new Date(left.timestamp || 0).getTime() - new Date(right.timestamp || 0).getTime());
       setMessages(nextMessages);
       setError('');
     } catch (messageError) {
       setMessages([]);
-      setError(messageError?.response?.data?.message || 'Could not load group chat thread.');
+      setError(messageError?.response?.data?.message || t('grp_err_load_thread'));
     } finally {
       setThreadLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchGroups();
@@ -340,7 +342,7 @@ export default function Groups() {
       try {
         const payload = JSON.parse(event.data);
         if (payload?.event !== 'message.created' && payload?.event !== 'message.updated') return;
-        const incoming = normalizeMessage(payload.data);
+        const incoming = normalizeMessage(payload.data, t);
         setMessages((current) => {
           const exists = current.some((item) => item.id === incoming.id);
           if (exists) {
@@ -360,7 +362,7 @@ export default function Groups() {
       socket.close();
       threadSocketRef.current = null;
     };
-  }, [activeGroup?.conversation_id, fetchMessages, viewMode]);
+  }, [activeGroup?.conversation_id, fetchMessages, t, viewMode]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -369,11 +371,11 @@ export default function Groups() {
   const handleCreateGroup = async (event) => {
     event.preventDefault();
     if (!createForm.name.trim()) {
-      setError('Group name is required.');
+      setError(t('grp_err_name_required'));
       return;
     }
     if (!selectedMemberIds.length) {
-      setError('Add at least one member to create a group.');
+      setError(t('grp_err_member_required'));
       return;
     }
 
@@ -390,11 +392,11 @@ export default function Groups() {
       setSelectedGroupId(created.id);
       setSelectedMemberIds([]);
       setCreateForm({ name: '', description: '', avatar_url: '', role_slug: '' });
-      setSuccess('Group created successfully.');
+      setSuccess(t('grp_msg_created'));
       setError('');
       setViewMode('settings');
     } catch (createError) {
-      setError(createError?.response?.data?.message || 'Could not create group.');
+      setError(createError?.response?.data?.message || t('grp_err_create'));
     } finally {
       setSaving(false);
     }
@@ -413,10 +415,10 @@ export default function Groups() {
         role_slug: settingsForm.role_slug || undefined,
       });
       syncListGroup(getApiData(response));
-      setSuccess('Group settings saved.');
+      setSuccess(t('grp_msg_saved'));
       setError('');
     } catch (saveError) {
-      setError(saveError?.response?.data?.message || 'Could not save group settings.');
+      setError(saveError?.response?.data?.message || t('grp_err_save'));
     } finally {
       setSaving(false);
     }
@@ -428,10 +430,10 @@ export default function Groups() {
     try {
       const response = await smartflowApi.addGroupMembers(activeGroup.id, { member_ids: [contactId] });
       syncListGroup(getApiData(response));
-      setSuccess('Member added to group.');
+      setSuccess(t('grp_msg_member_added'));
       setError('');
     } catch (memberError) {
-      setError(memberError?.response?.data?.message || 'Could not add member.');
+      setError(memberError?.response?.data?.message || t('grp_err_add_member'));
     } finally {
       setAddingMemberId('');
     }
@@ -439,15 +441,15 @@ export default function Groups() {
 
   const handleRemoveMember = async (memberId) => {
     if (!activeGroup?.id || !memberId) return;
-    if (!window.confirm('Remove this member from the group?')) return;
+    if (!window.confirm(t('grp_confirm_remove_member'))) return;
     setRemovingMemberId(memberId);
     try {
       const response = await smartflowApi.removeGroupMember(activeGroup.id, memberId);
       syncListGroup(getApiData(response));
-      setSuccess('Member removed.');
+      setSuccess(t('grp_msg_member_removed'));
       setError('');
     } catch (removeError) {
-      setError(removeError?.response?.data?.message || 'Could not remove member.');
+      setError(removeError?.response?.data?.message || t('grp_err_remove_member'));
     } finally {
       setRemovingMemberId('');
     }
@@ -459,10 +461,10 @@ export default function Groups() {
     try {
       const response = await smartflowApi.updateGroupMember(activeGroup.id, memberId, { role });
       syncListGroup(getApiData(response));
-      setSuccess(`Member role updated to ${role}.`);
+      setSuccess(t('grp_msg_role_updated', { role }));
       setError('');
     } catch (roleError) {
-      setError(roleError?.response?.data?.message || 'Could not update member role.');
+      setError(roleError?.response?.data?.message || t('grp_err_update_role'));
     } finally {
       setChangingRoleId('');
     }
@@ -483,10 +485,10 @@ export default function Groups() {
       const response = await smartflowApi.createGroupInvite(activeGroup.id, payload);
       syncListGroup(getApiData(response));
       setInviteForm({ name: '', email: '', phone: '', role: 'member' });
-      setSuccess('Invite created.');
+      setSuccess(t('grp_msg_invite_created'));
       setError('');
     } catch (inviteError) {
-      setError(inviteError?.response?.data?.message || 'Could not create invite.');
+      setError(inviteError?.response?.data?.message || t('grp_err_create_invite'));
     } finally {
       setInviteSaving(false);
     }
@@ -495,38 +497,38 @@ export default function Groups() {
   const handleLeaveGroup = async () => {
     if (!activeGroup?.id) return;
     if (!activeGroup.can_leave) {
-      setError('This group owner cannot leave the group. Delete it instead.');
+      setError(t('grp_err_owner_cannot_leave'));
       setSuccess('');
       return;
     }
-    if (!window.confirm(`Leave "${activeGroup.name}"?`)) return;
+    if (!window.confirm(t('grp_confirm_leave', { name: activeGroup.name }))) return;
     try {
       await smartflowApi.leaveGroup(activeGroup.id);
-      setSuccess('You left the group.');
+      setSuccess(t('grp_msg_left'));
       setError('');
       const nextId = groups.find((group) => group.id !== activeGroup.id)?.id || null;
       setGroups((current) => current.filter((group) => group.id !== activeGroup.id));
       setSelectedGroupId(nextId);
       setViewMode('dashboard');
     } catch (leaveError) {
-      setError(leaveError?.response?.data?.message || 'Could not leave the group.');
+      setError(leaveError?.response?.data?.message || t('grp_err_leave'));
     }
   };
 
   const handleDeleteGroup = async () => {
     if (!activeGroup?.id) return;
-    if (!window.confirm(`Delete "${activeGroup.name}"?`)) return;
+    if (!window.confirm(t('grp_confirm_delete', { name: activeGroup.name }))) return;
 
     try {
       await smartflowApi.deleteGroup(activeGroup.id);
-      setSuccess('Group deleted.');
+      setSuccess(t('grp_msg_deleted'));
       setError('');
       const nextId = groups.find((group) => group.id !== activeGroup.id)?.id || null;
       setGroups((current) => current.filter((group) => group.id !== activeGroup.id));
       setSelectedGroupId(nextId);
       setViewMode('dashboard');
     } catch (deleteError) {
-      setError(deleteError?.response?.data?.message || 'Could not delete the group.');
+      setError(deleteError?.response?.data?.message || t('grp_err_delete'));
     }
   };
 
@@ -548,7 +550,7 @@ export default function Groups() {
       await fetchGroups(searchQuery.trim());
       setError('');
     } catch (sendError) {
-      setError(sendError?.response?.data?.message || 'Could not send message to this group.');
+      setError(sendError?.response?.data?.message || t('grp_err_send_message'));
     } finally {
       setSending(false);
     }
@@ -592,39 +594,39 @@ export default function Groups() {
               >
                 <ArrowLeft size={16} />
               </button>
-              <h1 className="text-xl font-bold text-white">Create Group</h1>
+              <h1 className="text-xl font-bold text-white">{t('grp_btn_create_group')}</h1>
             </div>
 
             <form onSubmit={handleCreateGroup} className="space-y-6 mt-6">
               <div className="flex flex-col items-center space-y-3">
-                <GroupAvatar name={createForm.name || 'New Group'} avatarUrl={createForm.avatar_url} size="w-20 h-20 text-2xl" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Group Image</span>
+                <GroupAvatar name={createForm.name || t('grp_default_new_group')} avatarUrl={createForm.avatar_url} size="w-20 h-20 text-2xl" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('grp_lbl_group_image')}</span>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 tracking-wide uppercase">Group Name</label>
+              <div className="space-y-2 text-left">
+                <label className="text-xs font-bold text-slate-400 tracking-wide uppercase">{t('grp_lbl_group_name')}</label>
                 <input
                   type="text"
                   value={createForm.name}
                   onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="Enter group name..."
+                  placeholder={t('grp_ph_group_name')}
                   className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                   required
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 tracking-wide uppercase">Description</label>
+              <div className="space-y-2 text-left">
+                <label className="text-xs font-bold text-slate-400 tracking-wide uppercase">{t('grp_lbl_description')}</label>
                 <textarea
                   value={createForm.description}
                   onChange={(event) => setCreateForm((current) => ({ ...current, description: event.target.value }))}
-                  placeholder="Brief group description..."
+                  placeholder={t('grp_ph_description')}
                   className="w-full min-h-24 px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 tracking-wide uppercase">Avatar URL</label>
+              <div className="space-y-2 text-left">
+                <label className="text-xs font-bold text-slate-400 tracking-wide uppercase">{t('grp_lbl_avatar_url')}</label>
                 <input
                   type="url"
                   value={createForm.avatar_url}
@@ -634,29 +636,29 @@ export default function Groups() {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 text-left">
                 <label className="text-xs font-bold text-slate-400 tracking-wide uppercase flex items-center gap-1.5">
-                  <Shield size={12} className="text-purple-400" /> Link to RBAC Role
+                  <Shield size={12} className="text-purple-400" /> {t('grp_lbl_link_rbac')}
                 </label>
                 <select
                   value={createForm.role_slug}
                   onChange={(event) => setCreateForm((current) => ({ ...current, role_slug: event.target.value }))}
                   className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-purple-500/40"
                 >
-                  <option value="">No role link</option>
-                  <option value="manager">Manager</option>
-                  <option value="staff">Staff</option>
-                  <option value="assistant">Assistant</option>
+                  <option value="">{t('grp_opt_no_role')}</option>
+                  <option value="manager">{t('grp_opt_manager')}</option>
+                  <option value="staff">{t('grp_opt_staff')}</option>
+                  <option value="assistant">{t('grp_opt_assistant')}</option>
                 </select>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Members who are registered users will automatically get this permission role. Removing them from the group revokes it.
+                  {t('grp_rbac_hint')}
                 </p>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 text-left">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-400 tracking-wide uppercase">
-                    Members ({selectedMemberIds.length} Selected)
+                    {t('grp_lbl_members_selected', { count: selectedMemberIds.length })}
                   </label>
                   {contactsLoading ? <Loader2 size={14} className="animate-spin text-purple-400" /> : null}
                 </div>
@@ -667,7 +669,7 @@ export default function Groups() {
                     type="text"
                     value={memberSearchQuery}
                     onChange={(event) => setMemberSearchQuery(event.target.value)}
-                    placeholder="Search contacts..."
+                    placeholder={t('grp_ph_search_contacts')}
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                   />
                 </div>
@@ -707,8 +709,8 @@ export default function Groups() {
                         }`}
                       >
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-white truncate">{contact.name || 'Unnamed Contact'}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{contact.email || contact.phone || 'No email or phone'}</p>
+                          <p className="text-xs font-bold text-white truncate">{contact.name || t('grp_unnamed_contact')}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{contact.email || contact.phone || t('grp_no_email_phone')}</p>
                         </div>
                         <div className={`w-4 h-4 rounded border flex items-center justify-center ${selected ? 'border-purple-500 bg-purple-950 text-purple-400' : 'border-slate-800'}`}>
                           {selected ? <Check size={10} /> : null}
@@ -716,7 +718,7 @@ export default function Groups() {
                       </button>
                     );
                   }) : (
-                    <div className="p-6 text-center text-xs text-slate-500">No contacts available for selection.</div>
+                    <div className="p-6 text-center text-xs text-slate-500">{t('grp_no_contacts_avail')}</div>
                   )}
                 </div>
               </div>
@@ -727,32 +729,32 @@ export default function Groups() {
                 className="w-full py-4 bg-purple-400 hover:bg-purple-300 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-400/10 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                Create Group
+                {t('grp_btn_create_group')}
               </button>
             </form>
           </div>
 
-          <div className="w-full lg:w-[360px] bg-[#0c101b] border border-slate-900 rounded-3xl p-6 space-y-6">
+          <div className="w-full lg:w-[360px] bg-[#0c101b] border border-slate-900 rounded-3xl p-6 space-y-6 text-left">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Preview</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('grp_preview')}</p>
               <div className="mt-4 rounded-3xl border border-slate-900 bg-[#121625]/40 p-5 text-center">
                 <div className="flex justify-center">
-                  <GroupAvatar name={createForm.name || 'New Group'} avatarUrl={createForm.avatar_url} size="w-16 h-16 text-xl" />
+                  <GroupAvatar name={createForm.name || t('grp_default_new_group')} avatarUrl={createForm.avatar_url} size="w-16 h-16 text-xl" />
                 </div>
-                <h3 className="mt-4 text-lg font-extrabold text-white">{createForm.name || 'New Group'}</h3>
-                <p className="mt-1 text-xs text-slate-500">{selectedMemberIds.length} members selected</p>
+                <h3 className="mt-4 text-lg font-extrabold text-white">{createForm.name || t('grp_default_new_group')}</h3>
+                <p className="mt-1 text-xs text-slate-500">{t('grp_members_selected_count', { n: selectedMemberIds.length })}</p>
                 <p className="mt-3 text-xs leading-relaxed text-slate-400">
-                  {createForm.description || 'Add a description so the team knows what this group is for.'}
+                  {createForm.description || t('grp_default_description')}
                 </p>
               </div>
             </div>
 
             <div className="rounded-2xl border border-slate-900 bg-slate-950/40 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400">Runtime notes</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400">{t('grp_runtime_notes')}</p>
               <ul className="mt-3 space-y-2 text-xs text-slate-400">
-                <li>Creates a real SmartFlow group record.</li>
-                <li>Uses real contact IDs as members.</li>
-                <li>Creates a linked conversation thread for group chat.</li>
+                <li>{t('grp_note_1')}</li>
+                <li>{t('grp_note_2')}</li>
+                <li>{t('grp_note_3')}</li>
               </ul>
             </div>
           </div>
@@ -760,7 +762,7 @@ export default function Groups() {
       )}
 
       {viewMode === 'settings' && activeGroup?.id && (
-        <div className="flex-1 flex flex-col xl:flex-row gap-6 min-h-0">
+        <div className="flex-1 flex flex-col xl:flex-row gap-6 min-h-0 text-left">
           <div className="flex-1 bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-8 overflow-y-auto">
             <div className="flex items-center gap-3 pb-6 border-b border-slate-900/60">
               <button
@@ -769,13 +771,13 @@ export default function Groups() {
               >
                 <ArrowLeft size={16} />
               </button>
-              <h1 className="text-xl font-bold text-white">Group Settings</h1>
+              <h1 className="text-xl font-bold text-white">{t('grp_settings_title')}</h1>
             </div>
 
             <form onSubmit={handleSaveSettings} className="space-y-6 mt-6">
               {activeGroup.is_system_managed ? (
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 px-4 py-3 text-xs text-emerald-200">
-                  This organization global chat is managed automatically from the Owner Dashboard. Members can chat here, but membership and settings are controlled outside the Community page.
+                  {t('grp_global_chat_hint')}
                 </div>
               ) : null}
 
@@ -790,16 +792,16 @@ export default function Groups() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-xs text-slate-500">{activeGroup.member_count} members</p>
+                  <p className="text-xs text-slate-500">{t('grp_member_count', { n: activeGroup.member_count })}</p>
                   <p className="text-[10px] uppercase tracking-widest text-slate-600 mt-1">
-                    Updated {formatDateTime(activeGroup.updated_at || activeGroup.created_at)}
+                    {t('grp_updated_at', { time: formatDateTime(activeGroup.updated_at || activeGroup.created_at, t) })}
                   </p>
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Group Name</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('grp_lbl_group_name')}</label>
                   <input
                     type="text"
                     value={settingsForm.name}
@@ -809,7 +811,7 @@ export default function Groups() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Avatar URL</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('grp_lbl_avatar_url')}</label>
                   <input
                     type="url"
                     value={settingsForm.avatar_url}
@@ -821,7 +823,7 @@ export default function Groups() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Description</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('grp_lbl_description')}</label>
                 <textarea
                   value={settingsForm.description}
                   onChange={(event) => setSettingsForm((current) => ({ ...current, description: event.target.value }))}
@@ -833,20 +835,20 @@ export default function Groups() {
               {!activeGroup.is_system_managed ? (
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                    <Shield size={12} className="text-purple-400" /> Link to RBAC Role
+                    <Shield size={12} className="text-purple-400" /> {t('grp_lbl_link_rbac')}
                   </label>
                   <select
                     value={settingsForm.role_slug}
                     onChange={(event) => setSettingsForm((current) => ({ ...current, role_slug: event.target.value }))}
                     className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-purple-500/40"
                   >
-                    <option value="">No role link</option>
-                    <option value="manager">Manager</option>
-                    <option value="staff">Staff</option>
-                    <option value="assistant">Assistant</option>
+                    <option value="">{t('grp_opt_no_role')}</option>
+                    <option value="manager">{t('grp_opt_manager')}</option>
+                    <option value="staff">{t('grp_opt_staff')}</option>
+                    <option value="assistant">{t('grp_opt_assistant')}</option>
                   </select>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Adding/removing members here auto-syncs their permission role on the platform.
+                    {t('grp_sync_role_hint')}
                   </p>
                 </div>
               ) : null}
@@ -856,26 +858,26 @@ export default function Groups() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-5 py-3 rounded-xl bg-purple-400 hover:bg-purple-300 text-[#070a13] font-bold flex items-center gap-2 disabled:opacity-60"
+                    className="px-5 py-3 rounded-xl bg-purple-400 hover:bg-purple-300 text-[#070a13] font-bold flex items-center gap-2 disabled:opacity-60 cursor-pointer"
                   >
                     {saving ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />}
-                    Save
+                    {t('grp_btn_save')}
                   </button>
                 ) : null}
                 <button
                   type="button"
                   onClick={() => setViewMode('chat')}
-                  className="px-5 py-3 rounded-xl border border-slate-900 bg-slate-950 text-slate-300 hover:text-white font-bold flex items-center gap-2"
+                  className="px-5 py-3 rounded-xl border border-slate-900 bg-slate-950 text-slate-300 hover:text-white font-bold flex items-center gap-2 cursor-pointer"
                 >
                   <MessageSquare size={14} />
-                  Open Chat
+                  {t('grp_btn_open_chat')}
                 </button>
               </div>
             </form>
 
             <div className="mt-8 border-t border-slate-900/60 pt-8">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Members ({activeGroup.members.length})</h3>
+                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('grp_lbl_members_count', { n: activeGroup.members.length })}</h3>
                 {contactsLoading ? <Loader2 size={14} className="animate-spin text-purple-400" /> : null}
               </div>
 
@@ -886,7 +888,7 @@ export default function Groups() {
                       <GroupAvatar name={member.name} avatarUrl={member.avatar_url} size="w-10 h-10 text-xs" />
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-white truncate">{member.name}</p>
-                        <p className="text-xs text-slate-500 truncate">{member.email || member.phone || 'No email or phone'}</p>
+                        <p className="text-xs text-slate-500 truncate">{member.email || member.phone || t('grp_no_email_phone')}</p>
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
@@ -902,15 +904,15 @@ export default function Groups() {
                             disabled={changingRoleId === member.id}
                             className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-900 text-xs text-slate-300 focus:outline-none focus:border-purple-500/40 disabled:opacity-60"
                           >
-                            <option value="member">Member</option>
-                            <option value="admin">Admin</option>
+                            <option value="member">{t('grp_opt_member')}</option>
+                            <option value="admin">{t('grp_opt_admin')}</option>
                           </select>
                           <button
                             type="button"
                             onClick={() => handleRemoveMember(member.id)}
                             disabled={removingMemberId === member.id}
-                            className="p-2 rounded-xl border border-slate-900 bg-slate-950 text-slate-500 hover:text-rose-400 disabled:opacity-60"
-                            title="Remove member"
+                            className="p-2 rounded-xl border border-slate-900 bg-slate-950 text-slate-500 hover:text-rose-400 disabled:opacity-60 cursor-pointer"
+                            title={t('grp_title_remove_member')}
                           >
                             {removingMemberId === member.id ? <Loader2 size={14} className="animate-spin" /> : <UserMinus size={14} />}
                           </button>
@@ -920,7 +922,7 @@ export default function Groups() {
                   </div>
                 )) : (
                   <div className="p-6 text-center text-xs text-slate-500 border border-dashed border-slate-900 rounded-2xl">
-                    No members yet.
+                    {t('grp_no_members_yet')}
                   </div>
                 )}
               </div>
@@ -930,9 +932,9 @@ export default function Groups() {
           <div className="w-full xl:w-[360px] space-y-6">
             {activeGroup.is_system_managed ? (
               <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6">
-                <h3 className="text-sm font-extrabold text-white">Owner-controlled membership</h3>
+                <h3 className="text-sm font-extrabold text-white">{t('grp_owner_controlled_title')}</h3>
                 <p className="mt-3 text-xs leading-relaxed text-slate-400">
-                  This conversation follows organization membership from the Owner Dashboard. Users cannot add, remove, invite, leave, or delete this global chat from Community.
+                  {t('grp_owner_controlled_desc')}
                 </p>
               </div>
             ) : (
@@ -940,7 +942,7 @@ export default function Groups() {
                 <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6">
                   <div className="flex items-center gap-2">
                     <UserPlus size={15} className="text-purple-400" />
-                    <h3 className="text-sm font-extrabold text-white">Add Members</h3>
+                    <h3 className="text-sm font-extrabold text-white">{t('grp_btn_add_members')}</h3>
                   </div>
                   <div className="relative mt-4">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
@@ -948,7 +950,7 @@ export default function Groups() {
                       type="text"
                       value={memberSearchQuery}
                       onChange={(event) => setMemberSearchQuery(event.target.value)}
-                      placeholder="Search contacts..."
+                      placeholder={t('grp_ph_search_contacts')}
                       className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                     />
                   </div>
@@ -956,20 +958,20 @@ export default function Groups() {
                     {filteredContacts.length ? filteredContacts.map((contact) => (
                       <div key={contact.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-slate-900 bg-slate-950/40">
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-white truncate">{contact.name || 'Unnamed Contact'}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{contact.email || contact.phone || 'No email or phone'}</p>
+                          <p className="text-xs font-bold text-white truncate">{contact.name || t('grp_unnamed_contact')}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{contact.email || contact.phone || t('grp_no_email_phone')}</p>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleAddMember(String(contact.id))}
                           disabled={addingMemberId === String(contact.id)}
-                          className="px-3 py-2 rounded-xl bg-purple-400 text-[#041118] text-[11px] font-black disabled:opacity-60"
+                          className="px-3 py-2 rounded-xl bg-purple-400 text-[#041118] text-[11px] font-black disabled:opacity-60 cursor-pointer"
                         >
-                          {addingMemberId === String(contact.id) ? 'Adding...' : 'Add'}
+                          {addingMemberId === String(contact.id) ? t('grp_adding') : t('grp_btn_add')}
                         </button>
                       </div>
                     )) : (
-                      <div className="p-4 text-center text-xs text-slate-500">No addable contacts found.</div>
+                      <div className="p-4 text-center text-xs text-slate-500">{t('grp_no_addable_contacts')}</div>
                     )}
                   </div>
                 </div>
@@ -977,28 +979,28 @@ export default function Groups() {
                 <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6">
                   <div className="flex items-center gap-2">
                     <Mail size={15} className="text-purple-400" />
-                    <h3 className="text-sm font-extrabold text-white">Invite by Email or Phone</h3>
+                    <h3 className="text-sm font-extrabold text-white">{t('grp_invite_title')}</h3>
                   </div>
                   <form onSubmit={handleInvite} className="mt-4 space-y-3">
                     <input
                       type="text"
                       value={inviteForm.name}
                       onChange={(event) => setInviteForm((current) => ({ ...current, name: event.target.value }))}
-                      placeholder="Invitee name"
+                      placeholder={t('grp_ph_invitee_name')}
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                     />
                     <input
                       type="email"
                       value={inviteForm.email}
                       onChange={(event) => setInviteForm((current) => ({ ...current, email: event.target.value }))}
-                      placeholder="Email address"
+                      placeholder={t('grp_ph_email_address')}
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                     />
                     <input
                       type="tel"
                       value={inviteForm.phone}
                       onChange={(event) => setInviteForm((current) => ({ ...current, phone: event.target.value }))}
-                      placeholder="Phone number"
+                      placeholder={t('grp_ph_phone_number')}
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                     />
                     <select
@@ -1006,22 +1008,22 @@ export default function Groups() {
                       onChange={(event) => setInviteForm((current) => ({ ...current, role: event.target.value }))}
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-purple-500/40"
                     >
-                      <option value="member">Member</option>
-                      <option value="admin">Admin</option>
+                      <option value="member">{t('grp_opt_member')}</option>
+                      <option value="admin">{t('grp_opt_admin')}</option>
                     </select>
                     <button
                       type="submit"
                       disabled={inviteSaving}
-                      className="w-full py-3 rounded-xl bg-purple-400 hover:bg-purple-300 text-[#041118] text-xs font-black disabled:opacity-60"
+                      className="w-full py-3 rounded-xl bg-purple-400 hover:bg-purple-300 text-[#041118] text-xs font-black disabled:opacity-60 cursor-pointer"
                     >
-                      {inviteSaving ? 'Sending...' : 'Create Invite'}
+                      {inviteSaving ? t('grp_sending') : t('grp_btn_create_invite')}
                     </button>
                   </form>
 
                   {activeGroup.pending_invites?.length ? (
                     <div className="mt-5 space-y-2">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                        Pending Invites ({activeGroup.pending_invites.length})
+                        {t('grp_pending_invites_count', { n: activeGroup.pending_invites.length })}
                       </p>
                       {activeGroup.pending_invites.map((invite) => (
                         <div key={invite.id} className="rounded-2xl border border-slate-900 bg-slate-950/40 px-3 py-2">
@@ -1034,27 +1036,27 @@ export default function Groups() {
                 </div>
 
                 <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6">
-                  <h3 className="text-sm font-extrabold text-white">Danger Zone</h3>
+                  <h3 className="text-sm font-extrabold text-white">{t('grp_danger_zone')}</h3>
                   <div className="mt-4 space-y-3">
                     {activeGroup.can_leave ? (
                       <button
                         type="button"
                         onClick={handleLeaveGroup}
-                        className="w-full py-3 rounded-xl border border-rose-500/30 text-rose-300 text-xs font-black hover:bg-rose-950/20"
+                        className="w-full py-3 rounded-xl border border-rose-500/30 text-rose-300 text-xs font-black hover:bg-rose-950/20 cursor-pointer"
                       >
-                        Leave Group
+                        {t('grp_btn_leave_group')}
                       </button>
                     ) : (
                       <div className="rounded-xl border border-slate-900 bg-slate-950/50 px-4 py-3 text-[11px] text-slate-400">
-                        Group owners cannot leave. Delete the group if you no longer need it.
+                        {t('grp_owner_cannot_leave_hint')}
                       </div>
                     )}
                     <button
                       type="button"
                       onClick={handleDeleteGroup}
-                      className="w-full py-3 rounded-xl bg-rose-500/90 text-white text-xs font-black hover:bg-rose-500"
+                      className="w-full py-3 rounded-xl bg-rose-500/90 text-white text-xs font-black hover:bg-rose-500 cursor-pointer"
                     >
-                      Delete Group
+                      {t('grp_btn_delete_group')}
                     </button>
                   </div>
                 </div>
@@ -1065,12 +1067,12 @@ export default function Groups() {
       )}
 
       {viewMode === 'chat' && activeGroup?.id && (
-        <div className="flex-1 flex flex-col bg-[#0c101b] border border-slate-900 rounded-3xl overflow-hidden">
+        <div className="flex-1 flex flex-col bg-[#0c101b] border border-slate-900 rounded-3xl overflow-hidden text-left">
           <div className="flex items-center justify-between border-b border-slate-900/60 px-6 py-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setViewMode('dashboard')}
-                className="p-2 bg-slate-950/60 hover:bg-slate-900 border border-slate-900 rounded-xl text-slate-400 hover:text-white transition-colors"
+                className="p-2 bg-slate-950/60 hover:bg-slate-900 border border-slate-900 rounded-xl text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 <ArrowLeft size={16} />
               </button>
@@ -1078,14 +1080,14 @@ export default function Groups() {
               <div>
                 <h2 className="text-base font-extrabold text-white">{activeGroup.name}</h2>
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">
-                  {activeGroup.member_count} members
+                  {t('grp_member_count', { n: activeGroup.member_count })}
                 </p>
               </div>
             </div>
             <button
               onClick={() => setViewMode('settings')}
-              className="p-2 rounded-xl border border-slate-900 bg-slate-950 text-slate-400 hover:text-white"
-              title="Group settings"
+              className="p-2 rounded-xl border border-slate-900 bg-slate-950 text-slate-400 hover:text-white cursor-pointer"
+              title={t('grp_title_group_settings')}
             >
               <Settings size={16} />
             </button>
@@ -1095,7 +1097,7 @@ export default function Groups() {
             {threadLoading ? (
               <div className="h-full flex items-center justify-center text-slate-400">
                 <Loader2 size={18} className="animate-spin mr-2 text-purple-400" />
-                Loading group chat...
+                {t('grp_loading_chat')}
               </div>
             ) : messages.length ? (
               messages.map((message) => <MessageBubble key={message.id} message={message} />)
@@ -1103,7 +1105,7 @@ export default function Groups() {
               <div className="h-full flex flex-col items-center justify-center text-slate-500">
                 <MessageSquare size={34} className="mb-3 opacity-40" />
                 <p className="text-sm font-bold text-white">{activeGroup.name}</p>
-                <p className="mt-1 text-xs">No messages yet. Start the conversation.</p>
+                <p className="mt-1 text-xs">{t('grp_no_messages_yet')}</p>
               </div>
             )}
             <div ref={chatBottomRef} />
@@ -1114,7 +1116,7 @@ export default function Groups() {
               <textarea
                 value={currentMessageText}
                 onChange={(event) => setCurrentMessageText(event.target.value)}
-                placeholder="Type a message..."
+                placeholder={t('grp_ph_type_message')}
                 rows={2}
                 className="w-full min-h-[52px] max-h-32 resize-none rounded-2xl bg-transparent px-4 py-3 text-xs font-semibold text-white placeholder:text-slate-600 focus:outline-none"
               />
@@ -1122,7 +1124,7 @@ export default function Groups() {
             <button
               type="submit"
               disabled={sending || !currentMessageText.trim()}
-              className="h-12 w-12 rounded-2xl bg-purple-400 text-[#041118] flex items-center justify-center disabled:opacity-60"
+              className="h-12 w-12 rounded-2xl bg-purple-400 text-[#041118] flex items-center justify-center disabled:opacity-60 cursor-pointer"
             >
               {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
@@ -1132,11 +1134,11 @@ export default function Groups() {
 
       {viewMode === 'dashboard' && (
         <div className="h-full flex flex-col space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-left">
             <div>
-              <h1 className="text-3xl font-extrabold text-white tracking-tight">Groups</h1>
+              <h1 className="text-3xl font-extrabold text-white tracking-tight">{t('grp_title')}</h1>
               <p className="text-slate-400 text-sm mt-1">
-                Manage your contact groups and team conversations.
+                {t('grp_subtitle')}
               </p>
             </div>
 
@@ -1147,7 +1149,7 @@ export default function Groups() {
                   type="text"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search groups..."
+                  placeholder={t('grp_ph_search_groups')}
                   className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40"
                 />
               </div>
@@ -1158,10 +1160,10 @@ export default function Groups() {
                   setMemberSearchQuery('');
                   setViewMode('create');
                 }}
-                className="px-4 py-2 bg-purple-400 hover:bg-purple-300 text-[#070a13] rounded-xl text-xs font-extrabold shadow-lg shadow-purple-500/5 transition-all flex items-center gap-1.5"
+                className="px-4 py-2 bg-purple-400 hover:bg-purple-300 text-[#070a13] rounded-xl text-xs font-extrabold shadow-lg shadow-purple-500/5 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus size={14} />
-                <span>Create Group</span>
+                <span>{t('grp_btn_create_group')}</span>
               </button>
             </div>
           </div>
@@ -1177,8 +1179,8 @@ export default function Groups() {
               ) : filteredGroupsList.length === 0 ? (
                 <div className="p-12 text-center bg-[#0c101b]/50 border border-slate-900 rounded-2xl text-slate-500">
                   <Users size={36} className="mx-auto mb-3 text-slate-600" />
-                  <p className="font-bold">No groups found</p>
-                  <p className="text-xs text-slate-600 mt-1">Change your search query or create a new group.</p>
+                  <p className="font-bold">{t('grp_no_groups_found')}</p>
+                  <p className="text-xs text-slate-600 mt-1">{t('grp_no_groups_hint')}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1196,7 +1198,7 @@ export default function Groups() {
                       >
                         <div className="flex items-center justify-between">
                           <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size="w-10 h-10 text-sm" />
-                          <button className="p-1 text-slate-600 hover:text-white rounded-lg hover:bg-slate-950 transition-colors" title="Actions">
+                          <button className="p-1 text-slate-600 hover:text-white rounded-lg hover:bg-slate-950 transition-colors cursor-pointer" title={t('grp_actions')}>
                             <MoreVertical size={14} />
                           </button>
                         </div>
@@ -1204,7 +1206,7 @@ export default function Groups() {
                         <div>
                           <h3 className="font-extrabold text-white text-base leading-tight truncate">{group.name}</h3>
                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                            <Users size={10} /> {group.member_count} Members
+                            <Users size={10} /> {t('grp_members_n', { n: group.member_count })}
                           </p>
                           {group.description ? (
                             <p className="mt-2 text-[11px] text-slate-400 line-clamp-2">{group.description}</p>
@@ -1218,8 +1220,8 @@ export default function Groups() {
                               setSelectedGroupId(group.id);
                               setViewMode('chat');
                             }}
-                            className="p-2 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white hover:border-slate-800 rounded-xl transition-all"
-                            title="Open Chat"
+                            className="p-2 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white hover:border-slate-800 rounded-xl transition-all cursor-pointer"
+                            title={t('grp_btn_open_chat')}
                           >
                             <MessageSquare size={14} />
                           </button>
@@ -1229,8 +1231,8 @@ export default function Groups() {
                               setSelectedGroupId(group.id);
                               setViewMode('settings');
                             }}
-                            className="p-2 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white hover:border-slate-800 rounded-xl transition-all"
-                            title="Group Settings"
+                            className="p-2 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white hover:border-slate-800 rounded-xl transition-all cursor-pointer"
+                            title={t('grp_title_group_settings')}
                           >
                             <Settings size={14} />
                           </button>
@@ -1242,16 +1244,16 @@ export default function Groups() {
               )}
             </div>
 
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-4 text-left">
               {activeGroup?.id ? (
                 <div className="bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 h-full flex flex-col justify-between">
                   <div className="space-y-6">
                     <div className="flex items-center justify-between pb-4 border-b border-slate-900/60">
-                      <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">Group Preview</span>
+                      <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">{t('grp_preview_title')}</span>
                       <button
                         onClick={handleDeleteGroup}
-                        className="p-2 bg-slate-950/60 hover:bg-red-950/20 border border-slate-900 text-slate-400 hover:text-red-400 rounded-xl transition-all"
-                        title="Delete Group"
+                        className="p-2 bg-slate-950/60 hover:bg-red-950/20 border border-slate-900 text-slate-400 hover:text-red-400 rounded-xl transition-all cursor-pointer"
+                        title={t('grp_btn_delete_group')}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -1262,40 +1264,40 @@ export default function Groups() {
                       <div>
                         <h3 className="text-lg font-extrabold text-white leading-tight">{activeGroup.name}</h3>
                         <p className="text-xs text-slate-500 font-semibold mt-1">
-                          {activeGroup.member_count} Members
+                          {t('grp_members_n', { n: activeGroup.member_count })}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-3.5 pt-2 text-xs font-bold">
                         <button
                           onClick={() => setViewMode('chat')}
-                          className="px-4 py-2 bg-purple-950/40 border border-purple-500/20 hover:bg-purple-950/70 text-purple-400 rounded-xl transition-all flex items-center gap-1"
+                          className="px-4 py-2 bg-purple-950/40 border border-purple-500/20 hover:bg-purple-950/70 text-purple-400 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
                         >
-                          <MessageSquare size={12} /> Message
+                          <MessageSquare size={12} /> {t('grp_btn_message')}
                         </button>
                         <button
                           onClick={() => setViewMode('settings')}
-                          className="px-4 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-900 text-slate-400 hover:text-white rounded-xl transition-all flex items-center gap-1"
+                          className="px-4 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-900 text-slate-400 hover:text-white rounded-xl transition-all flex items-center gap-1 cursor-pointer"
                         >
-                          <Settings size={12} /> Settings
+                          <Settings size={12} /> {t('grp_btn_settings')}
                         </button>
                       </div>
                     </div>
 
                     <div className="space-y-3 text-left pt-2">
-                      <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">Details</h4>
+                      <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">{t('grp_lbl_details')}</h4>
                       <div className="rounded-2xl border border-slate-900 bg-slate-950/30 p-4 space-y-3">
                         <div>
-                          <p className="text-[10px] uppercase tracking-widest text-slate-500">Description</p>
-                          <p className="mt-1 text-xs text-slate-300">{activeGroup.description || 'No description added.'}</p>
+                          <p className="text-[10px] uppercase tracking-widest text-slate-500">{t('grp_lbl_description')}</p>
+                          <p className="mt-1 text-xs text-slate-300">{activeGroup.description || t('grp_no_description')}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-widest text-slate-500">Conversation</p>
-                          <p className="mt-1 text-xs text-slate-300 break-all">{activeGroup.conversation_id || 'No linked thread found.'}</p>
+                          <p className="text-[10px] uppercase tracking-widest text-slate-500">{t('grp_lbl_conversation')}</p>
+                          <p className="mt-1 text-xs text-slate-300 break-all">{activeGroup.conversation_id || t('grp_no_linked_thread')}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-widest text-slate-500">Updated</p>
-                          <p className="mt-1 text-xs text-slate-300">{formatDateTime(activeGroup.updated_at || activeGroup.created_at)}</p>
+                          <p className="text-[10px] uppercase tracking-widest text-slate-500">{t('grp_lbl_updated')}</p>
+                          <p className="mt-1 text-xs text-slate-300">{formatDateTime(activeGroup.updated_at || activeGroup.created_at, t)}</p>
                         </div>
                       </div>
                     </div>
@@ -1304,18 +1306,18 @@ export default function Groups() {
                   <div className="mt-8 pt-4 border-t border-slate-900/60">
                     <button
                       onClick={() => setViewMode('settings')}
-                      className="w-full py-2.5 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Settings size={12} />
-                      <span>Group Settings</span>
+                      <span>{t('grp_btn_settings')}</span>
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="h-full border border-slate-900 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 text-center text-slate-500">
                   <Users size={24} className="text-slate-600 mb-2" />
-                  <p className="text-sm font-semibold">Select a group</p>
-                  <p className="text-xs text-slate-600 mt-1">Choose a group card to view its details and chat panel.</p>
+                  <p className="text-sm font-semibold">{t('grp_select_group')}</p>
+                  <p className="text-xs text-slate-600 mt-1">{t('grp_select_group_hint')}</p>
                 </div>
               )}
             </div>

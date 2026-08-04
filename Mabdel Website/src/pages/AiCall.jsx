@@ -2,13 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Mic, MicOff, Settings, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { smartflowApi } from '../api/services';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function AiCall() {
+  const { t } = useLanguage();
   const [isCalling, setIsCalling] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [isauted, setIsauted] = useState(false);
-  
+  const [isMuted, setIsMuted] = useState(false);
+
   const mediaRef = useRef(null);
   const chunksRef = useRef([]);
 
@@ -28,31 +30,31 @@ export default function AiCall() {
   useEffect(() => {
     if (mediaRef.current && mediaRef.current.stream) {
       mediaRef.current.stream.getAudioTracks().forEach(track => {
-        track.enabled = !isauted;
+        track.enabled = !isMuted;
       });
     }
-  }, [isauted]);
+  }, [isMuted]);
 
   const formatDuration = (seconds) => {
-    const mins = aath.floor(seconds / 60);
+    const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleStartCall = async () => {
     setIsCalling(true);
-    
+
     try {
-      const stream = await navigator.mediaDevices.getUseraedia({ audio: true });
-      const recorder = new aediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
-      
+
       recorder.ondataavailable = e => chunksRef.current.push(e.data);
-      
+
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        
+
         try {
           const res = await smartflowApi.voiceChat(blob);
           const audioUrl = res.data?.data?.audio_url || res.data?.audio_url;
@@ -64,19 +66,19 @@ export default function AiCall() {
           console.error("AI Voice Chat Error:", err);
         }
       };
-      
+
       recorder.start();
       mediaRef.current = recorder;
-      
+
       // We simulate a tiny connection delay just for UI effect
       setTimeout(() => {
-          setIsCalling(false);
-          setIsConnected(true);
+        setIsCalling(false);
+        setIsConnected(true);
       }, 1000);
-      
+
     } catch (err) {
       console.error(err);
-      alert('aicrophone access denied. Please allow microphone permissions to make AI Calls.');
+      alert(t('aicall_err_mic'));
       setIsCalling(false);
     }
   };
@@ -87,13 +89,13 @@ export default function AiCall() {
     }
     setIsCalling(false);
     setIsConnected(false);
-    setIsauted(false);
+    setIsMuted(false);
   };
 
   return (
     <div className="flex h-[calc(100vh-10rem)] bg-[#0c101b] border border-[#243041]/60 rounded-3xl overflow-hidden shadow-xl">
        <div className="flex-1 flex flex-col items-center justify-center relative p-6">
-           
+
            {/* Visualizer Background */}
            <div className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center">
                {isConnected && (
@@ -107,29 +109,29 @@ export default function AiCall() {
            <div className="z-10 flex flex-col items-center">
                <div className="relative mb-8">
                    <div className="w-32 h-32 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center shadow-2xl relative z-10">
-                       <Activity size={48} className={isConnected && !isauted ? "text-purple-400 animate-pulse" : "text-slate-600"} />
+                       <Activity size={48} className={isConnected && !isMuted ? "text-purple-400 animate-pulse" : "text-slate-600"} />
                    </div>
-                   
+
                    {isCalling && (
                        <div className="absolute inset-[-10px] border-2 border-purple-500/30 rounded-full animate-ping" />
                    )}
-                   {isConnected && !isauted && (
-                       <>
-                         <div className="absolute inset-[-15px] border border-purple-500/40 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
-                         <div className="absolute inset-[-30px] border border-purple-500/20 rounded-full animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
-                       </>
+                   {isConnected && !isMuted && (
+                     <>
+                       <div className="absolute inset-[-15px] border border-purple-500/40 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
+                       <div className="absolute inset-[-30px] border border-purple-500/20 rounded-full animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+                     </>
                    )}
                </div>
 
-               <h2 className="text-3xl font-black text-white mb-2">aabdel AI</h2>
-               
+               <h2 className="text-3xl font-black text-white mb-2">{t('aicall_agent_name')}</h2>
+
                <div className="h-6 flex items-center justify-center">
                    {isCalling ? (
-                       <span className="text-purple-400 font-bold animate-pulse">Connecting...</span>
+                       <span className="text-purple-400 font-bold animate-pulse">{t('aicall_connecting')}</span>
                    ) : isConnected ? (
                        <span className="text-emerald-400 font-mono font-bold text-lg">{formatDuration(duration)}</span>
                    ) : (
-                       <span className="text-slate-500 font-medium">Ready for your call</span>
+                       <span className="text-slate-500 font-medium">{t('aicall_ready')}</span>
                    )}
                </div>
            </div>
@@ -137,8 +139,8 @@ export default function AiCall() {
            <div className="absolute bottom-12 left-0 right-0 flex justify-center items-center gap-8 z-10">
                {isConnected ? (
                    <>
-                       <button onClick={() => setIsauted(!isauted)} className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors cursor-pointer ${isauted ? 'bg-white text-[#070a13]' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
-                           {isauted ? <MicOff size={24} /> : <Mic size={24} />}
+                       <button onClick={() => setIsMuted(!isMuted)} className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors cursor-pointer ${isMuted ? 'bg-white text-[#070a13]' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+                           {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
                        </button>
                        <button onClick={handleEndCall} className="w-20 h-20 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-lg shadow-rose-500/20 transition-transform hover:scale-105 cursor-pointer">
                            <PhoneOff size={32} />

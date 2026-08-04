@@ -12,23 +12,23 @@ import {
 } from "lucide-react";
 import { publicApi } from "../api/services";
 import { formatCstDate, formatCstTime } from "../utils/dateUtils";
+import { useLanguage } from "../context/LanguageContext";
 
-const plans = [
+const BASE_PLANS = [
   {
     id: "starter",
     name: "Starter",
     price: "$299",
-    subtitle: "Best for Solo Business Owners",
-    description:
-      "Capture leads, respond instantly, and never miss a customer.",
-    features: [
-      "1 User",
-      "AI Receptionist (calls + SMS handling)",
-      "CRM (leads, contacts, pipeline)",
-      "Calendar booking & scheduling",
-      "Missed call text back",
-      "Basic 1-to-1 follow-up automation",
-      "Mobile app access",
+    subtitleKey: "sub_starter_subtitle",
+    descriptionKey: "sub_starter_desc",
+    featureKeys: [
+      "sub_feat_1_user",
+      "sub_feat_ai_receptionist",
+      "sub_feat_crm",
+      "sub_feat_calendar",
+      "sub_feat_missed_call",
+      "sub_feat_basic_auto",
+      "sub_feat_mobile_app",
     ],
     usage: ["300 call minutes", "500 SMS", "200 emails"],
     addOns: [
@@ -46,23 +46,22 @@ const plans = [
     id: "growth",
     name: "Growth",
     price: "$699",
-    subtitle: "Best for Small Businesses Ready to Scale Revenue",
-    description:
-      "Turn conversations into customers with automation and marketing.",
+    subtitleKey: "sub_growth_subtitle",
+    descriptionKey: "sub_growth_desc",
     isPopular: true,
     icon: Sparkles,
-    features: [
-      "Everything in Starter",
-      "Unlimited users",
-      "Facebook + Instagram messaging integration",
-      "AI auto-replies to social media posts",
-      "AI reads & responds to messages (FB, IG, X where available)",
-      "Bulk SMS campaigns",
-      "Bulk email campaigns",
-      "AI social media post creation",
-      "AI marketing content generation",
-      "Team inbox (shared conversations)",
-      "Advanced automation workflows",
+    featureKeys: [
+      "sub_feat_everything_starter",
+      "sub_feat_unlimited_users",
+      "sub_feat_fb_ig",
+      "sub_feat_social_replies",
+      "sub_feat_ai_reads_social",
+      "sub_feat_bulk_sms",
+      "sub_feat_bulk_email",
+      "sub_feat_ai_social_post",
+      "sub_feat_ai_marketing",
+      "sub_feat_team_inbox",
+      "sub_feat_adv_auto",
     ],
     usage: ["1,500 call minutes", "5,000 SMS", "10,000 emails"],
     addOns: [
@@ -80,15 +79,14 @@ const plans = [
     id: "pro",
     name: "Pro",
     price: "$999",
-    subtitle: "Best for Growing & Operating Businesses",
-    description:
-      "Full AI-powered business system for operations and scale.",
-    features: [
-      "Everything in Growth",
-      "Invoice generation & billing tools",
-      "Business document generation (proposals, agreements, contracts & e-signatures)",
-      "Advanced automation workflows",
-      "Priority support",
+    subtitleKey: "sub_pro_subtitle",
+    descriptionKey: "sub_pro_desc",
+    featureKeys: [
+      "sub_feat_everything_growth",
+      "sub_feat_invoicing",
+      "sub_feat_doc_gen",
+      "sub_feat_adv_auto",
+      "sub_feat_priority_support",
     ],
     usage: ["3,000 call minutes", "15,000 SMS", "50,000 emails"],
     addOns: [
@@ -110,6 +108,7 @@ function formatSlotLabel(startIso) {
 }
 
 export default function Subscription() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [isDemoOpen, setIsDemoOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -146,9 +145,18 @@ export default function Subscription() {
   const [demoSubmitted, setDemoSubmitted] = useState(false);
   const [demoError, setDemoError] = useState("");
 
+  const plans = useMemo(() => {
+    return BASE_PLANS.map((plan) => ({
+      ...plan,
+      subtitle: t(plan.subtitleKey),
+      description: t(plan.descriptionKey),
+      features: plan.featureKeys.map((key) => t(key)),
+    }));
+  }, [t]);
+
   const featuredPlan = useMemo(
     () => plans.find((plan) => plan.isPopular),
-    [],
+    [plans],
   );
 
   useEffect(() => {
@@ -227,13 +235,13 @@ export default function Subscription() {
       setIsSubmitted(true);
     } catch (error) {
       console.error(error);
-      alert("Failed to request access. Please try again later.");
+      window.alert(t("sub_err_request_failed"));
     }
   };
 
   const handleDemoSubmit = async () => {
     if (!demoForm.firstName || !demoForm.lastName || !demoForm.email || !demoForm.message) {
-      setDemoError("Please fill in your name, email, and message.");
+      setDemoError(t("sub_err_demo_fill"));
       return;
     }
     setDemoSubmitting(true);
@@ -251,7 +259,7 @@ export default function Subscription() {
     } catch (error) {
       console.error(error);
       setDemoError(
-        error.response?.data?.message || "Failed to send your demo request. Please try again later."
+        error.response?.data?.message || t("sub_err_demo_failed")
       );
     } finally {
       setDemoSubmitting(false);
@@ -260,11 +268,11 @@ export default function Subscription() {
 
   const handleAppointmentConfirm = async () => {
     if (!demoForm.firstName || !demoForm.lastName || !demoForm.email) {
-      setAppointmentError("Please fill in your name and email on the left first.");
+      setAppointmentError(t("sub_err_fill_left"));
       return;
     }
     if (!selectedSlot) {
-      setAppointmentError("Please select a time slot.");
+      setAppointmentError(t("sub_err_select_slot"));
       return;
     }
     setAppointmentSubmitting(true);
@@ -283,7 +291,7 @@ export default function Subscription() {
     } catch (error) {
       console.error(error);
       if (error.response?.status === 409) {
-        setAppointmentError("That time was just booked by someone else. Please pick another slot.");
+        setAppointmentError(t("sub_err_slot_booked"));
         publicApi
           .getAvailableMeetingTimes()
           .then((res) => setAppointmentSlots(res.data?.data || []))
@@ -291,7 +299,7 @@ export default function Subscription() {
         setSelectedSlot(null);
       } else {
         setAppointmentError(
-          error.response?.data?.message || "Failed to book your appointment. Please try again later."
+          error.response?.data?.message || t("sub_err_booking_failed")
         );
       }
     } finally {
@@ -311,16 +319,17 @@ export default function Subscription() {
       >
         <button
           onClick={() => navigate("/")}
-          className="mx-auto mb-8 flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-white"
+          className="mx-auto mb-8 flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-white cursor-pointer"
         >
-          &larr; Back to Home
+          &larr; {t("sub_btn_back_home")}
         </button>
         <h1 className="mb-4 text-4xl font-extrabold tracking-tight md:text-5xl">
-          AI CRM <span className="bg-gradient-to-r from-purple-400 to-blue-300 bg-clip-text text-transparent">Pricing Plans</span>
+          {t("sub_hero_tag")}{" "}
+          <span className="bg-gradient-to-r from-purple-400 to-blue-300 bg-clip-text text-transparent">
+            {t("sub_hero_title")}
+          </span>
         </h1>
-        <p className="text-lg text-gray-400">
-          Choose the right GoCustify plan for your team, then scale with usage-based add-ons when you need more.
-        </p>
+        <p className="text-lg text-gray-400">{t("sub_hero_subtitle")}</p>
       </motion.div>
 
       <div className="relative z-10 mx-auto grid w-full max-w-[1480px] gap-8 xl:grid-cols-3">
@@ -334,15 +343,11 @@ export default function Subscription() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.08 * (index + 1) }}
-              className={
-                isPopular
-                  ? "relative flex min-h-[980px] flex-col overflow-hidden rounded-3xl border border-purple-500/50 bg-gradient-to-b from-gray-800/80 to-gray-900/40 p-8 shadow-xl shadow-purple-500/10"
-                  : "flex min-h-[980px] flex-col rounded-3xl border border-gray-800 bg-gray-900/40 p-8 backdrop-blur-md transition-all hover:border-purple-500/30"
-              }
+              className="relative flex min-h-[980px] flex-col overflow-hidden rounded-3xl border border-purple-500/50 bg-gradient-to-b from-gray-800/80 to-gray-900/40 p-8 shadow-xl shadow-purple-500/10 backdrop-blur-md transition-all hover:border-purple-500"
             >
               {isPopular ? (
                 <div className="absolute right-0 top-0 rounded-bl-xl bg-purple-500 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#070a13]">
-                  Most Popular
+                  {t("sub_badge_most_popular")}
                 </div>
               ) : null}
 
@@ -357,16 +362,16 @@ export default function Subscription() {
 
               <div className="mb-8">
                 <span className="text-4xl font-extrabold">{plan.price}</span>
-                <span className="text-gray-400">/month</span>
+                <span className="text-gray-400">{t("sub_per_month")}</span>
               </div>
 
               <section className="mb-8 rounded-3xl border border-gray-800 bg-[#09111d]/90 p-4">
                 <div className="mb-4 flex flex-wrap gap-2">
                   {[
-                    ["included", "Included"],
-                    ["usage", "Usage"],
-                    ["addons", "Add-Ons"],
-                    ["email", "Email Packs"],
+                    ["included", t("sub_tab_included")],
+                    ["usage", t("sub_tab_usage")],
+                    ["addons", t("sub_tab_addons")],
+                    ["email", t("sub_tab_email")],
                   ].map(([value, label]) => {
                     const isActive = activeSections[plan.id] === value;
                     return (
@@ -381,8 +386,8 @@ export default function Subscription() {
                         }
                         className={
                           isActive
-                            ? "rounded-full border border-purple-400 bg-purple-500/10 px-3 py-2 text-xs font-semibold text-purple-200"
-                            : "rounded-full border border-gray-700 bg-transparent px-3 py-2 text-xs font-semibold text-gray-400 transition hover:text-white"
+                            ? "rounded-full border border-purple-400 bg-purple-500/10 px-3 py-2 text-xs font-semibold text-purple-200 cursor-pointer"
+                            : "rounded-full border border-gray-700 bg-transparent px-3 py-2 text-xs font-semibold text-gray-400 transition hover:text-white cursor-pointer"
                         }
                       >
                         {label}
@@ -393,20 +398,16 @@ export default function Subscription() {
 
                 <div className="mb-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">
-                    {activeSections[plan.id] === "included" && "Included"}
-                    {activeSections[plan.id] === "usage" && "Included Usage"}
-                    {activeSections[plan.id] === "addons" && "When you exceed limits"}
-                    {activeSections[plan.id] === "email" && "Email Add-On Packs"}
+                    {activeSections[plan.id] === "included" && t("sub_hdr_included")}
+                    {activeSections[plan.id] === "usage" && t("sub_hdr_usage")}
+                    {activeSections[plan.id] === "addons" && t("sub_hdr_addons")}
+                    {activeSections[plan.id] === "email" && t("sub_hdr_email")}
                   </p>
                   <p className="mt-2 text-sm text-gray-400">
-                    {activeSections[plan.id] === "included" &&
-                      "Core tools and AI workflows included in this plan."}
-                    {activeSections[plan.id] === "usage" &&
-                      "Monthly usage bundled with the subscription."}
-                    {activeSections[plan.id] === "addons" &&
-                      "Continue with usage credits when your limits are reached."}
-                    {activeSections[plan.id] === "email" &&
-                      "Extra email volume packs for campaign-heavy teams."}
+                    {activeSections[plan.id] === "included" && t("sub_sub_included")}
+                    {activeSections[plan.id] === "usage" && t("sub_sub_usage")}
+                    {activeSections[plan.id] === "addons" && t("sub_sub_addons")}
+                    {activeSections[plan.id] === "email" && t("sub_sub_email")}
                   </p>
                 </div>
 
@@ -434,20 +435,16 @@ export default function Subscription() {
                 <button
                   type="button"
                   onClick={() => handleOpenModal("subscribe")}
-                  className={
-                    isPopular
-                      ? "flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-4 font-bold text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-purple-500/20"
-                      : "flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700 bg-gray-800 py-4 font-bold text-white transition-all active:scale-[0.98] hover:bg-gray-700"
-                  }
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-4 font-bold text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-purple-500/20 cursor-pointer"
                 >
-                  Subscribe Now
+                  {t("sub_btn_subscribe_now")}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleOpenModal("trial")}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700 bg-transparent py-3 font-bold text-gray-300 transition-all active:scale-[0.98] hover:bg-gray-800 hover:text-white"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700 bg-transparent py-3 font-bold text-gray-300 transition-all active:scale-[0.98] hover:bg-gray-800 hover:text-white cursor-pointer"
                 >
-                  Start Free Trial <ArrowRight size={18} />
+                  {t("sub_btn_start_free_trial")} <ArrowRight size={18} />
                 </button>
               </div>
             </motion.div>
@@ -456,21 +453,19 @@ export default function Subscription() {
       </div>
 
       <div className="relative z-10 mx-auto mt-10 flex w-full max-w-[1480px] justify-center">
-        <div className="rounded-[28px] border border-red-500/70 bg-[#070d18] p-2 shadow-[0_0_0_1px_rgba(239,68,68,0.12)]">
-          <button
-            type="button"
-            onClick={() => setIsDemoOpen(true)}
-            className="flex items-center gap-3 rounded-3xl bg-[#0f1727] px-7 py-4 text-sm font-semibold text-white transition-all hover:bg-[#162136]"
-          >
-            Request a Demo
-            <ChevronRight size={18} className="text-purple-300" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsDemoOpen(true)}
+          className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 px-8 py-4 font-bold text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-purple-500/20 cursor-pointer"
+        >
+          {t("sub_btn_request_demo")}
+          <ChevronRight size={18} className="text-[#070a13]" />
+        </button>
       </div>
 
       {featuredPlan ? (
         <div className="relative z-10 mx-auto mt-8 w-full max-w-[1480px] text-center text-sm text-gray-500">
-          Growth is currently highlighted as the recommended balance between revenue automation and team collaboration.
+          {t("sub_growth_recommendation_hint")}
         </div>
       ) : null}
 
@@ -490,7 +485,7 @@ export default function Subscription() {
             >
               <button
                 onClick={handleCloseModal}
-                className="absolute right-4 top-4 text-gray-400 transition-colors hover:text-white"
+                className="absolute right-4 top-4 text-gray-400 transition-colors hover:text-white cursor-pointer"
               >
                 <X size={20} />
               </button>
@@ -502,31 +497,31 @@ export default function Subscription() {
                       <CheckCircle className="text-purple-400" size={32} />
                     </div>
                     <h3 className="mb-3 text-2xl font-bold text-white">
-                      Request Received!
+                      {t("sub_modal_received_title")}
                     </h3>
                     <p className="mb-8 leading-relaxed text-gray-400">
-                      Thanks! Our team will review your request and email you login credentials shortly.
+                      {t("sub_modal_received_desc")}
                     </p>
                     <button
                       onClick={handleCloseModal}
-                      className="w-full rounded-xl bg-gray-800 py-3 font-semibold text-white transition-colors hover:bg-gray-700"
+                      className="w-full rounded-xl bg-gray-800 py-3 font-semibold text-white transition-colors hover:bg-gray-700 cursor-pointer"
                     >
-                      Close
+                      {t("sub_btn_close")}
                     </button>
                   </div>
                 ) : (
                   <>
                     <h3 className="mb-2 text-2xl font-bold">
-                      {selectedPlan === "trial" ? "Start Free Trial" : "Subscribe"}
+                      {selectedPlan === "trial" ? t("sub_title_trial") : t("sub_title_subscribe")}
                     </h3>
                     <p className="mb-6 text-sm text-gray-400">
-                      Please provide your details below. Our team will set up your workspace.
+                      {t("sub_modal_subtitle")}
                     </p>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-gray-300">
-                          Full Name
+                          {t("sub_lbl_full_name")}
                         </label>
                         <input
                           type="text"
@@ -542,7 +537,7 @@ export default function Subscription() {
 
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-gray-300">
-                          Work Email
+                          {t("sub_lbl_work_email")}
                         </label>
                         <input
                           type="email"
@@ -558,7 +553,7 @@ export default function Subscription() {
 
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-gray-300">
-                          Business Name
+                          {t("sub_lbl_business_name")}
                         </label>
                         <input
                           type="text"
@@ -574,7 +569,7 @@ export default function Subscription() {
 
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-gray-300">
-                          Business Address
+                          {t("sub_lbl_business_address")}
                         </label>
                         <input
                           type="text"
@@ -591,7 +586,7 @@ export default function Subscription() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="mb-1.5 block text-sm font-medium text-gray-300">
-                            Phone Number
+                            {t("sub_lbl_phone_number")}
                           </label>
                           <input
                             type="tel"
@@ -606,7 +601,7 @@ export default function Subscription() {
                         </div>
                         <div>
                           <label className="mb-1.5 block text-sm font-medium text-gray-300">
-                            Owner Date of Birth
+                            {t("sub_lbl_owner_dob")}
                           </label>
                           <input
                             type="date"
@@ -622,7 +617,7 @@ export default function Subscription() {
 
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-gray-300">
-                          Business Type / Industry
+                          {t("sub_lbl_business_type")}
                         </label>
                         <input
                           type="text"
@@ -638,9 +633,9 @@ export default function Subscription() {
 
                       <button
                         type="submit"
-                        className="mt-4 w-full rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-3.5 font-bold text-[#070a13] shadow-lg shadow-purple-500/10 transition-all active:scale-[0.98] hover:shadow-purple-500/25"
+                        className="mt-4 w-full rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-3.5 font-bold text-[#070a13] shadow-lg shadow-purple-500/10 transition-all active:scale-[0.98] hover:shadow-purple-500/25 cursor-pointer"
                       >
-                        Request Access
+                        {t("sub_btn_request_access")}
                       </button>
                     </form>
                   </>
@@ -669,16 +664,16 @@ export default function Subscription() {
               <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-purple-300">
-                    Request a Demo
+                    {t("sub_demo_tag")}
                   </p>
                   <h2 className="mt-2 text-2xl font-bold text-white">
-                    Talk to GoCustify AI
+                    {t("sub_demo_title")}
                   </h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsDemoOpen(false)}
-                  className="rounded-full border border-gray-700 p-2 text-gray-400 transition-colors hover:text-white"
+                  className="rounded-full border border-gray-700 p-2 text-gray-400 transition-colors hover:text-white cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -692,10 +687,10 @@ export default function Subscription() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-white">
-                        Contact us via mail
+                        {t("sub_demo_contact_title")}
                       </h3>
                       <p className="text-sm text-gray-400">
-                        Send us a message and our team will get back to you.
+                        {t("sub_demo_contact_subtitle")}
                       </p>
                     </div>
                   </div>
@@ -704,7 +699,7 @@ export default function Subscription() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
-                          First Name
+                          {t("sub_lbl_first_name")}
                         </label>
                         <input
                           type="text"
@@ -721,7 +716,7 @@ export default function Subscription() {
                       </div>
                       <div>
                         <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
-                          Last Name
+                          {t("sub_lbl_last_name")}
                         </label>
                         <input
                           type="text"
@@ -740,7 +735,7 @@ export default function Subscription() {
 
                     <div>
                       <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
-                        Phone Number
+                        {t("sub_lbl_phone_number")}
                       </label>
                       <input
                         type="tel"
@@ -758,7 +753,7 @@ export default function Subscription() {
 
                     <div>
                       <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
-                        Email
+                        {t("sub_lbl_email")}
                       </label>
                       <input
                         type="email"
@@ -776,7 +771,7 @@ export default function Subscription() {
 
                     <div>
                       <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
-                        Message
+                        {t("sub_lbl_message")}
                       </label>
                       <textarea
                         value={demoForm.message}
@@ -788,24 +783,24 @@ export default function Subscription() {
                         }
                         rows={5}
                         className="w-full resize-none rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
-                        placeholder="Tell us about your business and what you want to automate."
+                        placeholder={t("sub_ph_message")}
                       />
                     </div>
 
                     <div className="rounded-2xl border border-gray-800 bg-[#0c1525] p-4">
                       <p className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">
-                        What happens next
+                        {t("sub_demo_next_title")}
                       </p>
                       <ul className="space-y-2 text-sm leading-6 text-gray-300">
-                        <li>Share your use case and team size</li>
-                        <li>We align the best plan and usage model</li>
-                        <li>Then we schedule a live walkthrough</li>
+                        <li>{t("sub_demo_next_1")}</li>
+                        <li>{t("sub_demo_next_2")}</li>
+                        <li>{t("sub_demo_next_3")}</li>
                       </ul>
                     </div>
                     {demoSubmitted ? (
                       <div className="flex items-center gap-2 rounded-2xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm font-semibold text-emerald-300">
                         <CheckCircle size={18} />
-                        Thanks! We received your demo request and will reach out soon.
+                        {t("sub_demo_success")}
                       </div>
                     ) : (
                       <>
@@ -816,9 +811,9 @@ export default function Subscription() {
                           type="button"
                           onClick={handleDemoSubmit}
                           disabled={demoSubmitting}
-                          className="w-full rounded-2xl border border-gray-700 bg-gray-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="w-full rounded-2xl border border-gray-700 bg-gray-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                         >
-                          {demoSubmitting ? "Sending…" : "Send Demo Request"}
+                          {demoSubmitting ? t("sub_btn_sending") : t("sub_btn_send_demo")}
                         </button>
                       </>
                     )}
@@ -832,10 +827,10 @@ export default function Subscription() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-white">
-                        Set up an appointment
+                        {t("sub_appt_title")}
                       </h3>
                       <p className="text-sm text-gray-400">
-                        Pick a time and we'll confirm or suggest another slot.
+                        {t("sub_appt_subtitle")}
                       </p>
                     </div>
                   </div>
@@ -844,18 +839,18 @@ export default function Subscription() {
                     {appointmentSubmitted ? (
                       <div className="flex items-center gap-2 rounded-2xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm font-semibold text-emerald-300">
                         <CheckCircle size={18} />
-                        You're booked! Check your email for the meeting details.
+                        {t("sub_appt_success")}
                       </div>
                     ) : (
                       <>
                         <p className="mb-4 text-xs uppercase tracking-[0.18em] text-gray-500">
-                          Available demo windows
+                          {t("sub_appt_windows")}
                         </p>
                         {slotsLoading ? (
-                          <p className="text-sm text-gray-400">Loading available times…</p>
+                          <p className="text-sm text-gray-400">{t("sub_appt_loading")}</p>
                         ) : appointmentSlots.length === 0 ? (
                           <p className="text-sm text-gray-400">
-                            No open times right now — send us a message instead and we'll follow up.
+                            {t("sub_appt_no_slots")}
                           </p>
                         ) : (
                           <div className="grid grid-cols-2 gap-3">
@@ -868,8 +863,8 @@ export default function Subscription() {
                                   onClick={() => setSelectedSlot(slot)}
                                   className={
                                     isActive
-                                      ? "rounded-2xl border border-purple-400 bg-purple-500/10 px-3 py-3 text-sm font-medium text-purple-200"
-                                      : "rounded-2xl border border-gray-800 bg-[#09111d] px-3 py-3 text-sm text-gray-300"
+                                      ? "rounded-2xl border border-purple-400 bg-purple-500/10 px-3 py-3 text-sm font-medium text-purple-200 cursor-pointer"
+                                      : "rounded-2xl border border-gray-800 bg-[#09111d] px-3 py-3 text-sm text-gray-300 cursor-pointer"
                                   }
                                 >
                                   {formatSlotLabel(slot.start)}
@@ -881,10 +876,10 @@ export default function Subscription() {
 
                         <div className="mt-5 rounded-2xl border border-dashed border-gray-700 bg-[#09111d] p-4">
                           <p className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">
-                            Selected slot
+                            {t("sub_appt_selected")}
                           </p>
                           <p className="text-base font-medium text-white">
-                            {selectedSlot ? formatSlotLabel(selectedSlot.start) : "None selected"}
+                            {selectedSlot ? formatSlotLabel(selectedSlot.start) : t("sub_appt_none_selected")}
                           </p>
                         </div>
 
@@ -896,9 +891,9 @@ export default function Subscription() {
                           type="button"
                           onClick={handleAppointmentConfirm}
                           disabled={appointmentSubmitting || !selectedSlot}
-                          className="mt-5 w-full rounded-2xl bg-gradient-to-r from-purple-400 to-blue-400 px-4 py-3 text-sm font-bold text-[#070a13] transition disabled:cursor-not-allowed disabled:opacity-60"
+                          className="mt-5 w-full rounded-2xl bg-gradient-to-r from-purple-400 to-blue-400 px-4 py-3 text-sm font-bold text-[#070a13] transition disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                         >
-                          {appointmentSubmitting ? "Booking…" : "Confirm Appointment"}
+                          {appointmentSubmitting ? t("sub_btn_booking") : t("sub_btn_confirm_appointment")}
                         </button>
                       </>
                     )}

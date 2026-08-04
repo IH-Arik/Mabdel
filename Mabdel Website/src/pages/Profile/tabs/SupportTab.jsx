@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Loader2, Send, UserRound } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
 import { INPUT } from '../shared';
+import { useLanguage } from '../../../context/LanguageContext';
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
 
@@ -15,6 +16,7 @@ const normalizeMessage = (message) => ({
 });
 
 function SupportTab() {
+  const { t } = useLanguage();
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
@@ -53,7 +55,7 @@ function SupportTab() {
       .catch((loadError) => {
         setSession(null);
         setMessages([]);
-        setError(loadError?.response?.data?.message || 'Could not load support chat.');
+        setError(loadError?.response?.data?.message || t('sup_err_load'));
       })
       .finally(() => setLoading(false));
 
@@ -69,7 +71,7 @@ function SupportTab() {
     if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
     pollIntervalRef.current = window.setInterval(() => {
       loadSupportState().catch((pollError) => {
-        setError(pollError?.response?.data?.message || 'Could not refresh support chat.');
+        setError(pollError?.response?.data?.message || t('sup_err_refresh'));
       });
     }, 1000);
 
@@ -104,7 +106,7 @@ function SupportTab() {
       setNewMsg('');
       setSupportTyping(Boolean(data?.support_typing));
     } catch (sendError) {
-      setError(sendError?.response?.data?.message || 'Support message failed.');
+      setError(sendError?.response?.data?.message || t('sup_err_send'));
     } finally {
       setSending(false);
     }
@@ -112,7 +114,7 @@ function SupportTab() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[#A4B0B7]">Chat with our support team directly.</p>
+      <p className="text-sm text-[#A4B0B7]">{t('sup_subtitle')}</p>
 
       {session ? (
         <div className="rounded-2xl border border-[#243041] bg-[#0A1019] p-4">
@@ -144,7 +146,7 @@ function SupportTab() {
             <Loader2 className="animate-spin text-[#9333ea]" />
           </div>
         ) : messages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-[#A4B0B7]">No messages yet. Send a message to start.</p>
+          <p className="py-8 text-center text-sm text-[#A4B0B7]">{t('sup_empty')}</p>
         ) : (
           messages.map((message) => (
             <div
@@ -168,7 +170,7 @@ function SupportTab() {
                       message.sender_type === 'user' ? 'text-[#02080B]' : 'text-[#9333ea]'
                     }`}
                   >
-                    Open attachment
+                    {t('sup_open_attachment') || 'Open attachment'}
                   </a>
                 ) : null}
               </div>
@@ -179,7 +181,7 @@ function SupportTab() {
         {supportTyping ? (
           <div className="flex justify-start">
             <div className="rounded-2xl border border-[#243041] bg-[#131A24] px-4 py-2.5 text-sm text-white">
-              Support is typing...
+              {t('sup_typing')}
             </div>
           </div>
         ) : null}
@@ -209,7 +211,7 @@ function SupportTab() {
               send();
             }
           }}
-          placeholder="Type your message..."
+          placeholder={t('sup_ph_type')}
           className={`${INPUT} flex-1`}
         />
         <button

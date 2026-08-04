@@ -20,6 +20,7 @@ import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import { useTwilioVoice } from '../context/TwilioVoiceContext';
 import { formatCstDateTime } from '../utils/dateUtils';
+import { useLanguage } from '../context/LanguageContext';
 
 const PAGE_SIZE = 20;
 
@@ -50,7 +51,7 @@ function hasAiHandledState(call) {
   return Boolean(call.ai_ready || call.ai_summary_available || call.transcript_available);
 }
 
-function normalizeCall(call) {
+function normalizeCall(call, t) {
   const direction = getDirection(call);
   const phoneNumber = call.phone_number || call.from_number || '';
   return {
@@ -58,7 +59,7 @@ function normalizeCall(call) {
     direction,
     phone_number: phoneNumber,
     contact_name: call.contact_name || call.caller_name || call.contact?.name || null,
-    display_name: call.contact_name || call.caller_name || call.contact?.name || phoneNumber || 'Unknown Caller',
+    display_name: call.contact_name || call.caller_name || call.contact?.name || phoneNumber || t('calls_unknown_caller'),
     display_time: call.display_time_label || (call.timestamp ? formatCstDateTime(call.timestamp) : ''),
     duration_label: call.duration_label || (call.duration ? `${call.duration}s` : '--'),
     recording_available: Boolean(call.recording_available || call.recording_url),
@@ -120,15 +121,15 @@ function downloadFromUrl(url, filename) {
   anchor.remove();
 }
 
-function CallStats({ summary }) {
+function CallStats({ summary, t }) {
   if (!summary) return null;
   const stats = [
-    { label: 'Total Calls', value: summary.total_calls || 0, icon: Phone, color: '#9333ea' },
-    { label: 'Inbound', value: summary.inbound_calls || 0, icon: PhoneIncoming, color: '#10B981' },
-    { label: 'Outbound', value: summary.outbound_calls || 0, icon: PhoneOutgoing, color: '#8B5CF6' },
-    { label: 'Missed', value: summary.missed_calls || 0, icon: PhoneMissed, color: '#EF4444' },
-    { label: 'Avg Duration', value: summary.avg_duration ? `${summary.avg_duration}s` : '--', icon: Clock, color: '#F59E0B' },
-    { label: 'AI Analyzed', value: summary.ai_analyzed || 0, icon: Brain, color: '#06B6D4' },
+    { label: t('calls_stat_total'), value: summary.total_calls || 0, icon: Phone, color: '#9333ea' },
+    { label: t('calls_stat_inbound'), value: summary.inbound_calls || 0, icon: PhoneIncoming, color: '#10B981' },
+    { label: t('calls_stat_outbound'), value: summary.outbound_calls || 0, icon: PhoneOutgoing, color: '#8B5CF6' },
+    { label: t('calls_stat_missed'), value: summary.missed_calls || 0, icon: PhoneMissed, color: '#EF4444' },
+    { label: t('calls_stat_avg_duration'), value: summary.avg_duration ? `${summary.avg_duration}s` : '--', icon: Clock, color: '#F59E0B' },
+    { label: t('calls_stat_ai_analyzed'), value: summary.ai_analyzed || 0, icon: Brain, color: '#06B6D4' },
   ];
 
   return (
@@ -146,7 +147,7 @@ function CallStats({ summary }) {
   );
 }
 
-function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
+function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording, t }) {
   const [aiSummary, setAiSummary] = useState(null);
   const [transcript, setTranscript] = useState([]);
   const [recordingUrl, setRecordingUrl] = useState('');
@@ -185,7 +186,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
         setRecordingUrl(recordingPayload.recording_url || recordingPayload.url || '');
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError?.response?.data?.message || 'Call analysis could not be loaded.');
+          setError(loadError?.response?.data?.message || t('calls_err_analysis_failed'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -196,7 +197,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
     return () => {
       cancelled = true;
     };
-  }, [call?.id]);
+  }, [call?.id, t]);
 
   const summaryPurpose = aiSummary?.purpose || aiSummary?.summary || '';
   const keyPoints = toArray(aiSummary?.key_points || aiSummary?.highlights);
@@ -209,23 +210,27 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
           <div>
             <div className="flex items-center gap-2">
               <Brain size={16} className="text-[#9333ea]" />
-              <span className="text-sm font-bold text-white">AI Call Analysis</span>
+              <span className="text-sm font-bold text-white">{t('calls_ai_analysis')}</span>
             </div>
             <p className="mt-1 text-xs text-[#A4B0B7]">{call.display_name}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {['summary', 'transcript', 'recording'].map((item) => (
+          {[
+            { key: 'summary', label: t('calls_tab_summary') },
+            { key: 'transcript', label: t('calls_tab_transcript') },
+            { key: 'recording', label: t('calls_tab_recording') },
+          ].map((item) => (
             <button
-              key={item}
-              onClick={() => setTab(item)}
-              className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition-all ${
-                tab === item
+              key={item.key}
+              onClick={() => setTab(item.key)}
+              className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                tab === item.key
                   ? 'border border-[#9333ea]/20 bg-[#9333ea]/10 text-[#9333ea]'
                   : 'text-[#A4B0B7] hover:text-white'
               }`}
             >
-              {item}
+              {item.label}
             </button>
           ))}
           <button onClick={onClose} className="cursor-pointer text-[#A4B0B7] hover:text-white">
@@ -238,32 +243,32 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
         {loading ? (
           <div className="flex h-32 items-center justify-center gap-2 text-[#A4B0B7]">
             <Loader2 size={18} className="animate-spin" />
-            Loading analysis...
+            {t('calls_loading_analysis')}
           </div>
         ) : error ? (
           <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4 text-sm text-rose-300">{error}</div>
         ) : tab === 'summary' ? (
           <div className="space-y-4">
             <div className="rounded-xl border border-[#243041] bg-[#0A1019] p-4">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">Call Overview</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">{t('calls_overview')}</p>
               <div className="grid gap-2 text-sm text-[#A4B0B7] sm:grid-cols-2">
-                <p>Direction: <span className="text-white">{call.call_type_label || call.direction}</span></p>
-                <p>Status: <span className="text-white">{call.status_label || call.status}</span></p>
-                <p>Duration: <span className="text-white">{call.duration_label}</span></p>
-                <p>Time: <span className="text-white">{call.display_time}</span></p>
+                <p>{t('calls_direction')} <span className="text-white">{call.call_type_label || call.direction}</span></p>
+                <p>{t('calls_status')} <span className="text-white">{call.status_label || call.status}</span></p>
+                <p>{t('calls_duration')} <span className="text-white">{call.duration_label}</span></p>
+                <p>{t('calls_time')} <span className="text-white">{call.display_time}</span></p>
               </div>
             </div>
 
             <div className="rounded-xl border border-[#243041] bg-[#0A1019] p-4">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">AI Summary</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">{t('calls_ai_summary')}</p>
               <p className="text-sm leading-relaxed text-[#A4B0B7]">
-                {summaryPurpose || 'No AI summary available for this call yet.'}
+                {summaryPurpose || t('calls_no_ai_summary')}
               </p>
             </div>
 
             {keyPoints.length > 0 && (
               <div className="rounded-xl border border-[#243041] bg-[#0A1019] p-4">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">Key Points</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">{t('calls_key_points')}</p>
                 <ul className="space-y-1.5">
                   {keyPoints.map((point, index) => (
                     <li key={`${point}-${index}`} className="flex items-start gap-2 text-sm text-[#A4B0B7]">
@@ -277,7 +282,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
 
             {actionItems.length > 0 && (
               <div className="rounded-xl border border-[#243041] bg-[#0A1019] p-4">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">Action Items</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9333ea]">{t('calls_action_items')}</p>
                 <ul className="space-y-1.5">
                   {actionItems.map((item, index) => (
                     <li key={`${item}-${index}`} className="flex items-start gap-2 text-sm text-[#A4B0B7]">
@@ -294,14 +299,14 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
                 onClick={() => onCallback(call)}
                 className="cursor-pointer rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-4 py-2 text-sm font-bold text-[#9333ea] transition-colors hover:bg-[#9333ea]/20"
               >
-                Callback
+                {t('calls_callback')}
               </button>
               <button
                 onClick={() => onDownloadRecording(call)}
                 disabled={!recordingUrl}
                 className="cursor-pointer rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-2 text-sm font-bold text-[#A4B0B7] transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Download Recording
+                {t('calls_download_recording')}
               </button>
             </div>
           </div>
@@ -334,29 +339,29 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording }) {
               })}
             </div>
           ) : (
-            <div className="p-8 text-center text-sm text-[#A4B0B7]">No transcript available for this call.</div>
+            <div className="p-8 text-center text-sm text-[#A4B0B7]">{t('calls_no_transcript')}</div>
           )
         ) : recordingUrl ? (
           <div className="space-y-3 rounded-xl border border-[#243041] bg-[#0A1019] p-4">
-            <p className="text-sm text-[#A4B0B7]">Call Recording</p>
+            <p className="text-sm text-[#A4B0B7]">{t('calls_call_recording')}</p>
             <audio ref={audioRef} controls src={recordingUrl} className="w-full" />
             <button
               onClick={() => onDownloadRecording(call, recordingUrl)}
               className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#243246] px-4 py-2 text-sm text-[#A4B0B7] transition-colors hover:text-white"
             >
               <Download size={14} />
-              Download Recording
+              {t('calls_download_recording')}
             </button>
           </div>
         ) : (
-          <div className="p-8 text-center text-sm text-[#A4B0B7]">No recording available for this call.</div>
+          <div className="p-8 text-center text-sm text-[#A4B0B7]">{t('calls_no_recording')}</div>
         )}
       </div>
     </div>
   );
 }
 
-function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPending }) {
+function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPending, t }) {
   const iconMap = {
     outbound: { icon: PhoneOutgoing, color: 'text-[#8B5CF6]' },
     missed: { icon: PhoneMissed, color: 'text-rose-400' },
@@ -375,7 +380,7 @@ function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPen
             <p className="text-sm font-bold text-white">{item.display_name}</p>
             <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-[#A4B0B7]">
               <span className={`font-semibold capitalize ${color}`}>{item.direction}</span>
-              <span>{item.phone_number || 'No number'}</span>
+              <span>{item.phone_number || t('calls_no_number')}</span>
               <span className="flex items-center gap-1">
                 <Clock size={10} />
                 {item.duration_label}
@@ -404,7 +409,7 @@ function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPen
               disabled={callbackPending}
               className="cursor-pointer rounded-xl border border-[#22c55e]/20 bg-[#22c55e]/10 px-3 py-2 text-xs font-bold text-[#22c55e] transition-colors hover:bg-[#22c55e]/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {callbackPending ? 'Calling...' : 'Callback'}
+              {callbackPending ? t('calls_calling') : t('calls_callback')}
             </button>
           )}
 
@@ -413,7 +418,7 @@ function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPen
               onClick={() => onDownloadRecording(item)}
               className="cursor-pointer rounded-xl border border-[#243246] bg-[#0A1019] px-3 py-2 text-xs font-bold text-[#A4B0B7] transition-colors hover:text-white"
             >
-              Recording
+              {t('calls_recording_label')}
             </button>
           )}
 
@@ -422,7 +427,7 @@ function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPen
             className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-3 py-2 text-xs font-bold text-[#9333ea] transition-colors hover:bg-[#9333ea]/20"
           >
             <Brain size={13} />
-            Analyze
+            {t('calls_analyze')}
           </button>
         </div>
       </div>
@@ -430,7 +435,7 @@ function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPen
   );
 }
 
-function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone = '' }) {
+function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone = '', t }) {
   const [phone, setPhone] = useState(initialPhone);
   const [calling, setCalling] = useState(false);
   const [error, setError] = useState('');
@@ -438,11 +443,11 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
   async function call() {
     const normalized = normalizePhone(phone);
     if (!normalized) {
-      setError('Enter a phone number.');
+      setError(t('calls_err_enter_phone'));
       return;
     }
     if (!/^\+\d{10,15}$/.test(normalized)) {
-      setError('Enter a valid phone number in international format.');
+      setError(t('calls_err_invalid_phone'));
       return;
     }
 
@@ -450,10 +455,10 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
     setError('');
     try {
       await onCall(normalized);
-      onSuccess('Browser call initiated.');
+      onSuccess(t('calls_success_call_started'));
       onClose();
     } catch (requestError) {
-      setError(requestError?.response?.data?.message || requestError?.message || 'Call failed.');
+      setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_call_failed'));
     } finally {
       setCalling(false);
     }
@@ -470,7 +475,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
         <div className="flex items-center justify-between">
           <h3 className="flex items-center gap-2 font-bold text-white">
             <PhoneOutgoing size={16} className="text-[#9333ea]" />
-            Make AI Call
+            {t('calls_make_ai_call')}
           </h3>
           <button onClick={onClose} className="cursor-pointer text-[#A4B0B7] hover:text-white">
             <X size={18} />
@@ -480,7 +485,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
         {error && <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3 text-sm text-rose-300">{error}</div>}
 
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#A4B0B7]">Phone Number</label>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#A4B0B7]">{t('calls_phone_number_label')}</label>
           <input
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
@@ -495,7 +500,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
             onClick={onClose}
             className="flex-1 cursor-pointer rounded-xl border border-[#243246] bg-[#0A1019] py-3 font-bold text-[#A4B0B7] transition-colors hover:text-white"
           >
-            Cancel
+            {t('calls_cancel')}
           </button>
           <button
             onClick={call}
@@ -503,7 +508,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
             className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#9333ea] py-3 font-bold text-[#02080B] transition-colors hover:bg-[#a855f7] disabled:opacity-60"
           >
             {calling ? <Loader2 size={16} className="animate-spin" /> : <Phone size={16} />}
-            {calling ? 'Calling...' : runtimeReady ? 'Call Now' : 'Voice Unavailable'}
+            {calling ? t('calls_calling') : runtimeReady ? t('calls_call_now') : t('calls_voice_unavailable')}
           </button>
         </div>
       </motion.div>
@@ -512,6 +517,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
 }
 
 export default function Calls() {
+  const { t } = useLanguage();
   const [calls, setCalls] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -542,7 +548,7 @@ export default function Calls() {
       ]);
 
       const payload = callRes?.data?.data || {};
-      const items = toArray(payload.items).map(normalizeCall);
+      const items = toArray(payload.items).map((call) => normalizeCall(call, t));
       let resolvedCalls = items;
       setCalls((previous) => {
         const mergedCalls = append ? [...previous, ...items] : items;
@@ -554,12 +560,12 @@ export default function Calls() {
       setSummary(buildSummary(resolvedCalls, payload.summary, analyticsRes?.data?.data));
       setError('');
     } catch (requestError) {
-      setError(requestError?.response?.data?.message || 'Calls could not be loaded.');
+      setError(requestError?.response?.data?.message || t('calls_err_load_failed'));
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchCalls(1, false);
@@ -602,7 +608,7 @@ export default function Calls() {
   const handleCallback = async (call) => {
     const phoneNumber = normalizePhone(call.phone_number || '');
     if (!phoneNumber) {
-      setError('No callback number is available for this call.');
+      setError(t('calls_err_no_callback_number'));
       return;
     }
 
@@ -612,9 +618,9 @@ export default function Calls() {
         phoneNumber,
         displayName: call.display_name || call.contact_name || phoneNumber,
       });
-      setSuccess('Browser callback started.');
+      setSuccess(t('calls_success_callback_started'));
     } catch (requestError) {
-      setError(requestError?.response?.data?.message || requestError?.message || 'Callback could not be started.');
+      setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_callback_failed'));
     } finally {
       setPendingCallbackId('');
     }
@@ -628,13 +634,13 @@ export default function Calls() {
         recordingUrl = response?.data?.data?.recording_url || response?.data?.data?.url || '';
       }
       if (!recordingUrl) {
-        setError('No recording is available for this call.');
+        setError(t('calls_err_no_recording'));
         return;
       }
       downloadFromUrl(recordingUrl, `call-${call.id}.mp3`);
-      setSuccess('Recording download started.');
+      setSuccess(t('calls_success_recording_download'));
     } catch (requestError) {
-      setError(requestError?.response?.data?.message || 'Recording could not be downloaded.');
+      setError(requestError?.response?.data?.message || t('calls_err_recording_download_failed'));
     }
   };
 
@@ -642,8 +648,8 @@ export default function Calls() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 border-b border-[#243041]/40 pb-4 lg:flex-row lg:items-end">
         <div className="text-left">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">AI Calling</h1>
-          <p className="mt-1 text-xs text-[#A4B0B7]">Track calls, analyze conversations with AI, and review transcripts.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('calls_page_title')}</h1>
+          <p className="mt-1 text-xs text-[#A4B0B7]">{t('calls_page_subtitle')}</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -651,7 +657,7 @@ export default function Calls() {
             className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#9333ea] px-5 py-3 font-extrabold text-[#02080B] transition-all active:scale-95 hover:bg-[#a855f7]"
           >
             <Phone size={18} />
-            Make AI Call
+            {t('calls_make_ai_call')}
           </button>
           <button
             onClick={() => fetchCalls(1, false)}
@@ -666,11 +672,11 @@ export default function Calls() {
       {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 p-3 text-sm text-emerald-300">{success}</div>}
       {voiceError ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-300">
-          Browser calling is not ready: {voiceError}
+          {t('calls_browser_not_ready', { error: voiceError })}
         </div>
       ) : null}
 
-      {!loading && <CallStats summary={summary} />}
+      {!loading && <CallStats summary={summary} t={t} />}
 
       <AnimatePresence>
         {analyzingCall && (
@@ -680,6 +686,7 @@ export default function Calls() {
               onClose={() => setAnalyzingCall(null)}
               onCallback={handleCallback}
               onDownloadRecording={handleDownloadRecording}
+              t={t}
             />
           </motion.div>
         )}
@@ -689,15 +696,15 @@ export default function Calls() {
         <div className="flex flex-col gap-4 border-b border-[#243041]/40 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-base font-bold text-white">
             <Phone size={18} className="text-[#9333ea]" />
-            Call History
-            <span className="ml-2 text-sm font-normal text-[#A4B0B7]">{filteredCalls.length} records</span>
+            {t('calls_history')}
+            <span className="ml-2 text-sm font-normal text-[#A4B0B7]">{t('calls_records_count', { n: filteredCalls.length })}</span>
           </div>
           <div className="relative w-full max-w-sm">
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A4B0B7]" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search calls by name, phone, status, direction, AI..."
+              placeholder={t('calls_search_placeholder')}
               className="w-full rounded-xl border border-[#243246] bg-[#0A1019] py-2.5 pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-[#9333ea]/50"
             />
           </div>
@@ -717,6 +724,7 @@ export default function Calls() {
                 onCallback={handleCallback}
                 onDownloadRecording={handleDownloadRecording}
                 callbackPending={pendingCallbackId === call.id}
+                t={t}
               />
             ))}
             {canLoadMore && (
@@ -727,7 +735,7 @@ export default function Calls() {
                   className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#243246] bg-[#0A1019] py-3 text-sm font-bold text-[#A4B0B7] transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loadingMore ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                  {loadingMore ? 'Loading...' : 'Load More'}
+                  {loadingMore ? t('calls_loading') : t('calls_load_more')}
                 </button>
               </div>
             )}
@@ -737,9 +745,9 @@ export default function Calls() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#9333ea]/10">
               <Phone size={24} className="text-[#9333ea]" />
             </div>
-            <p className="font-bold text-white">{search.trim() ? 'No matching calls found' : 'No calls yet'}</p>
+            <p className="font-bold text-white">{search.trim() ? t('calls_no_matching') : t('calls_none_yet')}</p>
             <p className="mt-1 text-sm text-[#A4B0B7]">
-              {search.trim() ? 'Try a different name, number, status, or AI filter.' : 'Click "Make AI Call" to initiate your first call.'}
+              {search.trim() ? t('calls_try_different_filter') : t('calls_click_to_start')}
             </p>
           </div>
         )}
@@ -756,6 +764,7 @@ export default function Calls() {
                 setSuccess(message);
                 await fetchCalls(1, false);
             }}
+              t={t}
           />
         )}
       </AnimatePresence>

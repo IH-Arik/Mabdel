@@ -21,9 +21,12 @@ import { useAuthStore } from '../store/useAuthStore';
 import client from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import logoImg from '../assets/gocustify-mark.png';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { login, register, isLoading: authLoading, error: authError } = useAuthStore();
 
   // Multi-state configuration
@@ -77,15 +80,15 @@ export default function LoginPage() {
 
   // Password strength helper
   const getPasswordStrength = (pass) => {
-    if (!pass) return { score: 0, text: 'Empty', color: 'bg-gray-800' };
-    if (pass.length < 8) return { score: 1, text: 'Weak', color: 'bg-rose-500' };
+    if (!pass) return { score: 0, text: t('login_strength_empty'), color: 'bg-gray-800' };
+    if (pass.length < 8) return { score: 1, text: t('login_strength_weak'), color: 'bg-rose-500' };
     const hasLetters = /[a-zA-Z]/.test(pass);
     const hasNumbers = /[0-9]/.test(pass);
     const hasSpecial = /[^a-zA-Z0-9]/.test(pass);
     if (hasLetters && hasNumbers && hasSpecial && pass.length >= 10) {
-      return { score: 3, text: 'Strong', color: 'bg-purple-400 shadow-[0_0_10px_#22d3ee]' };
+      return { score: 3, text: t('login_strength_strong'), color: 'bg-purple-400 shadow-[0_0_10px_#22d3ee]' };
     }
-    return { score: 2, text: 'Medium', color: 'bg-amber-400 shadow-[0_0_10px_#fbbf24]' };
+    return { score: 2, text: t('login_strength_medium'), color: 'bg-amber-400 shadow-[0_0_10px_#fbbf24]' };
   };
 
   const strength = getPasswordStrength(newPassword);
@@ -180,7 +183,7 @@ export default function LoginPage() {
         setAuthMode('enter_code');
       }
     } catch (err) {
-      setLocalError(err.response?.data?.message || 'Failed to dispatch verification code.');
+      setLocalError(err.response?.data?.message || t('login_err_dispatch_code'));
     } finally {
       setLocalLoading(false);
     }
@@ -192,7 +195,7 @@ export default function LoginPage() {
     setLocalError(null);
     const code = otpArray.join('');
     if (code.length < otpArray.length) {
-      setLocalError(`Please enter the full ${otpArray.length}-digit code.`);
+      setLocalError(t('login_err_full_code', { n: otpArray.length }));
       return;
     }
     setLocalLoading(true);
@@ -208,7 +211,7 @@ export default function LoginPage() {
       });
 
       if (flowType === 'signup') {
-        setLocalMessage('Account created and verified successfully!');
+        setLocalMessage(t('login_success_account_created'));
         setAuthMode('success_register');
       } else {
         const token = res.data.data?.reset_token;
@@ -216,11 +219,11 @@ export default function LoginPage() {
           setResetToken(token);
           setAuthMode('reset');
         } else {
-          setLocalError('Reset token was not returned by verification.');
+          setLocalError(t('login_err_no_reset_token'));
         }
       }
     } catch (err) {
-      setLocalError(err.response?.data?.message || 'Verification failed. Please check your code.');
+      setLocalError(err.response?.data?.message || t('login_err_verify_failed'));
     } finally {
       setLocalLoading(false);
     }
@@ -230,7 +233,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLocalError(null);
     if (newPassword !== confirmPassword) {
-      setLocalError('Passwords do not match.');
+      setLocalError(t('login_err_passwords_mismatch'));
       return;
     }
     setLocalLoading(true);
@@ -243,7 +246,7 @@ export default function LoginPage() {
       });
       setAuthMode('success_reset');
     } catch (err) {
-      setLocalError(err.response?.data?.message || 'Failed to reset password.');
+      setLocalError(err.response?.data?.message || t('login_err_reset_failed'));
     } finally {
       setLocalLoading(false);
     }
@@ -258,9 +261,13 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#02080B] text-gray-100 flex flex-col justify-between p-6 relative overflow-hidden font-sans antialiased">
-      
+
       {/* Background radial glow */}
       <div className="absolute w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[100px] pointer-events-none -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+
+      <div className="w-full flex justify-end z-10">
+        <LanguageSwitcher />
+      </div>
 
       {/* Spacer to push card center */}
       <div className="flex-1 flex items-center justify-center z-10">
@@ -309,18 +316,18 @@ export default function LoginPage() {
               {authMode === 'login' && (
                 <div>
                   <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Welcome Back</h2>
-                    <p className="text-gray-400 mt-2 text-sm">Log in to your GoCustify workspace.</p>
+                    <h2 className="text-3xl font-bold text-white tracking-tight">{t('login_welcome_back')}</h2>
+                    <p className="text-gray-400 mt-2 text-sm">{t('login_welcome_sub')}</p>
                   </div>
 
                   <form onSubmit={handleLogin} className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">Email / Phone</label>
+                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_email_phone_label')}</label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                        <input 
-                          type="email" 
-                          placeholder="Enter your email or phone"
+                        <input
+                          type="email"
+                          placeholder={t('login_email_phone_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
@@ -331,32 +338,32 @@ export default function LoginPage() {
 
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">Password</label>
-                        <button 
-                          type="button" 
+                        <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_password_label')}</label>
+                        <button
+                          type="button"
                           onClick={() => {
                             setAuthMode('forgot');
                             setLocalError(null);
                             setLocalMessage(null);
-                          }} 
+                          }}
                           className="text-xs font-bold text-purple-400 hover:underline"
                         >
-                          Forgot Password?
+                          {t('login_forgot_password')}
                         </button>
                       </div>
                       <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                        <input 
-                          type={showPass ? "text" : "password"} 
-                          placeholder="Enter your password"
+                        <input
+                          type={showPass ? "text" : "password"}
+                          placeholder={t('login_password_placeholder')}
                           className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
                         />
-                        <button 
-                          type="button" 
-                          onClick={() => setShowPass(!showPass)} 
+                        <button
+                          type="button"
+                          onClick={() => setShowPass(!showPass)}
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
                         >
                           {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -364,30 +371,28 @@ export default function LoginPage() {
                       </div>
                     </div>
 
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       disabled={authLoading}
                       className="w-full py-3.5 mt-2 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 group cursor-pointer"
                     >
                       {authLoading ? (
                         <Loader2 className="animate-spin" size={20} />
                       ) : (
-                        "Log In"
+                        t('login_log_in')
                       )}
                     </button>
                   </form>
 
                   <p className="mt-8 text-center text-gray-400 text-sm">
-                    Don't have an account?{' '}
-                    <button 
+                    {t('login_no_account')}{' '}
+                    <button
                       onClick={() => {
-                        setAuthMode('register');
-                        setLocalError(null);
-                        setLocalMessage(null);
-                      }} 
+                        navigate('/subscription');
+                      }}
                       className="text-purple-400 font-bold hover:underline"
                     >
-                      Sign Up
+                      {t('login_sign_up')}
                     </button>
                   </p>
                 </div>
@@ -397,18 +402,18 @@ export default function LoginPage() {
               {authMode === 'register' && (
                 <div>
                   <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Create Account</h2>
-                    <p className="text-gray-400 mt-2 text-sm">Create your GoCustify account and get started.</p>
+                    <h2 className="text-3xl font-bold text-white tracking-tight">{t('login_create_account')}</h2>
+                    <p className="text-gray-400 mt-2 text-sm">{t('login_create_account_sub')}</p>
                   </div>
 
                   <form onSubmit={handleRegisterSubmit} className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">Full Name</label>
+                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_full_name_label')}</label>
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                        <input 
-                          type="text" 
-                          placeholder="John Doe"
+                        <input
+                          type="text"
+                          placeholder={t('login_full_name_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
@@ -418,12 +423,12 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">Email Address</label>
+                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_email_label')}</label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                        <input 
-                          type="email" 
-                          placeholder="john@example.com"
+                        <input
+                          type="email"
+                          placeholder={t('login_email_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
@@ -433,12 +438,12 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">Phone</label>
+                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_phone_label')}</label>
                       <div className="relative">
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                        <input 
-                          type="text" 
-                          placeholder="+1 (555) 000-0000"
+                        <input
+                          type="text"
+                          placeholder={t('login_phone_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={phoneVal}
                           onChange={(e) => setPhoneVal(e.target.value)}
@@ -447,20 +452,20 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">Password</label>
+                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_password_label')}</label>
                       <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                        <input 
-                          type={showPass ? "text" : "password"} 
-                          placeholder="Enter your password"
+                        <input
+                          type={showPass ? "text" : "password"}
+                          placeholder={t('login_password_placeholder')}
                           className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
                         />
-                        <button 
-                          type="button" 
-                          onClick={() => setShowPass(!showPass)} 
+                        <button
+                          type="button"
+                          onClick={() => setShowPass(!showPass)}
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
                         >
                           {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -471,29 +476,29 @@ export default function LoginPage() {
                     <div className="flex items-start gap-2.5 pt-1">
                       <input type="checkbox" id="agree" required className="mt-1 rounded bg-[#121625]/60 border border-gray-900 text-purple-500 focus:ring-purple-500/20" />
                       <label htmlFor="agree" className="text-xs text-gray-400 leading-normal font-medium cursor-pointer">
-                        I agree to the <a href="/terms-and-conditions" className="text-purple-400 hover:underline">Terms & Conditions</a> and <a href="/privacy-policy" className="text-purple-400 hover:underline">Privacy Policy</a>.
+                        {t('login_agree_prefix')} <a href="/terms-and-conditions" className="text-purple-400 hover:underline">{t('footer_terms')}</a> {t('login_agree_and')} <a href="/privacy-policy" className="text-purple-400 hover:underline">{t('footer_privacy')}</a>{t('login_agree_suffix')}
                       </label>
                     </div>
 
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       className="w-full py-3.5 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all cursor-pointer"
                     >
-                      Sign Up
+                      {t('login_sign_up')}
                     </button>
                   </form>
 
                   <p className="mt-8 text-center text-gray-400 text-sm">
-                    Already have an account?{' '}
-                    <button 
+                    {t('login_already_account')}{' '}
+                    <button
                       onClick={() => {
                         setAuthMode('login');
                         setLocalError(null);
                         setLocalMessage(null);
-                      }} 
+                      }}
                       className="text-purple-400 font-bold hover:underline"
                     >
-                      Log In
+                      {t('login_log_in')}
                     </button>
                   </p>
                 </div>
@@ -503,8 +508,8 @@ export default function LoginPage() {
               {authMode === 'choose_method' && (
                 <div>
                   <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Choose Verification Method</h2>
-                    <p className="text-gray-400 mt-2 text-sm">Select where you want to receive your verification code.</p>
+                    <h2 className="text-3xl font-bold text-white tracking-tight">{t('login_choose_method')}</h2>
+                    <p className="text-gray-400 mt-2 text-sm">{t('login_choose_method_sub')}</p>
                   </div>
 
                   <div className="space-y-4">
@@ -522,7 +527,7 @@ export default function LoginPage() {
                           <Mail size={18} />
                         </div>
                         <div className="text-left">
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Send via Email</p>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t('login_send_via_email')}</p>
                           <p className="text-sm font-bold text-white">{maskEmail(flowType === 'signup' ? email : forgotEmail)}</p>
                         </div>
                       </div>
@@ -545,7 +550,7 @@ export default function LoginPage() {
                           <Phone size={18} />
                         </div>
                         <div className="text-left">
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Send via SMS</p>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t('login_send_via_sms')}</p>
                           <p className="text-sm font-bold text-white">{maskPhone(phoneVal)}</p>
                         </div>
                       </div>
@@ -563,18 +568,18 @@ export default function LoginPage() {
                     {localLoading ? (
                       <Loader2 className="animate-spin" size={20} />
                     ) : (
-                      "Send Code"
+                      t('login_send_code')
                     )}
                   </button>
 
-                  <button 
+                  <button
                     onClick={() => {
                       setAuthMode(flowType === 'signup' ? 'register' : 'forgot');
                       setLocalError(null);
                     }}
                     className="w-full text-center text-sm font-bold text-gray-500 hover:text-white mt-5 transition-colors"
                   >
-                    Cancel
+                    {t('login_cancel')}
                   </button>
                 </div>
               )}
@@ -587,9 +592,9 @@ export default function LoginPage() {
                       <img src={logoImg} alt="GoCustify logo" className="w-6 h-6 object-contain" />
                       <span className="text-sm font-bold text-white">GoCustify</span>
                     </div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Enter Verification Code</h2>
+                    <h2 className="text-3xl font-bold text-white tracking-tight">{t('login_enter_code')}</h2>
                     <p className="text-gray-400 mt-2 text-sm max-w-xs mx-auto">
-                      Enter the {otpArray.length}-digit code sent to your {verifyMethod === 'email' ? 'email' : 'phone'}.
+                      {t('login_enter_code_sub', { n: otpArray.length, method: verifyMethod === 'email' ? t('login_email_word') : t('login_phone_word') })}
                     </p>
                   </div>
 
@@ -627,7 +632,7 @@ export default function LoginPage() {
                         <Loader2 className="animate-spin" size={20} />
                       ) : (
                         <>
-                          Verify Code
+                          {t('login_verify_code')}
                           <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                         </>
                       )}
@@ -638,29 +643,29 @@ export default function LoginPage() {
                     <div className="flex items-center justify-center gap-2 text-sm font-semibold text-gray-500">
                       <Clock size={16} />
                       <span>
-                        {resendTimer > 0 
-                          ? `Resend code in 00:${resendTimer.toString().padStart(2, '0')}`
-                          : 'Code expired'
+                        {resendTimer > 0
+                          ? t('login_resend_in', { ss: resendTimer.toString().padStart(2, '0') })
+                          : t('login_code_expired')
                         }
                       </span>
                     </div>
 
-                    <button 
+                    <button
                       type="button"
                       disabled={resendTimer > 0 || localLoading}
                       onClick={handleResendCode}
                       className={`text-sm font-bold transition-colors block mx-auto ${
-                        resendTimer > 0 
-                          ? 'text-gray-700 cursor-not-allowed' 
+                        resendTimer > 0
+                          ? 'text-gray-700 cursor-not-allowed'
                           : 'text-purple-400 hover:text-purple-300'
                       }`}
                     >
-                      I didn't receive a code
+                      {t('login_no_code_received')}
                     </button>
                   </div>
 
                   <div className="flex items-center justify-center gap-1.5 text-xs text-gray-600 font-bold uppercase tracking-wider mt-8 pt-4 border-t border-gray-950">
-                    <Lock size={12} /> Quantum Secured Access
+                    <Lock size={12} /> {t('login_quantum_secured')}
                   </div>
                 </div>
               )}
@@ -672,20 +677,20 @@ export default function LoginPage() {
                     <div className="w-14 h-14 rounded-full bg-purple-950/45 border border-purple-500/25 flex items-center justify-center text-purple-400 mb-4 shadow-lg shadow-purple-500/5">
                       <KeyRound size={24} />
                     </div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Forgot Password?</h2>
+                    <h2 className="text-3xl font-bold text-white tracking-tight">{t('login_forgot_password_title')}</h2>
                     <p className="text-gray-400 mt-2 text-sm max-w-xs mx-auto">
-                      Enter your email or phone number and we'll send a verification code to reset your password.
+                      {t('login_forgot_password_sub')}
                     </p>
                   </div>
 
                   <form onSubmit={handleForgotPasswordSubmit} className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">Email / Phone</label>
+                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_email_phone_label')}</label>
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                        <input 
-                          type="email" 
-                          placeholder="Enter your details"
+                        <input
+                          type="email"
+                          placeholder={t('login_details_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
@@ -694,26 +699,26 @@ export default function LoginPage() {
                       </div>
                     </div>
 
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       className="w-full py-3.5 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer"
                     >
-                      Send Verification Code
+                      {t('login_send_verification_code')}
                       <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                     </button>
                   </form>
 
                   <p className="mt-8 text-center text-gray-400 text-sm">
-                    Remember your password?{' '}
-                    <button 
+                    {t('login_remember_password')}{' '}
+                    <button
                       onClick={() => {
                         setAuthMode('login');
                         setLocalError(null);
                         setLocalMessage(null);
-                      }} 
+                      }}
                       className="text-purple-400 font-bold hover:underline"
                     >
-                      Back to Login
+                      {t('login_back_to_login')}
                     </button>
                   </p>
                 </div>
@@ -723,17 +728,17 @@ export default function LoginPage() {
               {authMode === 'reset' && (
                 <div>
                   <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Set New Password</h2>
-                    <p className="text-gray-400 mt-2 text-sm">Create a secure password for your GoCustify account.</p>
+                    <h2 className="text-3xl font-bold text-white tracking-tight">{t('login_set_new_password')}</h2>
+                    <p className="text-gray-400 mt-2 text-sm">{t('login_set_new_password_sub')}</p>
                   </div>
 
                   <form onSubmit={handleResetPassword} className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">New Password</label>
+                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_new_password_label')}</label>
                       <div className="relative">
-                        <input 
-                          type={showNewPass ? "text" : "password"} 
-                          placeholder="Enter new password"
+                        <input
+                          type={showNewPass ? "text" : "password"}
+                          placeholder={t('login_new_password_placeholder')}
                           className="w-full pl-4 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
@@ -750,11 +755,11 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">Confirm Password</label>
+                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_confirm_password_label')}</label>
                       <div className="relative">
-                        <input 
-                          type={showConfirmPass ? "text" : "password"} 
-                          placeholder="Confirm new password"
+                        <input
+                          type={showConfirmPass ? "text" : "password"}
+                          placeholder={t('login_confirm_password_placeholder')}
                           className="w-full pl-4 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
@@ -773,7 +778,7 @@ export default function LoginPage() {
                     {/* Password strength meter */}
                     <div className="space-y-2 pt-1">
                       <div className="flex justify-between items-center text-xs font-bold">
-                        <span className="text-gray-500">Password strength</span>
+                        <span className="text-gray-500">{t('login_password_strength')}</span>
                         <span className={
                           strength.score === 3 ? "text-purple-400" :
                           strength.score === 2 ? "text-amber-400" :
@@ -795,22 +800,22 @@ export default function LoginPage() {
                       {localLoading ? (
                         <Loader2 className="animate-spin" size={20} />
                       ) : (
-                        "Update Password"
+                        t('login_update_password')
                       )}
                     </button>
                   </form>
 
                   <p className="mt-8 text-center text-gray-400 text-sm">
-                    Remember password?{' '}
-                    <button 
+                    {t('login_remember_password_alt')}{' '}
+                    <button
                       onClick={() => {
                         setAuthMode('login');
                         setLocalError(null);
                         setLocalMessage(null);
-                      }} 
+                      }}
                       className="text-purple-400 font-bold hover:underline"
                     >
-                      Back to Login
+                      {t('login_back_to_login')}
                     </button>
                   </p>
                 </div>
@@ -822,16 +827,16 @@ export default function LoginPage() {
                   <div className="w-16 h-16 rounded-full bg-purple-950/80 border-2 border-purple-400 flex items-center justify-center text-purple-400 mb-6 shadow-lg shadow-purple-400/30">
                     <Check size={32} strokeWidth={3} />
                   </div>
-                  
+
                   <h2 className="text-3xl font-extrabold text-white tracking-tight">
-                    Account Created <br />Successfully
+                    {t('login_account_created')}
                   </h2>
-                  
+
                   <p className="text-gray-400 mt-4 text-sm leading-relaxed max-w-xs mx-auto">
-                    Welcome to the future of business automation. Your workspace is ready for configuration.
+                    {t('login_account_created_sub')}
                   </p>
 
-                  <button 
+                  <button
                     onClick={() => {
                       setAuthMode('login');
                       setLocalError(null);
@@ -839,7 +844,7 @@ export default function LoginPage() {
                     }}
                     className="w-full py-3.5 mt-8 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer"
                   >
-                    Continue
+                    {t('login_continue')}
                   </button>
                 </div>
               )}
@@ -850,16 +855,16 @@ export default function LoginPage() {
                   <div className="w-16 h-16 rounded-full bg-purple-950/80 border-2 border-purple-400 flex items-center justify-center text-purple-400 mb-6 shadow-lg shadow-purple-400/30">
                     <Check size={32} strokeWidth={3} />
                   </div>
-                  
+
                   <h2 className="text-3xl font-extrabold text-white tracking-tight">
-                    Password Updated <br />Successfully
+                    {t('login_password_updated')}
                   </h2>
-                  
+
                   <p className="text-gray-400 mt-4 text-sm leading-relaxed max-w-xs mx-auto">
-                    Your account is now secure.
+                    {t('login_password_updated_sub')}
                   </p>
 
-                  <button 
+                  <button
                     onClick={() => {
                       setAuthMode('login');
                       setLocalError(null);
@@ -867,7 +872,7 @@ export default function LoginPage() {
                     }}
                     className="w-full py-3.5 mt-8 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] rounded-xl font-bold shadow-lg shadow-purple-500/10 hover:shadow-purple-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer"
                   >
-                    Back to Log In
+                    {t('login_back_to_log_in')}
                     <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
@@ -880,10 +885,10 @@ export default function LoginPage() {
 
       {/* Login Screen Footer */}
       <footer className="w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 py-6 text-xs text-gray-600 font-bold border-t border-slate-900 mt-12 bg-transparent select-none z-10">
-        <p>© 2026 GoCustify. All rights reserved.</p>
+        <p>{t('footer_copyright')}</p>
         <div className="flex items-center gap-6">
-          <a href="/privacy-policy" className="hover:text-gray-400 transition-colors">Privacy Policy</a>
-          <a href="/terms-and-conditions" className="hover:text-gray-400 transition-colors">Terms & Conditions</a>
+          <a href="/privacy-policy" className="hover:text-gray-400 transition-colors">{t('footer_privacy')}</a>
+          <a href="/terms-and-conditions" className="hover:text-gray-400 transition-colors">{t('footer_terms')}</a>
         </div>
       </footer>
 

@@ -10,8 +10,10 @@ import { smartflowApi } from '../../../api/services';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { INPUT, LABEL, Field, Badge, StatCard } from '../shared';
 import { AI_LANGUAGE_OPTIONS, getStoredAiLanguage, setStoredAiLanguage } from '../../../utils/voiceAgentConfig';
+import { useLanguage } from '../../../context/LanguageContext';
 
 function AIConfigTab() {
+  const { t } = useLanguage();
   const [voices, setVoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [aiLanguage, setAiLanguage] = useState(() => getStoredAiLanguage());
@@ -30,7 +32,7 @@ function AIConfigTab() {
   return (
     <div className="space-y-5">
       <div className="bg-[#0A1019] border border-[#243041] rounded-2xl p-5">
-        <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Globe size={16} className="text-[#9333ea]"/>AI Voice Language</h3>
+        <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Globe size={16} className="text-[#9333ea]"/>{t('aiprof_hdr_lang')}</h3>
         <select
           value={aiLanguage}
           onChange={(event) => setAiLanguage(event.target.value)}
@@ -41,12 +43,12 @@ function AIConfigTab() {
           ))}
         </select>
         <p className="text-[#A4B0B7] text-xs mt-3">
-          This matches the mobile AI language setting for voice prompts, follow-up questions, and speech recognition.
+          {t('aiprof_lang_desc')}
         </p>
       </div>
 
       <div className="bg-[#0A1019] border border-[#243041] rounded-2xl p-5">
-        <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Mic size={16} className="text-[#9333ea]"/>Available AI Voices</h3>
+        <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Mic size={16} className="text-[#9333ea]"/>{t('aiprof_hdr_voices')}</h3>
         {loading ? <div className="flex items-center justify-center h-24"><Loader2 className="animate-spin text-[#9333ea]"/></div>
           : voices.length ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -57,7 +59,7 @@ function AIConfigTab() {
                 </div>
               ))}
             </div>
-          ) : <p className="text-[#A4B0B7] text-sm">No voices configured.</p>
+          ) : <p className="text-[#A4B0B7] text-sm">{t('aiprof_no_voices')}</p>
         }
       </div>
     </div>

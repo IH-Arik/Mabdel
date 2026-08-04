@@ -3,8 +3,10 @@ import { AlertTriangle, Building2, CheckCircle2, Loader2, Save, Upload } from 'l
 
 import { smartflowApi } from '../../../api/services';
 import { Field, INPUT } from '../shared';
+import { useLanguage } from '../../../context/LanguageContext';
 
 function BusinessProfileTab() {
+  const { t } = useLanguage();
   const [data, setData] = useState({
     business_name: '',
     email: '',
@@ -37,7 +39,7 @@ function BusinessProfileTab() {
       })
       .catch((loadError) => {
         if (ignore) return;
-        setError(loadError?.response?.data?.message || 'Could not load business profile.');
+        setError(loadError?.response?.data?.message || t('bprof_err_load'));
       })
       .finally(() => {
         if (!ignore) setLoading(false);
@@ -73,9 +75,9 @@ function BusinessProfileTab() {
         office_address_text: next.office_address_text || '',
       });
       setLogoUrl(next.logo_url || logoUrl);
-      setSuccess('Business profile saved.');
+      setSuccess(t('bprof_saved'));
     } catch (saveError) {
-      setError(saveError?.response?.data?.message || 'Save failed.');
+      setError(saveError?.response?.data?.message || t('bprof_save_failed'));
     } finally {
       setSaving(false);
     }
@@ -104,9 +106,9 @@ function BusinessProfileTab() {
         website: next.website || current.website,
         office_address_text: next.office_address_text || current.office_address_text,
       }));
-      setSuccess('Business logo updated.');
+      setSuccess(t('bprof_logo_updated'));
     } catch (uploadError) {
-      setError(uploadError?.response?.data?.message || 'Logo upload failed.');
+      setError(uploadError?.response?.data?.message || t('bprof_logo_failed'));
     } finally {
       setUploading(false);
       event.target.value = '';
@@ -152,35 +154,35 @@ function BusinessProfileTab() {
 
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-2.5 text-sm font-semibold text-[#A4B0B7] transition-all hover:border-[#9333ea]/40 hover:text-white">
           <Upload size={15} />
-          Upload Logo
+          {t('bprof_btn_upload')}
           <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoUpload} />
         </label>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Business Name">
-          <input value={data.business_name} onChange={(event) => updateField('business_name', event.target.value)} className={INPUT} placeholder="Business name" />
+        <Field label={t('bprof_lbl_name')}>
+          <input value={data.business_name} onChange={(event) => updateField('business_name', event.target.value)} className={INPUT} placeholder={t('bprof_ph_name')} />
         </Field>
 
-        <Field label="Business Email">
-          <input value={data.email} onChange={(event) => updateField('email', event.target.value)} className={INPUT} placeholder="business@example.com" />
+        <Field label={t('bprof_lbl_email')}>
+          <input value={data.email} onChange={(event) => updateField('email', event.target.value)} className={INPUT} placeholder={t('bprof_ph_email')} />
         </Field>
 
-        <Field label="Business Phone">
-          <input value={data.phone_number} onChange={(event) => updateField('phone_number', event.target.value)} className={INPUT} placeholder="+1 234 567 890" />
+        <Field label={t('bprof_lbl_phone')}>
+          <input value={data.phone_number} onChange={(event) => updateField('phone_number', event.target.value)} className={INPUT} placeholder={t('bprof_ph_phone')} />
         </Field>
 
-        <Field label="Website">
-          <input value={data.website} onChange={(event) => updateField('website', event.target.value)} className={INPUT} placeholder="https://example.com" />
+        <Field label={t('bprof_lbl_website')}>
+          <input value={data.website} onChange={(event) => updateField('website', event.target.value)} className={INPUT} placeholder={t('bprof_ph_website')} />
         </Field>
       </div>
 
-      <Field label="Office Address">
+      <Field label={t('bprof_lbl_address')}>
         <textarea
           value={data.office_address_text}
           onChange={(event) => updateField('office_address_text', event.target.value)}
           className={`${INPUT} min-h-24 resize-none`}
-          placeholder="Street, city, state, postcode, country"
+          placeholder={t('bprof_ph_address')}
         />
       </Field>
 
@@ -190,7 +192,7 @@ function BusinessProfileTab() {
         className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#9333ea] px-6 py-3 font-bold text-[#02080B] transition-colors hover:bg-[#a855f7] disabled:opacity-60"
       >
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-        {saving ? 'Saving...' : 'Save Business Profile'}
+        {saving ? t('prof_saving') : t('bprof_btn_save')}
       </button>
     </div>
   );

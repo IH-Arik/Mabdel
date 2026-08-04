@@ -3,6 +3,7 @@ import { AlertCircle, Loader2, Mic, Play, RefreshCw, Search } from 'lucide-react
 import { useNavigate } from 'react-router-dom';
 import { smartflowApi } from '../../../api/services';
 import { formatCstDateTime } from '../../../utils/dateUtils';
+import { useLanguage } from '../../../context/LanguageContext';
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
 
@@ -13,6 +14,7 @@ const getHistoryItems = (payload) => {
 };
 
 export default function VoiceHistoryTab() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [history, setHistory] = useState([]);
@@ -29,7 +31,7 @@ export default function VoiceHistoryTab() {
       setHistory(getHistoryItems(payload));
     } catch (loadError) {
       setHistory([]);
-      setError(loadError?.response?.data?.message || 'Unable to load voice history right now.');
+      setError(loadError?.response?.data?.message || t('vprof_err_load'));
     } finally {
       setLoading(false);
     }
@@ -61,7 +63,7 @@ export default function VoiceHistoryTab() {
         },
       });
     } catch (replayError) {
-      setError(replayError?.response?.data?.message || 'Replay failed for this history item.');
+      setError(replayError?.response?.data?.message || t('vprof_err_replay'));
     } finally {
       setReplayingId(null);
     }
@@ -73,9 +75,9 @@ export default function VoiceHistoryTab() {
         <div>
           <h2 className="flex items-center gap-2 text-xl font-bold text-white">
             <Mic className="text-purple-400" />
-            Voice History
+            {t('vprof_title')}
           </h2>
-          <p className="mt-1 text-sm text-slate-400">Replay real AI voice interactions from your account history.</p>
+          <p className="mt-1 text-sm text-slate-400">{t('vprof_subtitle')}</p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -83,7 +85,7 @@ export default function VoiceHistoryTab() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
             <input
               type="text"
-              placeholder="Search voice history"
+              placeholder={t('vprof_search_placeholder')}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="w-full rounded-xl border border-[#243041] bg-[#070a13] py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:border-purple-500/50 focus:outline-none sm:w-64"
@@ -96,7 +98,7 @@ export default function VoiceHistoryTab() {
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#243041] bg-[#070a13] px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-purple-500/40 hover:text-purple-300 disabled:opacity-60"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            Refresh
+            {t('vprof_btn_refresh')}
           </button>
         </div>
       </div>
@@ -112,12 +114,12 @@ export default function VoiceHistoryTab() {
         {loading ? (
           <div className="flex items-center justify-center gap-3 px-6 py-16 text-slate-300">
             <Loader2 size={20} className="animate-spin text-purple-400" />
-            Loading voice history...
+            {t('vprof_loading')}
           </div>
         ) : filteredHistory.length === 0 ? (
           <div className="px-6 py-16 text-center text-slate-500">
             <Mic size={40} className="mx-auto mb-4 opacity-25" />
-            <p className="text-sm">{history.length === 0 ? 'No voice history yet.' : 'No history items match your search.'}</p>
+            <p className="text-sm">{history.length === 0 ? t('vprof_empty_history') : t('vprof_empty_search')}</p>
           </div>
         ) : (
           <div className="divide-y divide-[#243041]/40">
@@ -133,7 +135,7 @@ export default function VoiceHistoryTab() {
                         onClick={() => handleReplay(item)}
                         disabled={replayingId === item.id}
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-500/10 text-purple-400 transition-colors hover:bg-purple-500/20 disabled:opacity-60"
-                        title="Replay conversation"
+                        title={t('vprof_lbl_replay')}
                       >
                         {replayingId === item.id ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} className="ml-0.5" />}
                       </button>
@@ -141,20 +143,20 @@ export default function VoiceHistoryTab() {
                       <div className="min-w-0 flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-purple-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-300">
-                            {item.command_type_label || 'AI Voice'}
+                            {item.command_type_label || t('vprof_lbl_voice')}
                           </span>
                           <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            {item.status_label || 'Completed'}
+                            {item.status_label || t('vprof_lbl_completed')}
                           </span>
                         </div>
 
                         <div>
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">You Said</span>
-                          <p className="mt-1 text-sm font-medium text-white">{item.command_text || 'No transcript available.'}</p>
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('vprof_lbl_transcription')}</span>
+                          <p className="mt-1 text-sm font-medium text-white">{item.command_text || t('vprof_no_transcript') || 'No transcript available.'}</p>
                         </div>
 
                         <div className="border-l-2 border-slate-800 pl-4">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-500/70">Result</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-500/70">{t('vprof_lbl_response')}</span>
                           <p className="mt-1 text-sm text-slate-400">{responseText}</p>
                         </div>
                       </div>

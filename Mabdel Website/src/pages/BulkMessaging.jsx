@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -8,14 +8,10 @@ import {
 import { smartflowApi } from '../api/services';
 import { formatCstDate, formatCstDateTime } from '../utils/dateUtils';
 import { DateTimePickerInput } from '../components/ui/DateTimeInputs';
+import { useLanguage } from '../context/LanguageContext';
 
 const INPUT = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-sm placeholder:text-[#4A5568]';
 const LABEL = 'block text-[#A4B0B7] text-xs font-semibold uppercase tracking-wider mb-1.5';
-
-const CHANNELS = [
-  { id: 'email', label: 'Email', icon: Mail },
-  { id: 'sms', label: 'SMS', icon: Phone },
-];
 
 const NOISY_TRANSCRIPTS = new Set(['you', 'yeah', 'ya', 'yo', 'uh', 'um', 'hmm', 'hm', 'thank you', 'thanks for watching']);
 
@@ -35,6 +31,7 @@ function attachmentLabelFromUrl(url) {
 }
 
 function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips, onNext }) {
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [manual, setManual] = useState('');
   const [error, setError] = useState('');
@@ -44,6 +41,11 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
   const [groupSearch, setGroupSearch] = useState('');
   const [loadingGroupId, setLoadingGroupId] = useState(null);
   const [groupError, setGroupError] = useState('');
+
+  const channels = useMemo(() => [
+    { id: 'email', label: t('bulk_lbl_email'), icon: Mail },
+    { id: 'sms', label: t('bulk_lbl_phone_number'), icon: Phone },
+  ], [t]);
 
   async function addGroupRecipients(group) {
     setGroupError('');
@@ -55,12 +57,12 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
         .map((member) => getRecipientTarget(member, channel))
         .filter(Boolean);
       if (!targets.length) {
-        setGroupError(`No ${channel === 'sms' ? 'phone numbers' : 'emails'} found in "${group.name}".`);
+        setGroupError(t('bulk_err_no_group_targets', { channel: channel === 'sms' ? t('bulk_lbl_phone_numbers') : t('bulk_lbl_emails'), group: group.name }));
         return;
       }
       setChips((current) => [...new Set([...current, ...targets])]);
     } catch (err) {
-      setGroupError(err.response?.data?.message || `Could not load members of "${group.name}".`);
+      setGroupError(err.response?.data?.message || t('bulk_err_load_group_members', { group: group.name }));
     } finally {
       setLoadingGroupId(null);
     }
@@ -69,12 +71,12 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
   function addChip(value) {
     const nextValue = value.trim();
     if (!nextValue) return;
-    if (!chips.includes(nextValue)) setChips(current => [...current, nextValue]);
+    if (!chips.includes(nextValue)) setChips((current) => [...current, nextValue]);
     setManual('');
   }
 
   function removeChip(value) {
-    setChips(current => current.filter((item) => item !== value));
+    setChips((current) => current.filter((item) => item !== value));
   }
 
   function handleCSV(e) {
@@ -94,7 +96,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
 
   async function validate() {
     if (!chips.length) {
-      setError('Add at least one recipient.');
+      setError(t('bulk_err_add_recipient'));
       return;
     }
     setError('');
@@ -106,7 +108,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
       });
       const payload = response.data?.data || {};
       const normalizedTargets = (payload.recipients || [])
-        .map((recipient) => channel === 'sms' ? recipient?.phone : recipient?.email)
+        .map((recipient) => (channel === 'sms' ? recipient?.phone : recipient?.email))
         .filter(Boolean);
       setChips([...new Set(normalizedTargets)]);
       setValidationSummary({
@@ -117,7 +119,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
       });
       onNext();
     } catch (err) {
-      setError(err.response?.data?.message || 'Validation failed, check recipients.');
+      setError(err.response?.data?.message || t('bulk_err_validation_failed'));
     } finally {
       setValidating(false);
     }
@@ -131,7 +133,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
   });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 text-left">
       {error && (
         <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl text-rose-300 text-sm flex gap-2">
           <AlertTriangle size={14} />
@@ -141,19 +143,19 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
 
       {validationSummary && (
         <div className="p-3 bg-[#9333ea]/5 border border-[#9333ea]/20 rounded-xl text-sm text-[#A4B0B7]">
-          <span className="text-white font-semibold">{validationSummary.valid}</span> valid
-          {validationSummary.invalid ? <span>, <span className="text-amber-300 font-semibold">{validationSummary.invalid}</span> invalid</span> : null}
-          {validationSummary.duplicates ? <span>, <span className="text-amber-300 font-semibold">{validationSummary.duplicates}</span> duplicate</span> : null}
+          <span className="text-white font-semibold">{validationSummary.valid}</span> {t('bulk_lbl_valid')}
+          {validationSummary.invalid ? <span>, <span className="text-amber-300 font-semibold">{validationSummary.invalid}</span> {t('bulk_lbl_invalid')}</span> : null}
+          {validationSummary.duplicates ? <span>, <span className="text-amber-300 font-semibold">{validationSummary.duplicates}</span> {t('bulk_lbl_duplicate')}</span> : null}
           {validationSummary.invalidEntries?.length ? (
-            <div className="text-xs mt-2 text-amber-300">Removed invalid: {validationSummary.invalidEntries.join(', ')}</div>
+            <div className="text-xs mt-2 text-amber-300">{t('bulk_lbl_removed_invalid', { list: validationSummary.invalidEntries.join(', ') })}</div>
           ) : null}
         </div>
       )}
 
       <div>
-        <label className={LABEL}>Delivery Channel</label>
+        <label className={LABEL}>{t('bulk_lbl_delivery_channel')}</label>
         <div className="flex gap-3">
-          {CHANNELS.map((option) => {
+          {channels.map((option) => {
             const Icon = option.icon;
             return (
               <button
@@ -200,7 +202,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
               addChip(manual);
             }
           }}
-          placeholder={channel === 'sms' ? 'Type phone number and press Enter...' : 'Type email and press Enter...'}
+          placeholder={t('bulk_ph_type_target', { channel: channel === 'sms' ? t('bulk_lbl_phone_number') : t('bulk_lbl_email') })}
           className={`${INPUT} flex-1`}
         />
         <button
@@ -214,11 +216,11 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
 
       {contacts.length > 0 && (
         <div>
-          <label className={LABEL}>Pick from Contacts</label>
+          <label className={LABEL}>{t('bulk_lbl_pick_contacts')}</label>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search contacts..."
+            placeholder={t('bulk_ph_search_contacts')}
             className={`${INPUT} mb-2`}
           />
           <div className="max-h-40 overflow-y-auto space-y-1.5 border border-[#243041] rounded-xl p-2">
@@ -243,15 +245,15 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
                 </button>
               );
             })}
-            {filteredContacts.length === 0 && <p className="text-center text-[#A4B0B7] text-xs py-4">No matching contacts.</p>}
+            {filteredContacts.length === 0 && <p className="text-center text-[#A4B0B7] text-xs py-4">{t('bulk_no_contacts')}</p>}
           </div>
         </div>
       )}
 
       {groups.length > 0 && (
         <div>
-          <label className={LABEL}>Pick from Groups</label>
-          <p className="text-[#A4B0B7] text-xs mb-2">Add every member of a group at once.</p>
+          <label className={LABEL}>{t('bulk_lbl_pick_groups')}</label>
+          <p className="text-[#A4B0B7] text-xs mb-2">{t('bulk_pick_groups_hint')}</p>
           {groupError && (
             <div className="p-2.5 mb-2 bg-rose-950/30 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex gap-2">
               <AlertTriangle size={13} className="shrink-0" />
@@ -261,7 +263,7 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
           <input
             value={groupSearch}
             onChange={(e) => setGroupSearch(e.target.value)}
-            placeholder="Search groups..."
+            placeholder={t('bulk_ph_search_groups')}
             className={`${INPUT} mb-2`}
           />
           <div className="max-h-40 overflow-y-auto space-y-1.5 border border-[#243041] rounded-xl p-2">
@@ -280,12 +282,12 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-white text-xs font-bold truncate">{group.name}</p>
-                    <p className="text-[#A4B0B7] text-[11px] truncate">{group.member_count ?? (group.member_ids || []).length} members</p>
+                    <p className="text-[#A4B0B7] text-[11px] truncate">{t('bulk_members_count', { count: group.member_count ?? (group.member_ids || []).length })}</p>
                   </div>
                 </button>
               ))}
             {groups.filter((group) => (group.name || '').toLowerCase().includes(groupSearch.toLowerCase())).length === 0 && (
-              <p className="text-center text-[#A4B0B7] text-xs py-4">No matching groups.</p>
+              <p className="text-center text-[#A4B0B7] text-xs py-4">{t('bulk_no_groups')}</p>
             )}
           </div>
         </div>
@@ -294,23 +296,23 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
       <label className="flex items-center gap-3 p-4 border border-dashed border-[#243246] hover:border-[#9333ea]/40 rounded-xl cursor-pointer transition-colors group">
         <Upload size={18} className="text-[#A4B0B7] group-hover:text-[#9333ea] transition-colors" />
         <div>
-          <p className="text-white text-sm font-semibold">{file ? file.name : 'Upload CSV file'}</p>
+          <p className="text-white text-sm font-semibold">{file ? file.name : t('bulk_lbl_upload_csv')}</p>
           <p className="text-[#A4B0B7] text-xs">
-            {channel === 'sms' ? 'One phone number per line or comma-separated' : 'One email per line or comma-separated'}
+            {t('bulk_csv_hint', { type: channel === 'sms' ? t('bulk_lbl_phone_number') : t('bulk_lbl_email') })}
           </p>
         </div>
         <input type="file" accept=".csv,.txt" className="hidden" onChange={handleCSV} />
       </label>
 
       <div className="flex items-center justify-between pt-2">
-        <span className="text-[#A4B0B7] text-sm">{chips.length} recipient{chips.length !== 1 ? 's' : ''} selected</span>
+        <span className="text-[#A4B0B7] text-sm">{t('bulk_recipients_selected', { count: chips.length })}</span>
         <button
           onClick={validate}
           disabled={validating || chips.length === 0}
           className="px-6 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold flex items-center gap-2 hover:bg-[#a855f7] transition-colors cursor-pointer disabled:opacity-60"
         >
           {validating ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-          Validate Recipients
+          {t('bulk_btn_validate_recipients')}
         </button>
       </div>
     </div>
@@ -333,6 +335,7 @@ function StepCompose({
   onSend,
   sending,
 }) {
+  const { t } = useLanguage();
   const MAX = 5000;
   const [attachUrl, setAttachUrl] = useState('');
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
@@ -346,6 +349,11 @@ function StepCompose({
   const audioChunksRef = useRef([]);
   const recordingStartedAtRef = useRef(0);
 
+  const channels = useMemo(() => [
+    { id: 'email', label: t('bulk_lbl_email'), icon: Mail },
+    { id: 'sms', label: t('bulk_lbl_phone_number'), icon: Phone },
+  ], [t]);
+
   async function toggleVoiceWrite() {
     if (isRecording) {
       mediaRecorderRef.current?.stop();
@@ -354,7 +362,7 @@ function StepCompose({
     setVoiceError('');
     try {
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-        setVoiceError('Audio recording is not supported in this browser.');
+        setVoiceError(t('bulk_err_audio_unsupported'));
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -378,7 +386,7 @@ function StepCompose({
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         if (!blob.size) return;
         if (durationMs < 600) {
-          setVoiceError('Recording was too short. Hold the mic button and speak for a moment before stopping.');
+          setVoiceError(t('bulk_err_recording_too_short'));
           return;
         }
         setTranscribing(true);
@@ -387,24 +395,21 @@ function StepCompose({
           const data = response?.data?.data || response?.data || {};
           const transcript = String(data?.transcript || '').trim();
           if (!transcript) {
-            setVoiceError('No speech detected. Please try again.');
+            setVoiceError(t('bulk_err_no_speech'));
             return;
           }
           const isNoisyHallucination = NOISY_TRANSCRIPTS.has(transcript.toLowerCase());
           if (isNoisyHallucination) {
-            setVoiceError(
-              `Only heard "${transcript}" - your microphone may be muted, set to the wrong input device, or too quiet. `
-              + 'Check your browser/OS mic permissions and try again.'
-            );
+            setVoiceError(t('bulk_err_no_speech'));
             return;
           }
           if (transcript.length < 4 && durationMs < 2500) {
-            setVoiceError(`Could not clearly hear you (heard "${transcript}"). Please try again and speak a bit longer.`);
+            setVoiceError(t('bulk_err_no_speech'));
             return;
           }
           setMessage((current) => (current.trim() ? `${current.trim()} ${transcript}` : transcript).slice(0, MAX));
         } catch (err) {
-          setVoiceError(err.response?.data?.message || 'Could not transcribe the recording.');
+          setVoiceError(err.response?.data?.message || t('bulk_err_no_speech'));
         } finally {
           setTranscribing(false);
         }
@@ -412,13 +417,13 @@ function StepCompose({
       mediaRecorderRef.current = recorder;
       recorder.start();
     } catch {
-      setVoiceError('Microphone access was denied.');
+      setVoiceError(t('bulk_err_mic_denied'));
     }
   }
 
   async function improveMessage() {
     if (!message.trim()) {
-      setVoiceError('Write a message before using AI Improve.');
+      setVoiceError(t('bulk_err_write_before_improve'));
       return;
     }
     setVoiceError('');
@@ -428,7 +433,7 @@ function StepCompose({
       const improved = (response.data?.data?.content || response.data?.content || '').trim();
       if (improved) setMessage(improved.slice(0, MAX));
     } catch (err) {
-      setVoiceError(err.response?.data?.message || 'AI improve is not available right now.');
+      setVoiceError(err.response?.data?.message || t('bulk_err_ai_improve_unavailable'));
     } finally {
       setImproving(false);
     }
@@ -456,19 +461,19 @@ function StepCompose({
         setAttachments((current) => [...current, { label: uploaded.label || file.name, url: uploaded.url }]);
       }
     } catch (err) {
-      setAttachmentError(err.response?.data?.message || 'Could not upload the file.');
+      setAttachmentError(err.response?.data?.message || t('bulk_err_upload_file'));
     } finally {
       setUploadingAttachment(false);
     }
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 text-left">
       <div className="p-4 bg-[#9333ea]/5 border border-[#9333ea]/20 rounded-xl flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CheckCircle2 size={16} className="text-[#9333ea]" />
           <span className="font-bold text-white">{recipients.length}</span>
-          <span className="text-[#A4B0B7] text-sm">recipients validated</span>
+          <span className="text-[#A4B0B7] text-sm">{t('bulk_recipients_validated', { count: recipients.length })}</span>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {recipients.slice(0, 3).map((recipient) => (
@@ -478,16 +483,16 @@ function StepCompose({
           ))}
           {recipients.length > 3 && (
             <span className="text-[10px] px-2 py-0.5 bg-[#243041] text-[#A4B0B7] rounded-full">
-              +{recipients.length - 3} more
+              {t('bulk_more_recipients', { count: recipients.length - 3 })}
             </span>
           )}
         </div>
       </div>
 
       <div>
-        <label className={LABEL}>Delivery Channel</label>
+        <label className={LABEL}>{t('bulk_lbl_delivery_channel')}</label>
         <div className="flex gap-3">
-          {CHANNELS.map((option) => {
+          {channels.map((option) => {
             const Icon = option.icon;
             return (
               <button
@@ -511,23 +516,23 @@ function StepCompose({
             );
           })}
         </div>
-        <p className="text-[#A4B0B7] text-xs mt-1">Switching channel sends you back to recipient validation for the selected channel.</p>
+        <p className="text-[#A4B0B7] text-xs mt-1">{t('bulk_switch_channel_hint')}</p>
       </div>
 
       {channel === 'email' && (
         <div>
-          <label className={LABEL}>Subject Line</label>
-          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Your subject here..." className={INPUT} />
+          <label className={LABEL}>{t('bulk_lbl_subject')}</label>
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t('bulk_ph_subject')} className={INPUT} />
         </div>
       )}
 
       <div>
-        <label className={LABEL}>Message ({message.length}/{MAX})</label>
+        <label className={LABEL}>{t('bulk_lbl_message', { count: message.length, max: MAX })}</label>
         <div className="relative">
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value.slice(0, MAX))}
-            placeholder="Write your broadcast message... Use {name} for personalization."
+            placeholder={t('bulk_ph_message')}
             className={`${INPUT} min-h-40 resize-none pb-12`}
           />
           <div className="absolute bottom-3 right-3 flex items-center gap-2">
@@ -548,7 +553,7 @@ function StepCompose({
               type="button"
               onClick={improveMessage}
               disabled={improving || !message.trim()}
-              title="Improve with AI"
+              title={t('bulk_improve_with_ai')}
               className="w-9 h-9 rounded-lg border border-[#243246] bg-[#0A1019] text-[#A4B0B7] hover:text-[#9333ea] flex items-center justify-center transition-colors cursor-pointer disabled:opacity-60"
             >
               {improving ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
@@ -559,12 +564,12 @@ function StepCompose({
           <p className="text-rose-300 text-xs mt-1.5 flex items-center gap-1.5"><AlertTriangle size={12} />{voiceError}</p>
         )}
         <p className="text-[#A4B0B7] text-xs mt-1">
-          Variables: <span className="text-[#9333ea]">{'{name}'}</span>, <span className="text-[#9333ea]">{'{phone}'}</span>, <span className="text-[#9333ea]">{'{date}'}</span>
+          {t('bulk_variables_label')} <span className="text-[#9333ea]">{'{name}'}</span>, <span className="text-[#9333ea]">{'{phone}'}</span>, <span className="text-[#9333ea]">{'{date}'}</span>
         </p>
       </div>
 
       <div>
-        <label className={LABEL}>Attachments</label>
+        <label className={LABEL}>{t('bulk_attachments_label')}</label>
         <div className="flex gap-2 mb-2">
           <input
             value={attachUrl}
@@ -581,17 +586,17 @@ function StepCompose({
           <button
             type="button"
             onClick={addAttachment}
-            title="Add link"
+            title={t('bulk_title_add_link')}
             className="px-4 py-3 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] rounded-xl hover:text-white transition-colors cursor-pointer"
           >
             <Paperclip size={16} />
           </button>
           <label
-            title="Upload from device"
+            title={t('bulk_title_upload_device')}
             className="px-4 py-3 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] rounded-xl hover:text-white transition-colors cursor-pointer flex items-center gap-2 shrink-0"
           >
             {uploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-            <span className="text-xs font-semibold whitespace-nowrap">{uploadingAttachment ? 'Uploading...' : 'Upload File'}</span>
+            <span className="text-xs font-semibold whitespace-nowrap">{uploadingAttachment ? t('bulk_lbl_uploading') : t('bulk_lbl_upload_file')}</span>
             <input type="file" className="hidden" disabled={uploadingAttachment} onChange={handleLocalAttachment} />
           </label>
         </div>
@@ -618,7 +623,7 @@ function StepCompose({
       </div>
 
       <div>
-        <label className={LABEL}>Schedule Send (optional)</label>
+        <label className={LABEL}>{t('bulk_lbl_schedule_send')}</label>
         <DateTimePickerInput
           value={scheduleDate}
           onChange={setScheduleDate}
@@ -627,14 +632,14 @@ function StepCompose({
         {scheduleDate && (
           <p className="text-[#9333ea] text-xs mt-1 flex items-center gap-1.5">
             <CalendarClock size={12} />
-            Scheduled for {formatCstDateTime(scheduleDate)}
+            {t('bulk_scheduled_for', { time: formatCstDateTime(scheduleDate) })}
           </p>
         )}
       </div>
 
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onBack} className="flex-1 py-3 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] rounded-xl font-bold hover:text-white transition-colors cursor-pointer">
-          Back
+          {t('bulk_btn_back')}
         </button>
         <button
           onClick={onSend}
@@ -642,7 +647,7 @@ function StepCompose({
           className="flex-[2] py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-extrabold flex items-center justify-center gap-2 hover:bg-[#a855f7] transition-colors cursor-pointer disabled:opacity-60"
         >
           {sending ? <Loader2 size={18} className="animate-spin" /> : scheduleDate ? <CalendarClock size={18} /> : <Play size={18} />}
-          {sending ? 'Sending...' : scheduleDate ? 'Schedule Broadcast' : 'Send Now'}
+          {sending ? t('bulk_lbl_sending') : scheduleDate ? t('bulk_btn_schedule_broadcast') : t('bulk_btn_send_now')}
         </button>
       </div>
     </div>
@@ -650,6 +655,7 @@ function StepCompose({
 }
 
 function BroadcastHistory({ refreshKey = 0 }) {
+  const { t } = useLanguage();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -661,10 +667,10 @@ function BroadcastHistory({ refreshKey = 0 }) {
       .then((response) => setItems(response.data?.data?.items || response.data?.data || []))
       .catch(() => {
         setItems([]);
-        setLoadError('Could not load broadcast history.');
+        setLoadError(t('bulk_err_load_history'));
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadItems();
@@ -683,20 +689,20 @@ function BroadcastHistory({ refreshKey = 0 }) {
     return <div className="flex items-center justify-center h-24"><Loader2 className="animate-spin text-[#9333ea]" /></div>;
   }
   if (loadError) {
-    return <div className="mt-6 p-4 rounded-2xl border border-rose-500/30 bg-rose-950/20 text-rose-300 text-sm">{loadError}</div>;
+    return <div className="mt-6 p-4 rounded-2xl border border-rose-500/30 bg-rose-950/20 text-rose-300 text-sm text-left">{loadError}</div>;
   }
   if (!items.length) {
-    return <div className="mt-6 p-4 rounded-2xl border border-[#243041] bg-[#131A24] text-[#A4B0B7] text-sm">No bulk campaigns yet.</div>;
+    return <div className="mt-6 p-4 rounded-2xl border border-[#243041] bg-[#131A24] text-[#A4B0B7] text-sm text-left">{t('bulk_no_campaigns')}</div>;
   }
 
   return (
-    <div className="mt-6">
-      <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Clock size={15} className="text-[#9333ea]" />Previous Broadcasts</h3>
+    <div className="mt-6 text-left">
+      <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Clock size={15} className="text-[#9333ea]" />{t('bulk_lbl_previous_broadcasts')}</h3>
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl overflow-hidden">
         {items.map((item, index) => (
           <div key={item.id || index} className="p-4 flex items-center justify-between gap-4 border-b border-[#243041]/30 last:border-0">
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-white text-sm truncate">{item.subject || item.content?.slice(0, 60) || 'Broadcast'}</p>
+              <p className="font-semibold text-white text-sm truncate">{item.subject || item.content?.slice(0, 60) || t('bulk_default_subject')}</p>
               <p className="text-[#A4B0B7] text-xs mt-0.5">
                 {(item.recipients || []).length || item.recipient_emails?.length || 0} recipients • {item.channel} • {item.created_at ? formatCstDate(item.created_at) : ''}
               </p>
@@ -712,7 +718,7 @@ function BroadcastHistory({ refreshKey = 0 }) {
                 {item.status}
               </span>
               {item.status === 'scheduled' && (
-                <button onClick={() => cancel(item.id)} className="text-rose-400 hover:bg-rose-950/20 p-1.5 rounded-lg transition-colors cursor-pointer" title="Cancel">
+                <button onClick={() => cancel(item.id)} className="text-rose-400 hover:bg-rose-950/20 p-1.5 rounded-lg transition-colors cursor-pointer" title={t('bulk_title_cancel')}>
                   <X size={13} />
                 </button>
               )}
@@ -725,6 +731,7 @@ function BroadcastHistory({ refreshKey = 0 }) {
 }
 
 export default function BulkMessaging() {
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -741,6 +748,11 @@ export default function BulkMessaging() {
   const [error, setError] = useState('');
   const [historyVersion, setHistoryVersion] = useState(0);
 
+  const channels = useMemo(() => [
+    { id: 'email', label: t('bulk_lbl_email'), icon: Mail },
+    { id: 'sms', label: t('bulk_lbl_phone_number'), icon: Phone },
+  ], [t]);
+
   useEffect(() => {
     if (location.state?.prefill) {
       const prefill = location.state.prefill;
@@ -749,11 +761,11 @@ export default function BulkMessaging() {
         setStep(2);
       }
       if (prefill.subject) setSubject(prefill.subject);
-      if (prefill.channel && CHANNELS.some((item) => item.id === prefill.channel)) setChannel(prefill.channel);
+      if (prefill.channel && channels.some((item) => item.id === prefill.channel)) setChannel(prefill.channel);
       if (prefill.recipients && Array.isArray(prefill.recipients)) setChips(prefill.recipients);
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location, navigate]);
+  }, [channels, location, navigate]);
 
   useEffect(() => {
     smartflowApi.getContacts()
@@ -781,7 +793,7 @@ export default function BulkMessaging() {
       setHistoryVersion((current) => current + 1);
       setStep(3);
     } catch (err) {
-      setError(err.response?.data?.message || 'Send failed. Please try again.');
+      setError(err.response?.data?.message || t('bulk_err_send_failed'));
     } finally {
       setSending(false);
     }
@@ -797,13 +809,13 @@ export default function BulkMessaging() {
     setError('');
   }
 
-  const steps = ['Recipients', 'Compose', 'Done'];
+  const steps = [t('bulk_step_recipients'), t('bulk_step_compose'), t('bulk_step_done')];
 
   return (
     <div className="space-y-6">
       <div className="border-b border-[#243041]/40 pb-4 text-left">
-        <h1 className="text-3xl font-extrabold tracking-tight text-white">Bulk Messaging</h1>
-        <p className="text-[#A4B0B7] text-xs mt-1">Broadcast personalized messages to multiple recipients across supported channels.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('bulk_title')}</h1>
+        <p className="text-[#A4B0B7] text-xs mt-1">{t('bulk_subtitle')}</p>
       </div>
 
       <div className="flex items-center justify-center gap-3">
@@ -864,15 +876,17 @@ export default function BulkMessaging() {
                 <CheckCircle size={48} className="text-[#9333ea]" />
               </div>
               <div>
-                <h2 className="text-2xl font-extrabold text-white">Broadcast {scheduleDate ? 'Scheduled!' : 'Sent!'}</h2>
+                <h2 className="text-2xl font-extrabold text-white">
+                  {t('bulk_done_title', { action: scheduleDate ? t('bulk_action_scheduled') : t('bulk_action_sent') })}
+                </h2>
                 <p className="text-[#A4B0B7] text-sm mt-2 max-w-md mx-auto">
                   {scheduleDate
-                    ? `Your message is scheduled for ${formatCstDateTime(scheduleDate)}.`
-                    : `Your message is being delivered to ${chips.length} recipients.`}
+                    ? t('bulk_done_scheduled_sub', { time: formatCstDateTime(scheduleDate) })
+                    : t('bulk_done_sent_sub', { count: chips.length })}
                 </p>
               </div>
               <button onClick={reset} className="px-8 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-extrabold hover:bg-[#a855f7] active:scale-95 transition-all cursor-pointer">
-                Send Another
+                {t('bulk_btn_send_another')}
               </button>
             </motion.div>
           )}

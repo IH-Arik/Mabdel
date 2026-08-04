@@ -3,14 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, Mail, MessageCircle, MessageSquare, Trash2 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
 import { useNotificationStore } from '../store/useNotificationStore';
-
-const FILTER_OPTIONS = [
-  { key: 'all', label: 'All' },
-  { key: 'unread', label: 'Unread' },
-  { key: 'whatsapp', label: 'WhatsApp' },
-  { key: 'email', label: 'Email' },
-  { key: 'sms', label: 'SMS' },
-];
+import { useLanguage } from '../context/LanguageContext';
 
 function getChannelBadgeConfig(channelValue) {
   const channel = String(channelValue || '').toLowerCase();
@@ -35,7 +28,7 @@ function getChannelBadgeConfig(channelValue) {
   };
 }
 
-function mapNotifications(apiResponse) {
+function mapNotifications(apiResponse, fallbackTitle) {
   const rawItems = apiResponse?.data?.data?.items || apiResponse?.data?.items || [];
 
   return rawItems.map((item) => {
@@ -60,7 +53,7 @@ function mapNotifications(apiResponse) {
 
     return {
       id: item.id || item._id || `${item.type}-${item.created_at}`,
-      title: item.title || 'Notification',
+      title: item.title || fallbackTitle,
       description: item.body || '',
       isNew: Boolean(item.unread),
       avatar,
@@ -111,11 +104,22 @@ function resolveNotificationTarget(item) {
 }
 
 export default function Notifications() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
+
+  const filterOptions = useMemo(() => [
+    { key: 'all', label: t('notif_filter_all') },
+    { key: 'unread', label: t('notif_filter_unread') },
+    { key: 'whatsapp', label: t('notif_filter_whatsapp') },
+    { key: 'email', label: t('notif_filter_email') },
+    { key: 'sms', label: t('notif_filter_sms') },
+  ], [t]);
+
+  const fallbackTitle = t('notif_fallback_title');
 
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
@@ -124,7 +128,7 @@ export default function Notifications() {
         page: 1,
         page_size: 100,
       });
-      setNotifications(mapNotifications(response));
+      setNotifications(mapNotifications(response, fallbackTitle));
       const summary = getSummary(response);
       setUnreadCount(summary.unread_count ?? summary.new_count ?? 0);
     } catch (error) {
@@ -134,7 +138,7 @@ export default function Notifications() {
     } finally {
       setIsLoading(false);
     }
-  }, [setUnreadCount]);
+  }, [fallbackTitle, setUnreadCount]);
 
   useEffect(() => {
     fetchNotifications();
@@ -205,18 +209,18 @@ export default function Notifications() {
   return (
     <div className="max-w-5xl mx-auto pb-12 text-white">
       <div className="flex items-center justify-between gap-4 mb-5">
-        <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t('notif_title')}</h1>
         <button
           type="button"
           onClick={handleMarkAllAsRead}
           className="text-sm font-semibold text-[#9333ea] hover:text-[#6BE7FF] transition-colors cursor-pointer"
         >
-          Mark All As Read
+          {t('notif_btn_mark_all_read')}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-5">
-        {FILTER_OPTIONS.map((option) => {
+        {filterOptions.map((option) => {
           const active = option.key === activeFilter;
           return (
             <button
@@ -239,14 +243,14 @@ export default function Notifications() {
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0D1A23] border border-[#17485A] mb-5">
           <Bell size={16} className="text-[#c084fc]" />
           <span className="text-sm font-semibold text-[#D9F8FF]">
-            {newCount} {newCount > 1 ? 'new notifications' : 'new notification'}
+            {t('notif_new_count', { count: newCount })}
           </span>
         </div>
       ) : null}
 
       {isLoading ? (
         <div className="min-h-[320px] rounded-[26px] border border-[#243041] bg-[#131A24] flex items-center justify-center">
-          <p className="text-[#A4B0B7] text-sm">Loading notifications</p>
+          <p className="text-[#A4B0B7] text-sm">{t('notif_loading')}</p>
         </div>
       ) : filteredNotifications.length > 0 ? (
         <div className="space-y-3">
@@ -311,7 +315,7 @@ export default function Notifications() {
                     handleDelete(item.id);
                   }}
                   className="w-11 h-11 rounded-2xl shrink-0 border border-[#3A2430] bg-[#241017] text-rose-300 hover:text-white hover:border-rose-500/40 transition-colors flex items-center justify-center cursor-pointer"
-                  aria-label="Delete notification"
+                  aria-label={t('notif_btn_delete')}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -322,8 +326,8 @@ export default function Notifications() {
       ) : (
         <div className="min-h-[320px] rounded-[26px] border border-[#243041] bg-[#131A24] flex flex-col items-center justify-center text-center px-6">
           <Bell size={48} className="text-[#2A313C]" />
-          <p className="text-white font-semibold mt-4">No notifications</p>
-          <p className="text-[#A4B0B7] text-sm mt-1">You&apos;re all caught up</p>
+          <p className="text-white font-semibold mt-4">{t('notif_empty_title')}</p>
+          <p className="text-[#A4B0B7] text-sm mt-1">{t('notif_empty_subtitle')}</p>
         </div>
       )}
     </div>

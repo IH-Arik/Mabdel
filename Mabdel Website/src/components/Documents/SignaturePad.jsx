@@ -1,7 +1,9 @@
 import { useRef, useState, useEffect } from 'react';
 import { Eraser } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function SignaturePad({ onSave }) {
+  const { t } = useLanguage();
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
@@ -85,14 +87,14 @@ export default function SignaturePad({ onSave }) {
       {!isEmpty && (
         <button 
           onClick={clear}
-          className="absolute top-2 right-2 p-2 bg-slate-900/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold backdrop-blur"
+          className="absolute top-2 right-2 p-2 bg-slate-900/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold backdrop-blur cursor-pointer"
         >
-          <Eraser size={14} /> Clear
+          <Eraser size={14} /> {t('sig_clear')}
         </button>
       )}
       {isEmpty && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-slate-600 font-medium">
-          Sign here
+          {t('sig_placeholder')}
         </div>
       )}
     </div>

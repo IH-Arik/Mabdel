@@ -13,6 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
+import { useLanguage } from '../context/LanguageContext';
 
 const DEFAULT_CATEGORIES = ['General', 'Networking', 'Workshop', 'Meeting', 'Training', 'Online'];
 
@@ -44,6 +45,7 @@ const normalizeEvent = (event) => ({
 });
 
 export default function JoinEvent() {
+  const { t } = useLanguage();
   const [events, setEvents] = useState([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
@@ -82,7 +84,7 @@ export default function JoinEvent() {
       setError('');
     } catch (fetchError) {
       setEvents([]);
-      setError(fetchError?.response?.data?.message || 'Failed to load events.');
+      setError(fetchError?.response?.data?.message || t('event_loading'));
     } finally {
       setLoading(false);
     }
@@ -122,12 +124,12 @@ export default function JoinEvent() {
   const handleCreateEvent = async (event) => {
     event.preventDefault();
     if (!createForm.title.trim()) {
-      setError('Event title is required.');
+      setError(t('event_err_title_req'));
       setSuccess('');
       return;
     }
     if (!createForm.date || !createForm.time) {
-      setError('Event date and start time are required.');
+      setError(t('event_err_date_req'));
       setSuccess('');
       return;
     }
@@ -159,10 +161,10 @@ export default function JoinEvent() {
         timezone: createForm.timezone,
         participantLimit: 25,
       });
-      setSuccess('Event created successfully.');
+      setSuccess(t('event_success_created'));
       setError('');
     } catch (createError) {
-      setError(createError?.response?.data?.message || 'Failed to create event.');
+      setError(createError?.response?.data?.message || t('event_success_created'));
       setSuccess('');
     } finally {
       setSaving(false);
@@ -177,10 +179,10 @@ export default function JoinEvent() {
         ? await smartflowApi.leaveEvent(eventItem.id)
         : await smartflowApi.joinEvent(eventItem.id);
       updateEventInState(getApiData(response));
-      setSuccess(eventItem.joined ? 'You left the event.' : 'You joined the event.');
+      setSuccess(eventItem.joined ? t('event_success_left') : t('event_success_joined'));
       setError('');
     } catch (joinError) {
-      setError(joinError?.response?.data?.message || 'Failed to update event attendance.');
+      setError(joinError?.response?.data?.message || t('event_err_title_req'));
       setSuccess('');
     } finally {
       setJoiningId('');
@@ -198,10 +200,10 @@ export default function JoinEvent() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-[#243041]/40 pb-6">
         <div>
           <h1 className="text-3xl font-extrabold text-white flex items-center gap-3">
-            <MapPin className="text-emerald-400" size={32} /> Discover & Join Events
+            <MapPin className="text-emerald-400" size={32} /> {t('event_title')}
           </h1>
           <p className="text-[#A4B0B7] mt-2 max-w-2xl text-sm leading-relaxed">
-            Browse live community events, filter them from the backend, and create new ones without leaving this screen.
+            {t('event_subtitle')}
           </p>
         </div>
       </div>
@@ -214,7 +216,7 @@ export default function JoinEvent() {
                 type="text"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search title, description, organizer, or location..."
+                placeholder={t('event_ph_search')}
                 className="w-full pl-12 pr-4 py-4 bg-[#131A24] border border-[#243041] rounded-2xl text-white outline-none focus:border-emerald-500/50 shadow-lg"
               />
               <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -234,7 +236,7 @@ export default function JoinEvent() {
               type="submit"
               className="px-5 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-[#070a13] font-extrabold shadow-lg shadow-emerald-500/20"
             >
-              Search
+              {t('event_btn_search')}
             </button>
           </form>
 
@@ -243,16 +245,16 @@ export default function JoinEvent() {
             <div className="absolute inset-0 p-6 flex flex-col justify-between">
               <div className="flex items-center justify-between gap-4">
                 <span className="px-3 py-1.5 bg-slate-900/80 backdrop-blur-md rounded-lg text-xs font-bold text-white border border-slate-700">
-                  {category === 'All' ? 'All Categories' : category}
+                  {category === 'All' ? t('event_all_cats') : category}
                 </span>
                 <span className="px-3 py-1.5 bg-emerald-500/80 rounded-lg text-xs font-bold text-[#0c101b]">
-                  {events.length} events
+                  {t('event_lbl_events_count').replace('{count}', events.length)}
                 </span>
               </div>
               <div>
-                <h2 className="text-2xl font-extrabold text-white">Community Event Feed</h2>
+                <h2 className="text-2xl font-extrabold text-white">{t('event_feed_title')}</h2>
                 <p className="mt-2 max-w-xl text-sm text-slate-300">
-                  Search and category filters are hitting the backend directly, so the list stays in sync after create and join actions.
+                  {t('event_subtitle')}
                 </p>
               </div>
             </div>
@@ -261,11 +263,11 @@ export default function JoinEvent() {
           <div className="grid gap-4">
             {loading ? (
               <div className="text-center text-slate-400 py-10 flex items-center justify-center gap-2">
-                <Loader2 size={18} className="animate-spin text-emerald-400" /> Loading events...
+                <Loader2 size={18} className="animate-spin text-emerald-400" /> {t('event_loading')}
               </div>
             ) : events.length === 0 ? (
               <div className="text-center text-slate-400 py-10 border border-dashed border-[#243041] rounded-3xl">
-                No events found for this search and category.
+                {t('event_empty')}
               </div>
             ) : (
               events.map((event) => (
@@ -290,11 +292,11 @@ export default function JoinEvent() {
                           {event.category}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-sm mt-2 line-clamp-2">{event.description || 'No description provided.'}</p>
+                      <p className="text-slate-400 text-sm mt-2 line-clamp-2">{event.description || t('event_no_desc')}</p>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3 text-xs text-slate-400 font-medium">
                       <span className="flex items-center gap-1.5"><MapPin size={14} /> {event.location}</span>
-                      <span className="flex items-center gap-1.5"><Clock size={14} /> {event.date} {event.time !== 'TBD' ? `at ${event.time}` : ''}</span>
+                      <span className="flex items-center gap-1.5"><Clock size={14} /> {event.date} {event.time !== 'TBD' ? `${t('event_at_time')} ${event.time}` : ''}</span>
                       <span className="flex items-center gap-1.5"><Globe size={14} /> {event.timezone}</span>
                       <span className="flex items-center gap-1.5"><Users size={14} /> {event.organizer}</span>
                     </div>
@@ -302,7 +304,7 @@ export default function JoinEvent() {
                   <div className="flex sm:flex-col items-center justify-center sm:border-l border-[#243041] sm:pl-5 gap-2 shrink-0 pt-4 sm:pt-0 border-t sm:border-t-0 mt-4 sm:mt-0">
                     <Users size={20} className="text-emerald-500" />
                     <span className="text-sm font-bold text-white">{event.attendee_count}/{event.capacity || '--'}</span>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500">Attending</span>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500">{t('event_attending')}</span>
                   </div>
                 </button>
               ))
@@ -314,14 +316,14 @@ export default function JoinEvent() {
           <div className="bg-[#131A24] border border-[#243041] rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center gap-2 mb-4">
               <Plus size={18} className="text-emerald-400" />
-              <h2 className="text-lg font-bold text-white">Create Event</h2>
+              <h2 className="text-lg font-bold text-white">{t('event_hdr_create')}</h2>
             </div>
             <form onSubmit={handleCreateEvent} className="space-y-3">
               <input
                 type="text"
                 value={createForm.title}
                 onChange={(event) => setCreateForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Event title"
+                placeholder={t('event_ph_ev_title')}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/40"
               />
               <div className="grid grid-cols-2 gap-3">
@@ -341,28 +343,28 @@ export default function JoinEvent() {
                   min="1"
                   value={createForm.participantLimit}
                   onChange={(event) => setCreateForm((current) => ({ ...current, participantLimit: event.target.value }))}
-                  placeholder="Capacity"
+                  placeholder={t('event_ph_capacity')}
                   className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/40"
                 />
               </div>
               <textarea
                 value={createForm.description}
                 onChange={(event) => setCreateForm((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Description"
+                placeholder={t('event_ph_description')}
                 className="w-full min-h-24 px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/40"
               />
               <input
                 type="text"
                 value={createForm.location}
                 onChange={(event) => setCreateForm((current) => ({ ...current, location: event.target.value }))}
-                placeholder="Location"
+                placeholder={t('event_ph_location')}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/40"
               />
               <input
                 type="url"
                 value={createForm.onlineLink}
                 onChange={(event) => setCreateForm((current) => ({ ...current, onlineLink: event.target.value }))}
-                placeholder="Online meeting link"
+                placeholder={t('event_ph_link')}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/40"
               />
               <div className="grid grid-cols-2 gap-3">
@@ -376,7 +378,7 @@ export default function JoinEvent() {
                   type="text"
                   value={createForm.time}
                   onChange={(event) => setCreateForm((current) => ({ ...current, time: event.target.value }))}
-                  placeholder="Start time (e.g. 18:30)"
+                  placeholder={t('event_ph_start_time')}
                   className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/40"
                 />
               </div>
@@ -385,14 +387,14 @@ export default function JoinEvent() {
                   type="text"
                   value={createForm.endTime}
                   onChange={(event) => setCreateForm((current) => ({ ...current, endTime: event.target.value }))}
-                  placeholder="End time"
+                  placeholder={t('event_ph_end_time')}
                   className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/40"
                 />
                 <input
                   type="text"
                   value={createForm.timezone}
                   onChange={(event) => setCreateForm((current) => ({ ...current, timezone: event.target.value }))}
-                  placeholder="Timezone"
+                  placeholder={t('event_ph_timezone')}
                   className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/40"
                 />
               </div>
@@ -402,7 +404,7 @@ export default function JoinEvent() {
                 className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#070a13] font-extrabold flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                Create Event
+                {t('event_btn_create')}
               </button>
             </form>
           </div>
@@ -428,7 +430,7 @@ export default function JoinEvent() {
                     <MapPin size={18} className="text-slate-400 mt-0.5" />
                     <div>
                       <p className="text-white font-semibold text-sm">{selectedEvent.location}</p>
-                      <p className="text-slate-400 text-xs mt-1">{selectedEvent.onlineLink || 'No online link provided.'}</p>
+                      <p className="text-slate-400 text-xs mt-1">{selectedEvent.onlineLink || t('event_no_link')}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 p-3 bg-slate-900/50 rounded-xl border border-slate-800">
@@ -446,8 +448,8 @@ export default function JoinEvent() {
                   <div className="flex items-start gap-3 p-3 bg-slate-900/50 rounded-xl border border-slate-800">
                     <Users size={18} className="text-slate-400 mt-0.5" />
                     <div>
-                      <p className="text-white font-semibold text-sm">{selectedEvent.attendee_count} / {selectedEvent.capacity || '--'} joined</p>
-                      <p className="text-slate-400 text-xs mt-1">Organized by {selectedEvent.organizer}</p>
+                      <p className="text-white font-semibold text-sm">{selectedEvent.attendee_count} / {selectedEvent.capacity || '--'} {t('event_joined_count')}</p>
+                      <p className="text-slate-400 text-xs mt-1">{t('event_organized_by')} {selectedEvent.organizer}</p>
                     </div>
                   </div>
                 </div>
@@ -462,7 +464,7 @@ export default function JoinEvent() {
                   ) : (
                     <CheckCircle2 size={20} />
                   )}
-                  {selectedEvent.joined ? 'Leave Event' : 'Join Event'}
+                  {selectedEvent.joined ? t('event_btn_leave') : t('event_btn_join')}
                 </button>
               </motion.div>
             ) : (
@@ -470,8 +472,8 @@ export default function JoinEvent() {
                 <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center mb-4">
                   <MapPin size={24} className="text-slate-500" />
                 </div>
-                <h3 className="text-white font-bold text-lg mb-2">No Event Selected</h3>
-                <p className="text-slate-400 text-sm max-w-[250px]">Choose an event from the list to inspect details or attendance.</p>
+                <h3 className="text-white font-bold text-lg mb-2">{t('event_none_selected')}</h3>
+                <p className="text-slate-400 text-sm max-w-[250px]">{t('event_none_hint')}</p>
               </div>
             )}
           </AnimatePresence>

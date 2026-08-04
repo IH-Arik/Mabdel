@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
-  FileText, Download, Plus, Search, Filter, 
+  FileText, Download, Plus, Search, 
   CheckCircle, Clock, AlertCircle, MoreVertical, 
   ArrowLeft, Check, Trash2, Mic, Send, 
-  Calendar, DollarSign, User, Mail, MapPin, 
-  Activity, Phone, ShieldCheck, AlertTriangle, 
-  Sparkles, Share2, Settings, Loader2
+  DollarSign, Mail, MapPin, 
+  Activity, Phone, AlertTriangle, 
+  Sparkles, Settings, Loader2
 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
 import { formatCalendarDate, formatCstDate, formatCstTime } from '../utils/dateUtils';
 import VoiceFormFillModal from '../components/Documents/VoiceFormFillModal';
 import { DatePickerInput } from '../components/ui/DateTimeInputs';
+import { useLanguage } from '../context/LanguageContext';
 
 const DEFAULT_SUMMARY = {
   total_outstanding: 0,
@@ -20,14 +21,6 @@ const DEFAULT_SUMMARY = {
   overdue_invoices: 0,
   draft_invoices: 0,
 };
-
-const toCurrency = (amount = 0, currency = 'USD') =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(amount || 0));
 
 const toDateInput = (value) => (value ? String(value).slice(0, 10) : '');
 
@@ -40,40 +33,31 @@ const normalizePrefillItems = (items = []) =>
       }))
     : [];
 
-const getDueStatusText = (invoice) => {
-  if (!invoice) return 'No due date';
+const getDueStatusText = (invoice, t) => {
+  if (!invoice) return t('inv_no_due_date');
 
   const normalizedStatus = String(invoice.status || '').toLowerCase();
-  if (normalizedStatus === 'paid') return 'Paid';
-  if (normalizedStatus === 'cancelled') return 'Cancelled';
-  if (!invoice.due_date) return 'No due date';
+  if (normalizedStatus === 'paid') return t('inv_status_paid');
+  if (normalizedStatus === 'cancelled') return t('inv_status_cancelled');
+  if (!invoice.due_date) return t('inv_no_due_date');
 
   const dueDate = new Date(invoice.due_date);
-  if (Number.isNaN(dueDate.getTime())) return 'No due date';
+  if (Number.isNaN(dueDate.getTime())) return t('inv_no_due_date');
 
   const today = new Date();
   const dueMidnight = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const diffDays = Math.round((dueMidnight.getTime() - todayMidnight.getTime()) / 86400000);
 
-  if (diffDays === 0) return 'Due today';
-  if (diffDays > 0) return `Due in ${diffDays} day${diffDays === 1 ? '' : 's'}`;
+  if (diffDays === 0) return t('inv_due_today');
+  if (diffDays > 0) return t('inv_due_in_days', { n: diffDays });
 
   const overdueDays = Math.abs(diffDays);
-  return `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue`;
-};
-
-const getPublicInvoicePdfUrl = (shareUrl) => {
-  if (!shareUrl) return null;
-  try {
-    const parsed = new URL(shareUrl, window.location.origin);
-    return parsed.toString();
-  } catch {
-    return shareUrl;
-  }
+  return t('inv_days_overdue', { n: overdueDays });
 };
 
 export default function Invoices() {
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -84,7 +68,7 @@ export default function Invoices() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
   const [savingInvoice, setSavingInvoice] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [page, setPage] = useState(1);
@@ -170,7 +154,6 @@ export default function Invoices() {
     }
   }, [location, navigate]);
 
-
   // Dispatch details state
   const [deliveryChannels, setDeliveryChannels] = useState({
     email: true,
@@ -209,11 +192,11 @@ export default function Invoices() {
       setInvoices([]);
       setSummary(DEFAULT_SUMMARY);
       setPagination({ page, page_size: 20, total: 0 });
-      setError('Failed to load invoices.');
+      setError(t('inv_err_load_failed'));
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchTerm, page, statusFilter]);
+  }, [debouncedSearchTerm, page, statusFilter, t]);
 
   useEffect(() => {
     fetchInvoices();
@@ -316,19 +299,19 @@ export default function Invoices() {
   const handleSaveDraft = async () => {
     if (savingInvoice) return;
     if (!clientName.trim()) {
-      alert('Client name is required.');
+      alert(t('inv_err_client_name_required'));
       return;
     }
     if (!issueDate || !dueDate) {
-      alert('Issue date and due date are required.');
+      alert(t('inv_err_dates_required'));
       return;
     }
     if (new Date(dueDate) < new Date(issueDate)) {
-      alert('Due date cannot be earlier than issue date.');
+      alert(t('inv_err_due_date_invalid'));
       return;
     }
     if (!lineItems.length || lineItems.some((item) => !item.description?.trim() || Number(item.quantity) <= 0 || Number(item.unit_price) < 0)) {
-      alert('Please add at least one valid line item. Quantity must be greater than 0 and price cannot be negative.');
+      alert(t('inv_err_items_invalid'));
       return;
     }
 
@@ -363,16 +346,11 @@ export default function Invoices() {
       setViewMode('dashboard');
     } catch (err) {
       console.error('Error saving invoice to backend:', err);
-      setError(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to save invoice.');
-      alert(err?.response?.data?.message || 'Failed to save invoice.');
+      setError(err?.response?.data?.message || err?.response?.data?.detail || t('inv_err_save_failed'));
+      alert(err?.response?.data?.message || t('inv_err_save_failed'));
     } finally {
       setSavingInvoice(false);
     }
-  };
-
-  // Handle Dispatch view transition
-  const handleSendInvoiceClick = () => {
-    setViewMode('dispatch');
   };
 
   // Perform Final Dispatching trigger
@@ -382,7 +360,7 @@ export default function Invoices() {
     
     // Choose channel
     const channelsUsed = Object.entries(deliveryChannels)
-      .filter(([_, val]) => val)
+      .filter(([, val]) => val)
       .map(([key]) => key);
 
     const channelPayload = channelsUsed[0] || 'email';
@@ -390,12 +368,12 @@ export default function Invoices() {
     try {
       await smartflowApi.sendInvoice(activeInvoice.id, {
         recipient_email: activeInvoice.client_email || undefined,
-        message: `Please review invoice ${activeInvoice.invoice_number} due on ${activeInvoice.due_date}`,
+        message: t('inv_msg_review_due', { number: activeInvoice.invoice_number, date: activeInvoice.due_date }),
         channel: channelPayload
       });
     } catch (err) {
       console.error('Dispatch API failed:', err);
-      alert(err?.response?.data?.message || 'Failed to send invoice.');
+      alert(err?.response?.data?.message || t('inv_err_send_failed'));
       setDispatching(false);
       return;
     }
@@ -412,7 +390,7 @@ export default function Invoices() {
       await smartflowApi.updateInvoiceStatus(activeInvoice.id, { status: 'paid' });
     } catch (err) {
       console.error('Mark paid API failed:', err);
-      alert(err?.response?.data?.message || 'Failed to update invoice status.');
+      alert(err?.response?.data?.message || t('inv_err_update_status_failed'));
       return;
     }
     await fetchInvoices();
@@ -425,7 +403,7 @@ export default function Invoices() {
       await smartflowApi.deleteInvoice(id);
     } catch (err) {
       console.error('Delete API failed:', err);
-      alert(err?.response?.data?.message || 'Failed to delete invoice.');
+      alert(err?.response?.data?.message || t('inv_err_delete_failed'));
       return;
     }
     await fetchInvoices();
@@ -445,7 +423,7 @@ export default function Invoices() {
       window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000);
     } catch (err) {
       console.error('PDF download failed:', err);
-      alert(err?.response?.data?.message || err?.message || 'Failed to open invoice PDF.');
+      alert(err?.response?.data?.message || err?.message || t('inv_err_pdf_failed'));
     }
   };
 
@@ -455,7 +433,7 @@ export default function Invoices() {
       await smartflowApi.sendInvoiceReminder(activeInvoice.id, {
         recipient_email: activeInvoice.client_email || undefined,
         channel: 'email',
-        message: 'Reminder notification request.'
+        message: t('inv_reminder_req')
       });
     } catch (err) {
       console.error('Reminder request API failed:', err);
@@ -463,7 +441,7 @@ export default function Invoices() {
     setAiVoiceReminderScheduled(true);
     setTimeout(() => {
       setAiVoiceReminderScheduled(false);
-      alert(`AI Call Reminder scheduled in ${aiVoiceReminderTime} for ${activeInvoice.client_name}`);
+      alert(t('inv_msg_reminder_scheduled', { time: aiVoiceReminderTime, name: activeInvoice.client_name }));
     }, 1200);
   };
 
@@ -490,16 +468,16 @@ export default function Invoices() {
     <div className="h-full flex flex-col space-y-6">
 
       {/* =========================================================================
-          VIEW MODE: INVOICES MAIN DASHBOARD (Image 2)
+          VIEW MODE: INVOICES MAIN DASHBOARD
           ========================================================================= */}
       {viewMode === 'dashboard' && (
         <div className="h-full flex flex-col space-y-6">
           {/* Header row */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="text-left">
-              <h1 className="text-3xl font-extrabold text-white tracking-tight">Invoices</h1>
+              <h1 className="text-3xl font-extrabold text-white tracking-tight">{t('inv_title')}</h1>
               <p className="text-slate-400 text-sm mt-1">
-                Create, manage, send, and track invoices with SmartFlow AI.
+                {t('inv_subtitle')}
               </p>
             </div>
             
@@ -511,7 +489,7 @@ export default function Invoices() {
               className="px-5 py-3 bg-purple-400 hover:bg-purple-300 text-[#070a13] hover:shadow-purple-400/10 rounded-xl text-xs font-extrabold shadow-lg shadow-purple-500/5 active:scale-98 transition-all flex items-center gap-1.5 cursor-pointer self-start md:self-auto"
             >
               <Plus size={16} />
-              <span>New Invoice</span>
+              <span>{t('inv_btn_new_invoice')}</span>
             </button>
           </div>
 
@@ -520,7 +498,7 @@ export default function Invoices() {
             {/* Total Outstanding */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6 flex flex-col justify-between text-left relative overflow-hidden group">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Outstanding</span>
+                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('inv_stat_outstanding')}</span>
                 <span className="w-8 h-8 rounded-lg bg-slate-950/60 flex items-center justify-center text-purple-400 border border-slate-900">
                   <DollarSign size={16} />
                 </span>
@@ -530,7 +508,7 @@ export default function Invoices() {
                   ${outstandingSum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 mt-2">
-                  <Activity size={10} /> +15% from last month
+                  <Activity size={10} /> {t('inv_stat_from_last_month')}
                 </span>
               </div>
             </div>
@@ -538,7 +516,7 @@ export default function Invoices() {
             {/* Sent */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6 flex flex-col justify-between text-left relative overflow-hidden group">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sent</span>
+                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('inv_stat_sent')}</span>
                 <span className="w-8 h-8 rounded-lg bg-slate-950/60 flex items-center justify-center text-purple-400 border border-slate-900">
                   <Send size={16} />
                 </span>
@@ -546,7 +524,7 @@ export default function Invoices() {
               <div className="mt-4">
                 <p className="text-3xl font-extrabold text-white tracking-tight">{sentCount}</p>
                 <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1 mt-2">
-                  <Clock size={10} /> Awaiting payment
+                  <Clock size={10} /> {t('inv_stat_awaiting_payment')}
                 </span>
               </div>
             </div>
@@ -554,7 +532,7 @@ export default function Invoices() {
             {/* Overdue */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6 flex flex-col justify-between text-left relative overflow-hidden group">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Overdue</span>
+                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('inv_stat_overdue')}</span>
                 <span className="w-8 h-8 rounded-lg bg-slate-950/60 flex items-center justify-center text-rose-400 border border-slate-900">
                   <AlertCircle size={16} />
                 </span>
@@ -562,7 +540,7 @@ export default function Invoices() {
               <div className="mt-4">
                 <p className="text-3xl font-extrabold text-white tracking-tight">{overdueCount}</p>
                 <span className="text-[10px] text-rose-400 font-bold flex items-center gap-1 mt-2">
-                  <AlertTriangle size={10} /> Requires action
+                  <AlertTriangle size={10} /> {t('inv_stat_requires_action')}
                 </span>
               </div>
             </div>
@@ -580,7 +558,7 @@ export default function Invoices() {
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                   <input 
                     type="text" 
-                    placeholder="Search invoices..." 
+                    placeholder={t('inv_ph_search')} 
                     className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-900 rounded-xl text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition-colors"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -599,13 +577,13 @@ export default function Invoices() {
                           : 'bg-transparent text-slate-500 border-transparent hover:text-slate-300'
                       }`}
                     >
-                      {status}
+                      {status === 'all' ? t('inv_filter_all') : status === 'draft' ? t('inv_filter_draft') : status === 'sent' ? t('inv_filter_sent') : status === 'overdue' ? t('inv_filter_overdue') : t('inv_filter_paid')}
                     </button>
                   ))}
                 </div>
                 <div className="flex items-center justify-between border-t border-slate-900/60 bg-slate-950/30 px-6 py-3 text-xs text-slate-500">
                   <span>
-                    Showing {filteredInvoices.length} of {pagination.total || 0} invoices
+                    {t('inv_showing_count', { count: filteredInvoices.length, total: pagination.total || 0 })}
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -614,16 +592,16 @@ export default function Invoices() {
                       onClick={() => setPage((current) => Math.max(1, current - 1))}
                       className="rounded-lg border border-slate-800 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      Prev
+                      {t('inv_btn_prev')}
                     </button>
-                    <span>Page {pagination.page || page}</span>
+                    <span>{t('inv_page_n', { page: pagination.page || page })}</span>
                     <button
                       type="button"
                       disabled={(pagination.page || page) * (pagination.page_size || 20) >= (pagination.total || 0)}
                       onClick={() => setPage((current) => current + 1)}
                       className="rounded-lg border border-slate-800 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      Next
+                      {t('inv_btn_next')}
                     </button>
                   </div>
                 </div>
@@ -635,11 +613,11 @@ export default function Invoices() {
                   <table className="w-full border-collapse text-left">
                     <thead>
                       <tr className="border-b border-slate-900/60 bg-slate-950/40 text-slate-400 text-xs font-bold tracking-wider">
-                        <th className="px-6 py-4">Client / ID</th>
-                        <th className="px-6 py-4">Amount</th>
-                        <th className="px-6 py-4">Due Date</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
+                        <th className="px-6 py-4">{t('inv_th_client_id')}</th>
+                        <th className="px-6 py-4">{t('inv_th_amount')}</th>
+                        <th className="px-6 py-4">{t('inv_th_due_date')}</th>
+                        <th className="px-6 py-4">{t('inv_th_status')}</th>
+                        <th className="px-6 py-4 text-right">{t('inv_th_actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-900/50">
@@ -676,7 +654,7 @@ export default function Invoices() {
                             </td>
                             <td className="px-6 py-4">
                               <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold border capitalize ${getStatusBadgeStyle(inv.status)}`}>
-                                {inv.status}
+                                {inv.status === 'draft' ? t('inv_filter_draft') : inv.status === 'sent' ? t('inv_filter_sent') : inv.status === 'overdue' ? t('inv_filter_overdue') : inv.status === 'paid' ? t('inv_filter_paid') : inv.status}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -684,7 +662,7 @@ export default function Invoices() {
                                 <button 
                                   onClick={() => handleDownloadPDF(inv)}
                                   className="p-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all"
-                                  title="Download PDF"
+                                  title={t('inv_btn_download_pdf')}
                                 >
                                   <Download size={13} />
                                 </button>
@@ -698,7 +676,7 @@ export default function Invoices() {
                                     }
                                   }}
                                   className="p-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all"
-                                  title="View Details"
+                                  title={t('inv_btn_view_details')}
                                 >
                                   <MoreVertical size={13} />
                                 </button>
@@ -712,8 +690,8 @@ export default function Invoices() {
                             <div className="w-12 h-12 bg-slate-950 border border-slate-900 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-600">
                               <FileText size={24} />
                             </div>
-                            <h3 className="text-sm font-bold text-white">No invoices found</h3>
-                            <p className="text-xs text-slate-500 mt-1">Try changing your search term or filter status</p>
+                            <h3 className="text-sm font-bold text-white">{t('inv_no_invoices_found')}</h3>
+                            <p className="text-xs text-slate-500 mt-1">{t('inv_try_changing_filter')}</p>
                           </td>
                         </tr>
                       )}
@@ -732,9 +710,9 @@ export default function Invoices() {
                   <div className="space-y-6">
                     {/* Header */}
                     <div className="flex items-center justify-between pb-4 border-b border-slate-900/60">
-                      <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">Invoice Details</span>
+                      <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">{t('inv_details_title')}</span>
                       <span className="px-2.5 py-0.5 bg-purple-950/80 border border-purple-500/20 text-purple-400 text-[9px] font-bold rounded-full uppercase tracking-wider">
-                        Preview
+                        {t('inv_preview')}
                       </span>
                     </div>
 
@@ -753,7 +731,7 @@ export default function Invoices() {
                       </div>
 
                       <div className="border-t border-slate-900/60 pt-3 flex items-baseline justify-between">
-                        <span className="text-xs text-slate-400 font-bold">Total Amount</span>
+                        <span className="text-xs text-slate-400 font-bold">{t('inv_lbl_total_amount')}</span>
                         <span className="text-2xl font-extrabold text-purple-400 tracking-tight">
                           ${activeInvoice.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </span>
@@ -762,13 +740,13 @@ export default function Invoices() {
 
                     {/* Line Items snippet details */}
                     <div className="space-y-3">
-                      <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">Line Items</h4>
+                      <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">{t('inv_lbl_line_items')}</h4>
                       <div className="space-y-2 max-h-28 overflow-y-auto pr-1">
                         {activeInvoice.items.map((item) => (
                           <div key={item.id} className="flex justify-between items-center text-xs p-2.5 bg-slate-950/20 border border-slate-900/60 rounded-xl">
                             <div className="min-w-0 pr-2">
                               <p className="text-slate-300 font-bold truncate">{item.description}</p>
-                              <p className="text-[9px] text-slate-500 font-semibold mt-0.5">Qty: {item.quantity}</p>
+                              <p className="text-[9px] text-slate-500 font-semibold mt-0.5">{t('inv_lbl_qty', { n: item.quantity })}</p>
                             </div>
                             <span className="text-white font-bold">${item.line_total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                           </div>
@@ -782,7 +760,7 @@ export default function Invoices() {
                         onClick={() => handleDownloadPDF(activeInvoice)}
                         className="py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
                       >
-                        <Download size={12} /> Download PDF
+                        <Download size={12} /> {t('inv_btn_download_pdf')}
                       </button>
                       
                       {activeInvoice.status === 'draft' ? (
@@ -790,18 +768,18 @@ export default function Invoices() {
                           onClick={() => setViewMode('dispatch')}
                           className="py-2.5 bg-purple-400 hover:bg-purple-300 text-[#070a13] hover:shadow-purple-400/10 rounded-xl text-xs font-bold shadow-md shadow-purple-500/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                          Send Invoice
+                          {t('inv_btn_send_invoice')}
                         </button>
                       ) : activeInvoice.status !== 'paid' ? (
                         <button 
                           onClick={handleMarkPaid}
                           className="py-2.5 bg-emerald-500 hover:bg-emerald-400 text-[#070a13] hover:shadow-emerald-500/10 rounded-xl text-xs font-bold shadow-md shadow-emerald-500/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                          <Check size={12} /> Mark Paid
+                          <Check size={12} /> {t('inv_btn_mark_paid')}
                         </button>
                       ) : (
                         <div className="py-2.5 border border-dashed border-emerald-500/20 text-emerald-400/80 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
-                          <CheckCircle size={12} /> Fully Paid
+                          <CheckCircle size={12} /> {t('inv_lbl_fully_paid')}
                         </div>
                       )}
                     </div>
@@ -810,7 +788,7 @@ export default function Invoices() {
                     {activeInvoice.status !== 'paid' && (
                       <div className="border-t border-slate-900/60 pt-5 space-y-3.5">
                         <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
-                          <Sparkles size={12} className="fill-current" /> AI Suggestions
+                          <Sparkles size={12} className="fill-current" /> {t('inv_ai_suggestions')}
                         </span>
                         
                         <div className="space-y-2.5">
@@ -822,8 +800,8 @@ export default function Invoices() {
                               <Mail size={12} />
                             </div>
                             <div className="text-left leading-normal">
-                              <p className="text-xs text-white font-bold">Send Reminder</p>
-                              <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">Draft a polite follow-up email.</p>
+                              <p className="text-xs text-white font-bold">{t('inv_send_reminder')}</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">{t('inv_draft_followup_hint')}</p>
                             </div>
                           </div>
 
@@ -838,8 +816,8 @@ export default function Invoices() {
                               <Phone size={12} />
                             </div>
                             <div className="text-left leading-normal">
-                              <p className="text-xs text-white font-bold">Generate Follow-up</p>
-                              <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">Schedule automated sequence.</p>
+                              <p className="text-xs text-white font-bold">{t('inv_generate_followup')}</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">{t('inv_schedule_seq_hint')}</p>
                             </div>
                           </div>
                         </div>
@@ -861,12 +839,12 @@ export default function Invoices() {
                       }}
                       className="text-xs font-bold text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
                     >
-                      View Full Timeline & Logs →
+                      {t('inv_view_timeline_logs')}
                     </button>
                     <button 
                       onClick={() => handleDeleteInvoice(activeInvoice.id)}
                       className="text-slate-600 hover:text-red-400 transition-colors p-1"
-                      title="Delete Invoice"
+                      title={t('inv_btn_delete')}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -876,8 +854,8 @@ export default function Invoices() {
               ) : (
                 <div className="h-full border border-slate-900 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 text-center text-slate-500">
                   <FileText size={24} className="text-slate-600 mb-2" />
-                  <p className="text-sm font-semibold">Select an invoice</p>
-                  <p className="text-xs text-slate-600 mt-1">Choose an item from the invoice history list to display summaries, timelines, and payment options.</p>
+                  <p className="text-sm font-semibold">{t('inv_select_an_invoice')}</p>
+                  <p className="text-xs text-slate-600 mt-1">{t('inv_select_invoice_hint')}</p>
                 </div>
               )}
             </div>
@@ -887,7 +865,7 @@ export default function Invoices() {
       )}
 
       {/* =========================================================================
-          VIEW MODE: CREATE INVOICE (Image 3)
+          VIEW MODE: CREATE INVOICE
           ========================================================================= */}
       {viewMode === 'create' && (
         <div className="flex-1 flex flex-col lg:flex-row gap-6 items-stretch min-h-0 relative text-left">
@@ -905,8 +883,8 @@ export default function Invoices() {
                     <ArrowLeft size={16} />
                   </button>
                   <div>
-                    <h1 className="text-xl font-bold text-white">Create Invoice</h1>
-                    <p className="text-slate-500 text-xs mt-0.5">Generate via manual entry or conversational AI.</p>
+                    <h1 className="text-xl font-bold text-white">{t('inv_create_title')}</h1>
+                    <p className="text-slate-500 text-xs mt-0.5">{t('inv_create_subtitle')}</p>
                   </div>
                 </div>
 
@@ -916,14 +894,14 @@ export default function Invoices() {
                     disabled={savingInvoice}
                     className="px-4 py-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-300 text-xs font-bold rounded-xl transition-all cursor-pointer"
                   >
-                    {savingInvoice ? 'Saving...' : editingInvoiceId ? 'Save Changes' : 'Save Draft'}
+                    {savingInvoice ? t('inv_saving') : editingInvoiceId ? t('inv_btn_save_changes') : t('inv_btn_save_draft')}
                   </button>
                   <button 
                     onClick={handleSaveDraft}
                     disabled={savingInvoice}
                     className="px-4 py-2 bg-purple-400 hover:bg-purple-300 text-[#070a13] text-xs font-bold rounded-xl transition-all cursor-pointer"
                   >
-                    {editingInvoiceId ? 'Update Invoice' : 'Create Invoice'}
+                    {editingInvoiceId ? t('inv_btn_update_invoice') : t('inv_btn_create_invoice')}
                   </button>
                 </div>
               </div>
@@ -934,9 +912,9 @@ export default function Invoices() {
                     <Mic size={20} />
                   </div>
                   <div className="text-left flex-1 min-w-0">
-                    <p className="text-xs text-white font-bold">AI Voice Invoice Fill</p>
+                    <p className="text-xs text-white font-bold">{t('inv_voice_fill_title')}</p>
                     <p className="text-[10px] text-slate-500 mt-0.5 font-semibold leading-relaxed">
-                      Describe the invoice, then answer follow-up questions like the mobile app.
+                      {t('inv_voice_fill_subtitle')}
                     </p>
                   </div>
                 </div>
@@ -958,18 +936,18 @@ export default function Invoices() {
                   buttonClassName="px-4 py-2 bg-purple-400 hover:bg-purple-300 text-[#070a13] text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2"
                 >
                   <Mic size={16} />
-                  Start Voice Fill
+                  {t('inv_btn_start_voice_fill')}
                 </VoiceFormFillModal>
               </div>
 
               {/* Invoice Form fields */}
               <div className="space-y-6 mt-6">
-                <h3 className="text-xs font-bold text-slate-500 tracking-wider uppercase">Invoice Details</h3>
+                <h3 className="text-xs font-bold text-slate-500 tracking-wider uppercase">{t('inv_details_title')}</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Issue Date */}
                   <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Issue Date</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('inv_lbl_issue_date')}</label>
                     <DatePickerInput
                       value={issueDate}
                       onChange={setIssueDate}
@@ -979,10 +957,10 @@ export default function Invoices() {
 
                   {/* Client Name */}
                   <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Client Name</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('inv_lbl_client_name')}</label>
                     <input 
                       type="text" 
-                      placeholder="Search or add client..."
+                      placeholder={t('inv_ph_client_name')}
                       className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
@@ -991,7 +969,7 @@ export default function Invoices() {
 
                   {/* Client Email */}
                   <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Client Email</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('inv_lbl_client_email')}</label>
                     <input 
                       type="email" 
                       placeholder="client@example.com"
@@ -1003,7 +981,7 @@ export default function Invoices() {
 
                   {/* Due Date */}
                   <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Due Date</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('inv_lbl_due_date')}</label>
                     <DatePickerInput
                       value={dueDate}
                       onChange={setDueDate}
@@ -1013,7 +991,7 @@ export default function Invoices() {
 
                   {/* Invoice Number */}
                   <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Invoice Number</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('inv_lbl_invoice_number')}</label>
                     <input 
                       type="text" 
                       className="w-full px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-slate-400"
@@ -1025,7 +1003,7 @@ export default function Invoices() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Billing Address</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('inv_lbl_billing_address')}</label>
                     <input 
                       type="text" 
                       placeholder="123 Business St, City, Country"
@@ -1036,7 +1014,7 @@ export default function Invoices() {
                   </div>
 
                   <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Tax Rate (%)</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('inv_lbl_tax_rate')}</label>
                     <input 
                       type="number" 
                       min="0"
@@ -1050,10 +1028,10 @@ export default function Invoices() {
                 </div>
 
                 <div className="space-y-2 text-left">
-                  <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Notes</label>
+                  <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('inv_lbl_notes')}</label>
                   <textarea
                     rows={3}
-                    placeholder="Optional invoice notes"
+                    placeholder={t('inv_ph_notes')}
                     className="w-full resize-none px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
@@ -1063,13 +1041,13 @@ export default function Invoices() {
                 {/* Line Items Editor list */}
                 <div className="space-y-3 text-left pt-2">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">Line Items</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{t('inv_lbl_line_items')}</label>
                     <button 
                       type="button"
                       onClick={addLineItem}
                       className="text-[10px] font-bold text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
                     >
-                      + Add Item
+                      {t('inv_btn_add_item')}
                     </button>
                   </div>
 
@@ -1078,7 +1056,7 @@ export default function Invoices() {
                       <div key={idx} className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
                         <input 
                           type="text" 
-                          placeholder="Item description"
+                          placeholder={t('inv_ph_item_desc')}
                           className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white placeholder:text-gray-700"
                           value={item.description}
                           onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
@@ -1086,14 +1064,14 @@ export default function Invoices() {
                         <div className="flex items-center gap-2">
                           <input 
                             type="number" 
-                            placeholder="Qty"
+                            placeholder={t('inv_ph_qty')}
                             className="w-16 px-3 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white text-center placeholder:text-gray-700"
                             value={item.quantity || ''}
                             onChange={(e) => handleItemChange(idx, 'quantity', parseFloat(e.target.value) || 0)}
                           />
                           <input 
                             type="number" 
-                            placeholder="Price"
+                            placeholder={t('inv_ph_price')}
                             className="w-24 px-3 py-2.5 bg-slate-950 border border-slate-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all text-xs font-semibold text-white text-center placeholder:text-gray-700"
                             value={item.unit_price || ''}
                             onChange={(e) => handleItemChange(idx, 'unit_price', parseFloat(e.target.value) || 0)}
@@ -1105,7 +1083,7 @@ export default function Invoices() {
                             type="button"
                             onClick={() => removeLineItem(idx)}
                             className="p-2.5 hover:bg-slate-950 border border-transparent hover:border-slate-900 text-slate-600 hover:text-red-400 rounded-xl transition-all"
-                            title="Delete Item"
+                            title={t('inv_btn_delete_item')}
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1118,15 +1096,15 @@ export default function Invoices() {
                 {/* Billing Summary calculation panel */}
                 <div className="border-t border-slate-900/60 pt-4 flex flex-col items-end space-y-2 text-right">
                   <div className="flex justify-between w-64 text-xs font-bold text-slate-500">
-                    <span>Subtotal</span>
+                    <span>{t('inv_lbl_subtotal')}</span>
                     <span className="text-slate-300">${calculateFormSubtotal().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between w-64 text-xs font-bold text-slate-500 items-center">
-                    <span className="flex items-center gap-1.5">Tax ({taxRate}%)</span>
+                    <span className="flex items-center gap-1.5">{t('inv_lbl_tax_pct', { rate: taxRate })}</span>
                     <span className="text-slate-300">${calculateFormTax().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between w-64 border-t border-slate-900/60 pt-2 text-sm font-extrabold text-white">
-                    <span className="text-purple-400">Total</span>
+                    <span className="text-purple-400">{t('inv_lbl_total')}</span>
                     <span className="text-purple-400">${calculateFormTotal().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
@@ -1141,22 +1119,22 @@ export default function Invoices() {
             {/* Live extraction helper info */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-5 text-left space-y-3.5">
               <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Sparkles size={12} className="fill-current animate-pulse" /> Live Extraction
+                <Sparkles size={12} className="fill-current animate-pulse" /> {t('inv_live_extraction')}
               </span>
               <p className="text-xs text-slate-400 leading-relaxed font-semibold">
-                SmartFlow is listening and auto-filling the form. Data confidence is high.
+                {t('inv_live_extraction_hint')}
               </p>
             </div>
 
-            {/* LIVE PREVIEW DOCUMENT (Image 3 right pane) */}
+            {/* LIVE PREVIEW DOCUMENT */}
             <div className="flex-1 bg-white rounded-3xl p-6 flex flex-col justify-between shadow-2xl relative min-h-[400px] text-[#070a13] border-4 border-purple-500/30">
-              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest absolute top-6 right-6">LIVE PREVIEW</span>
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest absolute top-6 right-6">{t('inv_live_preview')}</span>
               
               <div className="space-y-6 text-left">
                 {/* Header branding */}
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-2xl font-extrabold tracking-tight text-[#070a13]">INVOICE</h2>
+                    <h2 className="text-2xl font-extrabold tracking-tight text-[#070a13]">{t('inv_doc_invoice')}</h2>
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">{invoiceNumber}</p>
                   </div>
                   <div className="text-right text-[10px] text-slate-500 leading-relaxed font-semibold">
@@ -1168,7 +1146,7 @@ export default function Invoices() {
 
                 {/* Billed Client information */}
                 <div className="border-t border-slate-100 pt-4">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Bill To</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('inv_lbl_bill_to')}</span>
                   <p className="text-sm font-extrabold text-[#070a13] mt-1">{clientName || 'Client Name Placeholder'}</p>
                   <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{clientEmail || 'client@example.com'}</p>
                 </div>
@@ -1176,10 +1154,10 @@ export default function Invoices() {
                 {/* Description lines items */}
                 <div className="pt-2">
                   <div className="grid grid-cols-12 text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2 mb-2">
-                    <div className="col-span-6">Description</div>
-                    <div className="col-span-2 text-center">Qty</div>
-                    <div className="col-span-2 text-right">Price</div>
-                    <div className="col-span-2 text-right">Amount</div>
+                    <div className="col-span-6">{t('inv_th_description')}</div>
+                    <div className="col-span-2 text-center">{t('inv_lbl_qty', { n: '' }).replace(/:|\s/g, '')}</div>
+                    <div className="col-span-2 text-right">{t('inv_ph_price')}</div>
+                    <div className="col-span-2 text-right">{t('inv_th_amount')}</div>
                   </div>
 
                   <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
@@ -1197,7 +1175,7 @@ export default function Invoices() {
 
               {/* Total USD Summary block */}
               <div className="border-t border-slate-100 pt-4 flex justify-between items-baseline text-left">
-                <span className="text-xs font-bold text-slate-400">Total</span>
+                <span className="text-xs font-bold text-slate-400">{t('inv_lbl_total')}</span>
                 <span className="text-2xl font-extrabold text-[#070a13] tracking-tight">
                   USD ${calculateFormTotal().toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
@@ -1209,7 +1187,7 @@ export default function Invoices() {
       )}
 
       {/* =========================================================================
-          VIEW MODE: DISPATCH INVOICE (Image 1)
+          VIEW MODE: DISPATCH INVOICE
           ========================================================================= */}
       {viewMode === 'dispatch' && activeInvoice && (
         <div className="flex-1 flex flex-col lg:flex-row gap-6 items-stretch min-h-0 relative text-left">
@@ -1237,28 +1215,28 @@ export default function Invoices() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <h2 className="text-2xl font-extrabold tracking-tight text-slate-400">INVOICE</h2>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mt-1">Invoice Number: {activeInvoice.invoice_number}</p>
+                    <h2 className="text-2xl font-extrabold tracking-tight text-slate-400">{t('inv_doc_invoice')}</h2>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mt-1">{t('inv_lbl_invoice_no_colon')} {activeInvoice.invoice_number}</p>
                   </div>
                 </div>
 
                 {/* Company details row */}
                 <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-500 pt-2 leading-relaxed font-semibold">
                   <div>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">From</span>
+                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">{t('inv_lbl_from')}</span>
                     <p className="font-extrabold text-slate-800">SmartFlow Inc.</p>
                     <p>482 Cyber Avenue</p>
                     <p>Neo-Tokyo, NT 100-0001</p>
                   </div>
                   <div className="text-right">
-                    <p><span className="font-bold">Date of Issue:</span> {formatCalendarDate(activeInvoice.issue_date)}</p>
-                    <p><span className="font-bold">Due Date:</span> {formatCalendarDate(activeInvoice.due_date)}</p>
+                    <p><span className="font-bold">{t('inv_lbl_date_of_issue')}</span> {formatCalendarDate(activeInvoice.issue_date)}</p>
+                    <p><span className="font-bold">{t('inv_lbl_due_date_colon')}</span> {formatCalendarDate(activeInvoice.due_date)}</p>
                   </div>
                 </div>
 
                 {/* Bill to metadata */}
                 <div className="p-4 bg-slate-50 rounded-2xl text-[10px] text-slate-500 leading-relaxed font-semibold">
-                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">Billed To</span>
+                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">{t('inv_lbl_bill_to')}</span>
                   <p className="text-xs font-extrabold text-slate-800 mt-1">{activeInvoice.client_name}</p>
                   {activeInvoice.billing_address && <p className="mt-0.5">{activeInvoice.billing_address}</p>}
                   {activeInvoice.client_email && <p>{activeInvoice.client_email}</p>}
@@ -1267,10 +1245,10 @@ export default function Invoices() {
                 {/* Line Items table */}
                 <div className="pt-2">
                   <div className="grid grid-cols-12 text-[8px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2 mb-2">
-                    <div className="col-span-6">Description</div>
-                    <div className="col-span-2 text-center">Qty</div>
-                    <div className="col-span-2 text-right">Rate</div>
-                    <div className="col-span-2 text-right">Amount</div>
+                    <div className="col-span-6">{t('inv_th_description')}</div>
+                    <div className="col-span-2 text-center">{t('inv_lbl_qty', { n: '' }).replace(/:|\s/g, '')}</div>
+                    <div className="col-span-2 text-right">{t('inv_th_rate')}</div>
+                    <div className="col-span-2 text-right">{t('inv_th_amount')}</div>
                   </div>
 
                   <div className="space-y-2">
@@ -1291,24 +1269,24 @@ export default function Invoices() {
               <div className="border-t border-slate-100 pt-4 space-y-4">
                 <div className="flex flex-col items-end space-y-1 text-right text-[10px] text-slate-500 font-semibold">
                   <div className="flex justify-between w-48">
-                    <span>Subtotal</span>
+                    <span>{t('inv_lbl_subtotal')}</span>
                     <span>${activeInvoice.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                   {activeInvoice.tax_amount > 0 && (
                     <div className="flex justify-between w-48">
-                      <span>Tax ({activeInvoice.tax_rate}%)</span>
+                      <span>{t('inv_lbl_tax_pct', { rate: activeInvoice.tax_rate })}</span>
                       <span>${activeInvoice.tax_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
                   <div className="flex justify-between w-48 border-t border-slate-100 pt-1 text-xs font-extrabold text-[#070a13]">
-                    <span>Total Due</span>
+                    <span>{t('inv_lbl_total_due')}</span>
                     <span className="text-purple-600">${activeInvoice.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
 
                 <div className="text-[7px] text-slate-400 text-center font-medium leading-normal border-t border-slate-50 pt-3">
-                  Payment is due within 30 days of issue. Please include the invoice number on your check or transfer reference.<br />
-                  Bank Details: First Cyber Bank | ACC: 000-1234-5678 | ROUTING: 987654321
+                  {t('inv_payment_due_terms')}<br />
+                  {t('inv_bank_details')}
                 </div>
               </div>
             </div>
@@ -1329,26 +1307,26 @@ export default function Invoices() {
                   >
                     <ArrowLeft size={14} />
                   </button>
-                  <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">Dispatch Setup</span>
+                  <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">{t('inv_dispatch_setup')}</span>
                 </div>
 
                 {/* Static document details metadata */}
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">Document Actions</h4>
+                  <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">{t('inv_document_actions')}</h4>
                   
                   <div className="space-y-2">
                     <button 
                       onClick={() => handleDownloadPDF(activeInvoice)}
                       className="w-full p-3 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-xl flex items-center justify-between text-xs font-bold text-slate-300 transition-colors cursor-pointer"
                     >
-                      <span className="flex items-center gap-2"><FileText size={14} className="text-purple-400" /> Download PDF</span>
+                      <span className="flex items-center gap-2"><FileText size={14} className="text-purple-400" /> {t('inv_btn_download_pdf')}</span>
                       <span className="text-[10px] text-slate-500">245 KB</span>
                     </button>
                     
                     <button 
                       className="w-full p-3 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-xl flex items-center justify-between text-xs font-bold text-slate-300 transition-colors cursor-pointer"
                     >
-                      <span className="flex items-center gap-2"><Phone size={14} className="text-purple-400" /> Share via Voice Brief</span>
+                      <span className="flex items-center gap-2"><Phone size={14} className="text-purple-400" /> {t('inv_share_voice_brief')}</span>
                       <span className="text-slate-500">›</span>
                     </button>
                   </div>
@@ -1356,8 +1334,8 @@ export default function Invoices() {
 
                 {/* Delivery Channels Select Options */}
                 <div className="space-y-3 pt-2">
-                  <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">Send to Client</h4>
-                  <p className="text-[10px] text-slate-500 font-semibold leading-normal">Select delivery channels for {activeInvoice.client_name}:</p>
+                  <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">{t('inv_send_to_client')}</h4>
+                  <p className="text-[10px] text-slate-500 font-semibold leading-normal">{t('inv_select_channels_for', { name: activeInvoice.client_name })}</p>
                   
                   <div className="space-y-2.5">
                     {/* Secure Email Link */}
@@ -1375,7 +1353,7 @@ export default function Invoices() {
                         {deliveryChannels.email && <Check size={10} />}
                       </div>
                       <div className="text-left leading-normal">
-                        <p className="text-xs text-white font-bold">Secure Email Link</p>
+                        <p className="text-xs text-white font-bold">{t('inv_secure_email_link')}</p>
                         <p className="text-[9px] text-slate-500 mt-0.5 font-semibold">{activeInvoice.client_email || 'client@example.com'}</p>
                       </div>
                     </div>
@@ -1395,7 +1373,7 @@ export default function Invoices() {
                         {deliveryChannels.sms && <Check size={10} />}
                       </div>
                       <div className="text-left leading-normal">
-                        <p className="text-xs text-white font-bold">SMS Notification</p>
+                        <p className="text-xs text-white font-bold">{t('inv_sms_notification')}</p>
                         <p className="text-[9px] text-slate-500 mt-0.5 font-semibold">+1 (555) 019-2834</p>
                       </div>
                     </div>
@@ -1415,8 +1393,8 @@ export default function Invoices() {
                         {deliveryChannels.whatsapp && <Check size={10} />}
                       </div>
                       <div className="text-left leading-normal">
-                        <p className="text-xs text-white font-bold">WhatsApp Business</p>
-                        <p className="text-[9px] text-slate-500 mt-0.5 font-semibold">Verified Account Thread</p>
+                        <p className="text-xs text-white font-bold">{t('inv_whatsapp_business')}</p>
+                        <p className="text-[9px] text-slate-500 mt-0.5 font-semibold">{t('inv_verified_account_thread')}</p>
                       </div>
                     </div>
 
@@ -1424,7 +1402,7 @@ export default function Invoices() {
                 </div>
               </div>
 
-              {/* Glowing cyan DISPATCH INVOICE button */}
+              {/* DISPATCH INVOICE button */}
               <button 
                 onClick={handleDispatchInvoice}
                 disabled={dispatching || !Object.values(deliveryChannels).some(Boolean)}
@@ -1433,12 +1411,12 @@ export default function Invoices() {
                 {dispatching ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    <span>Dispatching...</span>
+                    <span>{t('inv_dispatching')}</span>
                   </>
                 ) : (
                   <>
                     <Send size={14} />
-                    <span>DISPATCH INVOICE</span>
+                    <span>{t('inv_btn_dispatch_invoice')}</span>
                   </>
                 )}
               </button>
@@ -1450,7 +1428,7 @@ export default function Invoices() {
       )}
 
       {/* =========================================================================
-          VIEW MODE: TIMELINE DETAILS REVIEW (Image 4)
+          VIEW MODE: TIMELINE DETAILS REVIEW
           ========================================================================= */}
       {viewMode === 'details' && activeInvoice && (
         <div className="flex-1 flex flex-col lg:flex-row gap-6 items-stretch min-h-0 relative text-left">
@@ -1465,9 +1443,9 @@ export default function Invoices() {
                 className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 <ArrowLeft size={16} />
-                <span>Back to Invoices</span>
+                <span>{t('inv_btn_back_to_invoices')}</span>
               </button>
-              <h2 className="text-sm font-bold text-slate-500 tracking-widest uppercase">Invoice Details</h2>
+              <h2 className="text-sm font-bold text-slate-500 tracking-widest uppercase">{t('inv_details_title')}</h2>
             </div>
 
             {/* Invoice Top overview details banner */}
@@ -1480,20 +1458,20 @@ export default function Invoices() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-semibold">
-                  Billed to <span className="text-slate-300 font-bold">{activeInvoice.client_name}</span>{" - "}{getDueStatusText(activeInvoice)}
+                  {t('inv_billed_to_status', { client: activeInvoice.client_name, status: getDueStatusText(activeInvoice, t) })}
                 </p>
               </div>
               <div className="text-left md:text-right">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Amount Due</span>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t('inv_total_amount_due')}</span>
                 <p className="text-2xl font-extrabold text-purple-400 tracking-tight mt-0.5">
                   ${activeInvoice.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
 
-            {/* PROGRESS TIMELINE (Image 4 middle) */}
+            {/* PROGRESS TIMELINE */}
             <div className="p-6 bg-slate-950/20 border border-slate-900 rounded-2xl space-y-4">
-              <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">Progress Timeline</h4>
+              <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">{t('inv_progress_timeline')}</h4>
               
               <div className="relative pt-4 pb-2 px-8 flex justify-between items-center w-full">
                 {/* Horizontal progress bar track */}
@@ -1511,10 +1489,10 @@ export default function Invoices() {
 
                 {/* Steps markers */}
                 {[
-                  { name: 'Created', done: true },
-                  { name: 'Sent', done: ['sent', 'viewed', 'paid', 'overdue'].includes(activeInvoice.status) },
-                  { name: 'Viewed', done: ['viewed', 'paid'].includes(activeInvoice.status) },
-                  { name: 'Paid', done: activeInvoice.status === 'paid' }
+                  { name: t('inv_step_created'), done: true },
+                  { name: t('inv_step_sent'), done: ['sent', 'viewed', 'paid', 'overdue'].includes(activeInvoice.status) },
+                  { name: t('inv_step_viewed'), done: ['viewed', 'paid'].includes(activeInvoice.status) },
+                  { name: t('inv_step_paid'), done: activeInvoice.status === 'paid' }
                 ].map((step, idx) => (
                   <div key={idx} className="flex flex-col items-center space-y-2 relative z-10">
                     <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
@@ -1542,41 +1520,41 @@ export default function Invoices() {
                   }}
                   className="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Settings size={13} /> Edit Invoice
+                  <Settings size={13} /> {t('inv_btn_edit_invoice')}
                 </button>
               ) : null}
               <button 
                 onClick={() => handleDownloadPDF(activeInvoice)}
                 className="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Download size={13} /> View PDF
+                <Download size={13} /> {t('inv_btn_view_pdf')}
               </button>
               <button 
                 onClick={handleScheduleVoiceReminder}
                 className="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Phone size={13} /> Share via Voice
+                <Phone size={13} /> {t('inv_share_voice')}
               </button>
               <button 
                 onClick={() => handleDeleteInvoice(activeInvoice.id)}
                 className="px-4 py-2.5 bg-transparent border border-red-500/20 hover:border-red-500/50 hover:bg-red-500/5 text-red-400 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Trash2 size={13} /> Delete
+                <Trash2 size={13} /> {t('inv_btn_delete')}
               </button>
             </div>
 
             {/* Detailed Line Items table list */}
             <div className="space-y-3">
-              <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">Line Items</h4>
+              <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">{t('inv_lbl_line_items')}</h4>
               
               <div className="bg-[#070a13] border border-slate-900 rounded-2xl overflow-hidden">
                 <table className="w-full border-collapse text-left text-xs font-semibold">
                   <thead>
                     <tr className="border-b border-slate-900/60 bg-slate-950/30 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                      <th className="px-5 py-3.5 col-span-6">Description</th>
-                      <th className="px-5 py-3.5 text-center">Qty</th>
-                      <th className="px-5 py-3.5 text-right">Price</th>
-                      <th className="px-5 py-3.5 text-right">Total</th>
+                      <th className="px-5 py-3.5 col-span-6">{t('inv_th_description')}</th>
+                      <th className="px-5 py-3.5 text-center">{t('inv_lbl_qty', { n: '' }).replace(/:|\s/g, '')}</th>
+                      <th className="px-5 py-3.5 text-right">{t('inv_ph_price')}</th>
+                      <th className="px-5 py-3.5 text-right">{t('inv_lbl_total')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-900/60">
@@ -1596,7 +1574,7 @@ export default function Invoices() {
             {/* visual analytics loading placeholder */}
             <div className="border border-slate-900 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center text-slate-500 space-y-2">
               <Loader2 className="animate-spin text-purple-400" size={20} />
-              <p className="text-xs font-semibold text-slate-400">Visual analytics for this invoice are generating...</p>
+              <p className="text-xs font-semibold text-slate-400">{t('inv_analytics_generating')}</p>
             </div>
 
           </div>
@@ -1604,28 +1582,28 @@ export default function Invoices() {
           {/* Right Sidebar: AI Intelligence, Identity profile & Activity Log */}
           <div className="lg:col-span-4 w-full lg:w-80 space-y-6">
             
-            {/* AI Intelligence scheduler (Image 4 top right) */}
+            {/* AI Intelligence scheduler */}
             {activeInvoice.status !== 'paid' && (
               <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6 text-left space-y-4">
                 <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <Sparkles size={12} className="fill-current animate-pulse" /> AI Intelligence
+                  <Sparkles size={12} className="fill-current animate-pulse" /> {t('inv_ai_intelligence')}
                 </span>
                 
                 <p className="text-xs text-slate-400 leading-relaxed font-semibold">
-                  High likelihood of delayed payment based on historical patterns with {activeInvoice.client_name}. Consider sending an automated polite voice reminder in 2 days.
+                  {t('inv_ai_delay_warning', { client: activeInvoice.client_name, time: aiVoiceReminderTime })}
                 </p>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase">Schedule</span>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase">{t('inv_lbl_schedule')}</span>
                   <select 
                     className="flex-1 bg-slate-950 border border-slate-900 text-xs text-white rounded-lg px-2 py-1.5 focus:outline-none focus:border-purple-500/40"
                     value={aiVoiceReminderTime}
                     onChange={(e) => setAiVoiceReminderTime(e.target.value)}
                   >
-                    <option value="1 day">In 1 day</option>
-                    <option value="2 days">In 2 days</option>
-                    <option value="5 days">In 5 days</option>
-                    <option value="1 week">In 1 week</option>
+                    <option value="1 day">{t('inv_opt_1_day')}</option>
+                    <option value="2 days">{t('inv_opt_2_days')}</option>
+                    <option value="5 days">{t('inv_opt_5_days')}</option>
+                    <option value="1 week">{t('inv_opt_1_week')}</option>
                   </select>
                 </div>
 
@@ -1635,14 +1613,14 @@ export default function Invoices() {
                   className="w-full py-2.5 bg-transparent border border-purple-500/35 hover:bg-purple-950/20 text-purple-400 text-xs font-bold rounded-xl text-center transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   {aiVoiceReminderScheduled ? <Loader2 size={12} className="animate-spin" /> : <Phone size={12} />}
-                  <span>Schedule Voice Reminder</span>
+                  <span>{t('inv_btn_schedule_voice_reminder')}</span>
                 </button>
               </div>
             )}
 
             {/* Client Identity details metadata card */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6 text-left space-y-4">
-              <h4 className="text-[10px] font-bold text-slate-500 tracking-widest uppercase pb-2 border-b border-slate-900/60">Client Identity</h4>
+              <h4 className="text-[10px] font-bold text-slate-500 tracking-widest uppercase pb-2 border-b border-slate-900/60">{t('inv_client_identity')}</h4>
               
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
@@ -1670,9 +1648,9 @@ export default function Invoices() {
               </div>
             </div>
 
-            {/* Activity Log events timeline (Image 4 bottom right) */}
+            {/* Activity Log events timeline */}
             <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6 text-left space-y-4 max-h-[300px] overflow-y-auto">
-              <h4 className="text-[10px] font-bold text-slate-500 tracking-widest uppercase pb-2 border-b border-slate-900/60">Activity Log</h4>
+              <h4 className="text-[10px] font-bold text-slate-500 tracking-widest uppercase pb-2 border-b border-slate-900/60">{t('inv_activity_log')}</h4>
               
               <div className="relative pl-4 border-l border-slate-800 space-y-5">
                 {activeInvoice.timeline.map((event, idx) => (
@@ -1697,4 +1675,3 @@ export default function Invoices() {
     </div>
   );
 }
-

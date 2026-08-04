@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Loader2, Mic, X } from 'lucide-react';
 import { smartflowApi } from '../../api/services';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   AI_LANGUAGE_OPTIONS,
   getFieldQuestion,
@@ -204,6 +205,7 @@ const buildConfirmationText = (prefill, workflowIntent, label) => {
 };
 
 export default function VoiceFormFillModal({ workflowIntent, label, currentValues, onApply, buttonClassName = '', children }) {
+  const { t } = useLanguage();
   const recognitionRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null);
@@ -536,11 +538,11 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
                   </div>
                 ) : null}
 
-                <div className="relative">
+                 <div className="relative">
                   <textarea
                     value={voiceInput}
                     onChange={(event) => setVoiceInput(event.target.value)}
-                    placeholder={phase === 'question' && currentQuestion ? currentQuestion : `Create ${label.toLowerCase()} draft with voice...`}
+                    placeholder={phase === 'question' && currentQuestion ? currentQuestion : t('vff_placeholder_textarea').replace('{label}', label.toLowerCase())}
                     className={`${INPUT_CLS} min-h-28 resize-none pr-12`}
                   />
                   <button
@@ -556,12 +558,12 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
                   <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4">
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">
-                        Listening in {currentLanguageName}...
+                        {t('vff_listening_in').replace('{language}', currentLanguageName)}
                       </p>
-                      <span className="text-purple-300 text-xs">Live transcript</span>
+                      <span className="text-purple-300 text-xs">{t('vff_live_transcript')}</span>
                     </div>
                     <p className="text-sm text-purple-50 min-h-[22px]">
-                      {liveTranscript || 'Start speaking...'}
+                      {liveTranscript || t('vff_start_speaking')}
                     </p>
                   </div>
                 ) : null}
@@ -573,18 +575,18 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
                 ) : null}
 
                 {phase === 'question' && missingFields.length ? (
-                  <p className="text-xs text-[#A4B0B7]">Question {fieldIdx + 1} of {missingFields.length}</p>
+                  <p className="text-xs text-[#A4B0B7]">{t('vff_question_counter').replace('{current}', fieldIdx + 1).replace('{total}', missingFields.length)}</p>
                 ) : null}
                 {phase === 'initial' ? (
                   <p className="text-xs text-[#A4B0B7]">
-                    {isListening ? 'Listening... speak naturally, then click Start Voice Fill.' : loading ? 'Processing your request...' : 'You can speak or type the first description.'}
+                    {isListening ? t('vff_hint_initial_listening') : loading ? t('vff_hint_processing') : t('vff_hint_initial_type')}
                   </p>
                 ) : null}
                 {permissionState === 'denied' ? (
-                  <p className="text-xs text-rose-300">Microphone permission was denied. You can still type your answer.</p>
+                  <p className="text-xs text-rose-300">{t('vff_err_mic_denied')}</p>
                 ) : null}
                 {permissionState === 'unsupported' ? (
-                  <p className="text-xs text-rose-300">This browser does not support speech recognition. Please type your answer.</p>
+                  <p className="text-xs text-rose-300">{t('vff_err_unsupported')}</p>
                 ) : null}
               </div>
 
@@ -592,23 +594,23 @@ export default function VoiceFormFillModal({ workflowIntent, label, currentValue
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 py-3 border border-[#243041] text-[#A4B0B7] hover:text-white hover:border-[#9333ea]/30 rounded-xl font-semibold transition-colors"
+                  className="flex-1 py-3 border border-[#243041] text-[#A4B0B7] hover:text-white hover:border-[#9333ea]/30 rounded-xl font-semibold transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t('vff_cancel')}
                 </button>
                 {phase === 'confirm' ? (
-                  <button type="button" onClick={handleConfirm} className="flex-1 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold">
-                    Fill Form
+                  <button type="button" onClick={handleConfirm} className="flex-1 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold cursor-pointer">
+                    {t('vff_fill_form')}
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={phase === 'question' ? handleAnswerSubmit : handleInitialSubmit}
                     disabled={loading || (!normalizeVoiceText(voiceInput) && !isListening)}
-                    className="flex-1 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold disabled:opacity-60 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                    {phase === 'question' ? 'Use This Answer' : isListening ? 'Submit Voice Fill' : 'Start Voice Fill'}
+                    {phase === 'question' ? t('vff_btn_use_answer') : isListening ? t('vff_btn_submit_voice') : t('vff_btn_start_voice')}
                   </button>
                 )}
               </div>
