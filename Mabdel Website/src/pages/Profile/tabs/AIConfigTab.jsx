@@ -54,8 +54,8 @@ function AIConfigTab() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {voices.map(v => (
                 <div key={v.id||v.voice_id||v.name} className="p-3 bg-[#131A24] border border-[#243041] rounded-xl">
-                  <p className="text-white font-semibold text-sm">{v.name||v.voice_name}</p>
-                  {v.language && <p className="text-[#A4B0B7] text-xs mt-0.5">{v.language}</p>}
+                  <p className="text-white font-semibold text-sm">{v.label||v.name||v.voice_name}</p>
+                  {(v.style || v.language) && <p className="text-[#A4B0B7] text-xs mt-0.5 capitalize">{v.style||v.language}</p>}
                 </div>
               ))}
             </div>

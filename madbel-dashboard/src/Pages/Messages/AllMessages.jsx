@@ -6,21 +6,9 @@ import {
   markThreadSeen,
   sendThreadMessage,
 } from "../../services/chatApi";
-import { getAdminSession } from "../../utils/auth";
 
 const FALLBACK_AVATAR = "https://i.pravatar.cc/100";
 const POLL_INTERVAL_MS = 4000;
-
-const parseJwtPayload = (token) => {
-  try {
-    const payloadPart = token?.split(".")?.[1];
-    if (!payloadPart) return null;
-    const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(normalized));
-  } catch {
-    return null;
-  }
-};
 
 const pickData = (payload) => payload?.data ?? payload;
 
@@ -64,7 +52,7 @@ const normalizeThread = (thread) => ({
   lastMessage: thread?.lastMessage || null,
 });
 
-const normalizeMessage = (message, currentUserId) => {
+const normalizeMessage = (message) => {
   const senderId = String(message?.senderUserId || "");
   return {
     id: message?._id || `${senderId}-${message?.createdAt || Date.now()}`,
@@ -74,17 +62,11 @@ const normalizeMessage = (message, currentUserId) => {
     imageUrl: message?.imageUrl || "",
     createdAt: message?.createdAt || null,
     updatedAt: message?.updatedAt || null,
-    isSentByMe: Boolean(currentUserId) && senderId === currentUserId,
+    isSentByMe: Boolean(message?.isMe),
   };
 };
 
 const AllMessages = () => {
-  const session = getAdminSession();
-  const currentUserId = useMemo(
-    () => String(parseJwtPayload(session?.accessToken)?.userId || ""),
-    [session?.accessToken]
-  );
-
   const [threads, setThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState("");
   const [threadMessages, setThreadMessages] = useState([]);
@@ -130,7 +112,7 @@ const AllMessages = () => {
         const payload = await listThreadMessages({ threadId });
         const data = pickData(payload);
         const mapped = asArray(data?.messages ?? data).map((message) =>
-          normalizeMessage(message, currentUserId)
+          normalizeMessage(message)
         );
 
         setThreadMessages(mapped);
@@ -139,7 +121,7 @@ const AllMessages = () => {
         setLoadingMessages(false);
       }
     },
-    [currentUserId]
+    []
   );
 
   const refreshSelectedMessages = useCallback(async () => {
@@ -148,10 +130,10 @@ const AllMessages = () => {
     const payload = await listThreadMessages({ threadId: selectedThreadId });
     const data = pickData(payload);
     const mapped = asArray(data?.messages ?? data).map((message) =>
-      normalizeMessage(message, currentUserId)
+      normalizeMessage(message)
     );
     setThreadMessages(mapped);
-  }, [currentUserId, selectedThreadId]);
+  }, [selectedThreadId]);
 
   useEffect(() => {
     let mounted = true;

@@ -248,7 +248,11 @@ async def create_subordinate_account(
     user_id = data.get("user_id") if isinstance(data, dict) else None
     if user_id and current_user.get("organization_id"):
         from app.services.smartflow.smartflow_orchestrator import SmartFlowService
-        await SmartFlowService(db).sync_user_global_chat_membership(user_id, current_user.get("organization_id"))
+        smartflow = SmartFlowService(db)
+        await smartflow.sync_user_global_chat_membership(user_id, current_user.get("organization_id"))
+        target_role = data.get("role")
+        if target_role:
+            await smartflow.sync_user_role_group_membership(user_id, target_role, current_user.get("organization_id"))
     return ApiResponse(data=data, message="Subordinate account created successfully.")
 
 

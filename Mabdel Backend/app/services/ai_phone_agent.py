@@ -107,7 +107,7 @@ class AIPhoneAgent:
                     response_text = "No problem. Would you like to pick another time or should I help with something else?"
                     self.conversation_state = {}
             else:
-                ai_response = self.ai_service.generate_response(transcript)
+                ai_response = await self.ai_service.generate_response(transcript)
                 response_text = ai_response.get("content", "I'm sorry, could you repeat that?")
 
                 if ai_response.get("command_type") == "calendar" or "schedule" in transcript.lower():

@@ -64,10 +64,10 @@ class RBACService:
         if cached is not None:
             return set(cached)
 
-        perms = await self.repo.get_user_effective_permissions(user_id)
+        user_roles = await self.repo.get_user_roles(user_id)
+        perms = await self.repo.get_user_effective_permissions(user_id, user_roles)
 
         # Super admin shortcut: full access regardless of DB permissions
-        user_roles = await self.repo.get_user_roles(user_id)
         role_slugs = {r["role_slug"] for r in user_roles}
         if not role_slugs:
             # Fall back to legacy role field

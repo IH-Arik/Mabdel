@@ -363,7 +363,7 @@ export default function Dashboard() {
 
   const openVoiceAssistant = () => navigate('/voice-conversation', { state: { autoStart: true } });
   const openBulkMessaging = () => navigate('/bulk-messaging');
-  const openUnifiedConversations = () => navigate('/conversations');
+  const openUnifiedConversations = () => navigate('/unified-conversation');
   const openContacts = () => navigate('/contacts');
   const openScheduleMeeting = () => navigate('/calendar');
   const openSocialIntegrations = () => navigate('/integrations');

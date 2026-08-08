@@ -300,7 +300,7 @@ const Subscriptions = () => {
                     Original Email
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-left text-[#17b4c9]">
-                    Assigned @mabdel.ai Email
+                    Assigned @gocustify.com Email
                   </th>
                   <th className="px-6 py-4 text-sm font-medium text-left text-[#17b4c9]">
                     Organization

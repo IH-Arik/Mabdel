@@ -1,4 +1,4 @@
-﻿"""
+"""
 Owner-specific endpoints.
 Owners can manage their team (manager/staff/assistant) and set restrictions.
 """
@@ -788,11 +788,11 @@ async def owner_team_analysis(
     # Fetch user profiles for names
     users_cursor = db.users.find(
         {"_id": {"$in": [__import__("bson").ObjectId(i) for i in team_ids if len(i) == 24]}},
-        {"_id": 1, "name": 1, "email": 1},
+        {"_id": 1, "full_name": 1, "name": 1, "email": 1},
     )
     user_map: dict[str, dict] = {}
     async for u in users_cursor:
-        user_map[str(u["_id"])] = {"name": u.get("name", "Unknown"), "email": u.get("email", "")}
+        user_map[str(u["_id"])] = {"name": u.get("full_name") or u.get("name") or "Unknown", "email": u.get("email", "")}
 
     # Role distribution
     role_dist: dict[str, int] = {}
@@ -803,21 +803,30 @@ async def owner_team_analysis(
         member_roles[a["user_id"]] = role
 
     # ── Aggregated counts per member ──────────────────────────────────────────
-    async def count_per_member(collection: str, date_field: str) -> dict[str, int]:
+    async def count_per_member(collection: str, date_field: str, user_field: str = "user_id", extra_match: dict = None, sum_field: str = None) -> dict[str, float]:
+        match_query = {user_field: {"$in": team_ids}, date_field: {"$gte": since}}
+        if extra_match:
+            match_query.update(extra_match)
+        
+        group_expr = {"$sum": f"${sum_field}"} if sum_field else {"$sum": 1}
+        
         pipeline = [
-            {"$match": {"user_id": {"$in": team_ids}, date_field: {"$gte": since}}},
-            {"$group": {"_id": "$user_id", "count": {"$sum": 1}}},
+            {"$match": match_query},
+            {"$group": {"_id": f"${user_field}", "count": group_expr}},
         ]
         result = {}
         async for doc in db[collection].aggregate(pipeline):
             result[doc["_id"]] = doc["count"]
         return result
 
-    contacts_map, calls_map, appts_map, invoices_map = await __import__("asyncio").gather(
+    contacts_map, calls_map, appts_map, invoices_map, posts_map, leases_map, agreements_map = await __import__("asyncio").gather(
         count_per_member("contacts", "created_at"),
         count_per_member("call_logs", "timestamp"),
         count_per_member("calendar_events", "starts_at"),
-        count_per_member("invoices", "created_at"),
+        count_per_member("invoices", "created_at", user_field="owner_user_id", extra_match={"status": "paid"}, sum_field="total_amount"),
+        count_per_member("social_posts", "created_at"),
+        count_per_member("agreements", "created_at", extra_match={"agreement_type": "lease"}),
+        count_per_member("agreements", "created_at", extra_match={"agreement_type": {"$ne": "lease"}}),
     )
 
     per_member = []
@@ -832,11 +841,17 @@ async def owner_team_analysis(
             "calls": calls_map.get(uid_m, 0),
             "appointments": appts_map.get(uid_m, 0),
             "invoices": invoices_map.get(uid_m, 0),
+            "posts": posts_map.get(uid_m, 0),
+            "leases": leases_map.get(uid_m, 0),
+            "agreements": agreements_map.get(uid_m, 0),
             "total_activity": (
                 contacts_map.get(uid_m, 0)
                 + calls_map.get(uid_m, 0)
                 + appts_map.get(uid_m, 0)
                 + invoices_map.get(uid_m, 0)
+                + posts_map.get(uid_m, 0)
+                + leases_map.get(uid_m, 0)
+                + agreements_map.get(uid_m, 0)
             ),
         })
 
@@ -847,15 +862,24 @@ async def owner_team_analysis(
         "calls": sum(calls_map.values()),
         "appointments": sum(appts_map.values()),
         "invoices": sum(invoices_map.values()),
+        "posts": sum(posts_map.values()),
+        "leases": sum(leases_map.values()),
+        "agreements": sum(agreements_map.values()),
     }
 
     # ── Daily trend ───────────────────────────────────────────────────────────
-    async def daily_counts(collection: str, date_field: str) -> dict[str, int]:
+    async def daily_counts(collection: str, date_field: str, user_field: str = "user_id", extra_match: dict = None, sum_field: str = None) -> dict[str, float]:
+        match_query = {user_field: {"$in": team_ids}, date_field: {"$gte": since}}
+        if extra_match:
+            match_query.update(extra_match)
+            
+        group_expr = {"$sum": f"${sum_field}"} if sum_field else {"$sum": 1}
+        
         pipeline = [
-            {"$match": {"user_id": {"$in": team_ids}, date_field: {"$gte": since}}},
+            {"$match": match_query},
             {"$group": {
                 "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": f"${date_field}"}},
-                "count": {"$sum": 1},
+                "count": group_expr,
             }},
         ]
         result = {}
@@ -863,11 +887,14 @@ async def owner_team_analysis(
             result[doc["_id"]] = doc["count"]
         return result
 
-    c_trend, ca_trend, ap_trend, inv_trend = await __import__("asyncio").gather(
+    c_trend, ca_trend, ap_trend, inv_trend, p_trend, l_trend, a_trend = await __import__("asyncio").gather(
         daily_counts("contacts", "created_at"),
         daily_counts("call_logs", "timestamp"),
         daily_counts("calendar_events", "starts_at"),
-        daily_counts("invoices", "created_at"),
+        daily_counts("invoices", "created_at", user_field="owner_user_id", extra_match={"status": "paid"}, sum_field="total_amount"),
+        daily_counts("social_posts", "created_at"),
+        daily_counts("agreements", "created_at", extra_match={"agreement_type": "lease"}),
+        daily_counts("agreements", "created_at", extra_match={"agreement_type": {"$ne": "lease"}}),
     )
 
     # Build full date range
@@ -880,6 +907,9 @@ async def owner_team_analysis(
             "calls": ca_trend.get(day, 0),
             "appointments": ap_trend.get(day, 0),
             "invoices": inv_trend.get(day, 0),
+            "posts": p_trend.get(day, 0),
+            "leases": l_trend.get(day, 0),
+            "agreements": a_trend.get(day, 0),
         })
 
     return {
@@ -937,28 +967,44 @@ async def member_analysis(
     total_contacts = await db.contacts.count_documents({"user_id": user_id, "created_at": {"$gte": since}})
     total_calls    = await db.call_logs.count_documents({"user_id": user_id, "timestamp": {"$gte": since}})
     total_appts    = await db.calendar_events.count_documents({"user_id": user_id, "starts_at": {"$gte": since}})
-    total_invoices = await db.invoices.count_documents({"user_id": user_id, "created_at": {"$gte": since}})
+    total_invoices_cursor = await db.invoices.aggregate([
+        {"$match": {"owner_user_id": user_id, "created_at": {"$gte": since}, "status": "paid"}},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+    ]).to_list(None)
+    total_invoices = total_invoices_cursor[0]["total"] if total_invoices_cursor else 0
+    total_posts    = await db.social_posts.count_documents({"user_id": user_id, "created_at": {"$gte": since}})
+    total_leases   = await db.agreements.count_documents({"user_id": user_id, "agreement_type": "lease", "created_at": {"$gte": since}})
+    total_agreements = await db.agreements.count_documents({"user_id": user_id, "agreement_type": {"$ne": "lease"}, "created_at": {"$gte": since}})
 
     # ── Daily trend ───────────────────────────────────────────────────────────
-    async def daily(collection: str, date_field: str) -> dict[str, int]:
+    async def daily(collection: str, date_field: str, user_field: str = "user_id", extra_match: dict = None, sum_field: str = None) -> dict[str, float]:
+        match_query = {user_field: user_id, date_field: {"$gte": since}}
+        if extra_match:
+            match_query.update(extra_match)
+            
+        group_expr = {"$sum": f"${sum_field}"} if sum_field else {"$sum": 1}
+        
         pipeline = [
-            {"$match": {"user_id": user_id, date_field: {"$gte": since}}},
+            {"$match": match_query},
             {"$group": {
                 "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": f"${date_field}"}},
-                "count": {"$sum": 1},
+                "count": group_expr,
             }},
         ]
-        out: dict[str, int] = {}
+        out: dict[str, float] = {}
         async for doc in db[collection].aggregate(pipeline):
             out[doc["_id"]] = doc["count"]
         return out
 
     import asyncio as _asyncio
-    c_t, ca_t, ap_t, inv_t = await _asyncio.gather(
+    c_t, ca_t, ap_t, inv_t, p_t, l_t, a_t = await _asyncio.gather(
         daily("contacts",      "created_at"),
         daily("call_logs",     "timestamp"),
         daily("calendar_events", "starts_at"),
-        daily("invoices",      "created_at"),
+        daily("invoices",      "created_at", user_field="owner_user_id", extra_match={"status": "paid"}, sum_field="total_amount"),
+        daily("social_posts",  "created_at"),
+        daily("agreements",    "created_at", extra_match={"agreement_type": "lease"}),
+        daily("agreements",    "created_at", extra_match={"agreement_type": {"$ne": "lease"}}),
     )
 
     daily_trend = []
@@ -970,6 +1016,9 @@ async def member_analysis(
             "calls":        ca_t.get(day, 0),
             "appointments": ap_t.get(day, 0),
             "invoices":     inv_t.get(day, 0),
+            "posts":        p_t.get(day, 0),
+            "leases":       l_t.get(day, 0),
+            "agreements":   a_t.get(day, 0),
         })
 
     # ── Recent activity ───────────────────────────────────────────────────────
@@ -992,7 +1041,7 @@ async def member_analysis(
     ).sort("starts_at", -1).limit(5).to_list(None))
 
     recent_invoices = _fmt(await db.invoices.find(
-        {"user_id": user_id},
+        {"owner_user_id": user_id},
         {"_id": 1, "recipient_name": 1, "total_amount": 1, "status": 1, "created_at": 1},
     ).sort("created_at", -1).limit(5).to_list(None))
 
@@ -1007,7 +1056,7 @@ async def member_analysis(
 
     # ── Invoice status breakdown ──────────────────────────────────────────────
     inv_status_pipeline = [
-        {"$match": {"user_id": user_id, "created_at": {"$gte": since}}},
+        {"$match": {"owner_user_id": user_id, "created_at": {"$gte": since}}},
         {"$group": {"_id": "$status", "count": {"$sum": 1}}},
     ]
     invoice_breakdown: dict[str, int] = {}
@@ -1024,7 +1073,10 @@ async def member_analysis(
                 "calls":        total_calls,
                 "appointments": total_appts,
                 "invoices":     total_invoices,
-                "total_activity": total_contacts + total_calls + total_appts + total_invoices,
+                "posts":        total_posts,
+                "leases":       total_leases,
+                "agreements":   total_agreements,
+                "total_activity": total_contacts + total_calls + total_appts + total_invoices + total_posts + total_leases + total_agreements,
             },
             "daily_trend": daily_trend,
             "call_breakdown":    call_breakdown,

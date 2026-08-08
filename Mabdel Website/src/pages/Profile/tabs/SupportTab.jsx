@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Loader2, Send, UserRound } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Flag, Loader2, Send, UserRound } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
-import { INPUT } from '../shared';
+import { INPUT, LABEL } from '../shared';
 import { useLanguage } from '../../../context/LanguageContext';
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
@@ -27,6 +27,14 @@ function SupportTab() {
   const listRef = useRef(null);
   const pollIntervalRef = useRef(null);
   const isMountedRef = useRef(false);
+
+  const [reportCategories, setReportCategories] = useState([]);
+  const [reportCategory, setReportCategory] = useState('other');
+  const [reportSubject, setReportSubject] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   const loadSupportState = useCallback(async () => {
     const [sessionResponse, messagesResponse] = await Promise.all([
@@ -88,6 +96,41 @@ function SupportTab() {
     () => (Array.isArray(session?.quick_replies) ? session.quick_replies : []),
     [session],
   );
+
+  useEffect(() => {
+    smartflowApi
+      .getReportCategories()
+      .then((response) => {
+        const data = getApiData(response);
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setReportCategories(items);
+        if (items.length && !items.some((item) => item?.key === reportCategory)) {
+          setReportCategory(items[0].key);
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function submitReport() {
+    const subject = reportSubject.trim();
+    const description = reportDescription.trim();
+    if (!subject || !description) return;
+
+    setReportSubmitting(true);
+    setReportError('');
+    setReportSuccess(false);
+    try {
+      await smartflowApi.createReport({ category: reportCategory, subject, description });
+      setReportSuccess(true);
+      setReportSubject('');
+      setReportDescription('');
+    } catch (submitError) {
+      setReportError(submitError?.response?.data?.message || t('sup_report_error'));
+    } finally {
+      setReportSubmitting(false);
+    }
+  }
 
   async function send() {
     const content = newMsg.trim();
@@ -220,6 +263,78 @@ function SupportTab() {
           className="cursor-pointer rounded-xl bg-[#9333ea] px-5 py-3 font-bold text-[#02080B] transition-colors disabled:opacity-60"
         >
           {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+        </button>
+      </div>
+
+      <div className="space-y-4 rounded-2xl border border-[#243041] bg-[#0A1019] p-4">
+        <div className="flex items-center gap-2">
+          <Flag size={16} className="text-[#9333ea]" />
+          <p className="text-sm font-bold text-white">{t('sup_report_title')}</p>
+        </div>
+        <p className="text-xs text-[#A4B0B7]">{t('sup_report_subtitle')}</p>
+
+        {reportSuccess ? (
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-300">
+            <CheckCircle2 size={14} />
+            <span>{t('sup_report_success')}</span>
+          </div>
+        ) : null}
+
+        {reportError ? (
+          <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-950/20 px-3 py-2 text-xs text-rose-300">
+            <AlertTriangle size={14} />
+            <span>{reportError}</span>
+          </div>
+        ) : null}
+
+        <div>
+          <label className={LABEL}>{t('sup_report_category')}</label>
+          <select
+            value={reportCategory}
+            onChange={(event) => setReportCategory(event.target.value)}
+            className={INPUT}
+          >
+            {reportCategories.length
+              ? reportCategories.map((item) => (
+                  <option key={item.key} value={item.key}>
+                    {item.label}
+                  </option>
+                ))
+              : ['bug', 'billing', 'account', 'ai_response', 'abuse', 'other'].map((key) => (
+                  <option key={key} value={key}>
+                    {key}
+                  </option>
+                ))}
+          </select>
+        </div>
+
+        <div>
+          <label className={LABEL}>{t('sup_report_subject')}</label>
+          <input
+            value={reportSubject}
+            onChange={(event) => setReportSubject(event.target.value)}
+            placeholder={t('sup_report_subject_ph')}
+            className={INPUT}
+          />
+        </div>
+
+        <div>
+          <label className={LABEL}>{t('sup_report_description')}</label>
+          <textarea
+            value={reportDescription}
+            onChange={(event) => setReportDescription(event.target.value)}
+            placeholder={t('sup_report_description_ph')}
+            rows={4}
+            className={`${INPUT} resize-none`}
+          />
+        </div>
+
+        <button
+          onClick={submitReport}
+          disabled={reportSubmitting || !reportSubject.trim() || !reportDescription.trim()}
+          className="cursor-pointer rounded-xl bg-[#9333ea] px-5 py-3 text-sm font-bold text-[#02080B] transition-colors disabled:opacity-60"
+        >
+          {reportSubmitting ? t('sup_report_submitting') : t('sup_report_submit')}
         </button>
       </div>
     </div>

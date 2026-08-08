@@ -46,13 +46,10 @@ export const loginAdmin = async ({ email, password }) => {
 };
 
 export const changeAdminPassword = async ({ currentPassword, newPassword }) => {
-  const body = { currentPassword, newPassword };
+  const body = { current_password: currentPassword, new_password: newPassword };
   for (const method of ["POST", "PUT"]) {
     try {
-      return await apiRequestWithFallback(
-        ["/admin/password", "/auth/admin/change-password"],
-        { method, body }
-      );
+      return await apiRequest("/admin/change-password", { method, body });
     } catch (error) {
       if (error?.status !== 405 && error?.status !== 404) throw error;
     }

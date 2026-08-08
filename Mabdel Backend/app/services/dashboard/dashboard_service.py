@@ -260,8 +260,8 @@ class DashboardService:
             usage_trend=stats.get("usage_trend", [])
         )
 
-    async def get_detailed_ai_logs(self, limit: int = 50) -> list[AILog]:
-        logs = await self.repository.get_recent_ai_logs(limit)
+    async def get_detailed_ai_logs(self, limit: int = 50, organization_id: str | None = None) -> list[AILog]:
+        logs = await self.repository.get_recent_ai_logs(limit, organization_id)
         return [
             AILog(
                 id=str(l["_id"]),
@@ -274,9 +274,9 @@ class DashboardService:
         ]
 
     async def get_paginated_user_reports(
-        self, limit: int = 10, offset: int = 0
+        self, limit: int = 10, offset: int = 0, organization_id: str | None = None
     ) -> PaginatedResponse[UserReportListItem]:
-        items, total = await self.repository.get_user_reports_paginated(limit, offset)
+        items, total = await self.repository.get_user_reports_paginated(limit, offset, organization_id)
         report_items = [
             UserReportListItem(
                 id=str(item["_id"]),
@@ -369,14 +369,14 @@ class DashboardService:
         chats = await self.repository.get_all_chats()
         return [ChatConversation(
             id=str(c["_id"]),
-            user_name=c.get("user_name", "Unknown"),
+            user_name=c.get("user_name") or "Unknown",
             avatar_url=c.get("avatar_url"),
-            last_message=c.get("last_message", ""),
-            timestamp=c.get("last_timestamp", utc_now()),
+            last_message=c.get("last_message") or "",
+            timestamp=c.get("last_timestamp") or utc_now(),
             unread_count=c.get("unread_count", 0)
         ) for c in chats]
 
-    async def get_chat_history(self, user_id: str, admin_id: str) -> list[ChatMessage]:
+    async def get_chat_history(self, user_id: str) -> list[ChatMessage]:
         messages = await self.repository.get_chat_messages(user_id)
         return [ChatMessage(
             id=str(m["_id"]),
@@ -384,8 +384,8 @@ class DashboardService:
             receiver_id=str(m["receiver_id"]),
             message=m.get("message"),
             image_url=m.get("image_url"),
-            timestamp=m.get("timestamp", utc_now()),
-            is_me=(str(m["sender_id"]) == admin_id)
+            timestamp=m.get("timestamp") or utc_now(),
+            is_me=(str(m["sender_id"]) == "admin")
         ) for m in messages]
 
     async def send_chat_message(self, admin_id: str, user_id: str, text: str | None = None, image_url: str | None = None):

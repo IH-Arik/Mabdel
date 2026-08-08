@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -268,29 +268,51 @@ class DashboardRepository:
         ]
         error_breakdown = await self.db.ai_logs.aggregate(error_pipeline).to_list(length=100)
 
+        # 4. Daily Usage Trend (last 7 days)
+        trend_start = utc_now() - timedelta(days=6)
+        trend_pipeline = [
+            {"$match": {**filters, "timestamp": {"$gte": trend_start}}},
+            {
+                "$group": {
+                    "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$timestamp"}},
+                    "requests": {"$sum": 1},
+                    "tokens": {"$sum": "$tokens_used"},
+                }
+            },
+            {"$sort": {"_id": 1}},
+        ]
+        trend_rows = await self.db.ai_logs.aggregate(trend_pipeline).to_list(length=31)
+        usage_trend = [
+            {"date": row["_id"], "requests": row["requests"], "tokens": row.get("tokens", 0)}
+            for row in trend_rows
+        ]
+
         if not result:
             return {
                 "total": 0, "success_rate": 100.0, "avg_time": 0.0, "total_tokens": 0,
-                "task_distribution": [], "error_breakdown": []
+                "task_distribution": [], "error_breakdown": [], "usage_trend": usage_trend
             }
-        
+
         return {
             "total": result[0]["total"],
             "success_rate": (result[0]["success"] / result[0]["total"]) * 100,
             "avg_time": result[0].get("avg_time", 0.0),
             "total_tokens": result[0].get("total_tokens", 0),
             "task_distribution": task_distribution,
-            "error_breakdown": error_breakdown
+            "error_breakdown": error_breakdown,
+            "usage_trend": usage_trend
         }
 
-    async def get_recent_ai_logs(self, limit: int = 50) -> list[dict[str, Any]]:
-        return await self.db.ai_logs.find().sort("timestamp", -1).limit(limit).to_list(length=limit)
+    async def get_recent_ai_logs(self, limit: int = 50, organization_id: str | None = None) -> list[dict[str, Any]]:
+        filters = {"organization_id": organization_id} if organization_id else {}
+        return await self.db.ai_logs.find(filters).sort("timestamp", -1).limit(limit).to_list(length=limit)
 
     async def get_user_reports_paginated(
-        self, limit: int = 10, offset: int = 0
+        self, limit: int = 10, offset: int = 0, organization_id: str | None = None
     ) -> tuple[list[dict[str, Any]], int]:
-        total = await self.db.user_reports.count_documents({})
-        cursor = self.db.user_reports.find().sort("created_at", -1).skip(offset).limit(limit)
+        filters = {"organization_id": organization_id} if organization_id else {}
+        total = await self.db.user_reports.count_documents(filters)
+        cursor = self.db.user_reports.find(filters).sort("created_at", -1).skip(offset).limit(limit)
         items = await cursor.to_list(length=limit)
         return items, total
 
@@ -338,23 +360,94 @@ class DashboardRepository:
         return result.modified_count > 0 or result.upserted_id is not None
 
     async def get_all_chats(self) -> list[dict[str, Any]]:
-        # This can be improved with $lookup and $group in a real production environment
-        return await self.db.conversations.find().sort("last_timestamp", -1).to_list(length=100)
+        pipeline = [
+            {"$match": {"status": {"$ne": "closed"}}},
+            {"$addFields": {"user_id_obj": {"$toObjectId": "$user_id"}}},
+            {
+                "$lookup": {
+                    "from": "support_messages",
+                    "let": {"sid": {"$toString": "$_id"}},
+                    "pipeline": [
+                        {"$match": {"$expr": {"$eq": ["$session_id", "$$sid"]}}},
+                        {"$sort": {"created_at": -1}},
+                        {"$limit": 1}
+                    ],
+                    "as": "last_msg"
+                }
+            },
+            {"$unwind": {"path": "$last_msg", "preserveNullAndEmptyArrays": True}},
+            {"$sort": {"updated_at": -1}},
+            {"$limit": 100}
+        ]
+        
+        sessions = await self.db.support_sessions.aggregate(pipeline).to_list(length=100)
+        user_ids = list(set([s["user_id"] for s in sessions if s.get("user_id")]))
+        users = await self.db.users.find({"_id": {"$in": [ObjectId(uid) for uid in user_ids if ObjectId.is_valid(uid)]}}).to_list(length=100)
+        user_map = {str(u["_id"]): u for u in users}
+
+        formatted_chats = []
+        for s in sessions:
+            user_details = user_map.get(s.get("user_id"), {})
+            last_msg = s.get("last_msg", {})
+            
+            chat = {
+                "_id": s["_id"],
+                "user_name": user_details.get("full_name", "Unknown User"),
+                "avatar_url": user_details.get("avatar_url"),
+                "last_message": last_msg.get("content", s.get("topic", "")),
+                "last_timestamp": last_msg.get("created_at", s.get("updated_at")),
+                "unread_count": 0
+            }
+            formatted_chats.append(chat)
+            
+        return formatted_chats
 
     async def get_chat_messages(self, user_id: str, limit: int = 50) -> list[dict[str, Any]]:
-        return await self.db.messages.find(
-            {"$or": [{"sender_id": user_id}, {"receiver_id": user_id}]}
-        ).sort("timestamp", 1).to_list(length=limit)
+        # user_id here is actually the session_id coming from the admin route
+        messages = await self.db.support_messages.find(
+            {"session_id": user_id}
+        ).sort("created_at", 1).to_list(length=limit)
+        
+        formatted_messages = []
+        for m in messages:
+            is_support = m.get("sender_type") == "support"
+            formatted_messages.append({
+                "_id": m["_id"],
+                "sender_id": "admin" if is_support else m.get("user_id"),
+                "receiver_id": m.get("user_id") if is_support else "admin",
+                "message": m.get("content"),
+                "image_url": m.get("attachment_url"),
+                "timestamp": m.get("created_at"),
+            })
+        return formatted_messages
 
     async def save_message(self, message_dict: dict[str, Any]):
-        await self.db.messages.insert_one(message_dict)
-        # Also update last message in conversation
-        await self.db.conversations.update_one(
-            {"user_id": message_dict["receiver_id"]},
-            {"$set": {
-                "last_message": message_dict.get("message", "[Image]"),
-                "last_timestamp": message_dict["timestamp"]
-            }},
-            upsert=True
+        from app.core.exceptions import AppException
+        from bson import ObjectId
+        
+        session_id = message_dict["receiver_id"]
+        
+        if not ObjectId.is_valid(session_id):
+            raise AppException(status_code=400, code="INVALID_ID", message="Invalid session ID.")
+            
+        session = await self.db.support_sessions.find_one({"_id": ObjectId(session_id)})
+        if not session:
+            raise AppException(status_code=404, code="NOT_FOUND", message="Session not found.")
+            
+        msg = {
+            "session_id": session_id,
+            "user_id": session["user_id"],
+            "sender_type": "support",
+            "sender_name": "Support Agent",
+            "sender_avatar_url": None,
+            "content": message_dict.get("message", ""),
+            "attachment_url": message_dict.get("image_url"),
+            "created_at": message_dict.get("timestamp")
+        }
+        await self.db.support_messages.insert_one(msg)
+        
+        await self.db.support_sessions.update_one(
+            {"_id": ObjectId(session_id)},
+            {"$set": {"updated_at": message_dict.get("timestamp")}}
         )
 

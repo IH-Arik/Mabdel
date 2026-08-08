@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 // Pages
 import Dashboard from './pages/Dashboard';
 import Conversations from './pages/Conversations';
+import UnifiedConversations from './pages/UnifiedConversations';
 import Calls from './pages/Calls';
 import AIWorkflow from './pages/AIWorkflow';
 import Contacts from './pages/Contacts';
@@ -54,6 +55,7 @@ function App() {
         <Route element={isAuthenticated ? <MainLayout /> : <Navigate to="/login" />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/conversations" element={<Conversations />} />
+          <Route path="/unified-conversation" element={<UnifiedConversations />} />
           <Route path="/ai-workflow" element={<AIWorkflow />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/groups" element={<Groups />} />

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, Building2, Bell, CreditCard, Mic, LifeBuoy, Cpu, Shield } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuthStore } from '../../store/useAuthStore';
 
 import ProfileTab from './tabs/ProfileTab';
 import BusinessProfileTab from './tabs/BusinessProfileTab';
@@ -18,11 +19,14 @@ export default function Profile() {
   const { t } = useLanguage();
   const location = useLocation();
   const [active, setActive] = useState('profile');
+  const { user } = useAuthStore();
+
+  const isOwner = user?.role === 'owner' || user?.primary_role === 'owner';
 
   const tabs = [
     { id: 'profile', labelKey: 'prof_tab_personal', icon: User },
     { id: 'business', labelKey: 'prof_tab_business', icon: Building2 },
-    { id: 'subscription', labelKey: 'prof_tab_subscription', icon: CreditCard },
+    ...(isOwner ? [{ id: 'subscription', labelKey: 'prof_tab_subscription', icon: CreditCard }] : []),
     { id: 'voice', labelKey: 'prof_tab_voice', icon: Mic },
     { id: 'notifications', labelKey: 'prof_tab_notifications', icon: Bell },
     { id: 'account', labelKey: 'prof_tab_account', icon: Shield },

@@ -184,9 +184,10 @@ class RBACRepository:
 
     # ─── Effective Permission Lookup ──────────────────────────────────────────
 
-    async def get_user_effective_permissions(self, user_id: str) -> set[str]:
+    async def get_user_effective_permissions(self, user_id: str, user_role_docs: list[dict] | None = None) -> set[str]:
         """Return set of 'module:action' strings for a user based on all their roles."""
-        user_role_docs = await self.get_user_roles(user_id)
+        if user_role_docs is None:
+            user_role_docs = await self.get_user_roles(user_id)
         if not user_role_docs:
             return set()
 

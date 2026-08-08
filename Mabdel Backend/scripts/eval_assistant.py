@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import os
 from pathlib import Path
@@ -26,12 +27,12 @@ test_cases = [
     }
 ]
 
-def run_eval():
+async def run_eval():
     print("Starting Assistant Evaluation...\n")
     for case in test_cases:
         print(f"Testing Command: '{case['command']}'")
-        state = run_assistant_workflow(case['command'])
-        
+        state = await run_assistant_workflow(case['command'])
+
         print(f"  - Detected Intent: {state.intent}")
         print(f"  - Action Required: {state.action_required}")
         print(f"  - AI Summary/Question: {state.summary}")
@@ -44,4 +45,4 @@ def run_eval():
         print("-" * 30)
 
 if __name__ == "__main__":
-    run_eval()
+    asyncio.run(run_eval())

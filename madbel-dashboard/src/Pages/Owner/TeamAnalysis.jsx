@@ -10,6 +10,9 @@ import {
   TrendingUp,
   Award,
   ChevronRight,
+  MessageSquare,
+  Home,
+  FileSignature,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -39,7 +42,7 @@ const PIE_COLORS = ["#17b4c9", "#6366f1", "#10b981", "#f59e0b", "#ef4444"];
 const STAT_CARDS = [
   {
     key: "contacts",
-    label: "Contacts Added",
+    label: "Leads Captured",
     icon: Users,
     color: "text-[#17b4c9]",
     bg: "bg-cyan-50",
@@ -47,7 +50,7 @@ const STAT_CARDS = [
   },
   {
     key: "calls",
-    label: "Calls Made",
+    label: "Calls Answered",
     icon: Phone,
     color: "text-indigo-500",
     bg: "bg-indigo-50",
@@ -55,7 +58,7 @@ const STAT_CARDS = [
   },
   {
     key: "appointments",
-    label: "Appointments",
+    label: "Appointments Reserved",
     icon: Calendar,
     color: "text-emerald-500",
     bg: "bg-emerald-50",
@@ -63,11 +66,38 @@ const STAT_CARDS = [
   },
   {
     key: "invoices",
-    label: "Invoices",
+    label: "Paid Invoices",
     icon: FileText,
     color: "text-amber-500",
     bg: "bg-amber-50",
     border: "hover:border-amber-500/50",
+  },
+];
+
+const NEW_STAT_CARDS = [
+  {
+    key: "posts",
+    label: "Posts Created",
+    icon: MessageSquare,
+    color: "text-pink-500",
+    bg: "bg-pink-50",
+    border: "hover:border-pink-500/50",
+  },
+  {
+    key: "leases",
+    label: "Leases Created",
+    icon: Home,
+    color: "text-blue-500",
+    bg: "bg-blue-50",
+    border: "hover:border-blue-500/50",
+  },
+  {
+    key: "agreements",
+    label: "Agreements Created",
+    icon: FileSignature,
+    color: "text-violet-500",
+    bg: "bg-violet-50",
+    border: "hover:border-violet-500/50",
   },
 ];
 
@@ -94,6 +124,7 @@ const TeamAnalysis = () => {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   const roleDist = data
@@ -157,19 +188,39 @@ const TeamAnalysis = () => {
 
       {/* Totals */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {STAT_CARDS.map(({ key, label, icon: Icon, color, bg, border }) => (
+        {STAT_CARDS.map((stat) => (
           <div
-            key={key}
-            className={`rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex items-center gap-4 transition-all ${border}`}
+            key={stat.key}
+            className={`rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex items-center gap-4 transition-all ${stat.border}`}
           >
-            <div className={`${bg} rounded-xl p-3`}>
-              <Icon className={`w-5 h-5 ${color}`} />
+            <div className={`${stat.bg} rounded-xl p-3`}>
+              <stat.icon className={`w-5 h-5 ${stat.color}`} />
             </div>
             <div>
               <p className="text-xl font-bold text-slate-900">
-                {(data?.totals?.[key] ?? 0).toLocaleString()}
+                {stat.key === 'invoices' ? '$' : ''}{(data?.totals?.[stat.key] ?? 0).toLocaleString()}
               </p>
-              <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{stat.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {/* New Totals (Posts, Leases, Agreements) */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        {NEW_STAT_CARDS.map((stat) => (
+          <div
+            key={stat.key}
+            className={`rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex items-center gap-4 transition-all ${stat.border}`}
+          >
+            <div className={`${stat.bg} rounded-xl p-3`}>
+              <stat.icon className={`w-5 h-5 ${stat.color}`} />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-slate-900">
+                {(data?.totals?.[stat.key] ?? 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">{stat.label}</p>
             </div>
           </div>
         ))}
@@ -210,6 +261,9 @@ const TeamAnalysis = () => {
               <Area type="monotone" dataKey="calls" stroke="#6366f1" fill="url(#gCalls)" strokeWidth={2} name="Calls" />
               <Area type="monotone" dataKey="appointments" stroke="#10b981" fill="none" strokeWidth={2} strokeDasharray="4 2" name="Appointments" />
               <Area type="monotone" dataKey="invoices" stroke="#f59e0b" fill="none" strokeWidth={2} strokeDasharray="4 2" name="Invoices" />
+              <Area type="monotone" dataKey="posts" stroke="#ec4899" fill="none" strokeWidth={2} strokeDasharray="4 2" name="Posts" />
+              <Area type="monotone" dataKey="leases" stroke="#3b82f6" fill="none" strokeWidth={2} strokeDasharray="4 2" name="Leases" />
+              <Area type="monotone" dataKey="agreements" stroke="#8b5cf6" fill="none" strokeWidth={2} strokeDasharray="4 2" name="Agreements" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -244,6 +298,9 @@ const TeamAnalysis = () => {
                 <Bar dataKey="calls" name="Calls" fill="#6366f1" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="appointments" name="Appts" fill="#10b981" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="invoices" name="Invoices" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="posts" name="Posts" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="leases" name="Leases" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="agreements" name="Agreements" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -371,7 +428,7 @@ const TeamAnalysis = () => {
                     <td className="px-4 py-3 text-right font-mono text-slate-700">{m.contacts}</td>
                     <td className="px-4 py-3 text-right font-mono text-slate-700">{m.calls}</td>
                     <td className="px-4 py-3 text-right font-mono text-slate-700">{m.appointments}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-700">{m.invoices}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-700">${(m.invoices || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <span className="font-bold text-slate-900">{m.total_activity}</span>

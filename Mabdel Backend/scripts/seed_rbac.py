@@ -204,6 +204,9 @@ ROLES: list[dict] = [
             ("roles",        "view"),
             ("roles",        "manage"),
             ("audit_logs",   "view"),
+            ("ai_logs",      "view"),
+            ("reports",      "view"),
+            ("reports",      "approve"),
             # CRM — full access
             ("contacts",     "view"),
             ("contacts",     "create"),

@@ -22,7 +22,6 @@ import {
   X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -38,12 +37,7 @@ const PLATFORM_COLORS = {
 
 const FILTER_OPTION_DEFS = [
   { key: 'all', labelKey: 'conv_filter_all' },
-  { key: 'ai', label: 'AI' },
-  { key: 'whatsapp', label: 'WhatsApp' },
-  { key: 'sms', label: 'SMS' },
-  { key: 'email', label: 'Email' },
-  { key: 'facebook', label: 'Facebook' },
-  { key: 'instagram', label: 'Instagram' },
+  { key: 'unread', labelKey: 'notif_filter_unread' },
 ];
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
@@ -70,6 +64,8 @@ const toMessageArray = (value) => {
   if (Array.isArray(value?.data?.messages)) return value.data.messages;
   return [];
 };
+
+const EXTERNAL_PLATFORMS = ['whatsapp', 'facebook', 'instagram', 'email', 'sms'];
 
 const normalizePlatform = (value) => {
   const lower = String(value || '').toLowerCase();
@@ -113,6 +109,9 @@ const normalizeConversation = (conversation, t) => ({
 
 const mergeConversationIntoList = (list, conversation, t) => {
   const normalized = normalizeConversation(conversation, t);
+  if (EXTERNAL_PLATFORMS.includes(normalizePlatform(normalized.platform))) {
+    return list;
+  }
   const withoutCurrent = list.filter((item) => item.id !== normalized.id);
   return [normalized, ...withoutCurrent].sort(
     (left, right) => new Date(right.last_message_time || 0).getTime() - new Date(left.last_message_time || 0).getTime(),
@@ -479,11 +478,10 @@ function AISuggestion({ conversationId, onUse, t }) {
 }
 
 export default function Conversations() {
-  const navigate = useNavigate();
   const { t } = useLanguage();
   const [allConversations, setAllConversations] = useState([]);
   const [conversations, setConversations] = useState([]);
-  const [summary, setSummary] = useState({});
+  const [, setSummary] = useState({});
   const [selectedId, setSelectedId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -492,7 +490,7 @@ export default function Conversations() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [filterPlatform, setFilterPlatform] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('all');
   const [archiving, setArchiving] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [forwardMessage, setForwardMessage] = useState(null);
@@ -531,36 +529,32 @@ export default function Conversations() {
   const fetchConversationCollections = useCallback(
     async (options = {}) => {
       const searchValue = options.search ?? search;
-      const platformValue = options.platform ?? filterPlatform;
+      const filterValue = options.filter ?? activeFilter;
       const params = {
         page: 1,
         page_size: 100,
         archived: false,
       };
       if (searchValue.trim()) params.search = searchValue.trim();
-      if (platformValue && platformValue !== 'all') params.platform = platformValue;
 
-      const [allResponse, visibleResponse] = await Promise.all([
-        smartflowApi.getConversations({ page: 1, page_size: 100, archived: false }),
-        smartflowApi.getConversations(params),
-      ]);
+      const response = await smartflowApi.getConversations(params);
+      const data = getApiData(response);
 
-      const allData = getApiData(allResponse);
-      const visibleData = getApiData(visibleResponse);
-
-      const allItems = toArray(allData).map((item) => normalizeConversation(item, t));
-      const visibleItems = toArray(visibleData).map((item) => normalizeConversation(item, t));
+      const allItems = toArray(data).map((item) => normalizeConversation(item, t)).filter((item) => !EXTERNAL_PLATFORMS.includes(normalizePlatform(item.platform)));
+      const visibleItems = filterValue === 'unread'
+        ? allItems.filter(item => item.unread_count > 0)
+        : allItems;
 
       setAllConversations(allItems);
       setConversations(visibleItems);
-      setSummary(allData?.summary || {});
+      setSummary(data?.summary || {});
 
       if (selectedId && !allItems.some((item) => item.id === selectedId)) {
         setSelectedId(null);
         setMessages([]);
       }
     },
-    [filterPlatform, search, selectedId, t],
+    [activeFilter, search, selectedId, t],
   );
 
   const fetchMessages = useCallback(async (conversationId, forceRefresh = false) => {
@@ -624,23 +618,19 @@ export default function Conversations() {
           archived: false,
         };
         if (searchValue) params.search = searchValue;
-        if (filterPlatform && filterPlatform !== 'all') params.platform = filterPlatform;
 
-        const [allResponse, visibleResponse] = await Promise.all([
-          smartflowApi.getConversations({ page: 1, page_size: 100, archived: false }),
-          smartflowApi.getConversations(params),
-        ]);
-
-        const allData = getApiData(allResponse);
-        const visibleData = getApiData(visibleResponse);
-        const allItems = toArray(allData).map((item) => normalizeConversation(item, t));
-        const visibleItems = toArray(visibleData).map((item) => normalizeConversation(item, t));
+        const response = await smartflowApi.getConversations(params);
+        const data = getApiData(response);
+        const allItems = toArray(data).map((item) => normalizeConversation(item, t)).filter((item) => !EXTERNAL_PLATFORMS.includes(normalizePlatform(item.platform)));
+        const visibleItems = activeFilter === 'unread' 
+          ? allItems.filter(item => item.unread_count > 0)
+          : allItems;
 
         if (!active) return;
 
         setAllConversations(allItems);
         setConversations(visibleItems);
-        setSummary(allData?.summary || {});
+        setSummary(data?.summary || {});
         setError('');
 
         if (selectedId && !allItems.some((item) => item.id === selectedId)) {
@@ -662,7 +652,7 @@ export default function Conversations() {
       active = false;
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, [filterPlatform, search, selectedId, t]);
+  }, [activeFilter, search, selectedId, t]);
 
   useEffect(() => {
     const token = getStoredAccessToken();
@@ -683,9 +673,9 @@ export default function Conversations() {
           setAllConversations((previous) => mergeConversationIntoList(previous, nextConversation, t));
           setConversations((previous) => {
             const merged = mergeConversationIntoList(previous, nextConversation, t);
-            return filterPlatform === 'all'
-              ? merged
-              : merged.filter((item) => normalizePlatform(item.platform) === filterPlatform);
+            return activeFilter === 'unread'
+              ? merged.filter((item) => item.unread_count > 0)
+              : merged;
           });
         }
 
@@ -701,7 +691,7 @@ export default function Conversations() {
       socket.close();
       inboxSocketRef.current = null;
     };
-  }, [filterPlatform, t]);
+  }, [activeFilter, t]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -753,10 +743,7 @@ export default function Conversations() {
     [allConversations, conversations, selectedId],
   );
 
-  const visibleFilters = useMemo(
-    () => filterOptions.filter((option) => option.key !== 'ai' || allConversations.some((item) => normalizePlatform(item.platform) === 'ai')),
-    [allConversations, filterOptions],
-  );
+
 
   const filterCounts = useMemo(() => {
     const counts = Object.fromEntries(filterOptions.map((option) => [option.key, 0]));
@@ -936,7 +923,7 @@ export default function Conversations() {
 
   const headerName = selectedConversation?.contact_name || t('conv_header_fallback');
   const isLiveSupport = headerName.toLowerCase() === 'live support';
-  const isAiAssistant = isAiAssistantConversation(selectedConversation);
+
   const isGlobalChat = Boolean(selectedConversation?.is_global_chat);
 
   return (
@@ -963,12 +950,12 @@ export default function Conversations() {
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            {visibleFilters.map((option) => (
+            {filterOptions.map((option) => (
               <button
                 key={option.key}
-                onClick={() => setFilterPlatform(option.key)}
+                onClick={() => setActiveFilter(option.key)}
                 className={`cursor-pointer rounded-xl px-3 py-1.5 text-xs font-black transition-all ${
-                  filterPlatform === option.key ? 'bg-[#9333ea]/20 text-[#c084fc] shadow-sm' : 'text-slate-400 hover:text-white'
+                  activeFilter === option.key ? 'bg-[#9333ea]/20 text-[#c084fc] shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 {option.label}

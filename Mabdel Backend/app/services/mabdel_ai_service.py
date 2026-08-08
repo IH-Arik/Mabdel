@@ -8,6 +8,7 @@ from io import BytesIO
 from app.core.config import settings
 from app.core.exceptions import AppException
 from app.workflows.graph import run_assistant_workflow
+from app.workflows.intent_utils import ALLOWED_INTENTS, infer_intent_from_command
 
 
 class MabdelAIService:
@@ -28,27 +29,34 @@ class MabdelAIService:
         {"id": "neutral_assistant", "label": "Neutral Assistant", "gender": "neutral", "style": "balanced and steady", "provider_voice": "alloy"},
     ]
 
-    def generate_response(self, user_text: str, history: Iterable[dict] | None = None) -> dict:
+    async def generate_response(self, user_text: str, history: Iterable[dict] | None = None) -> dict:
         normalized = user_text.lower().strip()
         history_list = list(history or [])
-        workflow_state = run_assistant_workflow(user_text, history=history_list)
-        if workflow_state.intent != "unknown":
-            command_type = workflow_state.intent
-            navigation = self._navigation_for_intent(workflow_state.intent, user_text)
-            return {
-                "state": "responded",
-                "content": workflow_state.summary or self._workflow_response_text(workflow_state.intent),
-                "command_type": command_type,
-                "workflow": {
-                    "engine": workflow_state.output.get("workflow_engine"),
-                    "intent": workflow_state.intent,
-                    "summary": workflow_state.summary,
-                    "output": workflow_state.output,
-                },
-                "navigation": navigation,
-            }
 
-        llm_response = self._generate_with_openai(user_text, history)
+        # The workflow graph's own intent parser falls back to an LLM call whenever the
+        # cheap regex heuristic below finds no match. Checking the heuristic here first lets
+        # us skip that whole graph invocation for ordinary chat — saving one full OpenAI
+        # round trip per message — instead of running it just to be told "unknown".
+        heuristic_intent = infer_intent_from_command(user_text)
+        if heuristic_intent in ALLOWED_INTENTS:
+            workflow_state = await run_assistant_workflow(user_text, history=history_list)
+            if workflow_state.intent != "unknown":
+                command_type = workflow_state.intent
+                navigation = self._navigation_for_intent(workflow_state.intent, user_text)
+                return {
+                    "state": "responded",
+                    "content": workflow_state.summary or self._workflow_response_text(workflow_state.intent),
+                    "command_type": command_type,
+                    "workflow": {
+                        "engine": workflow_state.output.get("workflow_engine"),
+                        "intent": workflow_state.intent,
+                        "summary": workflow_state.summary,
+                        "output": workflow_state.output,
+                    },
+                    "navigation": navigation,
+                }
+
+        llm_response = await self._generate_with_openai(user_text, history)
         if llm_response:
             return {
                 "state": "responded",
@@ -267,12 +275,12 @@ class MabdelAIService:
         except Exception:
             return None
 
-    def _generate_with_openai(self, user_text: str, history: Iterable[dict] | None) -> str | None:
+    async def _generate_with_openai(self, user_text: str, history: Iterable[dict] | None) -> str | None:
         if not settings.OPENAI_API_KEY:
             return None
 
         try:
-            from openai import OpenAI
+            from openai import AsyncOpenAI
         except ImportError:
             return None
 
@@ -284,9 +292,18 @@ class MabdelAIService:
                 messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": user_text})
 
+        # GPT-5 family models default to heavier internal reasoning, adding multi-second
+        # latency even for simple conversational replies. Requesting minimal reasoning +
+        # low verbosity keeps this a fast chat reply instead of a slow reasoning pass.
+        extra_kwargs = {}
+        if settings.OPENAI_MODEL.startswith("gpt-5"):
+            extra_kwargs = {"reasoning_effort": "low", "verbosity": "low"}
+
         try:
-            client = OpenAI(api_key=settings.OPENAI_API_KEY)
-            response = client.chat.completions.create(model=settings.OPENAI_MODEL, messages=messages)
+            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            response = await client.chat.completions.create(
+                model=settings.OPENAI_MODEL, messages=messages, **extra_kwargs
+            )
             text = response.choices[0].message.content.strip()
             return text or None
         except Exception:

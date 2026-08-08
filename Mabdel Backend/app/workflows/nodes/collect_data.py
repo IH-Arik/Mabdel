@@ -4,15 +4,15 @@ from app.workflows.state import WorkflowState
 from app.workflows.utils import call_llm, read_prompt
 
 
-def collect_data(state: WorkflowState) -> WorkflowState:
+async def collect_data(state: WorkflowState) -> WorkflowState:
     if state.intent == "unknown":
         return state
 
     template = read_prompt("data_collector.txt")
     prompt = template.format(intent=state.intent, command=state.command)
-    
+
     try:
-        response_text = call_llm(prompt)
+        response_text = await call_llm(prompt)
         # Handle cases where LLM might wrap JSON in code blocks
         if "```json" in response_text:
             response_text = response_text.split("```json")[1].split("```")[0].strip()

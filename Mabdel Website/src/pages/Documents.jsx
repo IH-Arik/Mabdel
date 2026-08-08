@@ -1913,12 +1913,35 @@ export default function Documents() {
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
         <button
+          onClick={() => { setActive('agreements'); setShowCreate(false); }}
+          className={`px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer ${active === 'agreements' ? 'bg-[#9333ea]/10 text-white border-[#9333ea]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent'}`}
+        >
+          <FileCheck2 size={16} className={active === 'agreements' ? 'text-[#9333ea]' : ''} />
+          {t('docs_tab_agreements')}
+          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#243041] text-[#A4B0B7] text-xs">
+            {agreements.length}
+          </span>
+        </button>
+
+        <button
           onClick={() => navigate('/invoices')}
           className="px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent"
         >
           <FileText size={16} />
           {t('docs_nav_invoice')}
         </button>
+
+        <button
+          onClick={() => { setActive('leases'); setShowCreate(false); }}
+          className={`px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer ${active === 'leases' ? 'bg-[#9333ea]/10 text-white border-[#9333ea]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent'}`}
+        >
+          <ScrollText size={16} className={active === 'leases' ? 'text-[#9333ea]' : ''} />
+          {t('docs_tab_leases')}
+          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#243041] text-[#A4B0B7] text-xs">
+            {leases.length}
+          </span>
+        </button>
+
         <button
           onClick={() => navigate('/create-post')}
           className="px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent"
@@ -1926,23 +1949,6 @@ export default function Documents() {
           <PenLine size={16} />
           {t('docs_nav_create_post')}
         </button>
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const tabLabel = t(tab.labelKey);
-          return (
-            <button
-              key={tab.id}
-              onClick={() => { setActive(tab.id); setShowCreate(false); }}
-              className={`px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer ${active === tab.id ? 'bg-[#9333ea]/10 text-white border-[#9333ea]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent'}`}
-            >
-              <Icon size={16} className={active === tab.id ? 'text-[#9333ea]' : ''} />
-              {tabLabel}
-              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#243041] text-[#A4B0B7] text-xs">
-                {tab.id === 'leases' ? leases.length : agreements.length}
-              </span>
-            </button>
-          );
-        })}
       </div>
 
       <div className={`grid gap-6 items-start ${showCreate && showForm ? 'grid-cols-1 xl:grid-cols-[1fr_420px]' : 'grid-cols-1'}`}>

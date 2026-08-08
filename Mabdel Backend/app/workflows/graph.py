@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable
 
 from app.workflows.edges import route_by_intent
@@ -45,7 +46,13 @@ def _from_workflow_state(state: WorkflowState) -> WorkflowStateData:
     }
 
 
-def _node(fn: Callable[[WorkflowState], WorkflowState]) -> Callable[[WorkflowStateData], WorkflowStateData]:
+def _node(fn: Callable) -> Callable:
+    if inspect.iscoroutinefunction(fn):
+        async def async_wrapped(data: WorkflowStateData) -> WorkflowStateData:
+            return _from_workflow_state(await fn(_to_workflow_state(data)))
+
+        return async_wrapped
+
     def wrapped(data: WorkflowStateData) -> WorkflowStateData:
         return _from_workflow_state(fn(_to_workflow_state(data)))
 
@@ -108,7 +115,7 @@ def _build_langgraph_workflow():
 assistant_workflow_graph = _build_langgraph_workflow()
 
 
-def run_assistant_workflow(command: str, history: list[dict] | None = None) -> WorkflowState:
+async def run_assistant_workflow(command: str, history: list[dict] | None = None) -> WorkflowState:
     initial_state = {
         "command": command,
         "intent": "unknown",
@@ -119,13 +126,13 @@ def run_assistant_workflow(command: str, history: list[dict] | None = None) -> W
     }
 
     if assistant_workflow_graph is not None:
-        result = assistant_workflow_graph.invoke(initial_state)
+        result = await assistant_workflow_graph.ainvoke(initial_state)
         return _to_workflow_state(result)
 
     state = _to_workflow_state(initial_state)
     state.output["workflow_engine"] = "python_fallback"
-    state = parse_intent(state)
-    state = collect_data(state)
+    state = await parse_intent(state)
+    state = await collect_data(state)
 
     route = route_by_intent(state)
     if route == "create_invoice":

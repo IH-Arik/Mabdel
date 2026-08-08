@@ -19,12 +19,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _redis: aioredis.Redis | None = None
+_redis_attempted = False
 
 
 async def _get_redis() -> aioredis.Redis | None:
-    global _redis
-    if _redis is not None:
+    global _redis, _redis_attempted
+    if _redis_attempted:
         return _redis
+    _redis_attempted = True
     try:
         client = aioredis.from_url(
             settings.REDIS_URL,

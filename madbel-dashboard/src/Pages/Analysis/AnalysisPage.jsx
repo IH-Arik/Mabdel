@@ -78,53 +78,9 @@ const AnalysisPage = () => {
   const totalPages = Math.ceil(filteredLogs.length / PAGE_SIZE);
   const pagedLogs = filteredLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Generate dynamic trend if empty
-  const getTrendData = () => {
-    if (stats?.usage_trend && stats.usage_trend.length > 0) {
-      return stats.usage_trend;
-    }
-    // Mock last 7 days trend if empty
-    const trend = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      trend.push({
-        date: dateStr,
-        requests: Math.floor(Math.random() * 50) + 15,
-        tokens: Math.floor(Math.random() * 10000) + 2500,
-      });
-    }
-    return trend;
-  };
-
-  const getTaskData = () => {
-    if (stats?.task_distribution && stats.task_distribution.length > 0) {
-      return stats.task_distribution;
-    }
-    return [
-      { task: "Sneaker Classification", count: 145 },
-      { task: "Authenticity Check", count: 98 },
-      { task: "Brand Recognition", count: 62 },
-      { task: "Quality Grading", count: 35 }
-    ];
-  };
-
-  const getErrorData = () => {
-    if (stats?.error_breakdown && stats.error_breakdown.length > 0) {
-      return stats.error_breakdown;
-    }
-    return [
-      { error: "Rate limit reached", count: 6 },
-      { error: "API Timeout", count: 4 },
-      { error: "Invalid image format", count: 3 },
-      { error: "Model loading failure", count: 1 }
-    ];
-  };
-
-  const trendData = getTrendData();
-  const taskData = getTaskData();
-  const errorData = getErrorData();
+  const trendData = Array.isArray(stats?.usage_trend) ? stats.usage_trend : [];
+  const taskData = Array.isArray(stats?.task_distribution) ? stats.task_distribution : [];
+  const errorData = Array.isArray(stats?.error_breakdown) ? stats.error_breakdown : [];
 
   if (loading) {
     return (
@@ -219,32 +175,39 @@ const AnalysisPage = () => {
       <div className="p-6 bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm">
         <h3 className="text-xl font-bold text-white mb-4">Request & Token Consumption Trend</h3>
         <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#17b4c9" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#17b4c9" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", color: "#f8fafc" }}
-                itemStyle={{ color: "#17b4c9" }}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="requests" 
-                stroke="#17b4c9" 
-                fillOpacity={1} 
-                fill="url(#colorRequests)" 
-                strokeWidth={2}
-                name="Requests"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {trendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#17b4c9" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#17b4c9" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", color: "#f8fafc" }}
+                  itemStyle={{ color: "#17b4c9" }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="requests"
+                  stroke="#17b4c9"
+                  fillOpacity={1}
+                  fill="url(#colorRequests)"
+                  strokeWidth={2}
+                  name="Requests"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
+              <Activity className="h-12 w-12" />
+              <p className="text-lg">No AI activity in the last 7 days.</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -254,26 +217,33 @@ const AnalysisPage = () => {
         <div className="p-6 bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm flex flex-col justify-between">
           <h3 className="text-xl font-bold text-white mb-4">AI Task Distribution</h3>
           <div className="h-[250px] flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={taskData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="count"
-                  nameKey="task"
-                >
-                  {taskData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155" }} />
-                <Legend layout="horizontal" align="center" verticalAlign="bottom" tick={{ fill: "#94a3b8" }} />
-              </PieChart>
-            </ResponsiveContainer>
+            {taskData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={taskData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="count"
+                    nameKey="task"
+                  >
+                    {taskData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155" }} />
+                  <Legend layout="horizontal" align="center" verticalAlign="bottom" tick={{ fill: "#94a3b8" }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-slate-500">
+                <Cpu className="h-12 w-12" />
+                <p className="text-lg">No AI tasks recorded yet.</p>
+              </div>
+            )}
           </div>
         </div>
 
