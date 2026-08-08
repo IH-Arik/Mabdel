@@ -308,31 +308,31 @@ export default function Subscription() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070a13] px-6 py-20 text-white selection:bg-purple-500/30">
+    <div className="min-h-screen bg-[#070a13] px-4 sm:px-6 py-10 sm:py-20 text-white selection:bg-purple-500/30 overflow-x-hidden">
       <div className="fixed left-[-10%] top-[-20%] h-[50%] w-[50%] rounded-full bg-purple-900/20 blur-[120px] pointer-events-none" />
       <div className="fixed bottom-[-20%] right-[-10%] h-[50%] w-[50%] rounded-full bg-teal-900/10 blur-[120px] pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 mx-auto mb-14 max-w-3xl text-center"
+        className="relative z-10 mx-auto mb-10 sm:mb-14 max-w-3xl text-center"
       >
         <button
           onClick={() => navigate("/")}
-          className="mx-auto mb-8 flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-white cursor-pointer"
+          className="mx-auto mb-6 sm:mb-8 flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-400 transition-colors hover:text-white cursor-pointer"
         >
           &larr; {t("sub_btn_back_home")}
         </button>
-        <h1 className="mb-4 text-4xl font-extrabold tracking-tight md:text-5xl">
+        <h1 className="mb-3 sm:mb-4 text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight">
           {t("sub_hero_tag")}{" "}
           <span className="bg-gradient-to-r from-purple-400 to-blue-300 bg-clip-text text-transparent">
             {t("sub_hero_title")}
           </span>
         </h1>
-        <p className="text-lg text-gray-400">{t("sub_hero_subtitle")}</p>
+        <p className="text-sm sm:text-lg text-gray-400 max-w-xl mx-auto leading-relaxed">{t("sub_hero_subtitle")}</p>
       </motion.div>
 
-      <div className="relative z-10 mx-auto grid w-full max-w-[1480px] gap-8 xl:grid-cols-3">
+      <div className="relative z-10 mx-auto grid w-full max-w-[1480px] gap-6 sm:gap-8 xl:grid-cols-3">
         {plans.map((plan, index) => {
           const Icon = plan.icon;
           const isPopular = plan.isPopular;
@@ -343,30 +343,30 @@ export default function Subscription() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.08 * (index + 1) }}
-              className="relative flex min-h-[980px] flex-col overflow-hidden rounded-3xl border border-purple-500/50 bg-gradient-to-b from-gray-800/80 to-gray-900/40 p-8 shadow-xl shadow-purple-500/10 backdrop-blur-md transition-all hover:border-purple-500"
+              className="relative flex min-h-0 xl:min-h-[980px] flex-col overflow-hidden rounded-3xl border border-purple-500/50 bg-gradient-to-b from-gray-800/80 to-gray-900/40 p-5 sm:p-8 shadow-xl shadow-purple-500/10 backdrop-blur-md transition-all hover:border-purple-500"
             >
               {isPopular ? (
-                <div className="absolute right-0 top-0 rounded-bl-xl bg-purple-500 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#070a13]">
+                <div className="absolute right-0 top-0 rounded-bl-xl bg-purple-500 px-3.5 sm:px-4 py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-[#070a13]">
                   {t("sub_badge_most_popular")}
                 </div>
               ) : null}
 
-              <div className="mb-6 mt-2">
-                <h3 className="mb-2 flex items-center gap-2 text-2xl font-bold">
+              <div className="mb-4 sm:mb-6 mt-1 sm:mt-2">
+                <h3 className="mb-2 flex items-center gap-2 text-xl sm:text-2xl font-bold">
                   {Icon ? <Icon className="text-purple-400" size={23} /> : null}
                   {plan.name}
                 </h3>
-                <p className="mb-2 text-sm text-gray-400">{plan.subtitle}</p>
-                <p className="text-sm leading-6 text-gray-300">{plan.description}</p>
+                <p className="mb-2 text-xs sm:text-sm text-gray-400">{plan.subtitle}</p>
+                <p className="text-xs sm:text-sm leading-6 text-gray-300">{plan.description}</p>
               </div>
 
-              <div className="mb-8">
-                <span className="text-4xl font-extrabold">{plan.price}</span>
-                <span className="text-gray-400">{t("sub_per_month")}</span>
+              <div className="mb-6 sm:mb-8">
+                <span className="text-3xl sm:text-4xl font-extrabold">{plan.price}</span>
+                <span className="text-xs sm:text-sm text-gray-400">{t("sub_per_month")}</span>
               </div>
 
-              <section className="mb-8 rounded-3xl border border-gray-800 bg-[#09111d]/90 p-4">
-                <div className="mb-4 flex flex-wrap gap-2">
+              <section className="mb-6 sm:mb-8 rounded-3xl border border-gray-800 bg-[#09111d]/90 p-3.5 sm:p-4">
+                <div className="mb-3 sm:mb-4 flex flex-wrap gap-1.5 sm:gap-2">
                   {[
                     ["included", t("sub_tab_included")],
                     ["usage", t("sub_tab_usage")],
@@ -386,8 +386,8 @@ export default function Subscription() {
                         }
                         className={
                           isActive
-                            ? "rounded-full border border-purple-400 bg-purple-500/10 px-3 py-2 text-xs font-semibold text-purple-200 cursor-pointer"
-                            : "rounded-full border border-gray-700 bg-transparent px-3 py-2 text-xs font-semibold text-gray-400 transition hover:text-white cursor-pointer"
+                            ? "rounded-full border border-purple-400 bg-purple-500/10 px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-purple-200 cursor-pointer"
+                            : "rounded-full border border-gray-700 bg-transparent px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-gray-400 transition hover:text-white cursor-pointer"
                         }
                       >
                         {label}
@@ -397,13 +397,13 @@ export default function Subscription() {
                 </div>
 
                 <div className="mb-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">
+                  <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-purple-300">
                     {activeSections[plan.id] === "included" && t("sub_hdr_included")}
                     {activeSections[plan.id] === "usage" && t("sub_hdr_usage")}
                     {activeSections[plan.id] === "addons" && t("sub_hdr_addons")}
                     {activeSections[plan.id] === "email" && t("sub_hdr_email")}
                   </p>
-                  <p className="mt-2 text-sm text-gray-400">
+                  <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-gray-400">
                     {activeSections[plan.id] === "included" && t("sub_sub_included")}
                     {activeSections[plan.id] === "usage" && t("sub_sub_usage")}
                     {activeSections[plan.id] === "addons" && t("sub_sub_addons")}
@@ -411,18 +411,18 @@ export default function Subscription() {
                   </p>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5 sm:space-y-3">
                   {getSectionItems(plan, activeSections[plan.id]).map((item) => (
                     <div
                       key={item}
-                      className="rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3"
+                      className="rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3"
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2.5 sm:gap-3">
                         <CheckCircle
                           className="mt-0.5 shrink-0 text-purple-400"
                           size={16}
                         />
-                        <span className="text-sm leading-6 text-gray-200">
+                        <span className="text-xs sm:text-sm leading-6 text-gray-200">
                           {item}
                         </span>
                       </div>
@@ -431,18 +431,18 @@ export default function Subscription() {
                 </div>
               </section>
 
-              <div className="mt-auto flex flex-col gap-3">
+              <div className="mt-6 xl:mt-auto flex flex-col gap-3">
                 <button
                   type="button"
                   onClick={() => handleOpenModal("subscribe")}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-4 font-bold text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-purple-500/20 cursor-pointer"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-3.5 sm:py-4 text-sm font-bold text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-purple-500/20 cursor-pointer"
                 >
                   {t("sub_btn_subscribe_now")}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleOpenModal("trial")}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700 bg-transparent py-3 font-bold text-gray-300 transition-all active:scale-[0.98] hover:bg-gray-800 hover:text-white cursor-pointer"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700 bg-transparent py-2.5 sm:py-3 text-sm font-bold text-gray-300 transition-all active:scale-[0.98] hover:bg-gray-800 hover:text-white cursor-pointer"
                 >
                   {t("sub_btn_start_free_trial")} <ArrowRight size={18} />
                 </button>
@@ -475,52 +475,52 @@ export default function Subscription() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.96, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.96, y: 20 }}
-              className="relative w-full max-w-md overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 shadow-2xl"
+              className="relative w-full max-w-md rounded-2xl border border-gray-800 bg-gray-900 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
             >
               <button
                 onClick={handleCloseModal}
-                className="absolute right-4 top-4 text-gray-400 transition-colors hover:text-white cursor-pointer"
+                className="absolute right-4 top-4 z-20 text-gray-400 transition-colors hover:text-white cursor-pointer bg-gray-900/80 rounded-full p-1"
               >
                 <X size={20} />
               </button>
 
-              <div className="p-8">
+              <div className="p-5 sm:p-8 overflow-y-auto">
                 {isSubmitted ? (
-                  <div className="py-8 text-center">
+                  <div className="py-6 sm:py-8 text-center">
                     <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-purple-900/30">
                       <CheckCircle className="text-purple-400" size={32} />
                     </div>
-                    <h3 className="mb-3 text-2xl font-bold text-white">
+                    <h3 className="mb-3 text-xl sm:text-2xl font-bold text-white">
                       {t("sub_modal_received_title")}
                     </h3>
-                    <p className="mb-8 leading-relaxed text-gray-400">
+                    <p className="mb-8 text-xs sm:text-sm leading-relaxed text-gray-400">
                       {t("sub_modal_received_desc")}
                     </p>
                     <button
                       onClick={handleCloseModal}
-                      className="w-full rounded-xl bg-gray-800 py-3 font-semibold text-white transition-colors hover:bg-gray-700 cursor-pointer"
+                      className="w-full rounded-xl bg-gray-800 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 cursor-pointer"
                     >
                       {t("sub_btn_close")}
                     </button>
                   </div>
                 ) : (
                   <>
-                    <h3 className="mb-2 text-2xl font-bold">
+                    <h3 className="mb-2 text-xl sm:text-2xl font-bold pr-6">
                       {selectedPlan === "trial" ? t("sub_title_trial") : t("sub_title_subscribe")}
                     </h3>
-                    <p className="mb-6 text-sm text-gray-400">
+                    <p className="mb-5 sm:mb-6 text-xs sm:text-sm text-gray-400">
                       {t("sub_modal_subtitle")}
                     </p>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                        <label className="mb-1 block text-xs sm:text-sm font-medium text-gray-300">
                           {t("sub_lbl_full_name")}
                         </label>
                         <input
@@ -530,13 +530,13 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, fullName: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="John Doe"
                         />
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                        <label className="mb-1 block text-xs sm:text-sm font-medium text-gray-300">
                           {t("sub_lbl_work_email")}
                         </label>
                         <input
@@ -546,13 +546,13 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, email: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="john@company.com"
                         />
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                        <label className="mb-1 block text-xs sm:text-sm font-medium text-gray-300">
                           {t("sub_lbl_business_name")}
                         </label>
                         <input
@@ -562,13 +562,13 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, businessName: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="Acme Corp"
                         />
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                        <label className="mb-1 block text-xs sm:text-sm font-medium text-gray-300">
                           {t("sub_lbl_business_address")}
                         </label>
                         <input
@@ -578,14 +578,14 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, businessAddress: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="123 Business St, City, Country"
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
-                          <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                          <label className="mb-1 block text-xs sm:text-sm font-medium text-gray-300">
                             {t("sub_lbl_phone_number")}
                           </label>
                           <input
@@ -595,12 +595,12 @@ export default function Subscription() {
                             onChange={(e) =>
                               setFormData({ ...formData, phoneNo: e.target.value })
                             }
-                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                             placeholder="+1 234 567 8900"
                           />
                         </div>
                         <div>
-                          <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                          <label className="mb-1 block text-xs sm:text-sm font-medium text-gray-300">
                             {t("sub_lbl_owner_dob")}
                           </label>
                           <input
@@ -610,13 +610,13 @@ export default function Subscription() {
                             onChange={(e) =>
                               setFormData({ ...formData, ownerDob: e.target.value })
                             }
-                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all [color-scheme:dark] focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                            className="w-full rounded-xl border border-gray-800 bg-gray-950 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white transition-all [color-scheme:dark] focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                        <label className="mb-1 block text-xs sm:text-sm font-medium text-gray-300">
                           {t("sub_lbl_business_type")}
                         </label>
                         <input
@@ -626,14 +626,14 @@ export default function Subscription() {
                           onChange={(e) =>
                             setFormData({ ...formData, businessType: e.target.value })
                           }
-                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                          className="w-full rounded-xl border border-gray-800 bg-gray-950 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white transition-all focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                           placeholder="e.g. Real Estate, E-commerce, Marketing"
                         />
                       </div>
 
                       <button
                         type="submit"
-                        className="mt-4 w-full rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-3.5 font-bold text-[#070a13] shadow-lg shadow-purple-500/10 transition-all active:scale-[0.98] hover:shadow-purple-500/25 cursor-pointer"
+                        className="mt-3 sm:mt-4 w-full rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-3 sm:py-3.5 text-sm font-bold text-[#070a13] shadow-lg shadow-purple-500/10 transition-all active:scale-[0.98] hover:shadow-purple-500/25 cursor-pointer"
                       >
                         {t("sub_btn_request_access")}
                       </button>
@@ -646,59 +646,56 @@ export default function Subscription() {
         ) : null}
 
         {isDemoOpen ? (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-              onClick={() => setIsDemoOpen(false)}
-            />
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md"
+            onClick={() => setIsDemoOpen(false)}
+          >
             <motion.aside
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 24 }}
-              transition={{ type: "spring", stiffness: 280, damping: 30 }}
-              className="fixed inset-0 z-50 flex h-screen w-screen flex-col bg-[#08111d] shadow-2xl shadow-black/50"
+              initial={{ opacity: 0, scale: 0.96, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 20 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-3xl border border-gray-800 bg-[#08111d] shadow-2xl shadow-purple-950/20 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
+              <div className="flex items-center justify-between border-b border-gray-800 px-5 sm:px-6 py-4 shrink-0 bg-[#0c1525]">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-purple-300">
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-purple-300">
                     {t("sub_demo_tag")}
                   </p>
-                  <h2 className="mt-2 text-2xl font-bold text-white">
+                  <h2 className="mt-1 text-xl sm:text-2xl font-bold text-white">
                     {t("sub_demo_title")}
                   </h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsDemoOpen(false)}
-                  className="rounded-full border border-gray-700 p-2 text-gray-400 transition-colors hover:text-white cursor-pointer"
+                  className="rounded-full border border-gray-700 p-2 text-gray-400 transition-colors hover:text-white hover:bg-gray-800 cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="grid flex-1 grid-cols-2 overflow-hidden max-md:grid-cols-1">
-                <section className="border-r border-gray-800 px-6 py-6 max-md:border-r-0 max-md:border-b">
-                  <div className="mb-6 flex items-center gap-3">
-                    <div className="rounded-2xl bg-purple-500/10 p-3 text-purple-300">
+              <div className="grid flex-1 grid-cols-1 md:grid-cols-2 overflow-y-auto">
+                <section className="border-b md:border-b-0 md:border-r border-gray-800 p-4 sm:p-6">
+                  <div className="mb-5 sm:mb-6 flex items-center gap-3">
+                    <div className="rounded-2xl bg-purple-500/10 p-2.5 sm:p-3 text-purple-300 shrink-0">
                       <Mail size={20} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3 className="text-base sm:text-lg font-semibold text-white">
                         {t("sub_demo_contact_title")}
                       </h3>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-xs sm:text-sm text-gray-400">
                         {t("sub_demo_contact_subtitle")}
                       </p>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3.5 sm:space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                        <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
                           {t("sub_lbl_first_name")}
                         </label>
                         <input
@@ -710,12 +707,12 @@ export default function Subscription() {
                               firstName: e.target.value,
                             }))
                           }
-                          className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
+                          className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60"
                           placeholder="John"
                         />
                       </div>
                       <div>
-                        <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                        <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
                           {t("sub_lbl_last_name")}
                         </label>
                         <input
@@ -727,14 +724,14 @@ export default function Subscription() {
                               lastName: e.target.value,
                             }))
                           }
-                          className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
+                          className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60"
                           placeholder="Doe"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                      <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
                         {t("sub_lbl_phone_number")}
                       </label>
                       <input
@@ -746,13 +743,13 @@ export default function Subscription() {
                             phoneNumber: e.target.value,
                           }))
                         }
-                        className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
+                        className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60"
                         placeholder="+1 234 567 8900"
                       />
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                      <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
                         {t("sub_lbl_email")}
                       </label>
                       <input
@@ -764,13 +761,13 @@ export default function Subscription() {
                             email: e.target.value,
                           }))
                         }
-                        className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
+                        className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60"
                         placeholder="john@company.com"
                       />
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                      <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
                         {t("sub_lbl_message")}
                       </label>
                       <textarea
@@ -781,37 +778,37 @@ export default function Subscription() {
                             message: e.target.value,
                           }))
                         }
-                        rows={5}
-                        className="w-full resize-none rounded-2xl border border-gray-800 bg-[#0c1525] px-4 py-3 text-sm text-white outline-none transition focus:border-purple-500/60"
+                        rows={3}
+                        className="w-full resize-none rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60"
                         placeholder={t("sub_ph_message")}
                       />
                     </div>
 
-                    <div className="rounded-2xl border border-gray-800 bg-[#0c1525] p-4">
+                    <div className="rounded-2xl border border-gray-800 bg-[#0c1525] p-3.5 sm:p-4">
                       <p className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">
                         {t("sub_demo_next_title")}
                       </p>
-                      <ul className="space-y-2 text-sm leading-6 text-gray-300">
+                      <ul className="space-y-1.5 text-xs sm:text-sm leading-6 text-gray-300">
                         <li>{t("sub_demo_next_1")}</li>
                         <li>{t("sub_demo_next_2")}</li>
                         <li>{t("sub_demo_next_3")}</li>
                       </ul>
                     </div>
                     {demoSubmitted ? (
-                      <div className="flex items-center gap-2 rounded-2xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm font-semibold text-emerald-300">
+                      <div className="flex items-center gap-2 rounded-2xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-xs sm:text-sm font-semibold text-emerald-300">
                         <CheckCircle size={18} />
                         {t("sub_demo_success")}
                       </div>
                     ) : (
                       <>
                         {demoError && (
-                          <p className="text-sm text-red-400">{demoError}</p>
+                          <p className="text-xs sm:text-sm text-red-400">{demoError}</p>
                         )}
                         <button
                           type="button"
                           onClick={handleDemoSubmit}
                           disabled={demoSubmitting}
-                          className="w-full rounded-2xl border border-gray-700 bg-gray-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                          className="w-full rounded-2xl border border-gray-700 bg-gray-800 px-4 py-3 text-xs sm:text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                         >
                           {demoSubmitting ? t("sub_btn_sending") : t("sub_btn_send_demo")}
                         </button>
@@ -820,40 +817,40 @@ export default function Subscription() {
                   </div>
                 </section>
 
-                <section className="px-6 py-6">
-                  <div className="mb-6 flex items-center gap-3">
-                    <div className="rounded-2xl bg-teal-500/10 p-3 text-teal-300">
+                <section className="p-4 sm:p-6">
+                  <div className="mb-5 sm:mb-6 flex items-center gap-3">
+                    <div className="rounded-2xl bg-teal-500/10 p-2.5 sm:p-3 text-teal-300 shrink-0">
                       <CalendarDays size={20} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3 className="text-base sm:text-lg font-semibold text-white">
                         {t("sub_appt_title")}
                       </h3>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-xs sm:text-sm text-gray-400">
                         {t("sub_appt_subtitle")}
                       </p>
                     </div>
                   </div>
 
-                  <div className="rounded-3xl border border-gray-800 bg-[#0c1525] p-4">
+                  <div className="rounded-3xl border border-gray-800 bg-[#0c1525] p-3.5 sm:p-4">
                     {appointmentSubmitted ? (
-                      <div className="flex items-center gap-2 rounded-2xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm font-semibold text-emerald-300">
+                      <div className="flex items-center gap-2 rounded-2xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-xs sm:text-sm font-semibold text-emerald-300">
                         <CheckCircle size={18} />
                         {t("sub_appt_success")}
                       </div>
                     ) : (
                       <>
-                        <p className="mb-4 text-xs uppercase tracking-[0.18em] text-gray-500">
+                        <p className="mb-3.5 text-xs uppercase tracking-[0.18em] text-gray-500">
                           {t("sub_appt_windows")}
                         </p>
                         {slotsLoading ? (
-                          <p className="text-sm text-gray-400">{t("sub_appt_loading")}</p>
+                          <p className="text-xs sm:text-sm text-gray-400">{t("sub_appt_loading")}</p>
                         ) : appointmentSlots.length === 0 ? (
-                          <p className="text-sm text-gray-400">
+                          <p className="text-xs sm:text-sm text-gray-400">
                             {t("sub_appt_no_slots")}
                           </p>
                         ) : (
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                             {appointmentSlots.map((slot) => {
                               const isActive = slot.date === selectedSlot?.date && slot.time === selectedSlot?.time;
                               return (
@@ -863,8 +860,8 @@ export default function Subscription() {
                                   onClick={() => setSelectedSlot(slot)}
                                   className={
                                     isActive
-                                      ? "rounded-2xl border border-purple-400 bg-purple-500/10 px-3 py-3 text-sm font-medium text-purple-200 cursor-pointer"
-                                      : "rounded-2xl border border-gray-800 bg-[#09111d] px-3 py-3 text-sm text-gray-300 cursor-pointer"
+                                      ? "rounded-2xl border border-purple-400 bg-purple-500/10 px-3 py-2.5 text-xs sm:text-sm font-medium text-purple-200 cursor-pointer"
+                                      : "rounded-2xl border border-gray-800 bg-[#09111d] px-3 py-2.5 text-xs sm:text-sm text-gray-300 cursor-pointer"
                                   }
                                 >
                                   {formatSlotLabel(slot.start)}
@@ -874,24 +871,24 @@ export default function Subscription() {
                           </div>
                         )}
 
-                        <div className="mt-5 rounded-2xl border border-dashed border-gray-700 bg-[#09111d] p-4">
-                          <p className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">
+                        <div className="mt-4 sm:mt-5 rounded-2xl border border-dashed border-gray-700 bg-[#09111d] p-3.5 sm:p-4">
+                          <p className="mb-1.5 text-xs uppercase tracking-[0.18em] text-gray-500">
                             {t("sub_appt_selected")}
                           </p>
-                          <p className="text-base font-medium text-white">
+                          <p className="text-sm sm:text-base font-medium text-white">
                             {selectedSlot ? formatSlotLabel(selectedSlot.start) : t("sub_appt_none_selected")}
                           </p>
                         </div>
 
                         {appointmentError && (
-                          <p className="mt-3 text-sm text-red-400">{appointmentError}</p>
+                          <p className="mt-3 text-xs sm:text-sm text-red-400">{appointmentError}</p>
                         )}
 
                         <button
                           type="button"
                           onClick={handleAppointmentConfirm}
                           disabled={appointmentSubmitting || !selectedSlot}
-                          className="mt-5 w-full rounded-2xl bg-gradient-to-r from-purple-400 to-blue-400 px-4 py-3 text-sm font-bold text-[#070a13] transition disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                          className="mt-4 sm:mt-5 w-full rounded-2xl bg-gradient-to-r from-purple-400 to-blue-400 px-4 py-3 text-xs sm:text-sm font-bold text-[#070a13] transition disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                         >
                           {appointmentSubmitting ? t("sub_btn_booking") : t("sub_btn_confirm_appointment")}
                         </button>
@@ -901,7 +898,7 @@ export default function Subscription() {
                 </section>
               </div>
             </motion.aside>
-          </>
+          </div>
         ) : null}
       </AnimatePresence>
     </div>
