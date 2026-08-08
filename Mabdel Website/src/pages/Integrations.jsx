@@ -1,22 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, CheckCircle2, ChevronLeft, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronLeft, HelpCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  SiMessenger,
+  SiInstagram,
+  SiWhatsapp,
+  SiX,
+  SiYoutube,
+  SiTiktok,
+  SiPinterest,
+  SiTelegram,
+  SiSnapchat,
+  SiGoogle,
+  SiThreads,
+} from 'react-icons/si';
+import { FaLinkedin } from 'react-icons/fa';
 import { smartflowApi } from '../api/services';
+import BusinessEmailDomain from '../components/BusinessEmailDomain';
 import { useLanguage } from '../context/LanguageContext';
 
 const PLATFORM_META = {
-  facebook_messenger: { badge: 'FB', bg: '#1877F2', label: 'Facebook', descKey: 'integ_desc_facebook' },
-  instagram: { badge: 'IG', bg: '#C13584', label: 'Instagram', descKey: 'integ_desc_instagram' },
-  whatsapp: { badge: 'WA', bg: '#25D366', label: 'WhatsApp', descKey: 'integ_desc_whatsapp' },
-  linkedin: { badge: 'in', bg: '#0A66C2', label: 'LinkedIn', descKey: 'integ_desc_linkedin' },
-  twitter_x: { badge: 'X', bg: '#000000', label: 'X (Twitter)', descKey: 'integ_desc_twitter' },
-  youtube: { badge: 'YT', bg: '#FF0000', label: 'YouTube', descKey: 'integ_desc_youtube' },
-  tiktok: { badge: 'TT', bg: '#010101', label: 'TikTok', descKey: 'integ_desc_tiktok' },
-  pinterest: { badge: 'P', bg: '#E60023', label: 'Pinterest', descKey: 'integ_desc_pinterest' },
-  telegram: { badge: 'TG', bg: '#229ED9', label: 'Telegram', descKey: 'integ_desc_telegram' },
-  snapchat: { badge: 'SC', bg: '#FFFC00', label: 'Snapchat', descKey: 'integ_desc_snapchat', badgeColor: '#000' },
-  google_business: { badge: 'G', bg: '#4285F4', label: 'Google Business', descKey: 'integ_desc_google' },
-  threads: { badge: 'TH', bg: '#101010', label: 'Threads', descKey: 'integ_desc_threads' },
+  facebook_messenger: { Icon: SiMessenger, bg: '#00B2FF', label: 'Facebook', descKey: 'integ_desc_facebook' },
+  instagram: { Icon: SiInstagram, bg: '#C13584', label: 'Instagram', descKey: 'integ_desc_instagram' },
+  whatsapp: { Icon: SiWhatsapp, bg: '#25D366', label: 'WhatsApp', descKey: 'integ_desc_whatsapp' },
+  linkedin: { Icon: FaLinkedin, bg: '#0A66C2', label: 'LinkedIn', descKey: 'integ_desc_linkedin' },
+  twitter_x: { Icon: SiX, bg: '#000000', label: 'X (Twitter)', descKey: 'integ_desc_twitter' },
+  youtube: { Icon: SiYoutube, bg: '#FF0000', label: 'YouTube', descKey: 'integ_desc_youtube' },
+  tiktok: { Icon: SiTiktok, bg: '#010101', label: 'TikTok', descKey: 'integ_desc_tiktok' },
+  pinterest: { Icon: SiPinterest, bg: '#E60023', label: 'Pinterest', descKey: 'integ_desc_pinterest' },
+  telegram: { Icon: SiTelegram, bg: '#229ED9', label: 'Telegram', descKey: 'integ_desc_telegram' },
+  snapchat: { Icon: SiSnapchat, bg: '#FFFC00', label: 'Snapchat', descKey: 'integ_desc_snapchat', badgeColor: '#000' },
+  google_business: { Icon: SiGoogle, bg: '#4285F4', label: 'Google Business', descKey: 'integ_desc_google' },
+  threads: { Icon: SiThreads, bg: '#101010', label: 'Threads', descKey: 'integ_desc_threads' },
 };
 
 const INPUT =
@@ -191,14 +206,15 @@ function TelegramModal({ onClose, onSuccess }) {
 function PlatformCard({ item, onConnect, onDisconnect }) {
   const { t } = useLanguage();
   const meta = PLATFORM_META[item.platform] || {
-    badge: '?',
+    Icon: HelpCircle,
     bg: '#455A64',
     label: item.platform_label || item.platform,
     descKey: 'integ_desc_default',
   };
   const desc = t(meta.descKey);
   const isUnavailable = !item.is_available && item.cta_label === 'Unavailable';
-  const badgeTextColor = meta.badgeColor || '#fff';
+  const iconColor = meta.badgeColor || '#fff';
+  const Icon = meta.Icon;
 
   async function handleDisconnect() {
     if (!window.confirm(t('integ_confirm_disconnect', { name: meta.label }))) return;
@@ -216,10 +232,10 @@ function PlatformCard({ item, onConnect, onDisconnect }) {
       }`}
     >
       <div
-        className="w-[52px] h-[52px] rounded-xl flex items-center justify-center text-base font-black shrink-0 border-[1.5px]"
-        style={{ backgroundColor: meta.bg, borderColor: '#333', color: badgeTextColor }}
+        className="w-[52px] h-[52px] rounded-xl flex items-center justify-center shrink-0 border-[1.5px]"
+        style={{ backgroundColor: meta.bg, borderColor: '#333' }}
       >
-        {meta.badge}
+        <Icon size={26} color={iconColor} />
       </div>
 
       <div className="flex-1 flex flex-col justify-center min-w-0">
@@ -411,6 +427,7 @@ export default function Integrations() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
+            <BusinessEmailDomain />
             {items.map((item) => (
               <PlatformCard key={item.platform} item={item} onConnect={handleConnect} onDisconnect={handleDisconnect} />
             ))}

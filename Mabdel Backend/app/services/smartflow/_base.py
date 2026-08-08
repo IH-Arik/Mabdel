@@ -40,37 +40,62 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SUBSCRIPTION_PLANS: list[dict] = [
     {
-        "code": "free",
-        "name": "Free",
-        "description": "Core Mabdel access for getting started.",
-        "price_cents": 0,
+        "code": "starter",
+        "name": "Starter",
+        "description": "Capture leads, respond instantly, and never miss a customer.",
+        "price_cents": 29900,
         "currency": "USD",
         "billing_interval": "month",
-        "features": ["Profile and settings", "Business profile", "AI command history"],
+        "features": [
+            "1 User",
+            "AI Receptionist (calls + SMS handling)",
+            "CRM (leads, contacts, pipeline)",
+            "Calendar booking & scheduling",
+            "Missed call text back",
+            "Basic 1-to-1 follow-up automation",
+            "Mobile app access"
+        ],
         "is_popular": False,
         "is_active": True,
         "display_order": 1,
     },
     {
-        "code": "pro",
-        "name": "Pro",
-        "description": "Advanced SmartFlow tools for growing teams.",
-        "price_cents": 1900,
+        "code": "growth",
+        "name": "Growth",
+        "description": "Turn conversations into customers with automation and marketing.",
+        "price_cents": 69900,
         "currency": "USD",
         "billing_interval": "month",
-        "features": ["Unlimited SmartFlow history", "Business automation", "Priority notifications"],
+        "features": [
+            "Everything in Starter",
+            "Unlimited users",
+            "Facebook + Instagram messaging integration",
+            "AI auto-replies to social media posts",
+            "AI reads & responds to messages",
+            "Bulk SMS campaigns",
+            "Bulk email campaigns",
+            "AI social media post creation",
+            "AI marketing content generation",
+            "Team inbox (shared conversations)",
+            "Advanced automation workflows"
+        ],
         "is_popular": True,
         "is_active": True,
         "display_order": 2,
     },
     {
-        "code": "business",
-        "name": "Business",
-        "description": "Team-ready workflows with expanded support.",
-        "price_cents": 4900,
+        "code": "pro",
+        "name": "Pro",
+        "description": "Full AI-powered business system for operations and scale.",
+        "price_cents": 99900,
         "currency": "USD",
         "billing_interval": "month",
-        "features": ["Team workflows", "Advanced integrations", "Priority support"],
+        "features": [
+            "Everything in Growth",
+            "Invoice generation & billing tools",
+            "Business document generation",
+            "Priority support"
+        ],
         "is_popular": False,
         "is_active": True,
         "display_order": 3,
@@ -136,6 +161,36 @@ class SmartFlowBase:
         result = await self.db.ai_command_history.insert_one(document)
         document["_id"] = result.inserted_id
         return self._serialize_history_item(document)
+
+    async def log_ai_usage(
+        self,
+        user_id: str,
+        action: str,
+        status: str,
+        *,
+        response_time: float | None = None,
+        tokens_used: int = 0,
+        error_type: str | None = None,
+    ) -> None:
+        """Best-effort write to ``ai_logs`` for the admin AI Insights dashboard. Never raises."""
+        try:
+            organization_id = None
+            if ObjectId.is_valid(user_id):
+                user = await self.db.users.find_one({"_id": ObjectId(user_id)}, {"organization_id": 1})
+                organization_id = (user or {}).get("organization_id")
+            document = {
+                "user_id": user_id,
+                "organization_id": organization_id,
+                "action": action,
+                "status": status,
+                "response_time": response_time or 0.0,
+                "tokens_used": tokens_used,
+                "error_type": error_type,
+                "timestamp": utc_now(),
+            }
+            await self.db.ai_logs.insert_one(document)
+        except Exception:
+            logger.warning("Failed to record ai_logs entry for action=%s", action, exc_info=True)
 
     async def create_notification(
         self,
@@ -616,9 +671,13 @@ class SmartFlowBase:
         is_global_chat = bool(safe.get("is_global_chat"))
         reply_id = safe.get("reply_to_message_id")
         forward_id = safe.get("forward_from_message_id")
-        reply_doc = await self._get_optional_owned_message(viewer_id or safe.get("user_id", ""), reply_id)
-        forward_doc = await self._get_optional_owned_message(viewer_id or safe.get("user_id", ""), forward_id)
-        sender = await self._resolve_message_sender(viewer_id or safe.get("user_id", ""), safe)
+        resolved_viewer_id = viewer_id or safe.get("user_id", "")
+        reply_doc, forward_doc, sender, serialized_mentions = await asyncio.gather(
+            self._get_optional_owned_message(resolved_viewer_id, reply_id),
+            self._get_optional_owned_message(resolved_viewer_id, forward_id),
+            self._resolve_message_sender(resolved_viewer_id, safe),
+            self._serialize_message_mentions(resolved_viewer_id, safe.get("mentions", [])),
+        )
         attachments = safe.get("attachments") or self._legacy_message_attachments(safe.get("media_url"))
         if is_global_chat and viewer_id:
             safe["sender_is_self"] = safe.get("sender_user_id") == viewer_id
@@ -631,7 +690,7 @@ class SmartFlowBase:
         safe["attachments"] = attachments
         safe["attachment_count"] = len(attachments)
         safe["has_attachments"] = bool(attachments)
-        safe["mentions"] = await self._serialize_message_mentions(viewer_id or safe.get("user_id", ""), safe.get("mentions", []))
+        safe["mentions"] = serialized_mentions
         safe["status_timestamps"] = {
             "sent_at": safe.get("timestamp"),
             "delivered_at": safe.get("delivered_at"),
@@ -675,9 +734,10 @@ class SmartFlowBase:
             return await self.db.contacts.find_one({"user_id": user_id, "name": title})
         return None
 
-    async def _publish_inbox_update(self, user_id: str, conversation_id: str) -> None:
-        conversation = None
-        if ObjectId.is_valid(conversation_id):
+    async def _publish_inbox_update(self, user_id: str, conversation_id: str, conversation: dict | None = None) -> None:
+        if conversation is None:
+            if not ObjectId.is_valid(conversation_id):
+                return
             conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "user_id": user_id})
             if not conversation:
                 conversation = await self.db.conversations.find_one(
@@ -685,8 +745,10 @@ class SmartFlowBase:
                 )
         if not conversation:
             return
-        serialized = await self._serialize_conversation(conversation, viewer_user_id=user_id)
-        summary = await self.get_unread_message_summary(user_id, None)
+        serialized, summary = await asyncio.gather(
+            self._serialize_conversation(conversation, viewer_user_id=user_id),
+            self.get_unread_message_summary(user_id, None),
+        )
         await inbox_realtime_hub.publish(
             user_id,
             "inbox.updated",
@@ -1915,11 +1977,33 @@ class SmartFlowBase:
     # ------------------------------------------------------------------
     # Bulk message helpers
     # ------------------------------------------------------------------
+    async def _resolve_bulk_sender(self, user_id: str, payload: dict) -> dict | None:
+        """Resolve the From identity for an email blast.
+
+        Returns None for SMS, or when the organization has no verified business
+        domain yet — callers then fall back to the platform sender.
+        """
+        if payload.get("channel", "email") != "email":
+            return None
+        from app.services.email_domain import EmailDomainService
+
+        return await EmailDomainService(self.db).resolve_sender(user_id, payload.get("from_prefix"))
+
     async def _dispatch_bulk_message(self, document: dict) -> dict:
         now = utc_now()
         deliveries: list[dict] = []
         sent_count = 0
         failed_count = 0
+        # Re-resolve at send time so scheduled blasts pick up a domain that
+        # finished verifying after the message was drafted.
+        sender = None
+        if document.get("channel") == "email":
+            try:
+                sender = await self._resolve_bulk_sender(document["user_id"], document)
+            except Exception:
+                logger.warning("Could not resolve business sender for bulk message", exc_info=True)
+            if not sender and document.get("from_email"):
+                sender = {"email": document["from_email"], "name": document.get("from_name")}
         for recipient in document.get("recipients", []):
             target = recipient.get("email") if document["channel"] == "email" else recipient.get("phone")
             if not target:
@@ -1950,11 +2034,14 @@ class SmartFlowBase:
                         for attachment in attachments
                     ) + "</ul>"
                 try:
-                    await EmailService().send_invoice_email(
+                    await EmailService().send_business_email(
                         email=target,
                         subject=document.get("subject") or "Mabdel bulk message",
                         text=text_body,
                         html=html_body,
+                        from_email=(sender or {}).get("email"),
+                        from_name=(sender or {}).get("name"),
+                        reply_to=(sender or {}).get("email"),
                     )
                     status = "sent"
                     error = None
@@ -2008,6 +2095,8 @@ class SmartFlowBase:
                     "status": final_status,
                     "sent_at": now if sent_count else None,
                     "updated_at": now,
+                    "from_email": (sender or {}).get("email"),
+                    "from_name": (sender or {}).get("name"),
                 }
             },
             return_document=ReturnDocument.AFTER,

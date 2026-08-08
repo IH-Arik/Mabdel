@@ -143,6 +143,10 @@ class MongoConnectionManager:
         await self.database.invoices.create_index([("owner_user_id", 1), ("due_date", 1)])
         await self.database.bulk_messages.create_index([("user_id", 1), ("updated_at", -1)])
         await self.database.bulk_messages.create_index([("status", 1), ("scheduled_at", 1)])
+        # ── Business email domains ────────────────────────────────────────────
+        await self.database.email_domains.create_index("domain", unique=True)
+        await self.database.email_domains.create_index("organization_id", sparse=True)
+        await self.database.email_domains.create_index("user_id")
         await self.database.counters.create_index("_id")
         # ── RBAC ──────────────────────────────────────────────────────────────
         await self.database.rbac_permissions.create_index([("module", 1), ("action", 1)], unique=True)

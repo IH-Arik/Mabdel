@@ -91,6 +91,7 @@ class BulkMessageService(SmartFlowBase):
     async def create_bulk_message(self, user_id: str, payload: dict) -> dict:
         resolution = await self._resolve_bulk_recipients(user_id, payload)
         self._validate_bulk_message_payload(payload, resolution)
+        sender = await self._resolve_bulk_sender(user_id, payload)
         now = utc_now()
         scheduled_at = payload.get("scheduled_at")
         status = "draft"
@@ -114,6 +115,9 @@ class BulkMessageService(SmartFlowBase):
             "scheduled_at": scheduled_at,
             "timezone": payload.get("timezone", "UTC"),
             "ai_transcript": payload.get("ai_transcript"),
+            "from_prefix": payload.get("from_prefix"),
+            "from_email": sender["email"] if sender else None,
+            "from_name": sender["name"] if sender else None,
             "character_count": len(payload["content"]),
             "segment_count": self._bulk_segment_count(payload["channel"], payload["content"]),
             "sent_count": 0,
@@ -165,6 +169,9 @@ class BulkMessageService(SmartFlowBase):
         resolution = await self._resolve_bulk_recipients(user_id, merged)
         self._validate_bulk_message_payload(merged, resolution)
 
+        sender = await self._resolve_bulk_sender(user_id, merged)
+        clean_updates["from_email"] = sender["email"] if sender else None
+        clean_updates["from_name"] = sender["name"] if sender else None
         clean_updates["recipients"] = resolution["recipients"]
         clean_updates["character_count"] = len(merged["content"])
         clean_updates["segment_count"] = self._bulk_segment_count(merged["channel"], merged["content"])
