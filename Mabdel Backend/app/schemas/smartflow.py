@@ -54,6 +54,8 @@ NotificationType = Literal[
     "daily_digest",
     "system_update",
 ]
+EmailDomainMode = Literal["subdomain", "custom"]
+EmailDomainStatus = Literal["pending", "verifying", "verified", "failed"]
 MeetingMode = Literal["offline", "online"]
 MeetingStatus = Literal["scheduled", "cancelled", "completed"]
 
@@ -307,6 +309,9 @@ class BulkMessageCreateRequest(BaseModel):
     timezone: str = Field(default="UTC", max_length=64)
     send_now: bool = True
     ai_transcript: str | None = None
+    # Local part of the sender address on the organization's verified domain
+    # (e.g. "market" -> market@dentist.gocustify.com). Email channel only.
+    from_prefix: str | None = Field(default=None, max_length=64)
 
 
 class BulkMessageUpdateRequest(BaseModel):
@@ -320,6 +325,7 @@ class BulkMessageUpdateRequest(BaseModel):
     timezone: str | None = Field(default=None, max_length=64)
     send_now: bool | None = None
     ai_transcript: str | None = None
+    from_prefix: str | None = Field(default=None, max_length=64)
 
 
 class BulkMessageRecipientDelivery(BaseModel):
@@ -350,9 +356,62 @@ class BulkMessageResponse(BaseModel):
     segment_count: int = 0
     sent_count: int = 0
     failed_count: int = 0
+    from_email: str | None = None
+    from_name: str | None = None
     created_at: datetime
     updated_at: datetime
     sent_at: datetime | None = None
+
+
+class EmailDomainDnsRecord(BaseModel):
+    name: str
+    type: str
+    value: str
+    ttl: int = 300
+    priority: int | None = None
+    purpose: str = ""
+
+
+class EmailDomainResponse(BaseModel):
+    id: str
+    domain: str
+    mode: EmailDomainMode
+    status: EmailDomainStatus
+    dns_records: list[EmailDomainDnsRecord] = Field(default_factory=list)
+    dns_auto_provisioned: bool = False
+    requires_manual_dns: bool = False
+    default_prefix: str
+    from_name: str | None = None
+    example_address: str | None = None
+    inbound_enabled: bool = True
+    last_error: str | None = None
+    verified_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class EmailDomainRequest(BaseModel):
+    business_name: str | None = Field(default=None, max_length=120)
+    custom_domain: str | None = Field(default=None, max_length=253)
+    from_name: str | None = Field(default=None, max_length=100)
+    default_prefix: str | None = Field(default=None, max_length=64)
+
+    @model_validator(mode="after")
+    def _require_one_source(self) -> "EmailDomainRequest":
+        if not (self.business_name or "").strip() and not (self.custom_domain or "").strip():
+            raise ValueError("Provide either a business name or a custom domain.")
+        return self
+
+
+class EmailDomainSettingsUpdateRequest(BaseModel):
+    from_name: str | None = Field(default=None, max_length=100)
+    default_prefix: str | None = Field(default=None, max_length=64)
+
+
+class EmailDomainAvailabilityResponse(BaseModel):
+    domain: str
+    mode: EmailDomainMode
+    available: bool
 
 
 class AIChatRequest(BaseModel):

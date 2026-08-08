@@ -325,6 +325,9 @@ function StepCompose({
   setChannel,
   subject,
   setSubject,
+  fromPrefix,
+  setFromPrefix,
+  emailDomain,
   message,
   setMessage,
   attachments,
@@ -518,6 +521,24 @@ function StepCompose({
         </div>
         <p className="text-[#A4B0B7] text-xs mt-1">{t('bulk_switch_channel_hint')}</p>
       </div>
+
+      {channel === 'email' && emailDomain?.status === 'verified' && (
+        <div>
+          <label className={LABEL}>{t('bulk_lbl_from')}</label>
+          <div className="flex items-stretch">
+            <input
+              value={fromPrefix}
+              onChange={(e) => setFromPrefix(e.target.value.replace(/[^a-zA-Z0-9._-]/g, '').toLowerCase())}
+              placeholder={emailDomain.default_prefix || 'hello'}
+              className={`${INPUT} rounded-r-none border-r-0 min-w-0`}
+            />
+            <span className="flex items-center px-3 bg-[#0C0E12] border border-[#1E2530] border-l-0 rounded-r-xl text-[#9BA7BB] text-sm whitespace-nowrap">
+              @{emailDomain.domain}
+            </span>
+          </div>
+          <p className="text-[#A4B0B7] text-xs mt-1">{t('bulk_hint_from')}</p>
+        </div>
+      )}
 
       {channel === 'email' && (
         <div>
@@ -741,6 +762,8 @@ export default function BulkMessaging() {
   const [chips, setChips] = useState([]);
   const [channel, setChannel] = useState('email');
   const [subject, setSubject] = useState('');
+  const [fromPrefix, setFromPrefix] = useState('');
+  const [emailDomain, setEmailDomain] = useState(null);
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [scheduleDate, setScheduleDate] = useState('');
@@ -774,6 +797,10 @@ export default function BulkMessaging() {
     smartflowApi.listGroups({ page_size: 100 })
       .then((response) => setGroups(response.data?.data?.items || response.data?.data || []))
       .catch(() => setGroups([]));
+    // Only owners with a verified business domain get the custom From field.
+    smartflowApi.getEmailDomain()
+      .then((response) => setEmailDomain(response.data?.data || null))
+      .catch(() => setEmailDomain(null));
   }, []);
 
   async function handleSend() {
@@ -784,6 +811,7 @@ export default function BulkMessaging() {
         channel,
         recipient_emails: chips,
         subject: channel === 'email' ? subject : undefined,
+        from_prefix: channel === 'email' && fromPrefix.trim() ? fromPrefix.trim() : undefined,
         content: message,
         attachments: attachments.length ? attachments : undefined,
         send_now: !scheduleDate,
@@ -858,6 +886,9 @@ export default function BulkMessaging() {
                 setChannel={setChannel}
                 subject={subject}
                 setSubject={setSubject}
+                fromPrefix={fromPrefix}
+                setFromPrefix={setFromPrefix}
+                emailDomain={emailDomain}
                 message={message}
                 setMessage={setMessage}
                 attachments={attachments}

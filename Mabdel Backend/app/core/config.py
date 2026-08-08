@@ -113,6 +113,22 @@ class Settings(BaseSettings):
     MAILTRAP_API_TOKEN: str | None = None
     MAIL_FROM: str = "hello@demomailtrap.co"
     MAIL_FROM_NAME: str = "Mabdel AI"
+
+    # Business email domains (bulk sending + inbound replies into Unified Conversations).
+    # EMAIL_DOMAIN_ROOT is the zone we own; owners get "<slug>.<root>" provisioned automatically.
+    EMAIL_DOMAIN_ROOT: str | None = None
+    EMAIL_DOMAIN_DNS_PROVIDER: str = "manual"  # "route53" | "manual"
+    EMAIL_DOMAIN_ALLOW_CUSTOM: bool = True
+    EMAIL_DOMAIN_DEFAULT_PREFIX: str = "hello"
+    RESEND_INBOUND_WEBHOOK_SECRET: str | None = None
+    # Resend shows the receiving MX value per domain in its dashboard, and it also
+    # comes back in the domain's records once Receiving is enabled. Only set this to
+    # append an extra MX row (e.g. for Route53 auto-provisioning of subdomains).
+    RESEND_INBOUND_MX_HOST: str | None = None
+    ROUTE53_HOSTED_ZONE_ID: str | None = None
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
+    AWS_REGION: str = "us-east-1"
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
     SMTP_USERNAME: str | None = None

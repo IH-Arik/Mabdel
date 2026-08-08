@@ -211,6 +211,15 @@ export const smartflowApi = {
   connectCalDAV: (data) => client.post('/api/v1/smartflow/integrations/caldav/connect', data),
   disconnectCalDAV: () => client.delete('/api/v1/smartflow/integrations/caldav'),
 
+  // ── Business email domain ─────────────────────────────────────────────────────
+  getEmailDomain: () => client.get('/api/v1/smartflow/email-domain'),
+  checkEmailDomainAvailability: (businessName) =>
+    client.get('/api/v1/smartflow/email-domain/availability', { params: { business_name: businessName } }),
+  createEmailDomain: (data) => client.post('/api/v1/smartflow/email-domain', data),
+  verifyEmailDomain: () => client.post('/api/v1/smartflow/email-domain/verify'),
+  updateEmailDomain: (data) => client.patch('/api/v1/smartflow/email-domain', data),
+  deleteEmailDomain: () => client.delete('/api/v1/smartflow/email-domain'),
+
   // ── Calendar extras ───────────────────────────────────────────────────────────
   shareCalendarEvent: (id, data) => client.post(`/api/v1/smartflow/calendar/events/${id}/share`, data),
   getCalendarEvent: (id) => client.get(`/api/v1/smartflow/calendar/events/${id}`),

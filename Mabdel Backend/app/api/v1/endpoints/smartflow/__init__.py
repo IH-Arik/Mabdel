@@ -10,6 +10,7 @@ from . import (  # noqa: F401
     calendar,
     caldav,
     documents,
+    email_domains,
     leases,
     agreements,
     calls,

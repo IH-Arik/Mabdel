@@ -10,7 +10,7 @@ from mongomock_motor import AsyncMongoMockClient
 from app.api.v1.auth_routes import get_email_service
 from app.core.config import settings
 from app.core.database import get_database, mongo_manager
-from app.core.http import AuthRateLimitMiddleware
+from app.core.http import AuthRateLimitMiddleware, MutationRateLimitMiddleware
 from app.main import app
 from app.repositories.app_config_repository import AppConfigRepository
 from app.repositories.onboarding_repository import OnboardingRepository
@@ -25,11 +25,16 @@ class FakeEmailService:
 
 
 def _reset_auth_rate_limiter(middleware) -> None:
+    """Clear both rate limiters between tests.
+
+    The limiters keep per-IP counters on the shared app instance, so without
+    this every test in a session spends the same budget and later tests start
+    getting 429s purely because earlier ones ran.
+    """
     current = middleware
     while current is not None:
-        if isinstance(current, AuthRateLimitMiddleware):
+        if isinstance(current, (AuthRateLimitMiddleware, MutationRateLimitMiddleware)):
             current._hits.clear()
-            return
         current = getattr(current, "app", None)
 
 

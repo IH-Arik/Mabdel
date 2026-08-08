@@ -18,6 +18,34 @@ class EmailService:
     async def send_invoice_email(self, email: str, subject: str, text: str, html: str) -> None:
         await self._send_email(email=email, subject=subject, text=text, html=html)
 
+    async def send_business_email(
+        self,
+        *,
+        email: str,
+        subject: str,
+        text: str,
+        html: str,
+        from_email: str | None = None,
+        from_name: str | None = None,
+        reply_to: str | None = None,
+        headers: dict | None = None,
+    ) -> None:
+        """Send from an organization's own verified domain when one is set up.
+
+        Falls back to the platform sender when ``from_email`` is None, so callers
+        can pass the resolved sender straight through without branching.
+        """
+        await self._send_email(
+            email=email,
+            subject=subject,
+            text=text,
+            html=html,
+            from_email=from_email,
+            from_name=from_name,
+            reply_to=reply_to,
+            headers=headers,
+        )
+
     async def send_subordinate_credentials_email(self, email: str, login_email: str, password: str, role: str) -> None:
         subject = f"Your Mabdel AI {role.capitalize()} Credentials"
         
@@ -51,24 +79,42 @@ class EmailService:
 
         await self._send_email(email=email, subject=subject, text=text, html=html)
 
-    async def _send_email(self, *, email: str, subject: str, text: str, html: str) -> None:
+    async def _send_email(
+        self,
+        *,
+        email: str,
+        subject: str,
+        text: str,
+        html: str,
+        from_email: str | None = None,
+        from_name: str | None = None,
+        reply_to: str | None = None,
+        headers: dict | None = None,
+    ) -> None:
+        sender = self._format_sender(from_email, from_name)
 
-        if settings.SMTP_HOST and settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-            await asyncio.to_thread(self._send_via_smtp, email, subject, text, html)
+        # A business domain is registered with Resend, so it must go out via Resend
+        # even when SMTP is configured for platform mail.
+        prefer_resend = bool(from_email) and bool(settings.RESEND_API_KEY)
+
+        if not prefer_resend and settings.SMTP_HOST and settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+            await asyncio.to_thread(self._send_via_smtp, email, subject, text, html, sender, reply_to)
             return
 
         if settings.RESEND_API_KEY:
             resend.api_key = settings.RESEND_API_KEY
-            await asyncio.to_thread(
-                resend.Emails.send,
-                {
-                    "from": settings.MAIL_FROM,
-                    "to": [email],
-                    "subject": subject,
-                    "html": html,
-                    "text": text,
-                },
-            )
+            payload: dict = {
+                "from": sender,
+                "to": [email],
+                "subject": subject,
+                "html": html,
+                "text": text,
+            }
+            if reply_to:
+                payload["reply_to"] = reply_to
+            if headers:
+                payload["headers"] = headers
+            await asyncio.to_thread(resend.Emails.send, payload)
             return
 
         if not settings.MAILTRAP_API_TOKEN:
@@ -83,7 +129,10 @@ class EmailService:
             return
 
         payload = {
-            "from": {"email": settings.MAIL_FROM, "name": settings.MAIL_FROM_NAME},
+            "from": {
+                "email": from_email or settings.MAIL_FROM,
+                "name": from_name or settings.MAIL_FROM_NAME,
+            },
             "to": [{"email": email}],
             "subject": subject,
             "text": text,
@@ -99,11 +148,26 @@ class EmailService:
             response.raise_for_status()
 
     @staticmethod
-    def _send_via_smtp(email: str, subject: str, text: str, html: str) -> None:
+    def _format_sender(from_email: str | None, from_name: str | None) -> str:
+        address = from_email or settings.MAIL_FROM
+        name = from_name or (settings.MAIL_FROM_NAME if not from_email else None)
+        return f"{name} <{address}>" if name else address
+
+    @staticmethod
+    def _send_via_smtp(
+        email: str,
+        subject: str,
+        text: str,
+        html: str,
+        sender: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
         message = EmailMessage()
         message["Subject"] = subject
-        message["From"] = f"{settings.MAIL_FROM_NAME} <{settings.MAIL_FROM}>"
+        message["From"] = sender or f"{settings.MAIL_FROM_NAME} <{settings.MAIL_FROM}>"
         message["To"] = email
+        if reply_to:
+            message["Reply-To"] = reply_to
         message.set_content(text)
         message.add_alternative(html, subtype="html")
 

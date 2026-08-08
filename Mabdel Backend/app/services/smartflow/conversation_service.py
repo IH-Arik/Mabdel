@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import html as html_lib
+import time
 from datetime import timedelta
 from math import ceil
 import logging
@@ -17,6 +19,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 from app.core.exceptions import AppException
 from app.core.realtime import conversation_realtime_hub
+from app.services.email_service import EmailService
 from app.utils.helpers import utc_now
 
 from ._base import SmartFlowBase
@@ -248,19 +251,21 @@ class ConversationService(SmartFlowBase):
             "external_account_id": payload.get("external_account_id"),
             "read_by": [user_id] if conversation.get("is_global_chat") else [],
         }
-        result = await self.db.messages.insert_one(document)
-        document["_id"] = result.inserted_id
-        await self.db.conversations.update_one(
-            {"_id": conversation["_id"]},
-            {"$set": {"updated_at": now}},
+        insert_result, _ = await asyncio.gather(
+            self.db.messages.insert_one(document),
+            self.db.conversations.update_one(
+                {"_id": conversation["_id"]},
+                {"$set": {"updated_at": now}},
+            ),
         )
+        document["_id"] = insert_result.inserted_id
 
         serialized = await self._serialize_message(document, viewer_user_id=user_id)
         await conversation_realtime_hub.publish(payload["conversation_id"], "message.created", serialized)
         if conversation.get("is_global_chat"):
             await self._publish_global_chat_inbox_updates(conversation)
         else:
-            await self._publish_inbox_update(user_id, payload["conversation_id"])
+            await self._publish_inbox_update(user_id, payload["conversation_id"], conversation=conversation)
 
         if payload["direction"] == "outbound":
             asyncio.create_task(
@@ -319,13 +324,15 @@ class ConversationService(SmartFlowBase):
             {"$set": clean_updates},
             return_document=ReturnDocument.AFTER,
         )
-        serialized = await self._serialize_message(updated, viewer_user_id=user_id)
+        serialized, conversation = await asyncio.gather(
+            self._serialize_message(updated, viewer_user_id=user_id),
+            self.db.conversations.find_one({"_id": ObjectId(updated["conversation_id"])}),
+        )
         await conversation_realtime_hub.publish(updated["conversation_id"], "message.updated", serialized)
-        conversation = await self.db.conversations.find_one({"_id": ObjectId(updated["conversation_id"])})
         if conversation and conversation.get("is_global_chat"):
             await self._publish_global_chat_inbox_updates(conversation)
         else:
-            await self._publish_inbox_update(user_id, updated["conversation_id"])
+            await self._publish_inbox_update(user_id, updated["conversation_id"], conversation=conversation)
         return serialized
 
     async def reply_to_message(self, user_id: str, message_id: str, payload: dict) -> dict:
@@ -466,8 +473,9 @@ class ConversationService(SmartFlowBase):
     ) -> dict:
         conversation = await self.ensure_ai_conversation(user_id)
         history = await self.db.messages.find({"user_id": user_id, "conversation_id": str(conversation["_id"])}).sort(
-            "timestamp", 1
+            "timestamp", -1
         ).limit(20).to_list(length=20)
+        history.reverse()
         user_message = await self.create_message(
             user_id,
             {
@@ -481,7 +489,20 @@ class ConversationService(SmartFlowBase):
                 "forward_from_message_id": None,
             },
         )
-        ai_result = self.ai_service.generate_response(content, history)
+        started_at = time.monotonic()
+        try:
+            ai_result = await self.ai_service.generate_response(content, history)
+        except Exception as exc:
+            asyncio.create_task(self.log_ai_usage(
+                user_id, "ai_chat", "failed",
+                response_time=time.monotonic() - started_at,
+                error_type=type(exc).__name__,
+            ))
+            raise
+        asyncio.create_task(self.log_ai_usage(
+            user_id, ai_result.get("command_type") or "ai_chat", "success",
+            response_time=time.monotonic() - started_at,
+        ))
         ai_message = await self.create_message(
             user_id,
             {
@@ -495,7 +516,7 @@ class ConversationService(SmartFlowBase):
                 "forward_from_message_id": None,
             },
         )
-        ai_message = await self.update_message(user_id, ai_message["id"], {"status": "read"})
+        asyncio.create_task(self.update_message(user_id, ai_message["id"], {"status": "read"}))
         history_item = await self.log_ai_command(
             user_id=user_id,
             command_text=content,
@@ -522,6 +543,7 @@ class ConversationService(SmartFlowBase):
 
     async def generate_ai_image(self, user_id: str, prompt: str) -> dict:
         image_url = None
+        started_at = time.monotonic()
         if settings.OPENAI_API_KEY:
             try:
                 from openai import OpenAI
@@ -533,8 +555,17 @@ class ConversationService(SmartFlowBase):
                     size="512x512"
                 )
                 image_url = response.data[0].url
+                await self.log_ai_usage(
+                    user_id, "generate_image", "success",
+                    response_time=time.monotonic() - started_at,
+                )
             except Exception as e:
                 logger.error("OpenAI image generation error: %s", e)
+                await self.log_ai_usage(
+                    user_id, "generate_image", "failed",
+                    response_time=time.monotonic() - started_at,
+                    error_type=type(e).__name__,
+                )
 
         if not image_url:
             fallback_url = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800"
@@ -796,6 +827,9 @@ class ConversationService(SmartFlowBase):
         if platform in {"ai", "internal"}:
             return True  # no external delivery needed
 
+        if platform == "email":
+            return await self._deliver_email(user_id, contact_id, content)
+
         contact_external_id = await self._get_contact_external_id(user_id, platform, contact_id)
         if not contact_external_id:
             return False
@@ -823,6 +857,48 @@ class ConversationService(SmartFlowBase):
                 return False
         except Exception:
             return False
+
+    async def _deliver_email(self, user_id: str, contact_id: str | None, content: str) -> bool:
+        """Reply to an email thread from the owner's verified business domain."""
+        if not contact_id or not ObjectId.is_valid(contact_id):
+            return False
+        contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
+        if not contact:
+            return False
+
+        target = contact.get("email")
+        if not target:
+            for identity in contact.get("identities", []):
+                if identity.get("platform") == "email":
+                    target = identity.get("external_id")
+                    break
+        if not target:
+            return False
+
+        from app.services.email_domain import EmailDomainService
+
+        sender = await EmailDomainService(self.db).resolve_sender(user_id)
+        if not sender:
+            # Without a verified domain, replies would come from the platform
+            # address and break the thread — surface as failed instead.
+            logger.warning("No verified business email domain for user %s; email reply not sent.", user_id)
+            return False
+
+        subject = f"Re: {contact.get('name') or 'your message'}"
+        try:
+            await EmailService().send_business_email(
+                email=target,
+                subject=subject,
+                text=content,
+                html=f"<p>{html_lib.escape(content).replace(chr(10), '<br/>')}</p>",
+                from_email=sender["email"],
+                from_name=sender.get("name"),
+                reply_to=sender["email"],
+            )
+        except Exception:
+            logger.exception("Email reply delivery failed for user %s", user_id)
+            return False
+        return True
 
     async def _deliver_meta_messenger(self, access_token: str | None, recipient_id: str, content: str) -> bool:
         if not access_token:
@@ -1022,6 +1098,84 @@ class ConversationService(SmartFlowBase):
         if is_eligible:
             return await self.add_user_to_global_chat(org_id, user_id)
         return await self.remove_user_from_global_chat(org_id, user_id)
+
+    ROLE_GROUP_LABELS = {"manager": "Manager Group", "staff": "Staff Group", "assistant": "Assistant Group"}
+
+    async def ensure_role_group(self, organization_id: str, owner_id: str, role_slug: str) -> dict:
+        """Find or create the organization's standing team group for a role tier
+        (staff/manager/assistant), mirroring ensure_global_chat's find-or-create pattern.
+        The organization owner is always kept as a member so they can see every team's chat.
+        """
+        owner = await self._resolve_global_chat_owner(organization_id, owner_id)
+        owner_user_id = str((owner or {}).get("_id") or owner_id)
+
+        group = await self.db.groups.find_one({
+            "organization_id": organization_id,
+            "role_slug": role_slug,
+            "is_system_managed": True,
+        })
+        if group:
+            if owner_user_id not in group.get("member_ids", []):
+                await self.add_group_members(owner_user_id, str(group["_id"]), {"member_ids": [owner_user_id]})
+                group = await self.db.groups.find_one({"_id": group["_id"]})
+            return group
+
+        label = self.ROLE_GROUP_LABELS.get(role_slug, f"{role_slug.title()} Group")
+        created = await self.create_group(
+            owner_user_id,
+            {
+                "name": label,
+                "description": f"Auto-managed group for every {role_slug} on the team.",
+                "role_slug": role_slug,
+                "member_ids": [owner_user_id],
+                "admin_ids": [owner_user_id],
+            },
+        )
+        await self.db.groups.update_one(
+            {"_id": ObjectId(created["id"])},
+            {"$set": {"organization_id": organization_id, "is_system_managed": True}},
+        )
+        return await self.db.groups.find_one({"_id": ObjectId(created["id"])})
+
+    async def sync_user_role_group_membership(self, user_id: str, role_slug: str, organization_id: str | None = None) -> dict | None:
+        if role_slug not in self.ROLE_GROUP_SLUGS:
+            return None
+
+        user = await self._get_user_document(user_id)
+        org_id = organization_id or user.get("organization_id")
+        if not org_id:
+            return None
+
+        owner = await self._resolve_global_chat_owner(org_id, user_id)
+        owner_user_id = str((owner or {}).get("_id") or user_id)
+        group = await self.ensure_role_group(org_id, owner_user_id, role_slug)
+
+        if user_id not in group.get("member_ids", []):
+            group = await self.add_group_members(owner_user_id, str(group["_id"]), {"member_ids": [user_id]})
+        return group
+
+    async def backfill_role_groups(self) -> dict:
+        """One-time/rerunnable catch-up for accounts created before role-group auto-join
+        existed: put every existing staff/manager/assistant into their org's role group."""
+        role_users = await self.db.users.find({
+            "$or": [
+                {"primary_role": {"$in": list(self.ROLE_GROUP_SLUGS)}},
+                {"role": {"$in": list(self.ROLE_GROUP_SLUGS)}},
+            ]
+        }).to_list(length=5000)
+
+        synced_users = 0
+        skipped_no_org = 0
+        for user in role_users:
+            user_id = str(user["_id"])
+            org_id = user.get("organization_id")
+            role_slug = str(user.get("primary_role") or user.get("role") or "").lower()
+            if not org_id or role_slug not in self.ROLE_GROUP_SLUGS:
+                skipped_no_org += 1
+                continue
+            await self.sync_user_role_group_membership(user_id, role_slug, org_id)
+            synced_users += 1
+        return {"users_synced": synced_users, "skipped_no_org": skipped_no_org}
 
     async def backfill_global_chats(self) -> dict:
         owners = await self.db.users.find({"$or": [{"primary_role": "owner"}, {"role": "owner"}]}).to_list(length=2000)
