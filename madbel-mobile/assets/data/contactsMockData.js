@@ -2,7 +2,7 @@ export const CONTACTS_MOCK_DATA = [
   {
     id: "1",
     name: "Alexander Graham",
-    subtitle: "alexander.g@mabdel.ai",
+    subtitle: "alexander.g@gocustify.com",
     avatar: "https://i.pravatar.cc/120?img=12",
     online: true,
   },

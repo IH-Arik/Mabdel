@@ -5,7 +5,7 @@ from app.workflows.state import WorkflowState
 from app.workflows.utils import call_llm, read_prompt
 
 
-def parse_intent(state: WorkflowState) -> WorkflowState:
+async def parse_intent(state: WorkflowState) -> WorkflowState:
     normalized_command = normalize_workflow_command(state.command)
     if normalized_command:
         state.command = normalized_command
@@ -17,8 +17,8 @@ def parse_intent(state: WorkflowState) -> WorkflowState:
 
     template = read_prompt("intent_parser.txt")
     prompt = template.format(command=state.command)
-    
-    intent = call_llm(prompt).lower()
+
+    intent = (await call_llm(prompt)).lower()
     
     # Validation against allowed intents
     if intent in ALLOWED_INTENTS:

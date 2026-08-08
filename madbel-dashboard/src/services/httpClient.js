@@ -29,8 +29,6 @@ export const buildApiUrl = (path, { skipPrefix = false } = {}) => {
   // Dashboard routes are mounted under /api/v1/dashboard/...
   if (mappedPath.startsWith("/admin/notifications")) {
     mappedPath = mappedPath.replace("/admin/notifications", "/dashboard/notifications");
-  } else if (mappedPath === "/admin/password" || mappedPath === "/auth/admin/change-password") {
-    mappedPath = "/dashboard/admin/change-password";
   } else if (mappedPath.startsWith("/auth/admin/logout")) {
     mappedPath = "/dashboard/admin/logout";
   } else if (mappedPath.startsWith("/auth/admin/")) {

@@ -255,6 +255,7 @@ async def create_organization_admin(
         from app.services.smartflow.smartflow_orchestrator import SmartFlowService
         smartflow = SmartFlowService(db)
         await smartflow.sync_user_global_chat_membership(new_user_id, request.organization_id)
+        await smartflow.sync_user_role_group_membership(new_user_id, target_role, request.organization_id)
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("Failed to add user to global chat: %s", e)
@@ -338,7 +339,7 @@ async def get_user_reports(
     """
     Get a paginated list of user reports (Moderation/Complaints). Corresponds to the 'Report' screen.
     """
-    data = await service.get_paginated_user_reports(limit, offset)
+    data = await service.get_paginated_user_reports(limit, offset, current_user.get("organization_id"))
     return BaseResponse(data=data)
 
 
@@ -421,7 +422,7 @@ async def get_ai_logs(
     """
     Get recent AI activity logs for real-time monitoring.
     """
-    data = await service.get_detailed_ai_logs(limit)
+    data = await service.get_detailed_ai_logs(limit, current_user.get("organization_id"))
     return BaseResponse(data=data)
 
 
@@ -560,7 +561,7 @@ async def get_chat_messages(
     """
     Get message history for a specific user. Corresponds to the chat bubbles on the 'Inbox' screen.
     """
-    data = await service.get_chat_history(user_id, _current_user_id(current_user))
+    data = await service.get_chat_history(user_id)
     return BaseResponse(data=data)
 
 

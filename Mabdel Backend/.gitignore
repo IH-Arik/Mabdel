@@ -38,3 +38,9 @@ temp_interactive_push.bat
 config.bat
 node_modules
 uploads/
+
+assign_pro.py
+check_db.py
+test_chats.py
+test_mongo.py
+test_repo.py

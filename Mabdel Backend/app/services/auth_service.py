@@ -149,7 +149,7 @@ class AuthService:
             )
 
         # Subordinate accounts (Manager/Staff/Assistant) have a system-generated
-        # login email (xxx@mabdel.ai) with no real inbox — always deliver the OTP
+        # login email (xxx@gocustify.com) with no real inbox — always deliver the OTP
         # to the real personal email on file, regardless of which one was typed,
         # so "forgot password" works even if the user enters their login email.
         deliver_to = user.get("original_email") or user.get("email")

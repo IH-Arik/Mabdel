@@ -44,7 +44,7 @@ def test_contact_list_create_detail_update_avatar_and_delete_flow(client, mock_d
             "first_name": "Alex",
             "last_name": "Thompson",
             "phone": "+1 (415) 555-0123",
-            "email": "alex.t@mabdel.ai",
+            "email": "alex.t@gocustify.com",
             "address": "25 Market Street, San Francisco, CA",
             "date_of_birth": "1999-04-12",
             "notes": "Key decision maker for the Q4 enterprise expansion.",
@@ -57,7 +57,7 @@ def test_contact_list_create_detail_update_avatar_and_delete_flow(client, mock_d
     assert contact["name"] == "Alex Thompson"
     assert contact["first_name"] == "Alex"
     assert contact["last_name"] == "Thompson"
-    assert contact["primary_detail"] == "alex.t@mabdel.ai"
+    assert contact["primary_detail"] == "alex.t@gocustify.com"
     assert contact["initials"] == "AT"
     assert contact["is_online"] is True
 

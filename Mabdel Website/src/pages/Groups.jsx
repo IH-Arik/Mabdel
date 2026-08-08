@@ -636,24 +636,6 @@ export default function Groups() {
                 />
               </div>
 
-              <div className="space-y-2 text-left">
-                <label className="text-xs font-bold text-slate-400 tracking-wide uppercase flex items-center gap-1.5">
-                  <Shield size={12} className="text-purple-400" /> {t('grp_lbl_link_rbac')}
-                </label>
-                <select
-                  value={createForm.role_slug}
-                  onChange={(event) => setCreateForm((current) => ({ ...current, role_slug: event.target.value }))}
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-purple-500/40"
-                >
-                  <option value="">{t('grp_opt_no_role')}</option>
-                  <option value="manager">{t('grp_opt_manager')}</option>
-                  <option value="staff">{t('grp_opt_staff')}</option>
-                  <option value="assistant">{t('grp_opt_assistant')}</option>
-                </select>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  {t('grp_rbac_hint')}
-                </p>
-              </div>
 
               <div className="space-y-3 text-left">
                 <div className="flex items-center justify-between">
@@ -832,26 +814,6 @@ export default function Groups() {
                 />
               </div>
 
-              {!activeGroup.is_system_managed ? (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                    <Shield size={12} className="text-purple-400" /> {t('grp_lbl_link_rbac')}
-                  </label>
-                  <select
-                    value={settingsForm.role_slug}
-                    onChange={(event) => setSettingsForm((current) => ({ ...current, role_slug: event.target.value }))}
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-purple-500/40"
-                  >
-                    <option value="">{t('grp_opt_no_role')}</option>
-                    <option value="manager">{t('grp_opt_manager')}</option>
-                    <option value="staff">{t('grp_opt_staff')}</option>
-                    <option value="assistant">{t('grp_opt_assistant')}</option>
-                  </select>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    {t('grp_sync_role_hint')}
-                  </p>
-                </div>
-              ) : null}
 
               <div className="flex items-center gap-3">
                 {!activeGroup.is_system_managed ? (

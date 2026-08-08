@@ -245,6 +245,12 @@ class SmartFlowService(SmartFlowBase):
     async def sync_user_global_chat_membership(self, user_id, organization_id=None):
         return await self.conversation_service.sync_user_global_chat_membership(user_id, organization_id)
 
+    async def sync_user_role_group_membership(self, user_id, role_slug, organization_id=None):
+        return await self.conversation_service.sync_user_role_group_membership(user_id, role_slug, organization_id)
+
+    async def backfill_role_groups(self):
+        return await self.conversation_service.backfill_role_groups()
+
     async def backfill_global_chats(self):
         return await self.conversation_service.backfill_global_chats()
 
@@ -739,6 +745,7 @@ class SmartFlowService(SmartFlowBase):
         document = {
             "user_id": str(user["_id"]),
             "email": user.get("email"),
+            "organization_id": user.get("organization_id"),
             "category": payload["category"],
             "subject": payload["subject"].strip(),
             "description": payload["description"].strip(),

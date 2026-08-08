@@ -54,6 +54,7 @@ export const listThreadMessages = async ({ threadId }) => {
     data: messages.map((m) => ({
       _id: m.id,
       senderUserId: m.sender_id,
+      isMe: Boolean(m.is_me),
       text: m.message || "",
       imageUrl: m.image_url || null,
       createdAt: m.timestamp || null,

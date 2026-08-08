@@ -481,9 +481,9 @@ function buildICSFile(event) {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Mabdel AI//Calendar Event//EN',
+    'PRODID:-//Gocustify//Calendar Event//EN',
     'BEGIN:VEVENT',
-    `UID:${event.id || `${Date.now()}@mabdel.ai`}`,
+    `UID:${event.id || `${Date.now()}@gocustify.com`}`,
     `DTSTAMP:${formatUtc(new Date())}`,
     `DTSTART:${formatUtc(startsAt)}`,
     `DTEND:${formatUtc(endsAt)}`,

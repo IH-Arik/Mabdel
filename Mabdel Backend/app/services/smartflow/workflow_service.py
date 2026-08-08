@@ -65,7 +65,7 @@ class WorkflowService(SmartFlowBase):
             audio_filename=payload.get("audio_filename", "voice.wav"),
         )
         transcript = normalize_workflow_command(transcription["transcript"])
-        workflow_state = run_assistant_workflow(transcript)
+        workflow_state = await run_assistant_workflow(transcript)
         intent = payload.get("workflow_intent") or infer_intent_from_command(transcript) or workflow_state.intent
         if intent not in {"invoice", "bulk_message", "calendar", "lease", "agreement", "contact", "email", "group", "call"}:
             return {

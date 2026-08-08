@@ -11,7 +11,9 @@ import {
   Contact,
   FileText,
   PhoneCall,
-  ExternalLink
+  ExternalLink,
+  Calendar,
+  MessageCircle
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { clsx } from 'clsx';
@@ -35,9 +37,11 @@ const primaryNavItemDefs = [
   { key: 'layout_messages', icon: MessageSquare, path: '/conversations' },
   { key: 'layout_voice_assistant', icon: Mic, path: '/voice-conversation' },
   { key: 'layout_ai_calling', icon: PhoneCall, path: '/calls' },
+  { key: 'layout_unified_conversation', icon: MessageCircle, path: '/unified-conversation' },
   { key: 'layout_contacts', icon: Contact, path: '/contacts' },
-  { key: 'layout_documents', icon: FileText, path: '/documents' },
   { key: 'layout_groups', icon: Users2, path: '/groups' },
+  { key: 'layout_calendar', icon: Calendar, path: '/calendar' },
+  { key: 'layout_documents', icon: FileText, path: '/documents' },
   { key: 'layout_profile', icon: Settings, path: '/profile' },
 ];
 
@@ -208,7 +212,9 @@ export default function MainLayout() {
                 className="flex items-center gap-3.5 px-4 py-2.5 w-full rounded-xl text-xs font-bold text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white transition-all text-left cursor-pointer"
               >
                 <ExternalLink size={16} />
-                <span>{t('layout_team_dashboard')}</span>
+                <span className="capitalize">
+                  {(user?.role || user?.primary_role || 'team')} Dashboard
+                </span>
               </button>
             )}
             <button

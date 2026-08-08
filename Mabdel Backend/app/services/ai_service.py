@@ -6,11 +6,11 @@ from app.workflows.graph import run_assistant_workflow
 
 
 class AIService:
-    def handle_command(self, payload: AICommandRequest) -> AICommandResponse:
+    async def handle_command(self, payload: AICommandRequest) -> AICommandResponse:
         # Assuming history might be optionally provided in payload if schema supports it
         # If not, we just pass empty list
         history = getattr(payload, "history", [])
-        state = run_assistant_workflow(payload.command, history=history)
+        state = await run_assistant_workflow(payload.command, history=history)
         return AICommandResponse(
             intent=state.intent,
             summary=state.summary,

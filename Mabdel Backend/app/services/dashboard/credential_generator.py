@@ -10,14 +10,14 @@ def slugify_name(name: str) -> str:
     return name
 
 def generate_login_email(name: str, role: str) -> str:
-    """Generates a login email like john.staff.a3f9@mabdel.ai"""
+    """Generates a login email like john.staff.a3f9@gocustify.com"""
     slug_name = slugify_name(name)
     if not slug_name:
         slug_name = "user"
         
     random_hash = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
     
-    return f"{slug_name}.{role}.{random_hash}@mabdel.ai"
+    return f"{slug_name}.{role}.{random_hash}@gocustify.com"
 
 def generate_secure_password(length: int = 14) -> str:
     """Generates a secure password without ambiguous characters."""

@@ -9,6 +9,8 @@ export const LANGUAGE_OPTIONS = [
   { code: "ru-RU", label: "RU", name: "Русский" },
   { code: "ur-PK", label: "اُر", name: "Urdu" },
   { code: "tr-TR", label: "TR", name: "Türkçe" },
+  { code: "zh-CN", label: "中文", name: "中文" },
+  { code: "ja-JP", label: "日本語", name: "日本語" },
 ];
 
 export const APP_TRANSLATIONS = {
@@ -4123,4 +4125,17 @@ export const APP_TRANSLATIONS = {
     please_describe_your_issue_before_sending: "Please describe your issue before sending.",
     new_notification: "new notification",
     new_notifications: "new notifications",
+  },
+  "zh-CN": {
+    settings: "设置",
+    app_language: "应用语言",
+    mabdel_ai: "GoCustify AI",
+    ask_mabdel_ai: "让 GoCustify AI 帮助您创建发票、安排会议、起草消息、管理联系人或打开工作流。",
+  },
+  "ja-JP": {
+    settings: "設定",
+    app_language: "アプリの言語",
+    mabdel_ai: "GoCustify AI",
+    ask_mabdel_ai: "GoCustify AI に依頼して、請求書の作成、会議のスケジュール、メッセージの下書き、連絡先の管理、またはワークフローの開始を行います。",
+  },
 };

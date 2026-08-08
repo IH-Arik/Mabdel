@@ -39,16 +39,14 @@ const ADMIN_MENU = [
 
 const OWNER_MENU = [
   { icon: <LayoutDashboard className="w-5 h-5" />, label: "Overview", Link: "/owner" },
-  { icon: <Users className="w-5 h-5" />, label: "Team Management", Link: "/owner/team" },
+  { icon: <Users className="w-5 h-5" />, label: "Group Management", Link: "/owner/team" },
   { icon: <TrendingUp className="w-5 h-5" />, label: "Team Analysis", Link: "/owner/analysis" },
-  { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
 ];
 
 const MANAGER_MENU = [
   { icon: <LayoutDashboard className="w-5 h-5" />, label: "Overview", Link: "/owner" },
   { icon: <Users className="w-5 h-5" />, label: "My Team", Link: "/owner/team" },
   { icon: <TrendingUp className="w-5 h-5" />, label: "Team Analysis", Link: "/owner/analysis" },
-  { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
 ];
 
 const STAFF_MENU = [
