@@ -36,57 +36,50 @@ const ACCOUNT_ITEMS = [
 const STEPS = [
   {
     num: "1",
-    title: "Create a Twilio account",
-    desc: 'Go to twilio.com → Click "Sign Up" → Complete registration (free trial available)',
+    title: "Create a Telnyx account",
+    desc: 'Go to telnyx.com → Click "Sign Up" → Complete registration',
   },
   {
     num: "2",
-    title: "Get your Account SID & Auth Token",
-    desc: 'In Twilio Console → Dashboard → Copy "Account SID" and "Auth Token" (click the eye icon to reveal)',
+    title: "Get your API Key",
+    desc: "In Telnyx Portal → API Keys → Create API Key → Copy it (shown once)",
   },
   {
     num: "3",
     title: "Buy a phone number",
-    desc: 'Console → Phone Numbers → Manage → Buy a number → Choose a number with "Voice" capability → Buy',
+    desc: 'Portal → Numbers → Buy Numbers → Choose a number with "Voice" capability → Buy',
   },
   {
     num: "4",
     title: "Enter details below",
-    desc: "Paste your Account SID, Auth Token, and the purchased phone number in E.164 format (e.g. +12025551234)",
+    desc: "Paste your API Key and the purchased phone number in E.164 format (e.g. +12025551234)",
   },
 ];
 
 const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
   const { t } = useAppLanguage();
-  const [accountSid, setAccountSid] = useState("");
-  const [authToken, setAuthToken] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [saveCustomTwilio, { isLoading }] = useMadbelSaveCustomTwilioMutation();
 
   const handleSave = async () => {
-    if (!accountSid.trim() || !authToken.trim() || !phoneNumber.trim()) {
-      Alert.alert(t("missing_fields"), t("please_fill_in_all_three_fields"));
-      return;
-    }
-    if (!accountSid.trim().startsWith("AC") || accountSid.trim().length !== 34) {
-      Alert.alert(t("invalid_account_sid"), t("account_sid_must_start_with"));
+    if (!apiKey.trim() || !phoneNumber.trim()) {
+      Alert.alert(t("missing_fields"), t("please_fill_in_all_fields"));
       return;
     }
     try {
       await saveCustomTwilio({
-        account_sid: accountSid.trim(),
-        auth_token: authToken.trim(),
+        api_key: apiKey.trim(),
         phone_number: phoneNumber.trim(),
       }).unwrap();
-      setAccountSid("");
-      setAuthToken("");
+      setApiKey("");
       setPhoneNumber("");
       onSaved();
       onClose();
     } catch (e) {
       Alert.alert(
         "Save failed",
-        e?.data?.message || "Could not save Twilio credentials. Please check and try again."
+        e?.data?.message || "Could not save Telnyx credentials. Please check and try again."
       );
     }
   };
@@ -108,11 +101,11 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
               <Pressable onPress={onClose} style={styles.modalCloseBtn}>
                 <X size={24} color="#F3F9FF" />
               </Pressable>
-              <Text style={styles.modalTitle}>{t("connect_your_twilio")}</Text>
+              <Text style={styles.modalTitle}>{t("connect_your_telnyx")}</Text>
               <View style={{ width: 38 }} />
             </View>
 
-            <Text style={styles.modalSubtitle}>{t("use_your_own_twilio_account_for_calls_follow_the_s")}</Text>
+            <Text style={styles.modalSubtitle}>{t("use_your_own_telnyx_account_for_calls_follow_the_s")}</Text>
 
             {/* Step by step guide */}
             <View style={styles.stepsCard}>
@@ -130,31 +123,20 @@ const CustomTwilioModal = ({ visible, onClose, onSaved }) => {
               ))}
               <View style={styles.twilioLinkRow}>
                 <ExternalLink size={14} color="#12D0ED" />
-                <Text style={styles.twilioLink}>{t("twiliocomconsole")}</Text>
+                <Text style={styles.twilioLink}>{t("telnyxcomportal")}</Text>
               </View>
             </View>
 
             {/* Input fields */}
             <View style={styles.inputsCard}>
-              <Text style={styles.inputsHeading}>{t("your_twilio_credentials")}</Text>
+              <Text style={styles.inputsHeading}>{t("your_telnyx_credentials")}</Text>
 
-              <Text style={styles.inputLabel}>{t("account_sid")}</Text>
+              <Text style={styles.inputLabel}>{t("telnyx_api_key")}</Text>
               <TextInput
                 style={styles.input}
-                value={accountSid}
-                onChangeText={setAccountSid}
-                placeholder={t("acxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")}
-                placeholderTextColor="#4A6070"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-
-              <Text style={styles.inputLabel}>{t("auth_token")}</Text>
-              <TextInput
-                style={styles.input}
-                value={authToken}
-                onChangeText={setAuthToken}
-                placeholder={t("your_auth_token")}
+                value={apiKey}
+                onChangeText={setApiKey}
+                placeholder={t("your_telnyx_api_key")}
                 placeholderTextColor="#4A6070"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -200,12 +182,11 @@ const TwilioSetupCard = () => {
   const [removeCustom] = useMadbelRemoveCustomTwilioMutation();
   const [customModalVisible, setCustomModalVisible] = useState(false);
 
-  const twilioData = data?.data;
-  const platformStatus = twilioData?.twilio_setup_status || "not_provisioned";
-  const platformNumber = twilioData?.twilio_phone_number;
-  const mode = twilioData?.twilio_mode || "not_set";
-  const customNumber = twilioData?.twilio_custom_phone_number;
-  const customSid = twilioData?.twilio_custom_account_sid;
+  const telnyxData = data?.data;
+  const platformStatus = telnyxData?.telnyx_setup_status || "not_provisioned";
+  const platformNumber = telnyxData?.telnyx_phone_number;
+  const mode = telnyxData?.telnyx_mode || "not_set";
+  const customNumber = telnyxData?.telnyx_custom_phone_number;
 
   const isProvisioning = platformStatus === "provisioning" || provisioning;
 
@@ -232,8 +213,8 @@ const TwilioSetupCard = () => {
 
   const handleRemoveCustom = () => {
     Alert.alert(
-      t("remove_custom_twilio"),
-      t("are_you_sure_you_want_to_remove_your_twilio_creden"),
+      t("remove_custom_telnyx"),
+      t("are_you_sure_you_want_to_remove_your_telnyx_creden"),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -286,10 +267,10 @@ const TwilioSetupCard = () => {
 
         <View style={styles.divider} />
 
-        {/* Option B — User's own Twilio */}
+        {/* Option B — User's own Telnyx */}
         <View style={styles.optionBlock}>
-          <Text style={styles.optionLabel}>{t("option_b_your_own_twilio")}</Text>
-          <Text style={styles.optionDesc}>{t("connect_your_twilio_account_and_use_your_own_numbe")}</Text>
+          <Text style={styles.optionLabel}>{t("option_b_your_own_telnyx")}</Text>
+          <Text style={styles.optionDesc}>{t("connect_your_telnyx_account_and_use_your_own_numbe")}</Text>
           {mode === "custom" && customNumber ? (
             <View>
               <View style={styles.activeRow}>
@@ -299,7 +280,6 @@ const TwilioSetupCard = () => {
                   <Text style={styles.activeBadgeText}>{t("connected")}</Text>
                 </View>
               </View>
-              <Text style={styles.customSidText}>SID: {customSid}</Text>
               <Pressable onPress={handleRemoveCustom} style={styles.removeBtn}>
                 <Text style={styles.removeBtnText}>{t("remove")}</Text>
               </Pressable>
@@ -309,7 +289,7 @@ const TwilioSetupCard = () => {
               style={[styles.optionBtn, styles.optionBtnOutline]}
               onPress={() => setCustomModalVisible(true)}
             >
-              <Text style={[styles.optionBtnText, { color: "#12D0ED" }]}>{t("connect_twilio")}</Text>
+              <Text style={[styles.optionBtnText, { color: "#12D0ED" }]}>{t("connect_telnyx")}</Text>
             </Pressable>
           )}
         </View>

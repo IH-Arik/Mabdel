@@ -1452,9 +1452,11 @@ export const buildSmartflowEndpoints = (builder) => ({
       providesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
     }),
 
+    // Number provisioning moved from Twilio to Telnyx on the backend (endpoint names
+    // kept as madbel*Twilio* so existing screen imports don't need to change).
     madbelGetTwilioStatus: builder.query({
       query: buildApiRequest({
-        path: "/api/v1/twilio/status",
+        path: "/api/v1/telnyx/status",
         method: "GET",
       }),
       providesTags: [{ type: "MadbelTwilio", id: "STATUS" }],
@@ -1462,7 +1464,7 @@ export const buildSmartflowEndpoints = (builder) => ({
 
     madbelProvisionTwilio: builder.mutation({
       query: buildApiRequest({
-        path: "/api/v1/twilio/provision",
+        path: "/api/v1/telnyx/provision",
         method: "POST",
         hasBody: false,
       }),
@@ -1471,7 +1473,7 @@ export const buildSmartflowEndpoints = (builder) => ({
 
     madbelReleaseTwilio: builder.mutation({
       query: buildApiRequest({
-        path: "/api/v1/twilio/release",
+        path: "/api/v1/telnyx/release",
         method: "DELETE",
         hasBody: false,
       }),
@@ -1480,7 +1482,7 @@ export const buildSmartflowEndpoints = (builder) => ({
 
     madbelSaveCustomTwilio: builder.mutation({
       query: buildApiRequest({
-        path: "/api/v1/twilio/custom",
+        path: "/api/v1/telnyx/custom",
         method: "POST",
         hasBody: true,
       }),
@@ -1489,7 +1491,7 @@ export const buildSmartflowEndpoints = (builder) => ({
 
     madbelRemoveCustomTwilio: builder.mutation({
       query: buildApiRequest({
-        path: "/api/v1/twilio/custom",
+        path: "/api/v1/telnyx/custom",
         method: "DELETE",
         hasBody: false,
       }),

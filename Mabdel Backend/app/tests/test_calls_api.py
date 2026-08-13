@@ -1,101 +1,192 @@
 from __future__ import annotations
 
 import base64
-import hashlib
-import hmac
+import json
+import time
 
 from app.core.config import settings
+from app.services.call_service import CallService
 
 
-def _twilio_signature(url: str, form_data: dict[str, str], auth_token: str) -> str:
-    payload = url + "".join(f"{key}{form_data[key]}" for key in sorted(form_data))
-    digest = hmac.new(auth_token.encode("utf-8"), payload.encode("utf-8"), hashlib.sha1).digest()
-    return base64.b64encode(digest).decode("utf-8")
+def _make_ed25519_keypair() -> tuple[str, "object"]:
+    from nacl.signing import SigningKey
+
+    signing_key = SigningKey.generate()
+    public_key_b64 = base64.b64encode(bytes(signing_key.verify_key)).decode()
+    return public_key_b64, signing_key
 
 
-def test_incoming_call_returns_twiml_stream_response(client, monkeypatch) -> None:
-    monkeypatch.setattr(settings, "TWILIO_VALIDATE_SIGNATURE", False)
+def _sign_telnyx_payload(signing_key, body: bytes, timestamp: str | None = None) -> dict[str, str]:
+    ts = timestamp or str(int(time.time()))
+    message = f"{ts}|{body.decode()}".encode()
+    signature = base64.b64encode(signing_key.sign(message).signature).decode()
+    return {"Telnyx-Signature-Ed25519": signature, "Telnyx-Timestamp": ts}
+
+
+def _webhook_envelope(event_type: str, payload: dict) -> bytes:
+    return json.dumps(
+        {
+            "data": {
+                "event_type": event_type,
+                "id": "evt_test",
+                "occurred_at": "2026-01-01T00:00:00Z",
+                "payload": payload,
+            }
+        }
+    ).encode()
+
+
+async def _noop_answer(self, call_control_id: str, *, websocket_url: str) -> None:
+    return None
+
+
+def test_incoming_call_webhook_creates_ringing_call_log(client, mock_db, monkeypatch) -> None:
+    public_key, signing_key = _make_ed25519_keypair()
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", True)
+    monkeypatch.setattr(settings, "TELNYX_PUBLIC_KEY", public_key)
     monkeypatch.setattr(settings, "PUBLIC_BACKEND_URL", "https://api.mabdel.test")
+    monkeypatch.setattr(CallService, "answer_call", _noop_answer)
 
-    response = client.post(
-        "/api/v1/calls/incoming",
-        data={"CallSid": "CA123456", "From": "+15550001111", "To": "+15550002222"},
+    body = _webhook_envelope(
+        "call.initiated",
+        {
+            "call_control_id": "v2:test-call-1",
+            "direction": "incoming",
+            "from": "+15550001111",
+            "to": "+15550002222",
+        },
     )
+    headers = _sign_telnyx_payload(signing_key, body)
+
+    response = client.post("/api/v1/calls/webhook", content=body, headers=headers)
 
     assert response.status_code == 200
-    assert response.headers["content-type"].startswith("application/xml")
-    assert "<Say>Welcome to Mabdel. Please wait while I connect you to our team.</Say>" in response.text
-    assert "<Play loop=\"0\">http://com.twilio.music.classical.s3.amazonaws.com/Classical_1.mp3</Play>" in response.text
+    assert response.json() == {}
+
+    import asyncio
+
+    call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:test-call-1"}))
+    assert call_log is not None
+    assert call_log["status"] == "ringing"
+    assert call_log["direction"] == "inbound"
+    assert call_log["from_number"] == "+15550001111"
 
 
-def test_incoming_call_rejects_invalid_twilio_signature(client, monkeypatch) -> None:
-    monkeypatch.setattr(settings, "TWILIO_VALIDATE_SIGNATURE", True)
-    monkeypatch.setattr(settings, "TWILIO_AUTH_TOKEN", "test-token")
+def test_call_webhook_rejects_invalid_signature(client, monkeypatch) -> None:
+    public_key, _signing_key = _make_ed25519_keypair()
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", True)
+    monkeypatch.setattr(settings, "TELNYX_PUBLIC_KEY", public_key)
+
+    body = _webhook_envelope("call.initiated", {"call_control_id": "v2:bad", "direction": "incoming"})
 
     response = client.post(
-        "/api/v1/calls/incoming",
-        data={"CallSid": "CAinvalid"},
-        headers={"X-Twilio-Signature": "invalid-signature"},
+        "/api/v1/calls/webhook",
+        content=body,
+        headers={"Telnyx-Signature-Ed25519": "bogus", "Telnyx-Timestamp": str(int(time.time()))},
     )
 
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == "TWILIO_SIGNATURE_INVALID"
+    assert response.json()["error"]["code"] == "TELNYX_SIGNATURE_INVALID"
 
 
-def test_twilio_status_callback_accepts_valid_signature(client, monkeypatch) -> None:
-    monkeypatch.setattr(settings, "TWILIO_VALIDATE_SIGNATURE", True)
-    monkeypatch.setattr(settings, "TWILIO_AUTH_TOKEN", "test-token")
+def test_call_webhook_root_alias_matches_v1_route(client, mock_db, monkeypatch) -> None:
+    """TELNYX_WEBHOOK_URL in .env points at the unprefixed alias, not /api/v1/calls/webhook."""
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+    monkeypatch.setattr(CallService, "answer_call", _noop_answer)
 
-    form_data = {"CallSid": "CA123456", "CallStatus": "completed", "CallDuration": "42"}
-    url = "http://testserver/api/v1/calls/status"
-    signature = _twilio_signature(url, form_data, settings.TWILIO_AUTH_TOKEN)
-
-    response = client.post(
-        "/api/v1/calls/status",
-        data=form_data,
-        headers={"X-Twilio-Signature": signature},
+    body = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:alias-test", "direction": "incoming", "from": "+1555", "to": "+1666"},
     )
-
+    response = client.post("/webhooks/telnyx/voice", content=body)
     assert response.status_code == 200
-    payload = response.json()
-    assert payload["success"] is True
-    assert payload["data"]["call_status"] == "completed"
-    assert payload["data"]["call_duration"] == "42"
+
+    import asyncio
+
+    call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:alias-test"}))
+    assert call_log is not None
 
 
-def test_call_stream_acknowledges_twilio_media_events(client) -> None:
+def test_call_webhook_hangup_updates_status(client, mock_db, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+    monkeypatch.setattr(CallService, "answer_call", _noop_answer)
+
+    import asyncio
+
+    inbound_body = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:hangup-test", "direction": "incoming", "from": "+1555", "to": "+1666"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=inbound_body).status_code == 200
+
+    hangup_body = _webhook_envelope(
+        "call.hangup",
+        {
+            "call_control_id": "v2:hangup-test",
+            "hangup_cause": "normal_clearing",
+            "call_duration_secs": 42,
+            "from": "+1555",
+            "to": "+1666",
+        },
+    )
+    response = client.post("/api/v1/calls/webhook", content=hangup_body)
+    assert response.status_code == 200
+
+    call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:hangup-test"}))
+    assert call_log["status"] == "completed"
+    assert call_log["duration"] == 42
+
+
+def test_call_webhook_busy_hangup_maps_to_busy_status(client, mock_db, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+    monkeypatch.setattr(CallService, "answer_call", _noop_answer)
+
+    import asyncio
+
+    inbound_body = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:busy-test", "direction": "incoming", "from": "+1555", "to": "+1666"},
+    )
+    client.post("/api/v1/calls/webhook", content=inbound_body)
+
+    hangup_body = _webhook_envelope(
+        "call.hangup",
+        {"call_control_id": "v2:busy-test", "hangup_cause": "user_busy"},
+    )
+    client.post("/api/v1/calls/webhook", content=hangup_body)
+
+    call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:busy-test"}))
+    assert call_log["status"] == "busy"
+
+
+def test_call_stream_acknowledges_telnyx_media_events(client) -> None:
     with client.websocket_connect("/api/v1/calls/stream/CAstream") as websocket:
         connected = websocket.receive_json()
         assert connected["event"] == "connected"
 
-        websocket.send_json({"event": "start", "streamSid": "MZ123"})
+        websocket.send_json({"event": "start", "stream_id": "MZ123"})
         started = websocket.receive_json()
         assert started["event"] == "stream_started"
         assert started["stream_sid"] == "MZ123"
 
-        # Drain greeting media events if any (AI greeting starts on 'start')
-        # We might receive multiple 'media' events for the greeting.
-        # We send our own media and look for 'audio_ack'.
-        websocket.send_json({"event": "media", "streamSid": "MZ123", "media": {"payload": "aGVsbG8="}})
-        
-        # Keep receiving until we get audio_ack, ignoring any 'media' (AI speaking)
+        websocket.send_json({"event": "media", "stream_id": "MZ123", "media": {"payload": "aGVsbG8="}})
+
         received_ack = False
-        for _ in range(500): # High limit to handle long greetings
+        for _ in range(500):  # high limit to drain the AI greeting's own media frames
             msg = websocket.receive_json()
             if msg["event"] == "audio_ack":
                 assert msg["bytes_received"] == 5
                 received_ack = True
                 break
             elif msg["event"] == "media":
-                continue # Skip AI media
-        
+                continue
+
         assert received_ack, "Did not receive audio_ack"
 
-        websocket.send_json({"event": "stop", "streamSid": "MZ123"})
-        
-        # Drain lingering media until we get stream_stopped
+        websocket.send_json({"event": "stop", "stream_id": "MZ123"})
+
         received_stop = False
-        for _ in range(1000): # High limit to handle all lingering media
+        for _ in range(1000):
             msg = websocket.receive_json()
             if msg["event"] == "stream_stopped":
                 received_stop = True
@@ -104,3 +195,109 @@ def test_call_stream_acknowledges_twilio_media_events(client) -> None:
                 continue
 
         assert received_stop, "Did not receive stream_stopped"
+
+
+def test_old_twilio_browser_voice_endpoints_are_gone(client) -> None:
+    assert client.get("/api/v1/twilio/voice/token").status_code == 404
+    assert client.post("/api/v1/twilio/voice/registration", json={"identity": "x"}).status_code == 404
+    assert client.post("/api/v1/twilio/voice/outbound").status_code == 404
+    assert client.post("/api/v1/twilio/voice/session-sync", json={"call_sid": "x", "status": "y"}).status_code == 404
+
+
+def test_incoming_call_without_registration_answers_into_ai(client, mock_db, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    answer_calls: list[dict] = []
+
+    async def fake_answer(self, call_control_id: str, *, websocket_url: str | None = None) -> None:
+        answer_calls.append({"websocket_url": websocket_url})
+
+    monkeypatch.setattr(CallService, "answer_call", fake_answer)
+
+    body = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:no-reg-test", "direction": "incoming", "from": "+1555", "to": "+1666"},
+    )
+    client.post("/api/v1/calls/webhook", content=body)
+
+    assert len(answer_calls) == 1
+    assert answer_calls[0]["websocket_url"] is not None  # answered straight into the AI stream
+
+
+def test_browser_outbound_call_creates_log_from_client_state(client, mock_db, monkeypatch) -> None:
+    """Browser-originated outbound calls never hit our REST API before dialing — the
+    webhook is the first signal, and client_state (set by newCall()) says who called."""
+    import asyncio
+
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+    state = CallService._encode_client_state({"user_id": "user-abc-123", "display_name": "Jane Caller"})
+
+    body = _webhook_envelope(
+        "call.initiated",
+        {
+            "call_control_id": "v2:browser-outbound-1",
+            "direction": "outgoing",
+            "from": "+15551230000",
+            "to": "+15559998888",
+            "client_state": state,
+        },
+    )
+    response = client.post("/api/v1/calls/webhook", content=body)
+    assert response.status_code == 200
+
+    call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:browser-outbound-1"}))
+    assert call_log is not None
+    assert call_log["user_id"] == "user-abc-123"
+    assert call_log["contact_name"] == "Jane Caller"
+    assert call_log["direction"] == "outbound"
+    assert call_log["status"] == "initiated"
+
+
+def test_browser_outbound_call_does_not_duplicate_existing_log(client, mock_db, monkeypatch) -> None:
+    import asyncio
+
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    async def _seed():
+        await mock_db.call_logs.insert_one(
+            {"user_id": "user-xyz", "twilio_call_sid": "v2:already-tracked", "status": "queued"}
+        )
+
+    asyncio.run(_seed())
+
+    state = CallService._encode_client_state({"user_id": "someone-else"})
+    body = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:already-tracked", "direction": "outgoing", "client_state": state},
+    )
+    client.post("/api/v1/calls/webhook", content=body)
+
+    count = asyncio.run(mock_db.call_logs.count_documents({"twilio_call_sid": "v2:already-tracked"}))
+    assert count == 1
+
+
+def test_browser_outbound_call_without_client_state_is_ignored(client, mock_db, monkeypatch) -> None:
+    import asyncio
+
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    body = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:no-state", "direction": "outgoing"},
+    )
+    client.post("/api/v1/calls/webhook", content=body)
+
+    call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:no-state"}))
+    assert call_log is None
+
+
+def test_normalize_call_status_maps_events_and_hangup_causes() -> None:
+    assert CallService.normalize_call_status("call.initiated") == "initiated"
+    assert CallService.normalize_call_status("call.ringing") == "ringing"
+    assert CallService.normalize_call_status("call.answered") == "in_progress"
+    assert CallService.normalize_call_status("call.hangup", "user_busy") == "busy"
+    assert CallService.normalize_call_status("call.hangup", "call_rejected") == "busy"
+    assert CallService.normalize_call_status("call.hangup", "no_answer") == "no_answer"
+    assert CallService.normalize_call_status("call.hangup", "originator_cancel") == "canceled"
+    assert CallService.normalize_call_status("call.hangup", "normal_clearing") == "completed"
+    assert CallService.normalize_call_status("call.hangup", None) == "completed"

@@ -127,14 +127,16 @@ export const smartflowApi = {
   // Voice History (alias for AI history in settings)
   getVoiceHistory: () => client.get('/api/v1/smartflow/ai/history'),
   replayVoiceHistory: (id) => client.post(`/api/v1/smartflow/ai/history/${id}/replay`),
-  getTwilioStatus: () => client.get('/api/v1/twilio/status'),
-  provisionTwilio: () => client.post('/api/v1/twilio/provision'),
-  releaseTwilio: () => client.delete('/api/v1/twilio/release'),
-  saveCustomTwilio: (data) => client.post('/api/v1/twilio/custom', data),
-  removeCustomTwilio: () => client.delete('/api/v1/twilio/custom'),
-  getTwilioVoiceToken: () => client.get('/api/v1/twilio/voice/token'),
-  setTwilioVoiceRegistration: (data) => client.post('/api/v1/twilio/voice/registration', data),
-  syncTwilioVoiceSession: (data) => client.post('/api/v1/twilio/voice/session-sync', data),
+  getTelnyxStatus: () => client.get('/api/v1/telnyx/status'),
+  provisionTelnyx: () => client.post('/api/v1/telnyx/provision'),
+  releaseTelnyx: () => client.delete('/api/v1/telnyx/release'),
+  saveCustomTelnyx: (data) => client.post('/api/v1/telnyx/custom', data),
+  removeCustomTelnyx: () => client.delete('/api/v1/telnyx/custom'),
+  // Browser (WebRTC) dialer — Telnyx On-Demand Credentials. No session-sync endpoint:
+  // call events (including browser-originated ones) flow through the same server-side
+  // webhook as phone calls, so the client never has to report call state itself.
+  getTelnyxVoiceToken: () => client.get('/api/v1/telnyx/voice/token'),
+  setTelnyxVoiceRegistration: (data) => client.post('/api/v1/telnyx/voice/registration', data),
   getLiveCallTranscriptBySid: (callSid) => client.get(`/api/v1/calls/${callSid}/transcript`),
 
   // Earnings & Withdrawals
@@ -158,6 +160,13 @@ export const smartflowApi = {
   getCallAISummary: (id) => client.get(`/api/v1/smartflow/calls/${id}/ai-summary`),
   getCallRecordingUrl: (id) => client.get(`/api/v1/smartflow/calls/${id}/recording`),
   updateCall: (id, data) => client.patch(`/api/v1/smartflow/calls/${id}`, data),
+
+  // ── AI call scheduling (business hours + pending meeting requests) ────────────
+  getBusinessHours: () => client.get('/api/v1/smartflow/calendar/business-hours'),
+  updateBusinessHours: (data) => client.put('/api/v1/smartflow/calendar/business-hours', data),
+  getCallMeetingRequests: (params) => client.get('/api/v1/smartflow/calls/meeting-requests', { params }),
+  acceptCallMeetingRequest: (id) => client.post(`/api/v1/smartflow/calls/meeting-requests/${id}/accept`),
+  declineCallMeetingRequest: (id) => client.post(`/api/v1/smartflow/calls/meeting-requests/${id}/decline`),
 
   // ── Leases extras ─────────────────────────────────────────────────────────────
   getLease: (id) => client.get(`/api/v1/smartflow/leases/${id}`),

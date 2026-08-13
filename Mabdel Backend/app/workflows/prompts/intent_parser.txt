@@ -9,7 +9,7 @@ Available Intents:
 - lease: Create or manage rental/lease agreements.
 - agreement: Create or manage general business agreements/NDAs.
 - group: Create or manage teams/groups.
-- call: Handle phone calls or Twilio operations.
+- call: Handle phone calls or telephony operations.
 - unknown: Use this if the intent is not clear or doesn't fit the above.
 
 Output ONLY the intent name in lowercase. If the intent is ambiguous, output 'unknown'.

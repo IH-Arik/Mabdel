@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Loader2, PhoneCall, Shield, Trash2 } from 'lucide-react';
 
 import { smartflowApi } from '../../../api/services';
+import BusinessHoursCard from '../../../components/Calls/BusinessHoursCard';
 import { Field, INPUT } from '../shared';
 import { formatCstDate } from '../../../utils/dateUtils';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -33,7 +34,7 @@ const getApiErrorMessage = (error, fallback) => {
 function AccountSettingsTab() {
   const { t } = useLanguage();
   const [contentPages, setContentPages] = useState({});
-  const [twilioStatus, setTwilioStatus] = useState(null);
+  const [telnyxStatus, setTelnyxStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingCustom, setSavingCustom] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
@@ -47,14 +48,13 @@ function AccountSettingsTab() {
     help: false,
   });
   const [customForm, setCustomForm] = useState({
-    account_sid: '',
-    auth_token: '',
+    api_key: '',
     phone_number: '',
   });
 
   const loadData = async () => {
-    const [twilioResponse, ...contentResponses] = await Promise.all([
-      smartflowApi.getTwilioStatus(),
+    const [telnyxResponse, ...contentResponses] = await Promise.all([
+      smartflowApi.getTelnyxStatus(),
       ...CONTENT_SECTIONS.map((item) => item.request()),
     ]);
 
@@ -63,7 +63,7 @@ function AccountSettingsTab() {
       nextPages[item.key] = contentResponses[index]?.data?.data || null;
     });
 
-    setTwilioStatus(twilioResponse?.data?.data || null);
+    setTelnyxStatus(telnyxResponse?.data?.data || null);
     setContentPages(nextPages);
   };
 
@@ -84,26 +84,26 @@ function AccountSettingsTab() {
     };
   }, []);
 
-  const platformStatus = twilioStatus?.twilio_setup_status || 'not_provisioned';
-  const customMode = twilioStatus?.twilio_mode === 'custom';
+  const platformStatus = telnyxStatus?.telnyx_setup_status || 'not_provisioned';
+  const customMode = telnyxStatus?.telnyx_mode === 'custom';
 
   const platformSummary = useMemo(() => {
-    if (platformStatus === 'active' && twilioStatus?.twilio_phone_number) {
-      return t('aprof_active_num').replace('{number}', twilioStatus.twilio_phone_number);
+    if (platformStatus === 'active' && telnyxStatus?.telnyx_phone_number) {
+      return t('aprof_active_num').replace('{number}', telnyxStatus.telnyx_phone_number);
     }
     if (platformStatus === 'provisioning') return t('aprof_provisioning');
     if (platformStatus === 'failed') return t('aprof_failed');
     return t('aprof_inactive');
-  }, [platformStatus, twilioStatus?.twilio_phone_number, t]);
+  }, [platformStatus, telnyxStatus?.telnyx_phone_number, t]);
 
-  async function handleProvisionTwilio() {
+  async function handleProvisionTelnyx() {
     setProvisioning(true);
     setError('');
     setSuccess('');
 
     try {
-      const response = await smartflowApi.provisionTwilio();
-      setTwilioStatus(response?.data?.data || twilioStatus);
+      const response = await smartflowApi.provisionTelnyx();
+      setTelnyxStatus(response?.data?.data || telnyxStatus);
       setSuccess(t('aprof_success_provision'));
     } catch (provisionError) {
       setError(getApiErrorMessage(provisionError, t('aprof_err_provision')));
@@ -112,19 +112,18 @@ function AccountSettingsTab() {
     }
   }
 
-  async function handleSaveCustomTwilio() {
+  async function handleSaveCustomTelnyx() {
     setSavingCustom(true);
     setError('');
     setSuccess('');
 
     try {
-      const response = await smartflowApi.saveCustomTwilio({
-        account_sid: customForm.account_sid.trim(),
-        auth_token: customForm.auth_token.trim(),
+      const response = await smartflowApi.saveCustomTelnyx({
+        api_key: customForm.api_key.trim(),
         phone_number: customForm.phone_number.trim(),
       });
-      setTwilioStatus(response?.data?.data || twilioStatus);
-      setCustomForm({ account_sid: '', auth_token: '', phone_number: '' });
+      setTelnyxStatus(response?.data?.data || telnyxStatus);
+      setCustomForm({ api_key: '', phone_number: '' });
       setSuccess(t('aprof_success_connect'));
     } catch (saveError) {
       setError(getApiErrorMessage(saveError, t('aprof_err_connect')));
@@ -133,15 +132,15 @@ function AccountSettingsTab() {
     }
   }
 
-  async function handleRemoveCustomTwilio() {
+  async function handleRemoveCustomTelnyx() {
     setRemovingCustom(true);
     setError('');
     setSuccess('');
 
     try {
-      await smartflowApi.removeCustomTwilio();
-      const statusResponse = await smartflowApi.getTwilioStatus();
-      setTwilioStatus(statusResponse?.data?.data || null);
+      await smartflowApi.removeCustomTelnyx();
+      const statusResponse = await smartflowApi.getTelnyxStatus();
+      setTelnyxStatus(statusResponse?.data?.data || null);
       setSuccess(t('aprof_success_remove'));
     } catch (removeError) {
       setError(getApiErrorMessage(removeError, t('aprof_err_remove')));
@@ -184,7 +183,7 @@ function AccountSettingsTab() {
           <p className="mt-1 text-sm text-[#A4B0B7]">{platformSummary}</p>
           <div className="mt-3 flex flex-wrap gap-3">
             <button
-              onClick={handleProvisionTwilio}
+              onClick={handleProvisionTelnyx}
               disabled={provisioning || platformStatus === 'provisioning'}
               className="rounded-xl bg-[#9333ea] px-4 py-2.5 text-sm font-bold text-[#02080B] disabled:opacity-60 cursor-pointer"
             >
@@ -193,16 +192,18 @@ function AccountSettingsTab() {
           </div>
         </div>
 
+        <BusinessHoursCard />
+
         <div className="rounded-xl border border-[#243041] bg-[#131A24] p-4">
           <p className="text-sm font-semibold text-white">{t('aprof_hdr_custom')}</p>
           <p className="text-xs text-[#A4B0B7] mt-1">{t('aprof_lbl_custom_desc')}</p>
-          {customMode && twilioStatus?.twilio_custom_phone_number ? (
+          {customMode && telnyxStatus?.telnyx_custom_phone_number ? (
             <div className="mt-3 space-y-3">
               <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3 text-sm text-emerald-300">
-                {t('aprof_connected_num') || 'Connected number:'} {twilioStatus.twilio_custom_phone_number}
+                {t('aprof_connected_num') || 'Connected number:'} {telnyxStatus.telnyx_custom_phone_number}
               </div>
               <button
-                onClick={handleRemoveCustomTwilio}
+                onClick={handleRemoveCustomTelnyx}
                 disabled={removingCustom}
                 className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-950/20 px-4 py-2.5 text-sm font-semibold text-rose-300 disabled:opacity-60 cursor-pointer"
               >
@@ -212,21 +213,13 @@ function AccountSettingsTab() {
             </div>
           ) : (
             <div className="mt-3 space-y-4">
-              <Field label={t('aprof_lbl_sid')}>
-                <input
-                  value={customForm.account_sid}
-                  onChange={(event) => setCustomForm((current) => ({ ...current, account_sid: event.target.value }))}
-                  className={INPUT}
-                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                />
-              </Field>
-              <Field label={t('aprof_lbl_token')}>
+              <Field label={t('aprof_lbl_api_key') || 'Telnyx API Key'}>
                 <input
                   type="password"
-                  value={customForm.auth_token}
-                  onChange={(event) => setCustomForm((current) => ({ ...current, auth_token: event.target.value }))}
+                  value={customForm.api_key}
+                  onChange={(event) => setCustomForm((current) => ({ ...current, api_key: event.target.value }))}
                   className={INPUT}
-                  placeholder={t('aprof_ph_token') || 'Your Twilio auth token'}
+                  placeholder={t('aprof_ph_token') || 'Your Telnyx API key'}
                 />
               </Field>
               <Field label={t('aprof_lbl_phone')}>
@@ -238,7 +231,7 @@ function AccountSettingsTab() {
                 />
               </Field>
               <button
-                onClick={handleSaveCustomTwilio}
+                onClick={handleSaveCustomTelnyx}
                 disabled={savingCustom}
                 className="rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-4 py-2.5 text-sm font-bold text-[#9333ea] disabled:opacity-60 cursor-pointer"
               >

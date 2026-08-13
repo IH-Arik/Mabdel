@@ -47,16 +47,20 @@ async def _seed_defaults(db) -> None:
 
 def grant_owner_role(db, email: str) -> None:
     """Self-signup users get the permissionless 'user' role; most CRM endpoints need owner."""
+    grant_role(db, email, "owner")
+
+
+def grant_role(db, email: str, role_slug: str) -> None:
     from app.repositories.rbac_repository import RBACRepository
 
     async def _grant() -> None:
         user = await db.users.find_one({"email": email})
-        role = await db.rbac_roles.find_one({"slug": "owner"})
+        role = await db.rbac_roles.find_one({"slug": role_slug})
         assert user is not None and role is not None
         await RBACRepository(db).assign_role(
             user_id=str(user["_id"]),
             role_id=str(role["_id"]),
-            role_slug="owner",
+            role_slug=role_slug,
             assigned_by="test",
         )
 

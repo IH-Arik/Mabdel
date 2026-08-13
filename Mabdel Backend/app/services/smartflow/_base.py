@@ -171,6 +171,8 @@ class SmartFlowBase:
         response_time: float | None = None,
         tokens_used: int = 0,
         error_type: str | None = None,
+        prompt_text: str | None = None,
+        response_text: str | None = None,
     ) -> None:
         """Best-effort write to ``ai_logs`` for the admin AI Insights dashboard. Never raises."""
         try:
@@ -178,6 +180,13 @@ class SmartFlowBase:
             if ObjectId.is_valid(user_id):
                 user = await self.db.users.find_one({"_id": ObjectId(user_id)}, {"organization_id": 1})
                 organization_id = (user or {}).get("organization_id")
+            
+            if (not tokens_used or tokens_used <= 0) and (prompt_text or response_text):
+                char_count = len(prompt_text or "") + len(response_text or "")
+                tokens_used = max(1, char_count // 4)
+            elif not tokens_used or tokens_used <= 0:
+                tokens_used = 150
+
             document = {
                 "user_id": user_id,
                 "organization_id": organization_id,
@@ -598,24 +607,29 @@ class SmartFlowBase:
         latest_filters = {"conversation_id": safe["id"]}
         if not is_global_chat:
             latest_filters["user_id"] = safe["user_id"]
-        latest = await self.db.messages.find(latest_filters).sort("timestamp", -1).limit(1).to_list(length=1)
 
-        if is_global_chat and viewer_id:
-            unread_total = await self.db.messages.count_documents(
-                {
-                    "conversation_id": safe["id"],
-                    "sender_user_id": {"$ne": viewer_id},
-                    "read_by": {"$ne": viewer_id},
-                }
-            )
-        else:
-            unread_count = await self.db.messages.aggregate(
-                [
-                    {"$match": {"conversation_id": safe["id"], "user_id": safe["user_id"]}},
-                    {"$group": {"_id": None, "total": {"$sum": "$unread_count"}}},
-                ]
-            ).to_list(length=1)
-            unread_total = unread_count[0]["total"] if unread_count else 0
+        async def _fetch_latest():
+            return await self.db.messages.find(latest_filters).sort("timestamp", -1).limit(1).to_list(length=1)
+
+        async def _fetch_unread():
+            if is_global_chat and viewer_id:
+                return await self.db.messages.count_documents(
+                    {
+                        "conversation_id": safe["id"],
+                        "sender_user_id": {"$ne": viewer_id},
+                        "read_by": {"$ne": viewer_id},
+                    }
+                )
+            else:
+                unread_count = await self.db.messages.aggregate(
+                    [
+                        {"$match": {"conversation_id": safe["id"], "user_id": safe["user_id"]}},
+                        {"$group": {"_id": None, "total": {"$sum": "$unread_count"}}},
+                    ]
+                ).to_list(length=1)
+                return unread_count[0]["total"] if unread_count else 0
+
+        latest, unread_total = await asyncio.gather(_fetch_latest(), _fetch_unread())
         latest_message = latest[0] if latest else None
         latest_sender_name = await self._resolve_message_sender_name(viewer_id or safe.get("user_id", ""), latest_message, safe)
         safe["last_message_preview"] = latest_message["content"] if latest_message else None
@@ -3521,11 +3535,11 @@ class SmartFlowBase:
 
         prompt = self._workflow_prefill_ai_prompt(intent, transcript, current_values)
 
-        def call_openai() -> str | None:
+        def call_openai() -> tuple[str | None, int]:
             try:
                 from openai import OpenAI
             except ImportError:
-                return None
+                return None, 0
 
             try:
                 client = OpenAI(api_key=settings.OPENAI_API_KEY)
@@ -3544,11 +3558,20 @@ class SmartFlowBase:
                         {"role": "user", "content": prompt},
                     ],
                 )
-                return response.choices[0].message.content
+                raw_content = response.choices[0].message.content
+                tok = getattr(getattr(response, "usage", None), "total_tokens", 0) or max(1, (len(prompt) + len(raw_content or "")) // 4)
+                return raw_content, tok
             except Exception:
-                return None
+                return None, 0
 
-        content = await asyncio.to_thread(call_openai)
+        content, extracted_tokens = await asyncio.to_thread(call_openai)
+        if content:
+            asyncio.create_task(self.log_ai_usage(
+                "system", f"prefill_{intent}", "success",
+                tokens_used=extracted_tokens,
+                prompt_text=prompt,
+                response_text=content
+            ))
         if not content:
             return {}
 

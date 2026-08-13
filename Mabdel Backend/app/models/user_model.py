@@ -30,16 +30,12 @@ class UserModel(BaseModel):
     primary_role: str = "user"  # "super_admin" | "admin" | "owner" | "supervisor" | "staff" | "user"
     organization_id: str | None = None
     organization_name: str | None = None
-    # Twilio sub-account provisioning (platform-managed)
-    twilio_sub_account_sid: str | None = None
-    twilio_sub_auth_token_enc: str | None = None  # encrypted at rest
-    twilio_phone_number: str | None = None
-    twilio_setup_status: str = "not_provisioned"  # not_provisioned | provisioning | active | failed
-    # Twilio custom credentials (user-provided)
-    twilio_mode: str = "not_set"  # not_set | platform | custom
-    twilio_custom_account_sid: str | None = None
-    twilio_custom_auth_token_enc: str | None = None  # encrypted at rest
-    twilio_custom_phone_number: str | None = None
+    # Telnyx number provisioning is organization-level, not per-user — one number per
+    # business, shared by every member with calls:manage permission. See the
+    # ``organizations`` collection / app/services/telnyx_provisioning_service.py.
+    # Browser (WebRTC) calling — this user's On-Demand Credential (their SIP identity).
+    telnyx_credential_id: str | None = None
+    telnyx_sip_username: str | None = None
     subscription_plan: str | None = None
     subscription_expiration: datetime | None = None
     created_at: datetime

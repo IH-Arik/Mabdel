@@ -51,10 +51,14 @@ async def resolve_team_user_ids(db, user_id: str) -> list[str]:
     org_id = (user or {}).get("organization_id")
     if not org_id:
         return [user_id]
-    docs = await db.users.find({"organization_id": org_id}, {"_id": 1}).to_list(None)
-    ids = {str(d["_id"]) for d in docs}
-    ids.add(user_id)
-    return list(ids)
+    return await resolve_organization_user_ids(db, org_id)
+
+
+async def resolve_organization_user_ids(db, organization_id: str) -> list[str]:
+    """Every user_id belonging to an organization, given its id directly (no seed user
+    to look up first) — e.g. resolving who to ring for a business's shared phone number."""
+    docs = await db.users.find({"organization_id": organization_id}, {"_id": 1}).to_list(None)
+    return [str(d["_id"]) for d in docs]
 
 
 def mask_email(email: str) -> str:

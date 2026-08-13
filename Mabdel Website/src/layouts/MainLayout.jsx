@@ -19,7 +19,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import logoImg from '../assets/gocustify-mark.png';
-import { TwilioVoiceProvider, useTwilioVoice } from '../context/TwilioVoiceContext';
+import { TelnyxVoiceProvider, useTelnyxVoice } from '../context/TelnyxVoiceContext';
 import IncomingCallOverlay from '../components/Calls/IncomingCallOverlay';
 import ActiveCallOverlay from '../components/Calls/ActiveCallOverlay';
 import NotificationBellButton from '../components/NotificationBellButton';
@@ -66,7 +66,7 @@ function CallOverlayHost() {
     durationSeconds,
     transcriptSegments,
     callStatusText,
-  } = useTwilioVoice();
+  } = useTelnyxVoice();
 
   const latestTranscript = transcriptSegments.length
     ? transcriptSegments
@@ -146,7 +146,7 @@ export default function MainLayout() {
   }, [syncUnreadCount]);
 
   return (
-    <TwilioVoiceProvider>
+    <TelnyxVoiceProvider>
     <div className="flex h-screen bg-[#02080B] text-white font-sans overflow-hidden">
       <CallOverlayHost />
       
@@ -289,7 +289,7 @@ export default function MainLayout() {
         </main>
       </div>
     </div>
-    </TwilioVoiceProvider>
+    </TelnyxVoiceProvider>
   );
 }
 

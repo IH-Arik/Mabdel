@@ -15,6 +15,7 @@ from .agreement_service import AgreementService
 from .bulk_message_service import BulkMessageService
 from .calendar_service import CalendarService
 from .call_history_service import CallHistoryService
+from .call_meeting_request_service import CallMeetingRequestService
 from .contact_service import ContactService
 from .conversation_service import ConversationService
 from .document_service import DocumentService
@@ -48,6 +49,7 @@ class SmartFlowService(SmartFlowBase):
         self.integration_service = IntegrationService(db, conversation_service=self.conversation_service)
         self.notification_service = NotificationService(db)
         self.call_history_service = CallHistoryService(db)
+        self.call_meeting_request_service = CallMeetingRequestService(db)
         self.workflow_service = WorkflowService(db, conversation_service=self.conversation_service)
         self.document_service = DocumentService(db)
         self.history_service = HistoryService(db, conversation_service=self.conversation_service)
@@ -323,6 +325,32 @@ class SmartFlowService(SmartFlowBase):
 
     async def find_free_slots(self, user_id, day):
         return await self.calendar_service.find_free_slots(user_id, day)
+
+    async def get_business_hours(self, user_id):
+        return await self.calendar_service.get_business_hours(user_id)
+
+    async def find_next_available_slot(self, user_id, days_ahead: int = 7, exclude_datetimes=None):
+        return await self.calendar_service.find_next_available_slot(
+            user_id, days_ahead=days_ahead, exclude_datetimes=exclude_datetimes
+        )
+
+    async def localize_business_slot(self, user_id, date_str, time_str):
+        return await self.calendar_service.localize_business_slot(user_id, date_str, time_str)
+
+    async def update_business_hours(self, user_id, payload):
+        return await self.calendar_service.update_business_hours(user_id, payload)
+
+    async def create_pending_call_meeting_request(self, user_id, **kwargs):
+        return await self.call_meeting_request_service.create_pending_request_for_user(user_id, **kwargs)
+
+    async def list_call_meeting_requests(self, user_id, page, page_size, status_filter):
+        return await self.call_meeting_request_service.list_pending(user_id, page, page_size, status_filter)
+
+    async def accept_call_meeting_request(self, user_id, request_id):
+        return await self.call_meeting_request_service.accept(user_id, request_id)
+
+    async def decline_call_meeting_request(self, user_id, request_id):
+        return await self.call_meeting_request_service.decline(user_id, request_id)
 
     async def get_calendar_event(self, user_id, event_id):
         return await self.calendar_service.get_calendar_event(user_id, event_id)

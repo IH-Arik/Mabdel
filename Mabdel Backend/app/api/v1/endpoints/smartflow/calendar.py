@@ -4,6 +4,7 @@ from fastapi import Depends, Query, status
 
 from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
+    BusinessHoursUpdateRequest,
     CalendarEventCreateRequest,
     CalendarEventShareRequest,
     CalendarEventUpdateRequest,
@@ -13,6 +14,27 @@ from app.utils.responses import success_response
 
 from ._deps import get_smartflow_service
 from ._router import router
+
+
+@router.get("/calendar/business-hours")
+async def get_business_hours(
+    current_user: dict = Depends(require_permission("appointments", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """The organization's business hours — the window the AI phone agent offers
+    caller meeting slots from. Shared org-wide, not per-user."""
+    data = await service.get_business_hours(str(current_user["_id"]))
+    return success_response(data=data, message="Business hours fetched successfully.")
+
+
+@router.put("/calendar/business-hours")
+async def update_business_hours(
+    payload: BusinessHoursUpdateRequest,
+    current_user: dict = Depends(require_permission("appointments", "edit")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.update_business_hours(str(current_user["_id"]), payload.model_dump(exclude_unset=True))
+    return success_response(data=data, message="Business hours updated successfully.")
 
 
 @router.get("/calendar/events")

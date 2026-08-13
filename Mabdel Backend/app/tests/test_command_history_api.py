@@ -111,3 +111,37 @@ def test_command_history_replay_returns_metadata(client, mock_db):
     assert payload["replayed_action_status"] == "completed"
     assert payload["history_item"]["command_type_label"] == "Email"
     assert payload["conversation_id"]
+
+
+def test_ai_stats_returns_tokens_used(client, mock_db):
+    headers, user_id = _auth_headers(client, mock_db, email="aistats@example.com")
+    asyncio.run(
+        mock_db.ai_logs.insert_many(
+            [
+                {
+                    "user_id": user_id,
+                    "action": "ai_chat",
+                    "status": "success",
+                    "response_time": 1.2,
+                    "tokens_used": 250,
+                    "timestamp": utc_now(),
+                },
+                {
+                    "user_id": user_id,
+                    "action": "ai_chat",
+                    "status": "success",
+                    "response_time": 0.8,
+                    "tokens_used": 0,  # legacy log
+                    "timestamp": utc_now(),
+                },
+            ]
+        )
+    )
+
+    response = client.get("/api/v1/dashboard/admin/ai/stats", headers=headers)
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["total_requests"] == 2
+    assert data["total_tokens_used"] > 0
+    assert data["total_tokens_used"] == 250 + 185
+

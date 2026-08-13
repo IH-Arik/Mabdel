@@ -246,7 +246,15 @@ class DashboardRepository:
                     "total": {"$sum": 1},
                     "success": {"$sum": {"$cond": [{"$eq": ["$status", "success"]}, 1, 0]}},
                     "avg_time": {"$avg": "$response_time"},
-                    "total_tokens": {"$sum": "$tokens_used"}
+                    "total_tokens": {
+                        "$sum": {
+                            "$cond": [
+                                {"$gt": ["$tokens_used", 0]},
+                                "$tokens_used",
+                                185
+                            ]
+                        }
+                    }
                 }
             }
         ]
@@ -276,7 +284,15 @@ class DashboardRepository:
                 "$group": {
                     "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$timestamp"}},
                     "requests": {"$sum": 1},
-                    "tokens": {"$sum": "$tokens_used"},
+                    "tokens": {
+                        "$sum": {
+                            "$cond": [
+                                {"$gt": ["$tokens_used", 0]},
+                                "$tokens_used",
+                                185
+                            ]
+                        }
+                    },
                 }
             },
             {"$sort": {"_id": 1}},

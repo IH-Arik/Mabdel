@@ -57,6 +57,7 @@ NotificationType = Literal[
 EmailDomainMode = Literal["subdomain", "custom"]
 EmailDomainStatus = Literal["pending", "verifying", "verified", "failed"]
 MeetingMode = Literal["offline", "online"]
+CallMeetingRequestStatus = Literal["pending", "confirmed", "declined"]
 MeetingStatus = Literal["scheduled", "cancelled", "completed"]
 
 
@@ -412,6 +413,45 @@ class EmailDomainAvailabilityResponse(BaseModel):
     domain: str
     mode: EmailDomainMode
     available: bool
+
+
+class BusinessHoursResponse(BaseModel):
+    timezone: str = "UTC"
+    days: list[int] = Field(default_factory=lambda: [0, 1, 2, 3, 4])
+    start_hour: int = Field(default=9, ge=0, le=23)
+    end_hour: int = Field(default=17, ge=1, le=24)
+    slot_minutes: int = Field(default=60, ge=15, le=240)
+
+
+class BusinessHoursUpdateRequest(BaseModel):
+    timezone: str | None = Field(default=None, max_length=64)
+    days: list[int] | None = None
+    start_hour: int | None = Field(default=None, ge=0, le=23)
+    end_hour: int | None = Field(default=None, ge=1, le=24)
+    slot_minutes: int | None = Field(default=None, ge=15, le=240)
+
+    @field_validator("days")
+    @classmethod
+    def _validate_days(cls, value: list[int] | None) -> list[int] | None:
+        if value is not None and any(day < 0 or day > 6 for day in value):
+            raise ValueError("days must be 0 (Monday) through 6 (Sunday).")
+        return value
+
+
+class CallMeetingRequestResponse(BaseModel):
+    id: str
+    organization_id: str
+    call_sid: str | None = None
+    caller_name: str
+    caller_email: str | None = None
+    caller_phone: str | None = None
+    requested_start: datetime
+    requested_end: datetime
+    status: CallMeetingRequestStatus
+    meeting_link: str | None = None
+    confirmed_by_user_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class AIChatRequest(BaseModel):
