@@ -13,6 +13,7 @@ from . import (  # noqa: F401
     email_domains,
     leases,
     agreements,
+    call_meeting_requests,
     calls,
     integrations,
     notifications,

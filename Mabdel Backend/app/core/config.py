@@ -94,18 +94,17 @@ class Settings(BaseSettings):
     APNS_PRIVATE_KEY: str | None = None
     APNS_USE_SANDBOX: bool = False
     PUSH_DELIVERY_SYNC: bool = True
-    TWILIO_ACCOUNT_SID: str | None = None
-    TWILIO_AUTH_TOKEN: str | None = None
-    TWILIO_PHONE_NUMBER: str | None = None
-    TWILIO_VOICE_API_KEY_SID: str | None = None
-    TWILIO_VOICE_API_KEY_SECRET: str | None = None
-    TWILIO_VOICE_TWIML_APP_SID: str | None = None
-    TWILIO_VOICE_IDENTITY_PREFIX: str = "web-user"
-    TWILIO_VOICE_TOKEN_EXPIRE_SECONDS: int = 3600
-    TWILIO_VOICE_REGISTRATION_TTL_SECONDS: int = 180
-    TWILIO_VALIDATE_SIGNATURE: bool = True
-    TWILIO_STREAM_TRACK: str = "inbound_track"
-    TWILIO_NUMBER_COUNTRY: str = "US"
+
+    # Telephony (calls + SMS + number provisioning + browser/WebRTC calling) — Telnyx.
+    TELNYX_API_KEY: str | None = None
+    TELNYX_PUBLIC_KEY: str | None = None  # Ed25519 webhook verification key, from the Telnyx portal
+    TELNYX_PHONE_NUMBER: str | None = None
+    TELNYX_MESSAGING_PROFILE_ID: str | None = None
+    TELNYX_VOICE_APPLICATION_ID: str | None = None  # Call Control Application ("connection") ID
+    TELNYX_WEBHOOK_URL: str | None = None
+    TELNYX_VALIDATE_SIGNATURE: bool = True
+    TELNYX_STREAM_TRACK: str = "inbound_track"
+    TELNYX_NUMBER_COUNTRY: str = "US"
 
     WHATSAPP_GATEWAY_URL: str | None = None
 
@@ -218,9 +217,9 @@ class Settings(BaseSettings):
                 return False
         return True
 
-    @field_validator("TWILIO_VALIDATE_SIGNATURE", mode="before")
+    @field_validator("TELNYX_VALIDATE_SIGNATURE", mode="before")
     @classmethod
-    def parse_twilio_signature_validation_value(cls, value: Any) -> bool:
+    def parse_telnyx_signature_validation_value(cls, value: Any) -> bool:
         if isinstance(value, bool):
             return value
         if isinstance(value, str):

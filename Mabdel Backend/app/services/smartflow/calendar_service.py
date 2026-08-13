@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import secrets
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
+
+from bson import ObjectId
 
 from app.core.exceptions import AppException
 from app.services.email_service import EmailService
@@ -74,24 +76,165 @@ class CalendarService(SmartFlowBase):
         page_result["items"] = [await self._serialize_calendar_event(item) for item in page_result["items"]]
         return page_result
 
-    async def find_free_slots(self, user_id: str, day: date) -> list[str]:
-        # Simple implementation: 9 AM to 5 PM, 1 hour slots
-        start_of_day = datetime.combine(day, datetime.min.time())
-        end_of_day = datetime.combine(day, datetime.max.time())
+    DEFAULT_BUSINESS_HOURS = {
+        "timezone": "UTC",
+        "days": [0, 1, 2, 3, 4],  # Mon-Fri (Python weekday: Monday=0)
+        "start_hour": 9,
+        "end_hour": 17,
+        "slot_minutes": 60,
+    }
 
-        events = await self.db.calendar_events.find({
-            "user_id": user_id,
-            "starts_at": {"$gte": start_of_day, "$lte": end_of_day}
-        }).to_list(length=100)
+    async def get_business_hours(self, user_id: str) -> dict:
+        organization_id = await self._resolve_organization_id(user_id)
+        org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+        hours = (org or {}).get("business_hours")
+        return {**self.DEFAULT_BUSINESS_HOURS, **(hours or {})}
 
-        # Mock available slots for now
-        all_slots = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"]
-        busy_slots = []
-        for event in events:
-            if "starts_at" in event and isinstance(event["starts_at"], datetime):
-                busy_slots.append(event["starts_at"].strftime("%H:%M"))
+    async def update_business_hours(self, user_id: str, payload: dict) -> dict:
+        organization_id = await self._resolve_organization_id(user_id)
+        if not organization_id:
+            raise AppException(
+                status_code=422,
+                code="NO_ORGANIZATION",
+                message="Your account isn't part of an organization yet.",
+            )
+        current = await self.get_business_hours(user_id)
+        merged = {**current, **{key: value for key, value in payload.items() if value is not None}}
+        await self.db.organizations.update_one(
+            {"organization_id": organization_id},
+            {
+                "$set": {"business_hours": merged, "updated_at": utc_now()},
+                "$setOnInsert": {"organization_id": organization_id, "created_at": utc_now()},
+            },
+            upsert=True,
+        )
+        return merged
 
-        return [slot for slot in all_slots if slot not in busy_slots]
+    async def find_free_slots(self, user_id: str, day: date, *, exclude_datetimes: set[str] | None = None) -> list[str]:
+        """Real free/busy: the organization's declared business hours for that weekday
+        (in the business's own timezone, at its configured slot size), minus anything
+        already on any team member's calendar AND minus any of this organization's own
+        *pending* call meeting requests — a soft hold, so two callers (or the same
+        caller offered the same slot twice) never both get told the same time is open.
+        Not a per-admin declared slot list (that system — admin_availability_slots — is
+        the platform's own sales team booking widget, unrelated to individual businesses).
+        ``exclude_datetimes`` is a set of "YYYY-MM-DD HH:MM" strings to skip regardless
+        of availability — used to avoid re-offering a slot the caller already turned
+        down (date-qualified, so declining 9am today doesn't also hide 9am next week)."""
+        hours = await self.get_business_hours(user_id)
+        if day.weekday() not in hours["days"]:
+            return []
+
+        slot_minutes = max(15, int(hours.get("slot_minutes") or 60))
+        tz = self._resolve_zoneinfo(hours.get("timezone"))
+
+        # Business hours are defined in local time; calendar_events are stored in UTC
+        # (the rest of this codebase's convention), so the open window has to be
+        # converted before it can be compared against them.
+        local_start = datetime(day.year, day.month, day.day, hours["start_hour"], tzinfo=tz)
+        local_end_hour = hours["end_hour"]
+        if local_end_hour >= 24:
+            local_end = datetime(day.year, day.month, day.day, tzinfo=tz) + timedelta(days=1)
+        else:
+            local_end = datetime(day.year, day.month, day.day, local_end_hour, tzinfo=tz)
+
+        candidates: list[datetime] = []
+        cursor = local_start
+        while cursor + timedelta(minutes=slot_minutes) <= local_end:
+            candidates.append(cursor)
+            cursor += timedelta(minutes=slot_minutes)
+        if not candidates:
+            return []
+
+        organization_id = await self._resolve_organization_id(user_id)
+        team_ids = await self._resolve_team_user_ids(user_id)
+        window_start_utc = candidates[0].astimezone(timezone.utc).replace(tzinfo=None)
+        window_end_utc = (candidates[-1] + timedelta(minutes=slot_minutes)).astimezone(timezone.utc).replace(tzinfo=None)
+
+        events = await self.db.calendar_events.find(
+            {
+                "user_id": {"$in": team_ids},
+                "status": {"$ne": "cancelled"},
+                "starts_at": {"$lt": window_end_utc},
+                "ends_at": {"$gt": window_start_utc},
+            }
+        ).to_list(length=200)
+        busy_ranges = [
+            (event["starts_at"].replace(tzinfo=timezone.utc), event["ends_at"].replace(tzinfo=timezone.utc))
+            for event in events
+            if isinstance(event.get("starts_at"), datetime) and isinstance(event.get("ends_at"), datetime)
+        ]
+
+        if organization_id:
+            pending = await self.db.call_meeting_requests.find(
+                {
+                    "organization_id": organization_id,
+                    "status": "pending",
+                    "requested_start": {"$lt": window_end_utc},
+                    "requested_end": {"$gt": window_start_utc},
+                }
+            ).to_list(length=200)
+            busy_ranges.extend(
+                (item["requested_start"].replace(tzinfo=timezone.utc), item["requested_end"].replace(tzinfo=timezone.utc))
+                for item in pending
+                if isinstance(item.get("requested_start"), datetime) and isinstance(item.get("requested_end"), datetime)
+            )
+
+        exclude_datetimes = exclude_datetimes or set()
+        free: list[str] = []
+        for slot_start in candidates:
+            label = slot_start.strftime("%H:%M")
+            if f"{day.isoformat()} {label}" in exclude_datetimes:
+                continue
+            slot_end = slot_start + timedelta(minutes=slot_minutes)
+            slot_start_utc = slot_start.astimezone(timezone.utc)
+            slot_end_utc = slot_end.astimezone(timezone.utc)
+            if any(busy_start < slot_end_utc and busy_end > slot_start_utc for busy_start, busy_end in busy_ranges):
+                continue
+            free.append(label)
+        return free
+
+    @staticmethod
+    def _resolve_zoneinfo(name: str | None):
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            return ZoneInfo(name or "UTC")
+        except (ZoneInfoNotFoundError, ValueError):
+            return ZoneInfo("UTC")
+
+    async def localize_business_slot(self, user_id: str, date_str: str, time_str: str) -> datetime:
+        """Convert a "HH:MM" business-local slot (as returned by find_free_slots) into
+        the UTC instant everything else in this codebase stores. Needed because the
+        slot strings are deliberately local — that's what should be spoken to a caller
+        and shown in the business-hours UI, not a UTC-shifted number."""
+        hours = await self.get_business_hours(user_id)
+        tz = self._resolve_zoneinfo(hours.get("timezone"))
+        year, month, day = (int(part) for part in date_str.split("-"))
+        hour, minute = (int(part) for part in time_str.split(":"))
+        local_dt = datetime(year, month, day, hour, minute, tzinfo=tz)
+        return local_dt.astimezone(timezone.utc)
+
+    async def find_next_available_slot(
+        self, user_id: str, *, days_ahead: int = 7, exclude_datetimes: set[str] | None = None
+    ) -> dict | None:
+        """First open slot starting today, scanning forward — used by the AI phone
+        agent so it always has something concrete to offer instead of asking the
+        caller to pick a day blind. Pass previously-declined slots via
+        ``exclude_datetimes`` so a caller who says no isn't offered the same time again."""
+        today = date.today()
+        for offset in range(days_ahead):
+            candidate_day = today + timedelta(days=offset)
+            slots = await self.find_free_slots(user_id, candidate_day, exclude_datetimes=exclude_datetimes)
+            if slots:
+                return {"date": candidate_day.isoformat(), "time": slots[0]}
+        return None
+
+    async def _resolve_organization_id(self, user_id: str) -> str | None:
+        if not ObjectId.is_valid(user_id):
+            return None
+        user = await self.db.users.find_one({"_id": ObjectId(user_id)}, {"organization_id": 1})
+        return (user or {}).get("organization_id")
 
     async def get_calendar_event(self, user_id: str, event_id: str) -> dict:
         event = await self._get_owned_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")

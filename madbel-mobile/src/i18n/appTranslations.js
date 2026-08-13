@@ -308,6 +308,8 @@ export const APP_TRANSLATIONS = {
     call_failed: "Call failed",
     could_not_start_the_call_make_sure_your_twilio_is_set_up_in_account_settings:
       "Could not start the call. Make sure your Twilio is set up in Account Settings.",
+    could_not_start_the_call_make_sure_your_telnyx_is_set_up_in_account_settings:
+      "Could not start the call. Make sure your Telnyx is set up in Account Settings.",
     invite_to_mabdel: "Invite to Mabdel",
     on_mabdel: "On Mabdel",
     invite: "Invite",
@@ -1023,15 +1025,29 @@ export const APP_TRANSLATIONS = {
 
     use_your_own_twilio_account_for_calls_follow_the_s: "Use your own Twilio account for calls. Follow the steps below to get your credentials.",
 
+    connect_your_telnyx: "Connect Your Telnyx",
+
+    use_your_own_telnyx_account_for_calls_follow_the_s: "Use your own Telnyx account for calls. Follow the steps below to get your credentials.",
+
     how_to_set_up: "How to set up",
 
     twiliocomconsole: "twilio.com/console",
 
+    telnyxcomportal: "telnyx.com/portal",
+
     your_twilio_credentials: "Your Twilio credentials",
+
+    your_telnyx_credentials: "Your Telnyx credentials",
 
     account_sid: "Account SID",
 
     auth_token: "Auth Token",
+
+    telnyx_api_key: "API Key",
+
+    your_telnyx_api_key: "Your Telnyx API key",
+
+    please_fill_in_all_fields: "Please fill in all fields.",
 
     phone_number: "PHONE NUMBER",
 
@@ -1054,6 +1070,16 @@ export const APP_TRANSLATIONS = {
     option_b_your_own_twilio: "Option B — Your own Twilio",
 
     connect_your_twilio_account_and_use_your_own_numbe: "Connect your Twilio account and use your own number.",
+
+    option_b_your_own_telnyx: "Option B — Your own Telnyx",
+
+    connect_your_telnyx_account_and_use_your_own_numbe: "Connect your Telnyx account and use your own number.",
+
+    connect_telnyx: "Connect Telnyx",
+
+    remove_custom_telnyx: "Remove Custom Telnyx",
+
+    are_you_sure_you_want_to_remove_your_telnyx_creden: "Are you sure you want to remove your Telnyx credentials?",
 
     remove: "Remove",
 

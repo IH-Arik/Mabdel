@@ -37,13 +37,20 @@ class BulkMessageService(SmartFlowBase):
         clean_content = (content or "").strip()
         if not clean_content:
             raise AppException(status_code=422, code="CONTENT_REQUIRED", message="Write a message before using AI Improve.")
-        improved = MabdelAIService().improve_text(clean_content)
+        improved, tokens_used = MabdelAIService().improve_text(clean_content)
         if not improved:
             raise AppException(
                 status_code=503,
                 code="AI_IMPROVE_UNAVAILABLE",
                 message="AI improve is not available right now. Please try again shortly.",
             )
+        import asyncio
+        asyncio.create_task(self.log_ai_usage(
+            user_id, "improve_text", "success",
+            tokens_used=tokens_used,
+            prompt_text=clean_content,
+            response_text=improved,
+        ))
         return {"content": improved[:5000]}
 
     async def validate_bulk_recipients(self, user_id: str, payload: dict) -> dict:

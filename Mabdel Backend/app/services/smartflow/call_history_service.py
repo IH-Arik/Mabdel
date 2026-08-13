@@ -12,6 +12,16 @@ from ._base import SmartFlowBase
 
 
 class CallHistoryService(SmartFlowBase):
+    async def _resolve_org_caller_id(self, user_id: str) -> str | None:
+        """The business's shared Telnyx number — one per organization, not per user."""
+        from app.services.telnyx_provisioning_service import TelnyxProvisioningService
+
+        user = await self._get_user_document(user_id)
+        org = await TelnyxProvisioningService(self.db).get_organization_for_user(user)
+        if org:
+            return TelnyxProvisioningService.get_org_phone_number(org)
+        return settings.TELNYX_PHONE_NUMBER
+
     async def list_call_logs(
         self,
         user_id: str,
@@ -21,7 +31,10 @@ class CallHistoryService(SmartFlowBase):
         search: str | None = None,
         contact_id: str | None = None,
     ) -> dict:
-        filters = {"user_id": user_id}
+        # Calls made or received on the business's shared number are visible to the
+        # whole team, not just whoever the call_log happens to be attributed to.
+        team_ids = await self._resolve_team_user_ids(user_id)
+        filters = {"user_id": {"$in": team_ids}}
         if status and status != "all":
             filters["status"] = status
         if contact_id:
@@ -34,7 +47,7 @@ class CallHistoryService(SmartFlowBase):
             ]
             matching_contacts = await self.db.contacts.find(
                 {
-                    "user_id": user_id,
+                    "user_id": {"$in": team_ids},
                     "$or": [
                         {"name": {"$regex": search, "$options": "i"}},
                         {"email": {"$regex": search, "$options": "i"}},
@@ -48,7 +61,7 @@ class CallHistoryService(SmartFlowBase):
         total = await self.db.call_logs.count_documents(filters)
         raw_items = await self.db.call_logs.find(filters).sort("timestamp", -1).skip((page - 1) * page_size).limit(page_size).to_list(length=page_size)
         items = [await self._serialize_call_log(item) for item in raw_items]
-        all_calls = await self.db.call_logs.find({"user_id": user_id}).to_list(length=1000)
+        all_calls = await self.db.call_logs.find({"user_id": {"$in": team_ids}}).to_list(length=1000)
         return {
             "items": items,
             "summary": self._call_history_summary(all_calls),
@@ -61,14 +74,14 @@ class CallHistoryService(SmartFlowBase):
         }
 
     async def get_call_log(self, user_id: str, call_id: str) -> dict:
-        call = await self._get_owned_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
+        call = await self._get_team_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
         return await self._serialize_call_log(call)
 
     async def create_call_log(self, user_id: str, payload: dict) -> dict:
         status = payload.get("status") or self._derive_call_status(payload)
         contact = None
         if payload.get("contact_id"):
-            contact = await self._get_owned_document(self.db.contacts, user_id, payload["contact_id"], "CONTACT_NOT_FOUND")
+            contact = await self._get_team_document(self.db.contacts, user_id, payload["contact_id"], "CONTACT_NOT_FOUND")
         document = {
             "user_id": user_id,
             **payload,
@@ -88,7 +101,7 @@ class CallHistoryService(SmartFlowBase):
         contact_id = payload.get("contact_id")
         contact = None
         if contact_id:
-            contact = await self._get_owned_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
+            contact = await self._get_team_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
             phone_number = phone_number or (contact.get("phone") or "").strip() or None
         if not phone_number:
             raise AppException(
@@ -96,6 +109,10 @@ class CallHistoryService(SmartFlowBase):
                 code="CALL_PHONE_REQUIRED",
                 message="A phone number or a contact with a phone number is required to start a call.",
             )
+
+        # Everyone on the team calls out from the business's one shared number, unless
+        # an explicit override was passed (e.g. a BYO/custom scenario).
+        from_number = payload.get("from_number") or await self._resolve_org_caller_id(user_id)
 
         initial_log = await self.create_call_log(
             user_id,
@@ -106,13 +123,15 @@ class CallHistoryService(SmartFlowBase):
                 "duration": 0,
                 "ai_ready": bool(payload.get("ai_ready", True)),
                 "callback_requested": False,
-                "from_number": payload.get("from_number") or settings.TWILIO_PHONE_NUMBER,
+                "from_number": from_number,
                 "status": "queued",
             },
         )
-        twilio_result = await self.call_service.initiate_outbound_call(
+        # initiate_outbound_call returns "queued" directly — it's already a valid
+        # call_logs status literal, not a Telnyx event_type, so it needs no normalization.
+        provider_result = await self.call_service.initiate_outbound_call(
             to_number=phone_number,
-            from_number=payload.get("from_number"),
+            from_number=from_number,
             user_id=user_id,
             call_log_id=initial_log["id"],
         )
@@ -120,20 +139,20 @@ class CallHistoryService(SmartFlowBase):
             user_id,
             initial_log["id"],
             {
-                "phone_number": twilio_result.get("to"),
-                "from_number": twilio_result.get("from"),
-                "twilio_call_sid": twilio_result.get("sid"),
-                "status": self.call_service.normalize_twilio_status(twilio_result.get("status")),
+                "phone_number": provider_result.get("to"),
+                "from_number": provider_result.get("from"),
+                "twilio_call_sid": provider_result.get("sid"),
+                "status": provider_result.get("status") or "queued",
             },
         )
         return {
             "call_log": updated_log,
-            "twilio_call_sid": twilio_result.get("sid"),
-            "twilio_status": self.call_service.normalize_twilio_status(twilio_result.get("status")),
+            "twilio_call_sid": provider_result.get("sid"),
+            "twilio_status": provider_result.get("status") or "queued",
         }
 
     async def update_call_log(self, user_id: str, call_id: str, updates: dict) -> dict:
-        call = await self._get_owned_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
+        call = await self._get_team_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
         clean_updates = {key: value for key, value in updates.items() if value is not None}
         if "status" not in clean_updates:
             clean_updates["status"] = self._derive_call_status({**call, **clean_updates})
@@ -157,9 +176,12 @@ class CallHistoryService(SmartFlowBase):
         to_number: str | None,
     ) -> dict:
         call = await self._get_owned_document(self.db.call_logs, user_id, call_log_id, "CALL_NOT_FOUND")
+        # call_status arrives already normalized to a call_logs status literal — the
+        # caller (calls.py's webhook handler) does that via CallService.normalize_call_status,
+        # which needs the Telnyx event_type + hangup_cause this method never receives.
         clean_updates: dict = {
             "twilio_call_sid": twilio_call_sid or call.get("twilio_call_sid"),
-            "status": self.call_service.normalize_twilio_status(call_status),
+            "status": call_status or call.get("status") or "completed",
             "from_number": from_number or call.get("from_number"),
             "phone_number": to_number or call.get("phone_number"),
         }
@@ -173,7 +195,8 @@ class CallHistoryService(SmartFlowBase):
         return await self.update_call_log(user_id, call_log_id, clean_updates)
 
     async def get_call_summary(self, user_id: str) -> dict:
-        calls = await self.db.call_logs.find({"user_id": user_id}).to_list(length=500)
+        team_ids = await self._resolve_team_user_ids(user_id)
+        calls = await self.db.call_logs.find({"user_id": {"$in": team_ids}}).to_list(length=500)
         return {
             "total_calls": len(calls),
             "total_minutes_saved": sum(max(1, int(call.get("duration", 0) / 60)) for call in calls if call.get("ai_ready")),
@@ -181,7 +204,7 @@ class CallHistoryService(SmartFlowBase):
         }
 
     async def get_call_transcript(self, user_id: str, call_id: str) -> dict:
-        call = await self._get_owned_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
+        call = await self._get_team_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
         transcript = call.get("transcript") or call.get("recording_transcript")
         return {
             "call_id": str(call["_id"]),
@@ -191,7 +214,7 @@ class CallHistoryService(SmartFlowBase):
         }
 
     async def update_call_transcript(self, user_id: str, call_id: str, payload: dict) -> dict:
-        call = await self._get_owned_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
+        call = await self._get_team_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
         updated = await self.db.call_logs.find_one_and_update(
             {"_id": call["_id"]},
             {
@@ -206,7 +229,7 @@ class CallHistoryService(SmartFlowBase):
         return await self._serialize_call_log(updated)
 
     async def get_call_ai_summary(self, user_id: str, call_id: str) -> dict:
-        call = await self._get_owned_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
+        call = await self._get_team_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
         return {
             "call_id": str(call["_id"]),
             "ai_summary": call.get("ai_summary") or self._default_call_ai_summary(call),
@@ -214,7 +237,7 @@ class CallHistoryService(SmartFlowBase):
         }
 
     async def update_call_ai_summary(self, user_id: str, call_id: str, payload: dict) -> dict:
-        call = await self._get_owned_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
+        call = await self._get_team_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
         summary = {
             "purpose": payload.get("purpose") or "Call summary",
             "key_points": payload.get("key_points", []),
@@ -239,7 +262,7 @@ class CallHistoryService(SmartFlowBase):
         )
 
     async def get_call_recording(self, user_id: str, call_id: str) -> dict:
-        call = await self._get_owned_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
+        call = await self._get_team_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
         return {
             "call_id": str(call["_id"]),
             "recording_url": call.get("recording_url"),
@@ -248,7 +271,7 @@ class CallHistoryService(SmartFlowBase):
         }
 
     async def update_call_recording(self, user_id: str, call_id: str, payload: dict) -> dict:
-        call = await self._get_owned_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
+        call = await self._get_team_document(self.db.call_logs, user_id, call_id, "CALL_NOT_FOUND")
         updated = await self.db.call_logs.find_one_and_update(
             {"_id": call["_id"]},
             {

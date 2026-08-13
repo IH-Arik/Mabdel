@@ -283,7 +283,11 @@ def test_verify_without_domain_returns_404(client, mock_db):
 # ── inbound routing ──────────────────────────────────────────────────────
 
 
-def test_inbound_webhook_ignores_unknown_domain(client, mock_db):
+def test_inbound_webhook_ignores_unknown_domain(client, mock_db, monkeypatch):
+    # These payloads aren't Svix-signed, so verification must be off to reach the
+    # routing logic under test — independent of whatever the developer's real
+    # RESEND_INBOUND_WEBHOOK_SECRET happens to be set to locally.
+    monkeypatch.setattr(settings, "RESEND_INBOUND_WEBHOOK_SECRET", None)
     response = client.post(
         "/api/v1/dashboard/webhooks/resend/inbound",
         json={
@@ -300,7 +304,8 @@ def test_inbound_webhook_ignores_unknown_domain(client, mock_db):
     assert response.json()["reason"] == "unknown_recipient_domain"
 
 
-def test_inbound_webhook_ignores_other_event_types(client, mock_db):
+def test_inbound_webhook_ignores_other_event_types(client, mock_db, monkeypatch):
+    monkeypatch.setattr(settings, "RESEND_INBOUND_WEBHOOK_SECRET", None)
     response = client.post(
         "/api/v1/dashboard/webhooks/resend/inbound",
         json={"type": "email.delivered", "data": {}},
@@ -326,6 +331,7 @@ def test_inbound_webhook_lands_message_in_conversations(client, mock_db, monkeyp
         }
 
     monkeypatch.setattr(InboundEmailService, "_fetch_received_email", fake_fetch)
+    monkeypatch.setattr(settings, "RESEND_INBOUND_WEBHOOK_SECRET", None)
 
     headers = _auth_headers(client, mock_db, email="inbound-owner@example.com")
     me = client.get("/api/v1/smartflow/business-profile", headers=headers)

@@ -18,7 +18,8 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
-import { useTwilioVoice } from '../context/TwilioVoiceContext';
+import CallMeetingRequests from '../components/Calls/CallMeetingRequests';
+import { useTelnyxVoice } from '../context/TelnyxVoiceContext';
 import { formatCstDateTime } from '../utils/dateUtils';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -532,7 +533,7 @@ export default function Calls() {
   const [initialPhone, setInitialPhone] = useState('');
   const [pendingCallbackId, setPendingCallbackId] = useState('');
   const location = useLocation();
-  const { startOutboundCall, isReady: isVoiceReady, error: voiceError } = useTwilioVoice();
+  const { startOutboundCall, isReady: isVoiceReady, error: voiceError } = useTelnyxVoice();
 
   const fetchCalls = useCallback(async (nextPage = 1, append = false) => {
     try {
@@ -675,6 +676,8 @@ export default function Calls() {
           {t('calls_browser_not_ready', { error: voiceError })}
         </div>
       ) : null}
+
+      <CallMeetingRequests />
 
       {!loading && <CallStats summary={summary} t={t} />}
 

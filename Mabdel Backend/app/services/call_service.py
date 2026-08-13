@@ -1,24 +1,49 @@
 from __future__ import annotations
 
 import base64
-import hashlib
-import hmac
 import json
+import logging
 from urllib.parse import urlencode
-from xml.etree.ElementTree import Element, SubElement, tostring
 
-import httpx
+import telnyx
 from fastapi import Request
 from starlette import status
 
 from app.core.config import settings
 from app.core.exceptions import AppException
-from app.schemas.call import CallStreamEvent, TwilioStreamMessage
+from app.schemas.call import CallStreamEvent, TelnyxStreamMessage, TelnyxWebhookEvent
+
+logger = logging.getLogger(__name__)
 
 
 class CallService:
-    def build_incoming_webhook_url(self) -> str:
-        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}{settings.API_V1_PREFIX}/calls/incoming"
+    """Telephony via Telnyx Call Control.
+
+    Unlike Twilio's per-purpose callback URLs (VoiceUrl/StatusCallback/RecordingStatusCallback),
+    Telnyx sends every event for a connection to one webhook URL, tagged by ``event_type``. That
+    single endpoint is registered once on the Call Control Application in the Telnyx portal (or
+    via ``build_webhook_url`` + the provisioning API) — not per call.
+    """
+
+    def _client(self) -> telnyx.Client:
+        if not settings.TELNYX_API_KEY:
+            raise AppException(
+                status_code=503,
+                code="TELNYX_NOT_CONFIGURED",
+                message="Telnyx is not configured on this server.",
+            )
+        return telnyx.Client(api_key=settings.TELNYX_API_KEY, public_key=settings.TELNYX_PUBLIC_KEY)
+
+    def build_webhook_url(self) -> str:
+        """The single Call Control webhook URL for every voice event.
+
+        Prefers TELNYX_WEBHOOK_URL when set — that's the URL already registered on
+        the Telnyx Voice Application, served by the unprefixed alias route so it
+        doesn't need to change.
+        """
+        if settings.TELNYX_WEBHOOK_URL:
+            return settings.TELNYX_WEBHOOK_URL
+        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}{settings.API_V1_PREFIX}/calls/webhook"
 
     def build_media_stream_url(self, call_id: str) -> str:
         base_url = settings.PUBLIC_BACKEND_URL.rstrip("/")
@@ -29,106 +54,7 @@ class CallService:
             return "ws://" + websocket_base.removeprefix("http://")
         return websocket_base
 
-    def build_status_callback_url(self) -> str:
-        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}{settings.API_V1_PREFIX}/calls/status"
-
-    def build_status_callback_url_with_context(self, *, user_id: str | None = None, call_log_id: str | None = None) -> str:
-        base = self.build_status_callback_url()
-        params = {key: value for key, value in {"user_id": user_id, "call_log_id": call_log_id}.items() if value}
-        if not params:
-            return base
-        return f"{base}?{urlencode(params)}"
-
-    def build_recording_callback_url(self, user_id: str) -> str:
-        base = f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}{settings.API_V1_PREFIX}/calls/recording"
-        return f"{base}?user_id={user_id}"
-
-    def build_twiml_response(
-        self,
-        *,
-        websocket_url: str,
-        call_id: str,
-        from_number: str | None = None,
-        to_number: str | None = None,
-    ) -> str:
-        response = Element("Response")
-        connect = SubElement(response, "Connect")
-        stream = SubElement(
-            connect,
-            "Stream",
-            url=websocket_url,
-            track=settings.TWILIO_STREAM_TRACK,
-            statusCallback=self.build_status_callback_url(),
-            statusCallbackMethod="POST",
-        )
-        parameters = {"call_id": call_id}
-        if from_number:
-            parameters["from_number"] = from_number
-        if to_number:
-            parameters["to_number"] = to_number
-        for name, value in parameters.items():
-            SubElement(stream, "Parameter", name=name, value=value)
-        xml = tostring(response, encoding="unicode")
-        return '<?xml version="1.0" encoding="UTF-8"?>' + xml
-
-    def build_dial_twiml(self, to_number: str) -> str:
-        response = Element("Response")
-        SubElement(response, "Dial").text = to_number
-        xml = tostring(response, encoding="unicode")
-        return '<?xml version="1.0" encoding="UTF-8"?>' + xml
-
-    def build_browser_client_twiml(
-        self,
-        *,
-        identity: str,
-        caller_id: str | None = None,
-        recording_callback_url: str | None = None,
-    ) -> str:
-        response = Element("Response")
-        dial_attributes = {"answerOnBridge": "true"}
-        if caller_id:
-            dial_attributes["callerId"] = caller_id
-        if recording_callback_url:
-            dial_attributes["record"] = "record-from-answer"
-            dial_attributes["recordingStatusCallback"] = recording_callback_url
-            dial_attributes["recordingStatusCallbackMethod"] = "POST"
-        dial = SubElement(response, "Dial", **dial_attributes)
-        SubElement(dial, "Client").text = identity
-        xml = tostring(response, encoding="unicode")
-        return '<?xml version="1.0" encoding="UTF-8"?>' + xml
-
-    def build_browser_outbound_twiml(
-        self,
-        *,
-        to_number: str,
-        caller_id: str,
-        status_callback_url: str,
-        recording_callback_url: str | None = None,
-    ) -> str:
-        response = Element("Response")
-        dial_attributes = {"answerOnBridge": "true", "callerId": caller_id}
-        if recording_callback_url:
-            dial_attributes["record"] = "record-from-answer"
-            dial_attributes["recordingStatusCallback"] = recording_callback_url
-            dial_attributes["recordingStatusCallbackMethod"] = "POST"
-        dial = SubElement(response, "Dial", **dial_attributes)
-        number = SubElement(
-            dial,
-            "Number",
-            statusCallback=status_callback_url,
-            statusCallbackMethod="POST",
-            statusCallbackEvent="initiated ringing answered completed",
-        )
-        number.text = to_number
-        xml = tostring(response, encoding="unicode")
-        return '<?xml version="1.0" encoding="UTF-8"?>' + xml
-
-    def build_hold_twiml(self, message: str = "Please wait while I connect you...") -> str:
-        response = Element("Response")
-        SubElement(response, "Say").text = message
-        SubElement(response, "Play", loop="0").text = "http://com.twilio.music.classical.s3.amazonaws.com/Classical_1.mp3"
-        xml = tostring(response, encoding="unicode")
-        return '<?xml version="1.0" encoding="UTF-8"?>' + xml
+    # ── outbound actions ─────────────────────────────────────────────────
 
     async def initiate_outbound_call(
         self,
@@ -137,118 +63,145 @@ class CallService:
         from_number: str | None,
         user_id: str,
         call_log_id: str,
-        twilio_account_sid: str | None = None,
-        twilio_auth_token: str | None = None,
     ) -> dict:
-        self._validate_twilio_outbound_config()
-        # Use user-specific credentials if provided, else fall back to master
-        call_sid = twilio_account_sid or settings.TWILIO_ACCOUNT_SID or ""
-        call_token = twilio_auth_token or settings.TWILIO_AUTH_TOKEN or ""
-        request_from_number = from_number or settings.TWILIO_PHONE_NUMBER
-        status_callback = self.build_status_callback_url_with_context(user_id=user_id, call_log_id=call_log_id)
-        form_data = {
-            "To": to_number,
-            "From": request_from_number or "",
-            "Url": self.build_incoming_webhook_url(),
-            "Method": "POST",
-            "StatusCallback": status_callback,
-            "StatusCallbackMethod": "POST",
-            "StatusCallbackEvent": ["initiated", "ringing", "answered", "completed"],
-        }
-        endpoint = f"https://api.twilio.com/2010-04-01/Accounts/{call_sid}/Calls.json"
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.post(
-                endpoint,
-                data=form_data,
-                auth=(call_sid, call_token),
+        self._validate_telnyx_outbound_config()
+        client = self._client()
+        request_from_number = from_number or settings.TELNYX_PHONE_NUMBER or ""
+        try:
+            response = client.calls.dial(
+                connection_id=settings.TELNYX_VOICE_APPLICATION_ID or "",
+                to=to_number,
+                from_=request_from_number,
+                client_state=self._encode_client_state({"user_id": user_id, "call_log_id": call_log_id}),
             )
-        if response.status_code >= 400:
-            try:
-                details = response.json()
-            except ValueError:
-                details = {"body": response.text}
+        except telnyx.TelnyxError as exc:
             raise AppException(
                 status_code=502,
-                code="TWILIO_CALL_CREATE_FAILED",
-                message="Twilio could not create the outbound call.",
-                details=details,
-            )
-        payload = response.json()
+                code="TELNYX_CALL_CREATE_FAILED",
+                message="Telnyx could not create the outbound call.",
+                details={"error": str(exc)},
+            ) from exc
+
+        data = response.model_dump() if hasattr(response, "model_dump") else dict(response)
         return {
-            "sid": payload.get("sid"),
-            "status": payload.get("status") or "queued",
-            "to": payload.get("to") or to_number,
-            "from": payload.get("from") or request_from_number,
+            "sid": data.get("call_control_id") or data.get("call_leg_id"),
+            "status": "queued",
+            "to": to_number,
+            "from": request_from_number,
         }
 
     async def send_sms(self, *, to_number: str, message: str) -> dict:
-        self._validate_twilio_outbound_config()
-        endpoint = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json"
-        form_data = {
-            "To": to_number,
-            "From": settings.TWILIO_PHONE_NUMBER or "",
-            "Body": message,
-        }
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(
-                endpoint,
-                data=form_data,
-                auth=(settings.TWILIO_ACCOUNT_SID or "", settings.TWILIO_AUTH_TOKEN or ""),
+        self._validate_telnyx_outbound_config()
+        client = self._client()
+        try:
+            response = client.messages.send(
+                to=to_number,
+                from_=settings.TELNYX_PHONE_NUMBER or "",
+                text=message,
+                messaging_profile_id=settings.TELNYX_MESSAGING_PROFILE_ID or telnyx.NOT_GIVEN,
             )
-        if response.status_code >= 400:
-            try:
-                details = response.json()
-            except ValueError:
-                details = {"body": response.text}
+        except telnyx.TelnyxError as exc:
             raise AppException(
                 status_code=502,
-                code="TWILIO_SMS_SEND_FAILED",
-                message="Twilio could not send the SMS.",
-                details=details,
-            )
-        return response.json()
+                code="TELNYX_SMS_SEND_FAILED",
+                message="Telnyx could not send the SMS.",
+                details={"error": str(exc)},
+            ) from exc
+        return response.model_dump() if hasattr(response, "model_dump") else dict(response)
 
-    async def update_call_twiml(self, call_sid: str, twiml: str) -> bool:
-        self._validate_twilio_outbound_config()
-        endpoint = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Calls/{call_sid}.json"
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                endpoint,
-                data={"Twiml": twiml},
-                auth=(settings.TWILIO_ACCOUNT_SID or "", settings.TWILIO_AUTH_TOKEN or ""),
-            )
-        return response.status_code < 400
+    async def answer_call(self, call_control_id: str, *, websocket_url: str | None = None) -> None:
+        """Answer a ringing call. Pass ``websocket_url`` to bridge straight into the AI
+        media stream; omit it when the call is about to be handed to a human instead
+        (e.g. transferred into the browser dialer right after)."""
+        client = self._client()
+        kwargs: dict = {}
+        if websocket_url:
+            kwargs = {
+                "stream_url": websocket_url,
+                "stream_track": settings.TELNYX_STREAM_TRACK,
+                "stream_bidirectional_mode": "rtp",
+            }
+        try:
+            client.calls.actions.answer(call_control_id, **kwargs)
+        except telnyx.TelnyxError as exc:
+            logger.warning("Telnyx answer failed for %s: %s", call_control_id, exc)
 
-    async def validate_twilio_request(self, request: Request, form_fields: dict[str, str]) -> None:
-        if not settings.TWILIO_VALIDATE_SIGNATURE:
+    async def hangup_call(self, call_control_id: str) -> bool:
+        client = self._client()
+        try:
+            client.calls.actions.hangup(call_control_id)
+            return True
+        except telnyx.TelnyxError as exc:
+            logger.warning("Telnyx hangup failed for %s: %s", call_control_id, exc)
+            return False
+
+    async def transfer_call(self, call_control_id: str, *, to_number: str) -> bool:
+        client = self._client()
+        try:
+            client.calls.actions.transfer(call_control_id, to=to_number)
+            return True
+        except telnyx.TelnyxError as exc:
+            logger.warning("Telnyx transfer failed for %s: %s", call_control_id, exc)
+            return False
+
+    async def start_streaming(self, call_control_id: str, *, websocket_url: str) -> bool:
+        client = self._client()
+        try:
+            client.calls.actions.start_streaming(
+                call_control_id,
+                stream_url=websocket_url,
+                stream_track=settings.TELNYX_STREAM_TRACK,
+                stream_bidirectional_mode="rtp",
+            )
+            return True
+        except telnyx.TelnyxError as exc:
+            logger.warning("Telnyx start_streaming failed for %s: %s", call_control_id, exc)
+            return False
+
+    # ── inbound webhook + signature ─────────────────────────────────────
+
+    async def validate_telnyx_request(self, request: Request, raw_body: bytes) -> None:
+        if not settings.TELNYX_VALIDATE_SIGNATURE:
             return
-        if not settings.TWILIO_AUTH_TOKEN:
+        if not settings.TELNYX_PUBLIC_KEY:
             raise AppException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                code="TWILIO_AUTH_TOKEN_MISSING",
-                message="TWILIO_AUTH_TOKEN must be configured when Twilio signature validation is enabled.",
+                code="TELNYX_PUBLIC_KEY_MISSING",
+                message="TELNYX_PUBLIC_KEY must be configured when Telnyx signature validation is enabled.",
+            )
+        try:
+            from telnyx.lib.webhook_verification import (
+                WebhookVerificationError,
+                verify_webhook_signature,
             )
 
-        provided_signature = request.headers.get("X-Twilio-Signature")
-        if not provided_signature:
-            raise AppException(status_code=401, code="TWILIO_SIGNATURE_MISSING", message="Missing Twilio signature header.")
+            verify_webhook_signature(raw_body, request.headers, settings.TELNYX_PUBLIC_KEY)
+        except WebhookVerificationError as exc:
+            raise AppException(
+                status_code=401, code="TELNYX_SIGNATURE_INVALID", message="Invalid Telnyx webhook signature."
+            ) from exc
 
-        expected_signature = self._compute_twilio_signature(str(request.url), form_fields, settings.TWILIO_AUTH_TOKEN)
-        if not hmac.compare_digest(provided_signature, expected_signature):
-            raise AppException(status_code=401, code="TWILIO_SIGNATURE_INVALID", message="Invalid Twilio request signature.")
+    @staticmethod
+    def parse_webhook_event(raw_body: bytes) -> TelnyxWebhookEvent:
+        try:
+            envelope = json.loads(raw_body)
+        except json.JSONDecodeError as exc:
+            raise AppException(status_code=400, code="TELNYX_WEBHOOK_INVALID", message="Invalid webhook payload.") from exc
+        data = envelope.get("data") or {}
+        return TelnyxWebhookEvent.model_validate(data)
 
-    def parse_stream_message(self, raw_message: str) -> TwilioStreamMessage | None:
+    def parse_stream_message(self, raw_message: str) -> TelnyxStreamMessage | None:
         try:
             payload = json.loads(raw_message)
         except json.JSONDecodeError:
             return None
-        return TwilioStreamMessage.model_validate(payload)
+        return TelnyxStreamMessage.model_validate(payload)
 
     def build_connected_event(self, call_id: str) -> CallStreamEvent:
-        return CallStreamEvent(event="connected", call_id=call_id, message="Twilio media stream connected.")
+        return CallStreamEvent(event="connected", call_id=call_id, message="Telnyx media stream connected.")
 
     def build_stream_started_event(self, call_id: str, stream_sid: str | None = None) -> CallStreamEvent:
-        return CallStreamEvent(event="stream_started", call_id=call_id, stream_sid=stream_sid, message="Twilio stream started.")
+        return CallStreamEvent(event="stream_started", call_id=call_id, stream_sid=stream_sid, message="Telnyx stream started.")
 
     def build_audio_ack(self, call_id: str, chunk_size: int, stream_sid: str | None = None) -> CallStreamEvent:
         return CallStreamEvent(event="audio_ack", call_id=call_id, stream_sid=stream_sid, bytes_received=chunk_size)
@@ -257,10 +210,10 @@ class CallService:
         return CallStreamEvent(event="text_ack", call_id=call_id, stream_sid=stream_sid, message=message)
 
     def build_stream_stopped_event(self, call_id: str, stream_sid: str | None = None) -> CallStreamEvent:
-        return CallStreamEvent(event="stream_stopped", call_id=call_id, stream_sid=stream_sid, message="Twilio stream stopped.")
+        return CallStreamEvent(event="stream_stopped", call_id=call_id, stream_sid=stream_sid, message="Telnyx stream stopped.")
 
     @staticmethod
-    def media_payload_size(stream_message: TwilioStreamMessage) -> int:
+    def media_payload_size(stream_message: TelnyxStreamMessage) -> int:
         media_payload = (stream_message.media or {}).get("payload")
         if not media_payload:
             return 0
@@ -270,44 +223,55 @@ class CallService:
             return len(str(media_payload))
 
     @staticmethod
-    def _compute_twilio_signature(url: str, form_fields: dict[str, str], auth_token: str) -> str:
-        payload = url + "".join(f"{key}{form_fields[key]}" for key in sorted(form_fields))
-        digest = hmac.new(auth_token.encode("utf-8"), payload.encode("utf-8"), hashlib.sha1).digest()
-        return base64.b64encode(digest).decode("utf-8")
+    def _encode_client_state(data: dict) -> str:
+        """Telnyx round-trips an opaque base64 string on every webhook for this call leg."""
+        return base64.b64encode(json.dumps(data).encode("utf-8")).decode("utf-8")
 
     @staticmethod
-    def normalize_twilio_status(status_value: str | None) -> str:
-        mapping = {
-            "queued": "queued",
-            "initiated": "initiated",
-            "ringing": "ringing",
-            "in-progress": "in_progress",
-            "in_progress": "in_progress",
-            "answered": "in_progress",
-            "completed": "completed",
-            "busy": "busy",
-            "no-answer": "no_answer",
-            "no_answer": "no_answer",
-            "failed": "failed",
-            "canceled": "canceled",
-            "cancelled": "canceled",
-        }
-        normalized = (status_value or "").strip().lower()
-        return mapping.get(normalized, "completed")
+    def decode_client_state(client_state: str | None) -> dict:
+        if not client_state:
+            return {}
+        try:
+            return json.loads(base64.b64decode(client_state).decode("utf-8"))
+        except Exception:
+            return {}
 
     @staticmethod
-    def _validate_twilio_outbound_config() -> None:
+    def normalize_call_status(event_type: str | None, hangup_cause: str | None = None) -> str:
+        """Map a Telnyx Call Control ``event_type`` (+ hangup cause) to our call_logs status."""
+        event = (event_type or "").strip().lower()
+        if event in {"call.initiated"}:
+            return "initiated"
+        if event in {"call.ringing"}:
+            return "ringing"
+        if event in {"call.answered", "call.bridged", "call.streaming.started"}:
+            return "in_progress"
+        if event == "call.hangup":
+            cause = (hangup_cause or "").strip().lower()
+            if cause in {"user_busy", "call_rejected"}:
+                return "busy"
+            if cause in {"no_answer", "no_user_response", "no_answer_timeout"}:
+                return "no_answer"
+            if cause in {"originator_cancel", "unallocated_number", "unspecified"}:
+                return "canceled" if cause == "originator_cancel" else "failed"
+            return "completed"
+        if event == "call.machine.detection.ended":
+            return "in_progress"
+        return "completed"
+
+    @staticmethod
+    def _validate_telnyx_outbound_config() -> None:
         missing = []
-        if not settings.TWILIO_ACCOUNT_SID:
-            missing.append("TWILIO_ACCOUNT_SID")
-        if not settings.TWILIO_AUTH_TOKEN:
-            missing.append("TWILIO_AUTH_TOKEN")
-        if not settings.TWILIO_PHONE_NUMBER:
-            missing.append("TWILIO_PHONE_NUMBER")
+        if not settings.TELNYX_API_KEY:
+            missing.append("TELNYX_API_KEY")
+        if not settings.TELNYX_PHONE_NUMBER:
+            missing.append("TELNYX_PHONE_NUMBER")
+        if not settings.TELNYX_VOICE_APPLICATION_ID:
+            missing.append("TELNYX_VOICE_APPLICATION_ID")
         if missing:
             raise AppException(
                 status_code=503,
-                code="TWILIO_NOT_CONFIGURED",
-                message="Twilio outbound calling is not configured yet.",
+                code="TELNYX_NOT_CONFIGURED",
+                message="Telnyx outbound calling is not configured yet.",
                 details={"missing": missing},
             )

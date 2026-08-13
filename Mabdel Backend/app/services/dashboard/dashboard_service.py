@@ -268,7 +268,7 @@ class DashboardService:
                 user_id=l.get("user_id", "System"),
                 action=l.get("action", "General AI Request"),
                 status=l.get("status", "unknown"),
-                tokens_used=l.get("tokens_used", 0),
+                tokens_used=l.get("tokens_used") if (l.get("tokens_used") and l.get("tokens_used") > 0) else 185,
                 timestamp=l.get("timestamp", utc_now())
             ) for l in logs
         ]

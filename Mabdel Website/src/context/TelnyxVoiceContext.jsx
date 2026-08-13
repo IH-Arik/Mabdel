@@ -1,9 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Device } from '@twilio/voice-sdk';
+import { TelnyxRTC } from '@telnyx/webrtc';
 import { smartflowApi } from '../api/services';
 import { useAuthStore } from '../store/useAuthStore';
 
-const TwilioVoiceContext = createContext(null);
+const TelnyxVoiceContext = createContext(null);
+
+// Telnyx's Call object has no per-call event emitter (unlike Twilio's Call) — every
+// state transition, for every call, arrives on the client's single 'telnyx.notification'
+// stream instead. call.state is one of these labels (case varies by SDK version, hence
+// the .toLowerCase() everywhere below rather than trusting exact casing).
+const TERMINAL_STATES = new Set(['hangup', 'destroy', 'purge']);
+const CONNECTED_STATES = new Set(['active']);
+const RINGING_STATES = new Set(['new', 'requesting', 'trying', 'ringing']);
+
+function normalizeState(call) {
+  return String(call?.state || '').toLowerCase();
+}
 
 function normalizePhone(value) {
   const trimmed = String(value || '').trim();
@@ -14,35 +26,24 @@ function normalizePhone(value) {
   return trimmed;
 }
 
-function getCallSid(call) {
-  return (
-    call?.parameters?.CallSid ||
-    call?.customParameters?.get?.('CallSid') ||
-    call?.customParameters?.get?.('call_sid') ||
-    ''
-  );
+function getCallId(call) {
+  return call?.telnyxIDs?.telnyxCallControlId || call?.id || '';
 }
 
 function getCallerName(call) {
-  return (
-    call?.customParameters?.get?.('display_name') ||
-    call?.parameters?.CallerName ||
-    call?.parameters?.From ||
-    'Unknown Caller'
-  );
+  return call?.options?.remoteCallerName || call?.options?.callerName || call?.options?.destinationNumber || 'Unknown Caller';
 }
 
 function getCallerNumber(call) {
-  return (
-    call?.parameters?.From ||
-    call?.customParameters?.get?.('phone_number') ||
-    call?.customParameters?.get?.('destination') ||
-    ''
-  );
+  return call?.options?.remoteCallerNumber || call?.options?.destinationNumber || '';
 }
 
-function getSyncDirection(mode) {
-  return mode === 'incoming' ? 'incoming' : 'outbound';
+function encodeClientState(data) {
+  try {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  } catch {
+    return '';
+  }
 }
 
 function emitCallSync(detail) {
@@ -60,14 +61,16 @@ function setAudioVolume(volume) {
   });
 }
 
-export function TwilioVoiceProvider({ children }) {
+export function TelnyxVoiceProvider({ children }) {
   const { isAuthenticated, user } = useAuthStore();
-  const deviceRef = useRef(null);
+  const clientRef = useRef(null);
   const identityRef = useRef('');
   const heartbeatRef = useRef(null);
   const refreshTimerRef = useRef(null);
   const transcriptPollRef = useRef(null);
   const durationSecondsRef = useRef(0);
+  const currentCallRef = useRef(null);
+  const finalizedCallIdsRef = useRef(new Set());
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
   const [identity, setIdentity] = useState('');
@@ -102,6 +105,7 @@ export function TwilioVoiceProvider({ children }) {
   };
 
   const resetActiveCallState = useCallback(() => {
+    currentCallRef.current = null;
     setCurrentCall(null);
     setCurrentCallSid('');
     setIsMuted(false);
@@ -116,7 +120,7 @@ export function TwilioVoiceProvider({ children }) {
       const resolvedIdentity = nextIdentity || identityRef.current;
       if (!resolvedIdentity || !isAuthenticated) return;
       try {
-        await smartflowApi.setTwilioVoiceRegistration({ identity: resolvedIdentity, active });
+        await smartflowApi.setTelnyxVoiceRegistration({ identity: resolvedIdentity, active });
       } catch {
         // best-effort heartbeat
       }
@@ -158,111 +162,134 @@ export function TwilioVoiceProvider({ children }) {
     return () => window.clearInterval(timer);
   }, [currentCall]);
 
-  const wireCall = useCallback(
-    (call, mode = 'outbound') => {
-      if (!call || call.__mabdelWired) return;
-      call.__mabdelWired = true;
-
-      call.on('accept', () => {
-        setIncomingCall(null);
-        setCurrentCall(call);
-        setCurrentCallSid(getCallSid(call));
-        setCallStatusText('Connected');
-        durationSecondsRef.current = 0;
-        setDurationSeconds(0);
-        smartflowApi.syncTwilioVoiceSession({
-          call_sid: getCallSid(call),
-          status: 'connected',
-          direction: getSyncDirection(mode),
-          phone_number: getCallerNumber(call),
-          contact_name: getCallerName(call),
-        }).catch(() => {});
-        emitCallSync({ type: `${mode}_accepted`, callSid: getCallSid(call) });
-      });
-
-      call.on('disconnect', () => {
-        setIncomingCall(null);
-        setCallStatusText('Call ended');
-        smartflowApi.syncTwilioVoiceSession({
-          call_sid: getCallSid(call),
-          status: 'completed',
-          direction: getSyncDirection(mode),
-          phone_number: getCallerNumber(call),
-          contact_name: getCallerName(call),
-          duration_seconds: durationSecondsRef.current,
-        }).catch(() => {});
-        resetActiveCallState();
-        emitCallSync({ type: `${mode}_disconnected`, callSid: getCallSid(call) });
-      });
-
-      call.on('cancel', () => {
-        setIncomingCall(null);
-        setCallStatusText('Call canceled');
-        smartflowApi.syncTwilioVoiceSession({
-          call_sid: getCallSid(call),
-          status: 'canceled',
-          direction: getSyncDirection(mode),
-          phone_number: getCallerNumber(call),
-          contact_name: getCallerName(call),
-          duration_seconds: durationSecondsRef.current,
-        }).catch(() => {});
-        resetActiveCallState();
-        emitCallSync({ type: `${mode}_canceled`, callSid: getCallSid(call) });
-      });
-
-      call.on('reject', () => {
-        setIncomingCall(null);
-        setCallStatusText('Call rejected');
-        smartflowApi.syncTwilioVoiceSession({
-          call_sid: getCallSid(call),
-          status: 'rejected',
-          direction: getSyncDirection(mode),
-          phone_number: getCallerNumber(call),
-          contact_name: getCallerName(call),
-          duration_seconds: durationSecondsRef.current,
-        }).catch(() => {});
-        resetActiveCallState();
-        emitCallSync({ type: `${mode}_rejected`, callSid: getCallSid(call) });
-      });
-
-      call.on('error', (callError) => {
-        setError(callError?.message || 'Call failed.');
-        setCallStatusText('Call failed');
-        emitCallSync({ type: `${mode}_error`, callSid: getCallSid(call), message: callError?.message });
-      });
+  const finalizeCall = useCallback(
+    (call, statusText) => {
+      const callId = getCallId(call);
+      if (callId) finalizedCallIdsRef.current.add(callId);
+      setIncomingCall(null);
+      setCallStatusText(statusText);
+      resetActiveCallState();
+      emitCallSync({ type: 'call_ended', callSid: callId });
     },
     [resetActiveCallState]
   );
 
-  const refreshToken = useCallback(async () => {
+  const handleNotification = useCallback(
+    (notification) => {
+      if (notification?.type !== 'callUpdate' || !notification.call) return;
+      const call = notification.call;
+      const callId = getCallId(call);
+      const state = normalizeState(call);
+      if (!callId || finalizedCallIdsRef.current.has(callId)) return;
+
+      if (TERMINAL_STATES.has(state)) {
+        finalizeCall(call, 'Call ended');
+        return;
+      }
+
+      if (RINGING_STATES.has(state) && call.direction === 'inbound') {
+        if (!currentCallRef.current && getCallId(incomingCall) !== callId) {
+          setIncomingCall(call);
+          setCurrentCallSid(callId);
+          setCallStatusText('Incoming call');
+        }
+        return;
+      }
+
+      if (CONNECTED_STATES.has(state)) {
+        currentCallRef.current = call;
+        setIncomingCall(null);
+        setCurrentCall(call);
+        setCurrentCallSid(callId);
+        setCallStatusText('Connected');
+        durationSecondsRef.current = 0;
+        setDurationSeconds(0);
+        emitCallSync({ type: 'call_connected', callSid: callId });
+      }
+    },
+    [finalizeCall, incomingCall]
+  );
+
+  const scheduleRefresh = useCallback((delaySeconds) => {
+    clearRefreshTimer();
+    const delayMs = Math.max(60, delaySeconds || 0) * 1000;
+    refreshTimerRef.current = window.setTimeout(() => {
+      // Never swap the socket out from under a live call — check back shortly instead.
+      if (currentCallRef.current) {
+        refreshTimerRef.current = window.setTimeout(() => scheduleRefresh(300), 300000);
+        return;
+      }
+      initClient();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, delayMs);
+  }, []);
+
+  const initClient = useCallback(async () => {
     if (!isAuthenticated) return;
+    setStatus('connecting');
+    setError('');
     try {
-      const response = await smartflowApi.getTwilioVoiceToken();
+      const response = await smartflowApi.getTelnyxVoiceToken();
       const payload = response?.data?.data || {};
-      if (!payload.token || !deviceRef.current) return;
-      deviceRef.current.updateToken(payload.token);
+      if (!payload.token) {
+        throw new Error('Voice token not returned.');
+      }
+
+      if (clientRef.current) {
+        try {
+          clientRef.current.disconnect();
+        } catch {
+          // noop
+        }
+      }
+
+      const client = new TelnyxRTC({ login_token: payload.token });
+
+      client.on('telnyx.ready', () => {
+        setStatus('ready');
+        setCallStatusText('Ready');
+        setError('');
+      });
+
+      client.on('telnyx.socket.close', () => {
+        setStatus('offline');
+      });
+
+      client.on('telnyx.error', (event) => {
+        setError(event?.error?.message || event?.message || 'Telnyx voice error.');
+        setStatus('error');
+      });
+
+      client.on('telnyx.notification', handleNotification);
+
+      clientRef.current = client;
       identityRef.current = payload.identity || '';
       setIdentity(payload.identity || '');
-      pushRegistration(true, payload.identity || '');
-      clearRefreshTimer();
-      refreshTimerRef.current = window.setTimeout(refreshToken, 45 * 60 * 1000);
-    } catch (refreshError) {
-      setError(refreshError?.response?.data?.message || 'Voice token refresh failed.');
+
+      client.connect();
+      await pushRegistration(true, payload.identity || '');
+      clearHeartbeat();
+      heartbeatRef.current = window.setInterval(() => pushRegistration(true), 60000);
+      scheduleRefresh(payload.refresh_after_seconds || 20 * 60 * 60);
+    } catch (initError) {
+      setStatus('error');
+      setError(initError?.response?.data?.message || initError?.message || 'Voice runtime could not start.');
     }
-  }, [isAuthenticated, pushRegistration]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, pushRegistration, handleNotification, scheduleRefresh]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       clearHeartbeat();
       clearRefreshTimer();
       clearTranscriptPoll();
-      if (deviceRef.current) {
+      if (clientRef.current) {
         try {
-          deviceRef.current.destroy();
+          clientRef.current.disconnect();
         } catch {
           // ignore teardown issues
         }
-        deviceRef.current = null;
+        clientRef.current = null;
       }
       resetActiveCallState();
       setIncomingCall(null);
@@ -274,88 +301,27 @@ export function TwilioVoiceProvider({ children }) {
     }
 
     let cancelled = false;
-
-    async function init() {
-      setStatus('connecting');
-      setError('');
-      try {
-        const response = await smartflowApi.getTwilioVoiceToken();
-        if (cancelled) return;
-        const payload = response?.data?.data || {};
-        if (!payload.token) {
-          throw new Error('Voice token not returned.');
-        }
-
-        const nextDevice = new Device(payload.token, {
-          logLevel: 1,
-          codecPreferences: ['opus', 'pcmu'],
-          closeProtection: true,
-        });
-
-        nextDevice.on('registered', () => {
-          setStatus('ready');
-          setCallStatusText('Ready');
-          setError('');
-        });
-
-        nextDevice.on('unregistered', () => {
-          setStatus('offline');
-        });
-
-        nextDevice.on('incoming', (call) => {
-          wireCall(call, 'incoming');
-          setIncomingCall(call);
-          setCurrentCallSid(getCallSid(call));
-          setCallStatusText('Incoming call');
-        });
-
-        nextDevice.on('error', (deviceError) => {
-          setError(deviceError?.message || 'Twilio device error.');
-          setStatus('error');
-        });
-
-        nextDevice.on('tokenWillExpire', refreshToken);
-
-        deviceRef.current = nextDevice;
-        identityRef.current = payload.identity || '';
-        setIdentity(payload.identity || '');
-        await nextDevice.register();
-        await smartflowApi.setTwilioVoiceRegistration({ identity: payload.identity, active: true });
-        heartbeatRef.current = window.setInterval(() => {
-          smartflowApi.setTwilioVoiceRegistration({ identity: payload.identity, active: true }).catch(() => {});
-        }, 60000);
-        refreshTimerRef.current = window.setTimeout(refreshToken, 45 * 60 * 1000);
-      } catch (initError) {
-        setStatus('error');
-        setError(initError?.response?.data?.message || initError?.message || 'Voice runtime could not start.');
-      }
-    }
-
-    init();
+    if (!cancelled) initClient();
 
     return () => {
       cancelled = true;
       clearHeartbeat();
       clearRefreshTimer();
       clearTranscriptPoll();
-      if (deviceRef.current) {
+      if (clientRef.current) {
         try {
-          deviceRef.current.unregister();
+          clientRef.current.disconnect();
         } catch {
           // noop
         }
-        try {
-          deviceRef.current.destroy();
-        } catch {
-          // noop
-        }
-        deviceRef.current = null;
+        clientRef.current = null;
       }
       if (identityRef.current) {
-        smartflowApi.setTwilioVoiceRegistration({ identity: identityRef.current, active: false }).catch(() => {});
+        smartflowApi.setTelnyxVoiceRegistration({ identity: identityRef.current, active: false }).catch(() => {});
       }
     };
-  }, [isAuthenticated, refreshToken, resetActiveCallState, wireCall]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const startOutboundCall = useCallback(
     async ({ phoneNumber, displayName }) => {
@@ -363,51 +329,52 @@ export function TwilioVoiceProvider({ children }) {
       if (!normalized || !/^\+\d{10,15}$/.test(normalized)) {
         throw new Error('Enter a valid international phone number.');
       }
-      if (!deviceRef.current) {
+      if (!clientRef.current) {
         throw new Error('Voice device is not ready yet.');
       }
       setStatus('calling');
       setCallStatusText('Connecting call');
-      const call = await deviceRef.current.connect({
-        params: {
-          To: normalized,
-          phone_number: normalized,
-          destination: normalized,
+      const call = clientRef.current.newCall({
+        destinationNumber: normalized,
+        callerName: displayName || normalized,
+        clientState: encodeClientState({
           user_id: user?._id || user?.id || '',
           display_name: displayName || normalized,
-        },
+        }),
       });
-      wireCall(call, 'outbound');
+      currentCallRef.current = call;
       setCurrentCall(call);
-      setCurrentCallSid(getCallSid(call));
+      setCurrentCallSid(getCallId(call));
       emitCallSync({ type: 'outbound_started', phoneNumber: normalized });
       return call;
     },
-    [user, wireCall]
+    [user]
   );
 
   const acceptIncomingCall = useCallback(async () => {
     if (!incomingCall) return;
     setCallStatusText('Connecting call');
+    currentCallRef.current = incomingCall;
     setCurrentCall(incomingCall);
-    incomingCall.accept();
+    incomingCall.answer();
   }, [incomingCall]);
 
   const rejectIncomingCall = useCallback(async () => {
     if (!incomingCall) return;
-    incomingCall.reject();
+    const callId = getCallId(incomingCall);
+    incomingCall.hangup();
     setIncomingCall(null);
     setCallStatusText('Call rejected');
-    emitCallSync({ type: 'incoming_rejected', callSid: getCallSid(incomingCall) });
+    emitCallSync({ type: 'incoming_rejected', callSid: callId });
   }, [incomingCall]);
 
   const endCurrentCall = useCallback(async () => {
     if (currentCall) {
-      currentCall.disconnect();
+      currentCall.hangup();
       return;
     }
     if (incomingCall) {
-      incomingCall.reject();
+      incomingCall.hangup();
       setIncomingCall(null);
     }
   }, [currentCall, incomingCall]);
@@ -415,7 +382,8 @@ export function TwilioVoiceProvider({ children }) {
   const toggleMute = useCallback(() => {
     if (!currentCall) return;
     const nextMuted = !isMuted;
-    currentCall.mute(nextMuted);
+    if (nextMuted) currentCall.muteAudio();
+    else currentCall.unmuteAudio();
     setIsMuted(nextMuted);
   }, [currentCall, isMuted]);
 
@@ -424,6 +392,8 @@ export function TwilioVoiceProvider({ children }) {
     setIsSpeakerOn(nextState);
     setAudioVolume(nextState ? 1 : 0);
   }, [isSpeakerOn]);
+
+  const refreshToken = useCallback(() => initClient(), [initClient]);
 
   const value = useMemo(
     () => ({
@@ -471,13 +441,13 @@ export function TwilioVoiceProvider({ children }) {
     ]
   );
 
-  return <TwilioVoiceContext.Provider value={value}>{children}</TwilioVoiceContext.Provider>;
+  return <TelnyxVoiceContext.Provider value={value}>{children}</TelnyxVoiceContext.Provider>;
 }
 
-export function useTwilioVoice() {
-  const context = useContext(TwilioVoiceContext);
+export function useTelnyxVoice() {
+  const context = useContext(TelnyxVoiceContext);
   if (!context) {
-    throw new Error('useTwilioVoice must be used within TwilioVoiceProvider.');
+    throw new Error('useTelnyxVoice must be used within TelnyxVoiceProvider.');
   }
   return context;
 }

@@ -143,7 +143,7 @@ class ConversationService(SmartFlowBase):
             existing_ids = {item["_id"] for item in conversations}
             conversations.extend([item for item in global_chats if item["_id"] not in existing_ids])
 
-        items = [await self._serialize_conversation(item, viewer_user_id=user_id) for item in conversations]
+        items = list(await asyncio.gather(*[self._serialize_conversation(item, viewer_user_id=user_id) for item in conversations]))
         if unread_only:
             items = [item for item in items if item.get("unread_count", 0) > 0]
         if search:
@@ -211,10 +211,10 @@ class ConversationService(SmartFlowBase):
         if platform:
             filters["platform"] = platform
         page_result = await self._paginate(self.db.messages, filters, page, page_size, "timestamp")
-        page_result["items"] = [
-            await self._serialize_message({**item, "is_global_chat": conversation.get("is_global_chat")}, viewer_user_id=user_id)
+        page_result["items"] = list(await asyncio.gather(*[
+            self._serialize_message({**item, "is_global_chat": conversation.get("is_global_chat")}, viewer_user_id=user_id)
             for item in page_result["items"]
-        ]
+        ]))
         return page_result
 
     async def create_message(self, user_id: str, payload: dict) -> dict:
@@ -497,11 +497,16 @@ class ConversationService(SmartFlowBase):
                 user_id, "ai_chat", "failed",
                 response_time=time.monotonic() - started_at,
                 error_type=type(exc).__name__,
+                prompt_text=content,
             ))
             raise
+        tokens_used = ai_result.get("tokens_used") or max(1, (len(content) + len(ai_result.get("content", ""))) // 4)
         asyncio.create_task(self.log_ai_usage(
             user_id, ai_result.get("command_type") or "ai_chat", "success",
             response_time=time.monotonic() - started_at,
+            tokens_used=tokens_used,
+            prompt_text=content,
+            response_text=ai_result.get("content", ""),
         ))
         ai_message = await self.create_message(
             user_id,
@@ -558,6 +563,8 @@ class ConversationService(SmartFlowBase):
                 await self.log_ai_usage(
                     user_id, "generate_image", "success",
                     response_time=time.monotonic() - started_at,
+                    tokens_used=100,
+                    prompt_text=prompt,
                 )
             except Exception as e:
                 logger.error("OpenAI image generation error: %s", e)
@@ -565,6 +572,7 @@ class ConversationService(SmartFlowBase):
                     user_id, "generate_image", "failed",
                     response_time=time.monotonic() - started_at,
                     error_type=type(e).__name__,
+                    prompt_text=prompt,
                 )
 
         if not image_url:

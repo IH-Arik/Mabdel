@@ -32,7 +32,7 @@ const ContactsScreen = () => {
     } catch (e) {
       Alert.alert(
         t("call_failed"),
-        e?.data?.message || t("could_not_start_the_call_make_sure_your_twilio_is_set_up_in_account_settings"),
+        e?.data?.message || t("could_not_start_the_call_make_sure_your_telnyx_is_set_up_in_account_settings"),
       );
     } finally {
       setCallingId(null);

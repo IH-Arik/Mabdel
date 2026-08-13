@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import hashlib
-import hmac
+import json
 
 from app.core.config import settings
 from app.services.call_service import CallService
@@ -58,24 +56,24 @@ def _create_contact(client, headers: dict[str, str], *, name: str, phone: str) -
     return response.json()["data"]["id"]
 
 
-def _twilio_signature(url: str, form_data: dict[str, str], auth_token: str) -> str:
-    payload = url + "".join(f"{key}{form_data[key]}" for key in sorted(form_data))
-    digest = hmac.new(auth_token.encode("utf-8"), payload.encode("utf-8"), hashlib.sha1).digest()
-    return base64.b64encode(digest).decode("utf-8")
+def _webhook_envelope(event_type: str, payload: dict) -> bytes:
+    return json.dumps(
+        {"data": {"event_type": event_type, "id": "evt_test", "occurred_at": "2026-01-01T00:00:00Z", "payload": payload}}
+    ).encode()
 
 
 def test_outbound_call_can_be_started_from_contact(client, mock_db, monkeypatch):
     headers = _auth_headers(client, mock_db)
     contact_id = _create_contact(client, headers, name="Rahim Uddin", phone="+8801700000001")
 
-    monkeypatch.setattr(settings, "TWILIO_PHONE_NUMBER", "+15550000000")
+    monkeypatch.setattr(settings, "TELNYX_PHONE_NUMBER", "+15550000000")
 
     async def fake_initiate(self, *, to_number: str, from_number: str | None, user_id: str, call_log_id: str) -> dict:
         return {
-            "sid": "CA_OUTBOUND_123",
+            "sid": "v2:outbound-123",
             "status": "queued",
             "to": to_number,
-            "from": from_number or settings.TWILIO_PHONE_NUMBER,
+            "from": from_number or settings.TELNYX_PHONE_NUMBER,
         }
 
     monkeypatch.setattr(CallService, "initiate_outbound_call", fake_initiate)
@@ -88,27 +86,28 @@ def test_outbound_call_can_be_started_from_contact(client, mock_db, monkeypatch)
 
     assert response.status_code == 201
     payload = response.json()["data"]
-    assert payload["twilio_call_sid"] == "CA_OUTBOUND_123"
+    assert payload["twilio_call_sid"] == "v2:outbound-123"
     assert payload["twilio_status"] == "queued"
     assert payload["call_log"]["contact_id"] == contact_id
     assert payload["call_log"]["phone_number"] == "+8801700000001"
     assert payload["call_log"]["call_type"] == "outbound"
+    assert payload["call_log"]["status"] == "queued"
 
 
-def test_outbound_call_status_callback_updates_call_log(client, mock_db, monkeypatch):
+def test_outbound_call_webhook_updates_call_log(client, mock_db, monkeypatch):
+    """The Telnyx Call Control webhook (not a per-call status callback URl) drives updates now."""
     headers = _auth_headers(client, mock_db, email="calls-status@example.com")
     contact_id = _create_contact(client, headers, name="Karim Mia", phone="+8801700000002")
 
-    monkeypatch.setattr(settings, "TWILIO_PHONE_NUMBER", "+15550000000")
-    monkeypatch.setattr(settings, "TWILIO_AUTH_TOKEN", "test-token")
-    monkeypatch.setattr(settings, "TWILIO_VALIDATE_SIGNATURE", True)
+    monkeypatch.setattr(settings, "TELNYX_PHONE_NUMBER", "+15550000000")
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
 
     async def fake_initiate(self, *, to_number: str, from_number: str | None, user_id: str, call_log_id: str) -> dict:
         return {
-            "sid": "CA_OUTBOUND_456",
-            "status": "initiated",
+            "sid": "v2:outbound-456",
+            "status": "queued",
             "to": to_number,
-            "from": from_number or settings.TWILIO_PHONE_NUMBER,
+            "from": from_number or settings.TELNYX_PHONE_NUMBER,
         }
 
     monkeypatch.setattr(CallService, "initiate_outbound_call", fake_initiate)
@@ -119,29 +118,37 @@ def test_outbound_call_status_callback_updates_call_log(client, mock_db, monkeyp
         json={"contact_id": contact_id},
     )
     assert create_response.status_code == 201
-    call_log_id = create_response.json()["data"]["call_log"]["id"]
 
-    me_response = client.get("/api/v1/auth/me", headers=headers)
-    assert me_response.status_code == 200
-    user_id = me_response.json()["data"]["id"]
-
-    form_data = {
-        "CallSid": "CA_OUTBOUND_456",
-        "CallStatus": "completed",
-        "CallDuration": "63",
-        "From": "+15550000000",
-        "To": "+8801700000002",
-    }
-    url = f"http://testserver/api/v1/calls/status?user_id={user_id}&call_log_id={call_log_id}"
-    signature = _twilio_signature(url, form_data, settings.TWILIO_AUTH_TOKEN)
-
-    status_response = client.post(
-        f"/api/v1/calls/status?user_id={user_id}&call_log_id={call_log_id}",
-        data=form_data,
-        headers={"X-Twilio-Signature": signature},
+    hangup_body = _webhook_envelope(
+        "call.hangup",
+        {
+            "call_control_id": "v2:outbound-456",
+            "hangup_cause": "normal_clearing",
+            "call_duration_secs": 63,
+            "from": "+15550000000",
+            "to": "+8801700000002",
+        },
     )
-    assert status_response.status_code == 200
-    updated_log = status_response.json()["data"]["call_log"]
-    assert updated_log["twilio_call_sid"] == "CA_OUTBOUND_456"
+    webhook_response = client.post("/api/v1/calls/webhook", content=hangup_body)
+    assert webhook_response.status_code == 200
+
+    updated_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:outbound-456"}))
     assert updated_log["status"] == "completed"
     assert updated_log["duration"] == 63
+
+
+def test_outbound_call_requires_telnyx_configuration(client, mock_db, monkeypatch):
+    headers = _auth_headers(client, mock_db, email="calls-unconfigured@example.com")
+    contact_id = _create_contact(client, headers, name="Nasrin Akter", phone="+8801700000003")
+
+    monkeypatch.setattr(settings, "TELNYX_API_KEY", None)
+    monkeypatch.setattr(settings, "TELNYX_PHONE_NUMBER", None)
+    monkeypatch.setattr(settings, "TELNYX_VOICE_APPLICATION_ID", None)
+
+    response = client.post(
+        "/api/v1/smartflow/calls/outbound",
+        headers=headers,
+        json={"contact_id": contact_id},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "TELNYX_NOT_CONFIGURED"

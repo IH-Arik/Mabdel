@@ -43,9 +43,11 @@ class MabdelAIService:
             if workflow_state.intent != "unknown":
                 command_type = workflow_state.intent
                 navigation = self._navigation_for_intent(workflow_state.intent, user_text)
+                res_content = workflow_state.summary or self._workflow_response_text(workflow_state.intent)
+                tokens_used = max(1, (len(user_text) + len(res_content)) // 4)
                 return {
                     "state": "responded",
-                    "content": workflow_state.summary or self._workflow_response_text(workflow_state.intent),
+                    "content": res_content,
                     "command_type": command_type,
                     "workflow": {
                         "engine": workflow_state.output.get("workflow_engine"),
@@ -54,9 +56,10 @@ class MabdelAIService:
                         "output": workflow_state.output,
                     },
                     "navigation": navigation,
+                    "tokens_used": tokens_used,
                 }
 
-        llm_response = await self._generate_with_openai(user_text, history)
+        llm_response, llm_tokens = await self._generate_with_openai(user_text, history)
         if llm_response:
             return {
                 "state": "responded",
@@ -64,6 +67,7 @@ class MabdelAIService:
                 "command_type": self._infer_command_type(normalized),
                 "workflow": None,
                 "navigation": self._navigation_for_intent(self._infer_command_type(normalized), user_text),
+                "tokens_used": llm_tokens,
             }
 
         if "tax" in normalized:
@@ -85,12 +89,15 @@ class MabdelAIService:
             summary = "Processed the request and prepared an operations-focused response."
             command_type = "message"
 
+        resp_content = f"{summary} Context turns reviewed: {len(history_list)}. Request: {user_text.strip()}"
+        tokens_used = max(1, (len(user_text) + len(resp_content)) // 4)
         return {
             "state": "responded",
-            "content": f"{summary} Context turns reviewed: {len(history_list)}. Request: {user_text.strip()}",
+            "content": resp_content,
             "command_type": command_type,
             "workflow": None,
             "navigation": self._navigation_for_intent(command_type, user_text),
+            "tokens_used": tokens_used,
         }
 
     def summarize_call(self, transcript: str | list[dict]) -> dict:
@@ -246,14 +253,14 @@ class MabdelAIService:
                 "error": str(exc)[:240],
             }
 
-    def improve_text(self, text: str) -> str | None:
+    def improve_text(self, text: str) -> tuple[str | None, int]:
         if not settings.OPENAI_API_KEY:
-            return None
+            return None, 0
 
         try:
             from openai import OpenAI
         except ImportError:
-            return None
+            return None, 0
 
         system_prompt = (
             "You rewrite business broadcast messages (email/SMS) to be clearer, more engaging, "
@@ -271,18 +278,21 @@ class MabdelAIService:
                 ],
             )
             improved = response.choices[0].message.content.strip()
-            return improved or None
+            tokens_used = getattr(getattr(response, "usage", None), "total_tokens", 0) or 0
+            if not tokens_used and improved:
+                tokens_used = max(1, (len(text) + len(improved)) // 4)
+            return improved or None, tokens_used
         except Exception:
-            return None
+            return None, 0
 
-    async def _generate_with_openai(self, user_text: str, history: Iterable[dict] | None) -> str | None:
+    async def _generate_with_openai(self, user_text: str, history: Iterable[dict] | None) -> tuple[str | None, int]:
         if not settings.OPENAI_API_KEY:
-            return None
+            return None, 0
 
         try:
             from openai import AsyncOpenAI
         except ImportError:
-            return None
+            return None, 0
 
         messages = [{"role": "system", "content": self.system_prompt}]
         for item in list(history or [])[-8:]:
@@ -305,9 +315,13 @@ class MabdelAIService:
                 model=settings.OPENAI_MODEL, messages=messages, **extra_kwargs
             )
             text = response.choices[0].message.content.strip()
-            return text or None
+            tokens_used = getattr(getattr(response, "usage", None), "total_tokens", 0) or 0
+            if not tokens_used and text:
+                total_chars = sum(len(m.get("content", "")) for m in messages) + len(text)
+                tokens_used = max(1, total_chars // 4)
+            return text or None, tokens_used
         except Exception:
-            return None
+            return None, 0
 
     def _transcribe_audio_with_openai(self, audio_base64: str, audio_mime_type: str, audio_filename: str) -> tuple[str | None, str | None]:
         if not settings.OPENAI_API_KEY:
@@ -335,6 +349,42 @@ class MabdelAIService:
             return (text or None), None if text else "OpenAI returned an empty transcript."
         except Exception as exc:
             return None, str(exc)[:240]
+
+    def _transcribe_with_language(
+        self, audio_base64: str, audio_mime_type: str, audio_filename: str
+    ) -> tuple[str | None, str | None, str | None]:
+        """Like _transcribe_audio_with_openai, but also returns the language Whisper
+        detected — used only by the live phone agent, which needs to know what
+        language to reply in. Whisper returns this as a full lowercase name
+        ("english", "bengali", ...), not an ISO code — verified against the API's
+        verbose_json response shape, not assumed."""
+        if not settings.OPENAI_API_KEY:
+            return None, None, "OPENAI_API_KEY is not configured."
+
+        try:
+            from openai import OpenAI
+        except ImportError:
+            return None, None, "openai package is not installed."
+
+        try:
+            audio_bytes = base64.b64decode(audio_base64)
+        except (binascii.Error, ValueError):
+            return None, None, "Audio payload could not be decoded."
+
+        try:
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            buffer = BytesIO(audio_bytes)
+            buffer.name = audio_filename or self._filename_from_mime(audio_mime_type)
+            transcription = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=buffer,
+                response_format="verbose_json",
+            )
+            text = (getattr(transcription, "text", "") or "").strip()
+            language = (getattr(transcription, "language", "") or "").strip().lower() or None
+            return (text or None), language, None if text else "OpenAI returned an empty transcript."
+        except Exception as exc:
+            return None, None, str(exc)[:240]
 
     def _resolve_voice_preset(self, voice_id: str | None) -> dict:
         if voice_id:

@@ -19,6 +19,7 @@ node_modules/
 dist/
 .vite/
 *.local
+*.tgz
 
 # Environment files
 .env

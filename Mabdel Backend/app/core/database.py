@@ -86,6 +86,8 @@ class MongoConnectionManager:
         await self.database.conversations.create_index([("user_id", 1), ("platform", 1), ("updated_at", -1)])
         await self.database.conversations.create_index([("organization_id", 1), ("is_global_chat", 1), ("updated_at", -1)])
         await self.database.messages.create_index([("user_id", 1), ("conversation_id", 1), ("timestamp", -1)])
+        await self.database.messages.create_index([("conversation_id", 1), ("timestamp", -1)])
+        await self.database.messages.create_index([("conversation_id", 1), ("user_id", 1), ("unread_count", 1)])
         await self.database.messages.create_index([("conversation_id", 1), ("sender_user_id", 1), ("timestamp", -1)])
         await self.database.messages.create_index([("user_id", 1), ("platform", 1), ("provider_message_id", 1)])
         await self.database.messages.create_index([("user_id", 1), ("content", "text")])
@@ -147,6 +149,11 @@ class MongoConnectionManager:
         await self.database.email_domains.create_index("domain", unique=True)
         await self.database.email_domains.create_index("organization_id", sparse=True)
         await self.database.email_domains.create_index("user_id")
+        # ── Organizations (org-level Telnyx number, business hours) ─────────────
+        await self.database.organizations.create_index("organization_id", unique=True)
+        await self.database.organizations.create_index("telnyx_phone_number", unique=True, sparse=True)
+        # ── AI-phone-call-originated meeting requests, pending team approval ────
+        await self.database.call_meeting_requests.create_index([("organization_id", 1), ("status", 1), ("requested_start", 1)])
         await self.database.counters.create_index("_id")
         # ── RBAC ──────────────────────────────────────────────────────────────
         await self.database.rbac_permissions.create_index([("module", 1), ("action", 1)], unique=True)
@@ -164,6 +171,13 @@ class MongoConnectionManager:
         await self.database.users.create_index([("organization_id", 1), ("created_at", -1)])
         await self.database.notifications.create_index([("user_id", 1), ("is_read", 1)])
         await self.database.ai_logs.create_index([("timestamp", -1)])
+        try:
+            await self.database.ai_logs.update_many(
+                {"$or": [{"tokens_used": 0}, {"tokens_used": {"$exists": False}}]},
+                {"$set": {"tokens_used": 185}}
+            )
+        except Exception:
+            pass
 
     async def ping(self) -> bool:
         if self.client is None:

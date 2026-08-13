@@ -13,47 +13,49 @@ class CallStreamEvent(BaseModel):
     message: str | None = None
 
 
-class TwilioWebhookPayload(BaseModel):
-    call_sid: str | None = Field(default=None, alias="CallSid")
-    from_number: str | None = Field(default=None, alias="From")
-    to_number: str | None = Field(default=None, alias="To")
-    call_status: str | None = Field(default=None, alias="CallStatus")
-    direction: str | None = Field(default=None, alias="Direction")
-    stream_sid: str | None = Field(default=None, alias="StreamSid")
+# ── Telnyx (calls, SMS, provisioning) ───────────────────────────────────────
+
+
+class TelnyxWebhookPayload(BaseModel):
+    """The inner ``data.payload`` object of a Telnyx Call Control webhook."""
+
+    call_control_id: str | None = None
+    call_leg_id: str | None = None
+    call_session_id: str | None = None
+    connection_id: str | None = None
+    client_state: str | None = None
+    from_number: str | None = Field(default=None, alias="from")
+    to_number: str | None = Field(default=None, alias="to")
+    direction: str | None = None
+    state: str | None = None
+    hangup_cause: str | None = None
+    hangup_source: str | None = None
+    call_duration_secs: int | None = None
+    recording_urls: dict[str, Any] | None = None
 
     model_config = {"populate_by_name": True}
 
 
-class TwilioStatusCallbackPayload(BaseModel):
-    call_sid: str | None = Field(default=None, alias="CallSid")
-    call_status: str | None = Field(default=None, alias="CallStatus")
-    call_duration: str | None = Field(default=None, alias="CallDuration")
-    from_number: str | None = Field(default=None, alias="From")
-    to_number: str | None = Field(default=None, alias="To")
+class TelnyxWebhookEvent(BaseModel):
+    """Top-level envelope: ``{"data": {"event_type": ..., "payload": {...}}}``."""
 
-    model_config = {"populate_by_name": True}
+    event_type: str
+    id: str | None = None
+    occurred_at: str | None = None
+    payload: TelnyxWebhookPayload = Field(default_factory=TelnyxWebhookPayload)
 
 
-class TwilioStreamMessage(BaseModel):
+class TelnyxStreamMessage(BaseModel):
+    """A single media-streaming websocket frame."""
+
     event: str
-    sequence_number: str | None = Field(default=None, alias="sequenceNumber")
-    stream_sid: str | None = Field(default=None, alias="streamSid")
+    sequence_number: str | None = None
+    stream_id: str | None = None
     start: dict[str, Any] | None = None
     media: dict[str, Any] | None = None
     stop: dict[str, Any] | None = None
-
-    model_config = {"populate_by_name": True}
 
 
 class CallActionRequest(BaseModel):
     action: str  # "receive", "transfer_to_ai", "cancel"
     user_id: str
-
-
-class VoiceSessionSyncRequest(BaseModel):
-    call_sid: str = Field(min_length=2)
-    status: str = Field(min_length=2)
-    direction: str = "outbound"
-    phone_number: str | None = None
-    contact_name: str | None = None
-    duration_seconds: int | None = None
