@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 from collections.abc import Iterable
@@ -9,6 +10,29 @@ from app.core.config import settings
 from app.core.exceptions import AppException
 from app.workflows.graph import run_assistant_workflow
 from app.workflows.intent_utils import ALLOWED_INTENTS, infer_intent_from_command
+
+# Shared, lazily-created OpenAI clients — GoCustifyAIService itself is
+# re-instantiated per request (see SmartFlowBase.__init__), so a fresh
+# OpenAI() / AsyncOpenAI() there would pay TLS/connection-pool setup cost on
+# every single call instead of reusing keep-alive connections across requests.
+_sync_openai_client = None
+_async_openai_client = None
+
+
+def _get_sync_openai_client():
+    global _sync_openai_client
+    if _sync_openai_client is None:
+        from openai import OpenAI
+        _sync_openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    return _sync_openai_client
+
+
+def _get_async_openai_client():
+    global _async_openai_client
+    if _async_openai_client is None:
+        from openai import AsyncOpenAI
+        _async_openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    return _async_openai_client
 
 
 class GoCustifyAIService:
@@ -119,13 +143,12 @@ class GoCustifyAIService:
             return {"summary": transcript_text[:500], "key_points": [], "action_items": [], "status": "no_api_key"}
 
         try:
-            from openai import OpenAI
             import json as _json
         except ImportError:
             return {"summary": None, "key_points": [], "action_items": [], "status": "openai_package_missing"}
 
         try:
-            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            client = _get_sync_openai_client()
             prompt = (
                 "Analyze this business call transcript and provide a structured summary.\n\n"
                 f"TRANSCRIPT:\n{transcript_text}\n\n"
@@ -202,7 +225,13 @@ class GoCustifyAIService:
             "status": status,
         }
 
-    def synthesize_speech(self, text: str, voice_id: str | None = None) -> dict | None:
+    async def synthesize_speech(self, text: str, voice_id: str | None = None) -> dict | None:
+        # The OpenAI SDK call below is synchronous/blocking. Run it off the event
+        # loop thread so one TTS request doesn't stall every other concurrent
+        # request (API calls, other live phone calls) for its full duration.
+        return await asyncio.to_thread(self._synthesize_speech_sync, text, voice_id)
+
+    def _synthesize_speech_sync(self, text: str, voice_id: str | None = None) -> dict | None:
         preset = self._resolve_voice_preset(voice_id)
         if not settings.OPENAI_API_KEY:
             return {
@@ -215,19 +244,7 @@ class GoCustifyAIService:
             }
 
         try:
-            from openai import OpenAI
-        except ImportError:
-            return {
-                "voice_id": preset["id"],
-                "provider_voice": preset["provider_voice"],
-                "mime_type": "audio/mpeg",
-                "audio_base64": None,
-                "preview_text": text,
-                "status": "openai_package_missing",
-            }
-
-        try:
-            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            client = _get_sync_openai_client()
             speech = client.audio.speech.create(
                 model="tts-1",
                 voice=preset["provider_voice"],
@@ -257,11 +274,6 @@ class GoCustifyAIService:
         if not settings.OPENAI_API_KEY:
             return None, 0
 
-        try:
-            from openai import OpenAI
-        except ImportError:
-            return None, 0
-
         system_prompt = (
             "You rewrite business broadcast messages (email/SMS) to be clearer, more engaging, "
             "and more professional, while preserving the original meaning and intent. "
@@ -269,7 +281,7 @@ class GoCustifyAIService:
             "Return ONLY the rewritten message text - no preamble, no quotation marks, no explanation."
         )
         try:
-            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            client = _get_sync_openai_client()
             response = client.chat.completions.create(
                 model=settings.OPENAI_MODEL,
                 messages=[
@@ -289,11 +301,6 @@ class GoCustifyAIService:
         if not settings.OPENAI_API_KEY:
             return None, 0
 
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            return None, 0
-
         messages = [{"role": "system", "content": self.system_prompt}]
         for item in list(history or [])[-8:]:
             role = "assistant" if item.get("direction") == "outbound" else "user"
@@ -310,7 +317,7 @@ class GoCustifyAIService:
             extra_kwargs = {"reasoning_effort": "low", "verbosity": "low"}
 
         try:
-            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            client = _get_async_openai_client()
             response = await client.chat.completions.create(
                 model=settings.OPENAI_MODEL, messages=messages, **extra_kwargs
             )
@@ -328,17 +335,12 @@ class GoCustifyAIService:
             return None, "OPENAI_API_KEY is not configured."
 
         try:
-            from openai import OpenAI
-        except ImportError:
-            return None, "openai package is not installed."
-
-        try:
             audio_bytes = base64.b64decode(audio_base64)
         except (binascii.Error, ValueError):
             return None, "Audio payload could not be decoded."
 
         try:
-            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            client = _get_sync_openai_client()
             buffer = BytesIO(audio_bytes)
             buffer.name = audio_filename or self._filename_from_mime(audio_mime_type)
             transcription = client.audio.transcriptions.create(
@@ -362,17 +364,12 @@ class GoCustifyAIService:
             return None, None, "OPENAI_API_KEY is not configured."
 
         try:
-            from openai import OpenAI
-        except ImportError:
-            return None, None, "openai package is not installed."
-
-        try:
             audio_bytes = base64.b64decode(audio_base64)
         except (binascii.Error, ValueError):
             return None, None, "Audio payload could not be decoded."
 
         try:
-            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            client = _get_sync_openai_client()
             buffer = BytesIO(audio_bytes)
             buffer.name = audio_filename or self._filename_from_mime(audio_mime_type)
             transcription = client.audio.transcriptions.create(

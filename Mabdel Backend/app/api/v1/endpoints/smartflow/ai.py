@@ -10,6 +10,7 @@ from app.core.exceptions import AppException
 from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
     AIChatRequest,
+    AISynthesizeSpeechRequest,
     AIWorkflowPrefillRequest,
     ImageGenerationRequest,
     VoiceCommandRequest,
@@ -51,6 +52,31 @@ async def ai_chat(
         conversation_id=payload.conversation_id,
     )
     return success_response(data=data, message="AI response generated successfully.")
+
+
+@router.post("/ai/synthesize-speech")
+async def synthesize_ai_speech(
+    request: Request,
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
+    _: dict = Depends(require_subscription),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """Separated out from /ai/chat's response_mode='both' so callers (the voice
+    conversation UI) can show the text reply the moment it's ready instead of
+    blocking on TTS synthesis too — the two are sequential server-side (audio is
+    generated from the finished text) and TTS alone typically adds 1-3+ seconds."""
+    try:
+        body = await request.json()
+        payload = AISynthesizeSpeechRequest.model_validate(body)
+    except ValidationError as exc:
+        raise AppException(
+            status_code=422,
+            code="VALIDATION_ERROR",
+            message="Validation error.",
+            details=exc.errors(),
+        ) from exc
+    audio = await service.synthesize_ai_speech(payload.text, voice_id=payload.voice_id)
+    return success_response(data={"audio": audio}, message="Speech synthesized successfully.")
 
 
 @router.post("/ai/conversations", status_code=201)
