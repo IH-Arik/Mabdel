@@ -8,6 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.database import get_database
 from app.core.exceptions import AppException
+from app.core.http import get_redis
 from app.core.security import decode_token
 from app.models.rbac_models import ROLE_HIERARCHY
 from app.repositories.auth_repository import AuthRepository
@@ -17,6 +18,11 @@ from app.services.dashboard.rbac_service import RBACService as DashboardRBACServ
 
 async def get_mongo_database() -> AsyncIOMotorDatabase:
     return await get_database()
+
+
+async def get_redis_client():
+    """Shared Redis client for the RBAC permission cache (None if Redis is unavailable)."""
+    return await get_redis()
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -38,8 +44,11 @@ async def get_current_user(
 
 from app.services.dashboard.dashboard_service import DashboardService
 
-def get_rbac_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> RBACService:
-    return RBACService(db)
+def get_rbac_service(
+    db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+    redis_client=Depends(get_redis_client),
+) -> RBACService:
+    return RBACService(db, redis_client)
 
 
 def get_dashboard_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> DashboardService:
@@ -59,11 +68,12 @@ def require_role(allowed_roles: list[str]) -> Callable:
     async def role_checker(
         current_user: dict = Depends(get_current_user),
         db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+        redis_client=Depends(get_redis_client),
     ) -> dict:
         user_id = str(current_user.get("_id") or current_user.get("id") or "")
         legacy_role = current_user.get("role", "user")
 
-        rbac = RBACService(db)
+        rbac = RBACService(db, redis_client)
         role_slugs = await rbac.get_user_role_slugs(user_id, legacy_role)
 
         # Allow if any role slug is in allowed list OR has high-enough hierarchy
@@ -149,11 +159,12 @@ def require_permission(module: str, action: str) -> Callable:
     async def permission_checker(
         current_user: dict = Depends(get_current_user),
         db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+        redis_client=Depends(get_redis_client),
     ) -> dict:
         user_id = str(current_user.get("_id") or current_user.get("id") or "")
         legacy_role = current_user.get("role", "user")
 
-        rbac = RBACService(db)
+        rbac = RBACService(db, redis_client)
         perms = await rbac.get_user_permissions(user_id, legacy_role)
 
         if not rbac.has_permission(perms, module, action):
@@ -182,11 +193,12 @@ def require_org_scope(allow_global_roles: list[str] | None = None) -> Callable:
     async def checker(
         current_user: dict = Depends(get_current_user),
         db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+        redis_client=Depends(get_redis_client),
     ) -> dict:
         user_id = str(current_user.get("_id") or current_user.get("id") or "")
         legacy_role = current_user.get("role", "user")
 
-        rbac = RBACService(db)
+        rbac = RBACService(db, redis_client)
         role_slugs = await rbac.get_user_role_slugs(user_id, legacy_role)
 
         if not (role_slugs & _global):
@@ -208,12 +220,13 @@ async def rbac_context(
     request: Request,
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+    redis_client=Depends(get_redis_client),
 ) -> dict:
     """Attach resolved permissions and role slugs to request.state for reuse."""
     user_id = str(current_user.get("_id") or current_user.get("id") or "")
     legacy_role = current_user.get("role", "user")
 
-    rbac = RBACService(db)
+    rbac = RBACService(db, redis_client)
     perms = await rbac.get_user_permissions(user_id, legacy_role)
     role_slugs = await rbac.get_user_role_slugs(user_id, legacy_role)
 

@@ -44,6 +44,11 @@ async def _get_redis() -> aioredis.Redis | None:
     return _redis
 
 
+async def get_redis() -> aioredis.Redis | None:
+    """Shared lazy Redis client — reused by rate limiting and RBAC permission caching."""
+    return await _get_redis()
+
+
 async def _redis_sliding_window(key: str, limit: int, window: int) -> bool:
     """Return True if the request is allowed (under limit)."""
     client = await _get_redis()

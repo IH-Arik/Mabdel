@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -30,7 +30,7 @@ function attachmentLabelFromUrl(url) {
   }
 }
 
-function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips, onNext }) {
+function RecipientsSection({ channel, contacts, groups, chips, setChips }) {
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [manual, setManual] = useState('');
@@ -41,11 +41,6 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
   const [groupSearch, setGroupSearch] = useState('');
   const [loadingGroupId, setLoadingGroupId] = useState(null);
   const [groupError, setGroupError] = useState('');
-
-  const channels = useMemo(() => [
-    { id: 'email', label: t('bulk_lbl_email'), icon: Mail },
-    { id: 'sms', label: t('bulk_lbl_phone_number'), icon: Phone },
-  ], [t]);
 
   async function addGroupRecipients(group) {
     setGroupError('');
@@ -117,7 +112,6 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
         duplicates: payload.duplicate_count || 0,
         invalidEntries: payload.invalid_entries || [],
       });
-      onNext();
     } catch (err) {
       setError(err.response?.data?.message || t('bulk_err_validation_failed'));
     } finally {
@@ -151,33 +145,6 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
           ) : null}
         </div>
       )}
-
-      <div>
-        <label className={LABEL}>{t('bulk_lbl_delivery_channel')}</label>
-        <div className="flex gap-3">
-          {channels.map((option) => {
-            const Icon = option.icon;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => {
-                  setChannel(option.id);
-                  setValidationSummary(null);
-                }}
-                className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm border transition-all cursor-pointer ${
-                  channel === option.id
-                    ? 'bg-[#9333ea]/10 border-[#9333ea]/30 text-[#9333ea]'
-                    : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'
-                }`}
-              >
-                <Icon size={14} />
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       {chips.length > 0 && (
         <div className="flex flex-wrap gap-2 p-3 bg-[#0A1019] border border-[#243246] rounded-xl min-h-12">
@@ -307,9 +274,10 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
       <div className="flex items-center justify-between pt-2">
         <span className="text-[#A4B0B7] text-sm">{t('bulk_recipients_selected', { count: chips.length })}</span>
         <button
+          type="button"
           onClick={validate}
           disabled={validating || chips.length === 0}
-          className="px-6 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-bold flex items-center gap-2 hover:bg-[#a855f7] transition-colors cursor-pointer disabled:opacity-60"
+          className="px-6 py-3 bg-[#0A1019] border border-[#9333ea]/30 text-[#9333ea] rounded-xl font-bold flex items-center gap-2 hover:bg-[#9333ea]/10 transition-colors cursor-pointer disabled:opacity-60"
         >
           {validating ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
           {t('bulk_btn_validate_recipients')}
@@ -319,10 +287,9 @@ function StepRecipients({ channel, setChannel, contacts, groups, chips, setChips
   );
 }
 
-function StepCompose({
+function ComposeSection({
   recipients,
   channel,
-  setChannel,
   subject,
   setSubject,
   fromPrefix,
@@ -334,7 +301,6 @@ function StepCompose({
   setAttachments,
   scheduleDate,
   setScheduleDate,
-  onBack,
   onSend,
   sending,
 }) {
@@ -351,11 +317,6 @@ function StepCompose({
   const mediaStreamRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingStartedAtRef = useRef(0);
-
-  const channels = useMemo(() => [
-    { id: 'email', label: t('bulk_lbl_email'), icon: Mail },
-    { id: 'sms', label: t('bulk_lbl_phone_number'), icon: Phone },
-  ], [t]);
 
   async function toggleVoiceWrite() {
     if (isRecording) {
@@ -490,36 +451,6 @@ function StepCompose({
             </span>
           )}
         </div>
-      </div>
-
-      <div>
-        <label className={LABEL}>{t('bulk_lbl_delivery_channel')}</label>
-        <div className="flex gap-3">
-          {channels.map((option) => {
-            const Icon = option.icon;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => {
-                  if (option.id !== channel) {
-                    setChannel(option.id);
-                    onBack();
-                  }
-                }}
-                className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm border transition-all cursor-pointer ${
-                  channel === option.id
-                    ? 'bg-[#9333ea]/10 border-[#9333ea]/30 text-[#9333ea]'
-                    : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'
-                }`}
-              >
-                <Icon size={14} />
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-[#A4B0B7] text-xs mt-1">{t('bulk_switch_channel_hint')}</p>
       </div>
 
       {channel === 'email' && emailDomain?.status === 'verified' && (
@@ -658,14 +589,11 @@ function StepCompose({
         )}
       </div>
 
-      <div className="flex gap-3 pt-2">
-        <button type="button" onClick={onBack} className="flex-1 py-3 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] rounded-xl font-bold hover:text-white transition-colors cursor-pointer">
-          {t('bulk_btn_back')}
-        </button>
+      <div className="pt-2">
         <button
           onClick={onSend}
-          disabled={!message.trim() || sending}
-          className="flex-[2] py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-extrabold flex items-center justify-center gap-2 hover:bg-[#a855f7] transition-colors cursor-pointer disabled:opacity-60"
+          disabled={!message.trim() || !recipients.length || sending}
+          className="w-full py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-extrabold flex items-center justify-center gap-2 hover:bg-[#a855f7] transition-colors cursor-pointer disabled:opacity-60"
         >
           {sending ? <Loader2 size={18} className="animate-spin" /> : scheduleDate ? <CalendarClock size={18} /> : <Play size={18} />}
           {sending ? t('bulk_lbl_sending') : scheduleDate ? t('bulk_btn_schedule_broadcast') : t('bulk_btn_send_now')}
@@ -756,7 +684,7 @@ export default function BulkMessaging() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(1);
+  const [submitted, setSubmitted] = useState(false);
   const [contacts, setContacts] = useState([]);
   const [groups, setGroups] = useState([]);
   const [chips, setChips] = useState([]);
@@ -781,7 +709,6 @@ export default function BulkMessaging() {
       const prefill = location.state.prefill;
       if (prefill.message || prefill.content || prefill.body) {
         setMessage(prefill.message || prefill.content || prefill.body);
-        setStep(2);
       }
       if (prefill.subject) setSubject(prefill.subject);
       if (prefill.channel && channels.some((item) => item.id === prefill.channel)) setChannel(prefill.channel);
@@ -805,11 +732,32 @@ export default function BulkMessaging() {
 
   async function handleSend() {
     setError('');
+    if (!chips.length) {
+      setError(t('bulk_err_add_recipient'));
+      return;
+    }
     setSending(true);
     try {
-      await smartflowApi.createBulkMessage({
+      const validateResponse = await smartflowApi.validateBulkRecipients({
         channel,
         recipient_emails: chips,
+      });
+      const payload = validateResponse.data?.data || {};
+      const normalizedTargets = [...new Set(
+        (payload.recipients || [])
+          .map((recipient) => (channel === 'sms' ? recipient?.phone : recipient?.email))
+          .filter(Boolean)
+      )];
+      if (!normalizedTargets.length) {
+        setError(t('bulk_err_validation_failed'));
+        setSending(false);
+        return;
+      }
+      setChips(normalizedTargets);
+
+      await smartflowApi.createBulkMessage({
+        channel,
+        recipient_emails: normalizedTargets,
         subject: channel === 'email' ? subject : undefined,
         from_prefix: channel === 'email' && fromPrefix.trim() ? fromPrefix.trim() : undefined,
         content: message,
@@ -819,7 +767,7 @@ export default function BulkMessaging() {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
       });
       setHistoryVersion((current) => current + 1);
-      setStep(3);
+      setSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.message || t('bulk_err_send_failed'));
     } finally {
@@ -828,7 +776,7 @@ export default function BulkMessaging() {
   }
 
   function reset() {
-    setStep(1);
+    setSubmitted(false);
     setChips([]);
     setMessage('');
     setSubject('');
@@ -837,32 +785,11 @@ export default function BulkMessaging() {
     setError('');
   }
 
-  const steps = [t('bulk_step_recipients'), t('bulk_step_compose'), t('bulk_step_done')];
-
   return (
     <div className="space-y-6">
       <div className="border-b border-[#243041]/40 pb-4 text-left">
         <h1 className="text-3xl font-extrabold tracking-tight text-white">{t('bulk_title')}</h1>
         <p className="text-[#A4B0B7] text-xs mt-1">{t('bulk_subtitle')}</p>
-      </div>
-
-      <div className="flex items-center justify-center gap-3">
-        {steps.map((label, index) => {
-          const stepNumber = index + 1;
-          const active = step >= stepNumber;
-          const current = step === stepNumber;
-          return (
-            <Fragment key={stepNumber}>
-              <div className="flex flex-col items-center gap-1">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-extrabold transition-all border ${active ? 'bg-[#9333ea]/10 border-[#9333ea]/35 text-white shadow-[0_0_15px_rgba(17,199,229,0.15)]' : 'bg-[#131A24] border-[#243041] text-[#A4B0B7]'} ${current ? 'ring-2 ring-[#9333ea]/30' : ''}`}>
-                  {stepNumber === 3 && step === 3 ? <CheckCircle size={18} className="text-[#9333ea]" /> : stepNumber}
-                </div>
-                <span className={`text-[10px] font-bold ${active ? 'text-[#9333ea]' : 'text-[#A4B0B7]'}`}>{label}</span>
-              </div>
-              {stepNumber < steps.length && <div className={`flex-1 max-w-12 h-0.5 ${step > stepNumber ? 'bg-[#9333ea]/35' : 'bg-[#243041]'} transition-colors`} />}
-            </Fragment>
-          );
-        })}
       </div>
 
       <div className="bg-[#131A24] border border-[#243041] rounded-[22px] p-6 text-left">
@@ -873,36 +800,65 @@ export default function BulkMessaging() {
           </div>
         )}
         <AnimatePresence mode="wait">
-          {step === 1 && (
-            <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
-              <StepRecipients channel={channel} setChannel={setChannel} contacts={contacts} groups={groups} chips={chips} setChips={setChips} onNext={() => setStep(2)} />
+          {!submitted && (
+            <motion.div key="form" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="space-y-8">
+              <div>
+                <label className={LABEL}>{t('bulk_lbl_delivery_channel')}</label>
+                <div className="flex gap-3">
+                  {channels.map((option) => {
+                    const Icon = option.icon;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setChannel(option.id)}
+                        className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm border transition-all cursor-pointer ${
+                          channel === option.id
+                            ? 'bg-[#9333ea]/10 border-[#9333ea]/30 text-[#9333ea]'
+                            : 'bg-[#0A1019] border-[#243246] text-[#A4B0B7]'
+                        }`}
+                      >
+                        <Icon size={14} />
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-white font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Users size={14} className="text-[#9333ea]" />{t('bulk_step_recipients')}
+                </h2>
+                <RecipientsSection channel={channel} contacts={contacts} groups={groups} chips={chips} setChips={setChips} />
+              </div>
+
+              <div className="border-t border-[#243041]/40 pt-8">
+                <h2 className="text-white font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Mail size={14} className="text-[#9333ea]" />{t('bulk_step_compose')}
+                </h2>
+                <ComposeSection
+                  recipients={chips}
+                  channel={channel}
+                  subject={subject}
+                  setSubject={setSubject}
+                  fromPrefix={fromPrefix}
+                  setFromPrefix={setFromPrefix}
+                  emailDomain={emailDomain}
+                  message={message}
+                  setMessage={setMessage}
+                  attachments={attachments}
+                  setAttachments={setAttachments}
+                  scheduleDate={scheduleDate}
+                  setScheduleDate={setScheduleDate}
+                  onSend={handleSend}
+                  sending={sending}
+                />
+              </div>
             </motion.div>
           )}
-          {step === 2 && (
-            <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
-              <StepCompose
-                recipients={chips}
-                channel={channel}
-                setChannel={setChannel}
-                subject={subject}
-                setSubject={setSubject}
-                fromPrefix={fromPrefix}
-                setFromPrefix={setFromPrefix}
-                emailDomain={emailDomain}
-                message={message}
-                setMessage={setMessage}
-                attachments={attachments}
-                setAttachments={setAttachments}
-                scheduleDate={scheduleDate}
-                setScheduleDate={setScheduleDate}
-                onBack={() => setStep(1)}
-                onSend={handleSend}
-                sending={sending}
-              />
-            </motion.div>
-          )}
-          {step === 3 && (
-            <motion.div key="s3" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-12 text-center space-y-6">
+          {submitted && (
+            <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-12 text-center space-y-6">
               <div className="w-24 h-24 bg-[#9333ea]/10 border-2 border-[#9333ea]/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(17,199,229,0.1)]">
                 <CheckCircle size={48} className="text-[#9333ea]" />
               </div>
