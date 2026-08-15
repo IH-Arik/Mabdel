@@ -198,6 +198,9 @@ class SmartFlowService(SmartFlowBase):
             user_id, content, response_mode=response_mode, voice_id=voice_id, conversation_id=conversation_id
         )
 
+    async def synthesize_ai_speech(self, text, voice_id=None):
+        return await self.ai_service.synthesize_speech(text, voice_id=voice_id)
+
     async def create_ai_conversation(self, user_id):
         conversation = await self.conversation_service.create_ai_conversation(user_id)
         return await self.conversation_service._serialize_conversation(conversation, viewer_user_id=user_id)
