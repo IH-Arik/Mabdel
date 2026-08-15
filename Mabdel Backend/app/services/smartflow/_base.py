@@ -623,7 +623,93 @@ class SmartFlowBase:
         ).to_list(length=1)
         return unread_count[0]["total"] if unread_count else 0
 
-    async def _serialize_conversation(self, conversation: dict, viewer_user_id: str | None = None) -> dict:
+    async def _fetch_conversation_unread_counts_batch(
+        self, conversations: list[dict], owner_user_id: str, viewer_id: str | None
+    ) -> dict[str, int]:
+        """Batched form of _fetch_conversation_unread_count — one aggregation per
+        branch (global vs normal) instead of one remote round-trip per conversation.
+        Used by list_conversations, which otherwise pays 2N round-trips just for
+        unread counts (once for the summary badges, once again per page item inside
+        _serialize_conversation). Assumes every non-global conversation passed in
+        belongs to owner_user_id, which holds for list_conversations's own query."""
+        counts: dict[str, int] = {}
+        global_ids: list[str] = []
+        normal_ids: list[str] = []
+        for conversation in conversations:
+            conversation_id = str(conversation.get("_id") or conversation.get("id"))
+            counts[conversation_id] = 0
+            if bool(conversation.get("is_global_chat")) and viewer_id:
+                global_ids.append(conversation_id)
+            else:
+                normal_ids.append(conversation_id)
+
+        if global_ids:
+            async for row in self.db.messages.aggregate([
+                {"$match": {
+                    "conversation_id": {"$in": global_ids},
+                    "sender_user_id": {"$ne": viewer_id},
+                    "read_by": {"$ne": viewer_id},
+                }},
+                {"$group": {"_id": "$conversation_id", "total": {"$sum": 1}}},
+            ]):
+                counts[row["_id"]] = row["total"]
+
+        if normal_ids:
+            async for row in self.db.messages.aggregate([
+                {"$match": {"conversation_id": {"$in": normal_ids}, "user_id": owner_user_id}},
+                {"$group": {"_id": "$conversation_id", "total": {"$sum": "$unread_count"}}},
+            ]):
+                counts[row["_id"]] = row["total"]
+
+        return counts
+
+    async def _fetch_latest_messages_batch(
+        self, conversations: list[dict], owner_user_id: str
+    ) -> dict[str, dict | None]:
+        """Batched form of the per-conversation 'latest message' lookup inside
+        _serialize_conversation — one aggregation per branch instead of one
+        remote round-trip per conversation. Same owner_user_id assumption as
+        _fetch_conversation_unread_counts_batch."""
+        latest_by_id: dict[str, dict | None] = {}
+        global_ids: list[str] = []
+        normal_ids: list[str] = []
+        for conversation in conversations:
+            conversation_id = str(conversation.get("_id") or conversation.get("id"))
+            latest_by_id[conversation_id] = None
+            if bool(conversation.get("is_global_chat")):
+                global_ids.append(conversation_id)
+            else:
+                normal_ids.append(conversation_id)
+
+        if normal_ids:
+            async for row in self.db.messages.aggregate([
+                {"$match": {"conversation_id": {"$in": normal_ids}, "user_id": owner_user_id}},
+                {"$sort": {"timestamp": -1}},
+                {"$group": {"_id": "$conversation_id", "doc": {"$first": "$$ROOT"}}},
+            ]):
+                latest_by_id[row["_id"]] = row["doc"]
+
+        if global_ids:
+            async for row in self.db.messages.aggregate([
+                {"$match": {"conversation_id": {"$in": global_ids}}},
+                {"$sort": {"timestamp": -1}},
+                {"$group": {"_id": "$conversation_id", "doc": {"$first": "$$ROOT"}}},
+            ]):
+                latest_by_id[row["_id"]] = row["doc"]
+
+        return latest_by_id
+
+    async def _serialize_conversation(
+        self,
+        conversation: dict,
+        viewer_user_id: str | None = None,
+        precomputed_unread_count: int | None = None,
+        precomputed_latest_message: dict | None = None,
+        has_precomputed_latest_message: bool = False,
+        precomputed_contacts_by_key: dict[str, dict] | None = None,
+        precomputed_groups_by_conv_id: dict[str, dict] | None = None,
+        precomputed_member_names_by_id: dict[str, str] | None = None,
+    ) -> dict:
         safe = self._to_public(conversation)
         viewer_id = viewer_user_id or safe.get("viewer_user_id") or safe.get("user_id")
         is_global_chat = bool(safe.get("is_global_chat"))
@@ -634,9 +720,19 @@ class SmartFlowBase:
         async def _fetch_latest():
             return await self.db.messages.find(latest_filters).sort("timestamp", -1).limit(1).to_list(length=1)
 
-        latest, unread_total = await asyncio.gather(_fetch_latest(), self._fetch_conversation_unread_count(safe, viewer_id))
-        latest_message = latest[0] if latest else None
-        latest_sender_name = await self._resolve_message_sender_name(viewer_id or safe.get("user_id", ""), latest_message, safe)
+        if has_precomputed_latest_message and precomputed_unread_count is not None:
+            latest_message = precomputed_latest_message
+            unread_total = precomputed_unread_count
+        elif precomputed_unread_count is not None:
+            latest = await _fetch_latest()
+            latest_message = latest[0] if latest else None
+            unread_total = precomputed_unread_count
+        else:
+            latest, unread_total = await asyncio.gather(_fetch_latest(), self._fetch_conversation_unread_count(safe, viewer_id))
+            latest_message = latest[0] if latest else None
+        latest_sender_name = await self._resolve_message_sender_name(
+            viewer_id or safe.get("user_id", ""), latest_message, safe, precomputed_contacts_by_key
+        )
         safe["last_message_preview"] = latest_message["content"] if latest_message else None
         safe["last_message_sender_name"] = latest_sender_name
         safe["unread_count"] = unread_total
@@ -667,19 +763,27 @@ class SmartFlowBase:
         elif safe["is_group"]:
             safe["presence"] = "group"
             safe["presence_label"] = "Group"
-            group_filters = {"conversation_id": safe["id"], "is_active": {"$ne": False}}
-            if not is_global_chat:
-                group_filters["user_id"] = safe.get("user_id")
-            group = await self.db.groups.find_one(group_filters)
+            if precomputed_groups_by_conv_id is not None:
+                group = precomputed_groups_by_conv_id.get(safe["id"])
+            else:
+                group_filters = {"conversation_id": safe["id"], "is_active": {"$ne": False}}
+                if not is_global_chat:
+                    group_filters["user_id"] = safe.get("user_id")
+                group = await self.db.groups.find_one(group_filters)
             group_members = (group or {}).get("member_ids", safe.get("member_ids", []))
-            safe["participant_preview"] = await self._group_participant_preview(viewer_id or safe.get("user_id", ""), group_members, is_global_chat=is_global_chat)
+            safe["participant_preview"] = await self._group_participant_preview(
+                viewer_id or safe.get("user_id", ""),
+                group_members,
+                is_global_chat=is_global_chat,
+                precomputed_names_by_id=precomputed_member_names_by_id,
+            )
             safe["avatar_url"] = self._normalize_media_url((group or {}).get("avatar_url"))
             safe["member_count"] = len(group_members)
             safe["contact_name"] = safe.get("title")
             if latest_sender_name and safe["last_message_preview"]:
                 safe["last_message_preview"] = f"{latest_sender_name}: {safe['last_message_preview']}"
         else:
-            contact = await self._get_conversation_contact(safe.get("user_id", ""), safe)
+            contact = await self._get_conversation_contact(safe.get("user_id", ""), safe, precomputed_contacts_by_key)
             safe["contact_name"] = contact.get("name") if contact else safe.get("title")
             safe["title"] = safe.get("title") or (contact.get("name") if contact else None)
             safe["avatar_url"] = self._normalize_media_url(contact.get("avatar_url")) if contact else None
@@ -750,14 +854,122 @@ class SmartFlowBase:
             by_platform[platform] = by_platform.get(platform, 0) + item.get("unread_count", 0)
         return {"total_unread": total_unread, "by_platform": by_platform}
 
-    async def _get_conversation_contact(self, user_id: str, conversation: dict) -> dict | None:
+    async def _get_conversation_contact(
+        self, user_id: str, conversation: dict, precomputed_contacts_by_key: dict[str, dict] | None = None
+    ) -> dict | None:
         contact_id = conversation.get("contact_id")
         if contact_id and ObjectId.is_valid(contact_id):
+            if precomputed_contacts_by_key is not None:
+                return precomputed_contacts_by_key.get(contact_id)
             return await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
         title = conversation.get("title")
         if title:
+            if precomputed_contacts_by_key is not None:
+                return precomputed_contacts_by_key.get(f"title:{title}")
             return await self.db.contacts.find_one({"user_id": user_id, "name": title})
         return None
+
+    async def _fetch_conversation_contacts_batch(
+        self, conversations: list[dict], latest_messages: dict[str, dict | None], owner_user_id: str
+    ) -> dict[str, dict]:
+        """Batched form of the contact lookups inside _get_conversation_contact and
+        _resolve_message_sender_name — one query each instead of up to 2 per
+        conversation. Keyed by contact _id (str), with a 'title:<name>' fallback key
+        for conversations resolved by title instead of contact_id."""
+        contact_ids: set[str] = set()
+        titles_needed: set[str] = set()
+        for conversation in conversations:
+            conversation_id = str(conversation.get("_id") or conversation.get("id"))
+            contact_id = conversation.get("contact_id")
+            if contact_id and ObjectId.is_valid(contact_id):
+                contact_ids.add(contact_id)
+            elif conversation.get("title"):
+                titles_needed.add(conversation["title"])
+            latest = latest_messages.get(conversation_id)
+            if latest:
+                msg_contact_id = latest.get("contact_id")
+                if msg_contact_id and ObjectId.is_valid(msg_contact_id):
+                    contact_ids.add(msg_contact_id)
+
+        contacts_by_key: dict[str, dict] = {}
+        if contact_ids:
+            oids = [ObjectId(cid) for cid in contact_ids]
+            async for contact in self.db.contacts.find({"_id": {"$in": oids}, "user_id": owner_user_id}):
+                contacts_by_key[str(contact["_id"])] = contact
+
+        if titles_needed:
+            async for contact in self.db.contacts.find({"user_id": owner_user_id, "name": {"$in": list(titles_needed)}}):
+                contacts_by_key[f"title:{contact['name']}"] = contact
+
+        return contacts_by_key
+
+    async def _fetch_conversation_groups_batch(
+        self, conversations: list[dict], owner_user_id: str
+    ) -> dict[str, dict]:
+        """Batched form of the per-conversation group-document lookup inside
+        _serialize_conversation (used for avatar_url and the authoritative
+        member list) — one query per branch instead of one per conversation.
+        Keyed by conversation_id."""
+        global_ids: list[str] = []
+        normal_ids: list[str] = []
+        for conversation in conversations:
+            is_group = conversation.get("type") == "group" or bool(conversation.get("is_global_chat"))
+            if not is_group:
+                continue
+            conversation_id = str(conversation.get("_id") or conversation.get("id"))
+            if conversation.get("is_global_chat"):
+                global_ids.append(conversation_id)
+            else:
+                normal_ids.append(conversation_id)
+
+        groups_by_conv_id: dict[str, dict] = {}
+        if normal_ids:
+            async for group in self.db.groups.find({
+                "conversation_id": {"$in": normal_ids}, "user_id": owner_user_id, "is_active": {"$ne": False}
+            }):
+                groups_by_conv_id[group["conversation_id"]] = group
+        if global_ids:
+            async for group in self.db.groups.find({
+                "conversation_id": {"$in": global_ids}, "is_active": {"$ne": False}
+            }):
+                groups_by_conv_id[group["conversation_id"]] = group
+
+        return groups_by_conv_id
+
+    async def _fetch_group_member_names_batch(
+        self, conversations: list[dict], groups_by_conv_id: dict[str, dict], owner_user_id: str
+    ) -> dict[str, str]:
+        """Batched form of the per-member lookups inside _group_participant_preview
+        — one query per branch instead of up to 3 sequential round-trips PER group
+        conversation (more before the old code's early-exit-at-3 kicked in).
+        Keyed by member_id (str) -> display name."""
+        global_member_ids: set[str] = set()
+        contact_member_ids: set[str] = set()
+        for conversation in conversations:
+            is_group = conversation.get("type") == "group" or bool(conversation.get("is_global_chat"))
+            if not is_group:
+                continue
+            conversation_id = str(conversation.get("_id") or conversation.get("id"))
+            group = groups_by_conv_id.get(conversation_id)
+            member_ids = (group or {}).get("member_ids", conversation.get("member_ids", []))
+            is_global_chat = bool(conversation.get("is_global_chat"))
+            for member_id in member_ids:
+                if member_id == owner_user_id or not ObjectId.is_valid(member_id):
+                    continue
+                (global_member_ids if is_global_chat else contact_member_ids).add(member_id)
+
+        names_by_id: dict[str, str] = {}
+        if global_member_ids:
+            oids = [ObjectId(mid) for mid in global_member_ids]
+            async for user in self.db.users.find({"_id": {"$in": oids}}):
+                names_by_id[str(user["_id"])] = user.get("full_name") or user.get("email") or "Member"
+        if contact_member_ids:
+            oids = [ObjectId(mid) for mid in contact_member_ids]
+            async for contact in self.db.contacts.find({"_id": {"$in": oids}, "user_id": owner_user_id}):
+                if contact.get("name"):
+                    names_by_id[str(contact["_id"])] = contact["name"]
+
+        return names_by_id
 
     async def _publish_inbox_update(self, user_id: str, conversation_id: str, conversation: dict | None = None) -> None:
         if conversation is None:
@@ -822,7 +1034,13 @@ class SmartFlowBase:
             "by_platform": by_platform,
         }
 
-    async def _resolve_message_sender_name(self, user_id: str, latest_message: dict | None, conversation: dict) -> str | None:
+    async def _resolve_message_sender_name(
+        self,
+        user_id: str,
+        latest_message: dict | None,
+        conversation: dict,
+        precomputed_contacts_by_key: dict[str, dict] | None = None,
+    ) -> str | None:
         if not latest_message:
             return None
         if conversation.get("is_global_chat"):
@@ -837,7 +1055,10 @@ class SmartFlowBase:
             return "GoCustify AI"
         contact_id = latest_message.get("contact_id")
         if contact_id and ObjectId.is_valid(contact_id):
-            contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
+            if precomputed_contacts_by_key is not None:
+                contact = precomputed_contacts_by_key.get(contact_id)
+            else:
+                contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
             if contact:
                 return contact.get("name")
         if latest_message.get("direction") == "outbound":
@@ -846,12 +1067,23 @@ class SmartFlowBase:
             return "Member"
         return conversation.get("title")
 
-    async def _group_participant_preview(self, user_id: str, member_ids: list[str], *, is_global_chat: bool = False) -> list[str]:
+    async def _group_participant_preview(
+        self,
+        user_id: str,
+        member_ids: list[str],
+        *,
+        is_global_chat: bool = False,
+        precomputed_names_by_id: dict[str, str] | None = None,
+    ) -> list[str]:
         names: list[str] = []
         for member_id in member_ids:
             if member_id == user_id or not ObjectId.is_valid(member_id):
                 continue
-            if is_global_chat:
+            if precomputed_names_by_id is not None:
+                name = precomputed_names_by_id.get(member_id)
+                if name:
+                    names.append(name)
+            elif is_global_chat:
                 member = await self.db.users.find_one({"_id": ObjectId(member_id)})
                 if member:
                     names.append(member.get("full_name") or member.get("email") or "Member")

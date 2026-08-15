@@ -148,7 +148,7 @@ class AIPhoneAgent:
         else:
             # No business name on file yet — a generic greeting beats a wrong one.
             greeting_text = phrase("greeting_no_business", self.language)
-        audio_result = self.ai_service.synthesize_speech(greeting_text)
+        audio_result = await self.ai_service.synthesize_speech(greeting_text)
         if audio_result and audio_result.get("audio_base64"):
             await self.stream_audio_to_telnyx(audio_result["audio_base64"], send_callback)
 
@@ -241,7 +241,7 @@ class AIPhoneAgent:
 
             logger.debug("Call %s: AI Response: '%s'", self.call_id, response_text)
 
-            audio_result = self.ai_service.synthesize_speech(response_text)
+            audio_result = await self.ai_service.synthesize_speech(response_text)
             if audio_result and audio_result.get("audio_base64"):
                 await self.stream_audio_to_telnyx(audio_result["audio_base64"], send_callback)
 
