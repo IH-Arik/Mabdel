@@ -1,4 +1,4 @@
-# Mabdel SmartFlow - Frontend AI Integration Spec
+# GoCustify SmartFlow - Frontend AI Integration Spec
 > **Target Audience**: Frontend Web/Mobile Client Developers (React, Vite, React Router v7, Zustand, Axios)
 > **Objective**: Implement seamless AI-driven redirects, form auto-prefill, and voice commands for the Invoice creation workflow.
 
@@ -6,7 +6,7 @@
 
 ## 1. Core Integration Concepts
 
-Mabdel's backend uses a LangGraph-based state machine that parses user chat/voice commands, extracts parameters, and returns **redirection instructions** (`navigation`) along with **form prefill data** (`prefill`).
+GoCustify's backend uses a LangGraph-based state machine that parses user chat/voice commands, extracts parameters, and returns **redirection instructions** (`navigation`) along with **form prefill data** (`prefill`).
 
 The integration requires the frontend client to:
 1. **Send** user commands (text or transcribed voice) to the AI endpoints.
@@ -19,7 +19,7 @@ The integration requires the frontend client to:
 ## 2. API Specifications & Payload Shapes
 
 ### A. AI Chat Endpoint
-Use this endpoint when the user interacts with the Mabdel AI Chat UI.
+Use this endpoint when the user interacts with the GoCustify AI Chat UI.
 
 * **Endpoint**: `POST /api/v1/smartflow/ai/chat`
 * **Request Header**: `Authorization: Bearer <access_token>`
@@ -214,7 +214,7 @@ export const AIChatInput: React.FC = () => {
       <input 
         value={input} 
         onChange={(e) => setInput(e.target.value)} 
-        placeholder="Ask Mabdel AI..." 
+        placeholder="Ask GoCustify AI..." 
         className="flex-1 p-2 border rounded-md"
       />
       <button onClick={handleSendMessage} className="bg-blue-600 text-white px-4 py-2 rounded-md">

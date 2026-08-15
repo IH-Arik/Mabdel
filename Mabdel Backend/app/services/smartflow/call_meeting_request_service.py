@@ -34,7 +34,7 @@ def _serialize(doc: dict) -> dict:
 class CallMeetingRequestService(SmartFlowBase):
     """Meeting requests the AI phone agent proposes on a live call, pending a real
     team member's approval — distinct from the platform's own admin_availability_slots/
-    meeting_requests system (that one is Mabdel's own sales-demo booking widget, not
+    meeting_requests system (that one is GoCustify's own sales-demo booking widget, not
     something individual businesses share)."""
 
     def __init__(self, db) -> None:

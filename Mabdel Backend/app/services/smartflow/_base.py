@@ -27,7 +27,7 @@ from app.core.security import hash_password, verify_password
 from app.models.rbac_models import ROLE_HIERARCHY
 from app.services.call_service import CallService
 from app.services.email_service import EmailService
-from app.services.mabdel_ai_service import MabdelAIService
+from app.services.gocustify_ai_service import GoCustifyAIService
 from app.services.media_storage_service import MediaStorageService
 from app.services.push_notification_service import PushNotificationService
 from app.services.rbac_service import RBACService
@@ -128,7 +128,7 @@ class SmartFlowBase:
 
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.db = db
-        self.ai_service = MabdelAIService()
+        self.ai_service = GoCustifyAIService()
         self.call_service = CallService()
         self.media_storage = MediaStorageService()
         self.rbac_service = RBACService(db)
@@ -659,7 +659,7 @@ class SmartFlowBase:
             # assistant identity (used for the open chat's header/avatar), separate
             # from title (used for the sidebar list entry).
             safe["title"] = safe.get("title") or None
-            safe["contact_name"] = "Mabdel AI Assistant"
+            safe["contact_name"] = "GoCustify AI Assistant"
             safe["avatar_url"] = None
             safe["presence"] = "online"
             safe["presence_label"] = "Online"
@@ -834,7 +834,7 @@ class SmartFlowBase:
                 if sender:
                     return sender.get("full_name") or sender.get("email") or "Member"
         if conversation.get("type") == "ai":
-            return "Mabdel AI"
+            return "GoCustify AI"
         contact_id = latest_message.get("contact_id")
         if contact_id and ObjectId.is_valid(contact_id):
             contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
@@ -2086,7 +2086,7 @@ class SmartFlowBase:
                 try:
                     await EmailService().send_business_email(
                         email=target,
-                        subject=document.get("subject") or "Mabdel bulk message",
+                        subject=document.get("subject") or "GoCustify bulk message",
                         text=text_body,
                         html=html_body,
                         from_email=(sender or {}).get("email"),

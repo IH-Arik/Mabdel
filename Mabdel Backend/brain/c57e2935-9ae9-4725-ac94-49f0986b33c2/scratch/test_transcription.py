@@ -8,11 +8,11 @@ import sys
 root = Path(".").absolute()
 sys.path.append(str(root))
 
-from app.services.mabdel_ai_service import MabdelAIService
+from app.services.gocustify_ai_service import GoCustifyAIService
 
 async def test_transcription():
     print("Testing Audio Transcription...")
-    service = MabdelAIService()
+    service = GoCustifyAIService()
     
     # Path to the previously generated audio
     # Note: I'll search for it since the previous path was a bit complex

@@ -168,7 +168,7 @@ class InvoiceService:
         if payload.channel == "email":
             await self.email_service.send_invoice_email(
                 email=recipient,
-                subject=f"Invoice {invoice['invoice_number']} from Mabdel AI",
+                subject=f"Invoice {invoice['invoice_number']} from GoCustify AI",
                 text=self._invoice_email_text(invoice, payload.message),
                 html=self._invoice_email_html(invoice, payload.message),
             )

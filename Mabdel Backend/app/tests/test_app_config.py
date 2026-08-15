@@ -9,7 +9,7 @@ def test_get_app_config_success(client_sql) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["success"] is True
-    assert payload["data"]["app_name"] == "Mabdel AI"
+    assert payload["data"]["app_name"] == "GoCustify AI"
     assert payload["data"]["maintenance_mode"] is False
     assert payload["data"]["feature_flags"]["voice_assistant"] is True
 

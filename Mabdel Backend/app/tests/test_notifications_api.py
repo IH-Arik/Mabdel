@@ -41,7 +41,7 @@ async def _seed_notifications(mock_db, user_id: str) -> list[str]:
             "user_id": user_id,
             "type": "ai_insight",
             "title": "AI Smart Insight",
-            "body": "Based on your last 3 calls, Mabdel recommends adjusting the Q3 forecast.",
+            "body": "Based on your last 3 calls, GoCustify recommends adjusting the Q3 forecast.",
             "read": False,
             "created_at": now - timedelta(minutes=2),
             "metadata": {"source": "calls"},

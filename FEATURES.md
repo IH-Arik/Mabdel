@@ -1,4 +1,4 @@
-# Mabdel AI — Full Feature List
+# GoCustify AI — Full Feature List
 
 ---
 
@@ -89,7 +89,7 @@
 | Feature | Status |
 |---|---|
 | Contact list with search | ✅ |
-| Sections: On Mabdel / Invite to Mabdel | ✅ |
+| Sections: On GoCustify / Invite to GoCustify | ✅ |
 | Import phone contacts | ✅ |
 | Add new contact | ✅ |
 | Edit contact | ✅ |

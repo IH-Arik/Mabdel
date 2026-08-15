@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 _BULK_DISPATCH_POLL_SECONDS = 5
 
 API_DESCRIPTION = (
-    "Backend API for Mabdel client applications. "
+    "Backend API for GoCustify client applications. "
     "Provides authentication, onboarding, permissions, invoicing, and SmartFlow workflows."
 )
 

@@ -43,15 +43,15 @@ module.exports = {
         NSLocationWhenInUseUsageDescription:
           "We use your location to show nearby activities within 10 miles.",
         NSMicrophoneUsageDescription:
-          "Allow Mabdel to record voice commands for AI assistance.",
+          "Allow GoCustify to record voice commands for AI assistance.",
         NSContactsUsageDescription:
-          "Allow Mabdel to import contacts from your phone.",
+          "Allow GoCustify to import contacts from your phone.",
         NSPhotoLibraryUsageDescription:
-          "Allow Mabdel to choose photos and videos for uploads.",
+          "Allow GoCustify to choose photos and videos for uploads.",
         NSCalendarsUsageDescription:
-          "Allow Mabdel to access your calendar so meetings can be synced to Apple Calendar.",
+          "Allow GoCustify to access your calendar so meetings can be synced to Apple Calendar.",
         NSCalendarsFullAccessUsageDescription:
-          "Allow Mabdel to access your calendar so meetings can be synced to Apple Calendar.",
+          "Allow GoCustify to access your calendar so meetings can be synced to Apple Calendar.",
         GIDClientID: googleIosClientId,
       },
     },
@@ -83,7 +83,7 @@ module.exports = {
         "expo-calendar",
         {
           calendarPermission:
-            "Allow Mabdel to access your calendar so meetings can be synced to Apple Calendar.",
+            "Allow GoCustify to access your calendar so meetings can be synced to Apple Calendar.",
         },
       ],
       "@react-native-community/datetimepicker",
@@ -92,7 +92,7 @@ module.exports = {
         "expo-audio",
         {
           microphonePermission:
-            "Allow Mabdel to record voice commands for AI assistance.",
+            "Allow GoCustify to record voice commands for AI assistance.",
         },
       ],
       "expo-speech-recognition",
@@ -101,7 +101,7 @@ module.exports = {
         "expo-contacts",
         {
           contactsPermission:
-            "Allow Mabdel to import contacts from your phone.",
+            "Allow GoCustify to import contacts from your phone.",
         },
       ],
       "expo-asset",

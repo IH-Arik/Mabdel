@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import wave
 import io
 
-from app.services.mabdel_ai_service import MabdelAIService
+from app.services.gocustify_ai_service import GoCustifyAIService
 from app.services.smartflow_service import SmartFlowService
 from app.services import call_phrases
 from app.services.call_phrases import phrase, matches_any
@@ -109,7 +109,7 @@ class AIPhoneAgent:
     the business for approval. It does not create invoices, leases, agreements, or any
     other business record on a call; those all route through a human afterward.
     """
-    def __init__(self, call_id: str, ai_service: MabdelAIService, flow_service: SmartFlowService):
+    def __init__(self, call_id: str, ai_service: GoCustifyAIService, flow_service: SmartFlowService):
         self.call_id = call_id
         self.ai_service = ai_service
         self.flow_service = flow_service
@@ -367,7 +367,7 @@ class AIPhoneAgent:
             self.business_name = await self._get_business_name()
         business_context = (
             f"You are the phone assistant for \"{self.business_name}\" — a real business, "
-            "not the software vendor. Speak as their assistant, not as a product called Mabdel. "
+            "not the software vendor. Speak as their assistant, not as a product called GoCustify. "
             if self.business_name
             else "You are a business's phone assistant. "
         )

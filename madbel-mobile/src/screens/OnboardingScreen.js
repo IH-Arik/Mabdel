@@ -154,7 +154,7 @@ export default function OnboardingScreen() {
   // Sync permissions when response is ready
   const apiPermissions = permissionsResponse?.data?.permissions;
   const privacyTitle = permissionsResponse?.data?.privacy_message_title || "PRIVACY SECURED";
-  const privacyBody = permissionsResponse?.data?.privacy_message_body || "Mabdel uses end-to-end encryption for all shared data.";
+  const privacyBody = permissionsResponse?.data?.privacy_message_body || "GoCustify uses end-to-end encryption for all shared data.";
 
   useEffect(() => {
     if (apiPermissions && apiPermissions.length > 0) {

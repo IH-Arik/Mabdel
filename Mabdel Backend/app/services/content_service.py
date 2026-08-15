@@ -20,7 +20,7 @@ DEFAULT_CONTENT_PAGES: list[dict] = [
         "blocks": [
             {
                 "order": 1,
-                "body": "Mabdel AI brings customer messages, voice requests, documents, invoices, meetings, and business workflows into one assistant-led workspace.",
+                "body": "GoCustify AI brings customer messages, voice requests, documents, invoices, meetings, and business workflows into one assistant-led workspace.",
             },
             {
                 "order": 2,
@@ -36,7 +36,7 @@ DEFAULT_CONTENT_PAGES: list[dict] = [
             },
             {
                 "order": 5,
-                "body": "Mabdel is designed with secure authentication, token-based sessions, and production APIs that mobile clients can use directly.",
+                "body": "GoCustify is designed with secure authentication, token-based sessions, and production APIs that mobile clients can use directly.",
             },
         ],
     },

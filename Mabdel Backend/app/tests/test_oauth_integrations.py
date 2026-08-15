@@ -150,7 +150,7 @@ def test_integration_status_and_sync_report_provider_access_limits(client, mock_
 
     connect_response = client.post(
         "/api/v1/smartflow/integrations",
-        json={"platform": "instagram", "access_token": "abc123", "external_account_id": "ig-page-1", "external_account_name": "Mabdel"},
+        json={"platform": "instagram", "access_token": "abc123", "external_account_id": "ig-page-1", "external_account_name": "GoCustify"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert connect_response.status_code == 201
@@ -160,7 +160,7 @@ def test_integration_status_and_sync_report_provider_access_limits(client, mock_
     status_payload = status_response.json()["data"]
     assert status_payload["summary"]["connected_count"] == 1
     instagram = next(item for item in status_payload["items"] if item["platform"] == "instagram")
-    assert instagram["external_account_name"] == "Mabdel"
+    assert instagram["external_account_name"] == "GoCustify"
 
     sync_response = client.post("/api/v1/smartflow/integrations/instagram/sync", headers={"Authorization": f"Bearer {token}"})
     assert sync_response.status_code == 200
@@ -224,7 +224,7 @@ def test_telegram_manual_connect_registers_webhook_and_stores_secret(client, moc
         "/api/v1/smartflow/integrations/telegram/manual-connect",
         json={
             "bot_token": "123456:ABCDEF_bot_token",
-            "bot_username": "mabdel_bot",
+            "bot_username": "gocustify_bot",
             "secret_token": "telegram-secret",
         },
         headers={"Authorization": f"Bearer {token}"},

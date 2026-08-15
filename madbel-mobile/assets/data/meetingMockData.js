@@ -10,7 +10,7 @@ export const MEETING_EVENTS_BY_DATE = {
     },
     {
       id: "client-sync",
-      title: "Client Sync: Mabdel",
+      title: "Client Sync: GoCustify",
       summary: "01:00 PM - 02:00 PM",
       start: "2023-10-22 13:00:00",
       end: "2023-10-22 14:00:00",

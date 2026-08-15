@@ -72,7 +72,7 @@ def mock_db():
     original_public_backend_url = settings.PUBLIC_BACKEND_URL
     settings.PUBLIC_BACKEND_URL = "http://127.0.0.1:8000"
     client = AsyncMongoMockClient()
-    db = client["test_mabdel_auth_db"]
+    db = client["test_gocustify_auth_db"]
 
     mongo_manager.client = client
     mongo_manager.database = db

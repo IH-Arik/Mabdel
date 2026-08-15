@@ -8,11 +8,11 @@ import sys
 root = Path(__file__).parent.parent
 sys.path.append(str(root))
 
-from app.services.mabdel_ai_service import MabdelAIService
+from app.services.gocustify_ai_service import GoCustifyAIService
 
 async def test_audio():
     print("Testing Audio Synthesis...")
-    service = MabdelAIService()
+    service = GoCustifyAIService()
     
     test_text = "Hello Arik, I have prepared your invoice for the month of May."
     print(f"Synthesizing: '{test_text}'")

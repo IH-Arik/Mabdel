@@ -7,7 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 const FALLBACK_PRODUCTS = [
   {
     id: 'p1',
-    name: 'Mabdel FitBand Pro',
+    name: 'GoCustify FitBand Pro',
     category: 'tech',
     price: 149.99,
     description: 'Advanced fitness smartwatch with real-time biometric tracking, sleep cycles analyzer, and integrated AI voice dictation.',
@@ -25,7 +25,7 @@ const FALLBACK_PRODUCTS = [
   },
   {
     id: 'p3',
-    name: 'Mabdel Whey Isolate (Chocolate)',
+    name: 'GoCustify Whey Isolate (Chocolate)',
     category: 'supplements',
     price: 59.99,
     description: 'Ultra-pure grass-fed whey protein isolate. 25g of protein per serving with added digestive enzymes.',

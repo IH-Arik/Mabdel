@@ -12,7 +12,7 @@ from app.services.telnyx_web_voice_service import TelnyxWebVoiceService
 from app.utils.responses import success_response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.services.ai_phone_agent import AIPhoneAgent
-from app.services.mabdel_ai_service import MabdelAIService
+from app.services.gocustify_ai_service import GoCustifyAIService
 from app.core.exceptions import AppException
 from app.utils.audio import utc_now
 from app.utils.helpers import resolve_organization_user_ids
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Calls"])
 call_service = CallService()
-ai_service = MabdelAIService()
+ai_service = GoCustifyAIService()
 
 # Active AI sessions for calls
 active_sessions: dict[str, AIPhoneAgent] = {}

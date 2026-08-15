@@ -12,7 +12,7 @@ export default function ActiveCallOverlay({
   isMuted = false,
   isSpeaker = true,
   durationSeconds = 0,
-  statusText = 'Mabdel Voice Call',
+  statusText = 'GoCustify Voice Call',
   latestTranscript = '',
   isExpanded: initialExpanded = false,
 }) {

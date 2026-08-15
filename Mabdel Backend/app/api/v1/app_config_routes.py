@@ -33,7 +33,7 @@ def get_app_config_service(db: AsyncIOMotorDatabase = Depends(get_database)) -> 
                         "success": True,
                         "message": "App config fetched successfully.",
                         "data": {
-                            "app_name": "Mabdel AI",
+                            "app_name": "GoCustify AI",
                             "maintenance_mode": False,
                             "force_update": False,
                             "minimum_supported_version": "1.0.0",

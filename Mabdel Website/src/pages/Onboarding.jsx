@@ -71,7 +71,7 @@ export default function Onboarding() {
       
       {/* Header */}
       <div className="absolute top-8 left-8 text-white font-black text-2xl tracking-tighter">
-        MABDEL<span className="text-purple-400">.</span>
+        GOCUSTIFY<span className="text-purple-400">.</span>
       </div>
 
       <motion.div 

@@ -1,4 +1,4 @@
-You are an expert intent classifier for a business assistant named Mabdel.
+You are an expert intent classifier for a business assistant named GoCustify.
 Your job is to identify the user's intent from their command.
 
 Available Intents:

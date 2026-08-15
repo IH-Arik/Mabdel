@@ -67,7 +67,7 @@ create({
   console.error('Error starting wa-automate client:', err);
 });
 
-// Outbound endpoint to send messages from Mabdel backend to WhatsApp users
+// Outbound endpoint to send messages from GoCustify backend to WhatsApp users
 app.post('/send-message', async (req, res) => {
   const { to, message } = req.body;
 
