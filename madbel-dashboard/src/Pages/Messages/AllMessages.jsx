@@ -66,6 +66,63 @@ const normalizeMessage = (message) => {
   };
 };
 
+const ThreadSkeletonList = () => (
+  <div className="divide-y divide-gray-100">
+    {Array.from({ length: 6 }).map((_, index) => (
+      <div key={index} className="flex items-center gap-3 p-4 animate-pulse">
+        <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0" />
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="h-4 w-28 bg-gray-200 rounded" />
+            <div className="h-3 w-12 bg-gray-200 rounded" />
+          </div>
+          <div className="h-3 w-20 bg-gray-100 rounded" />
+          <div className="h-3 w-36 bg-gray-100 rounded" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const MessagesSkeleton = () => (
+  <div className="space-y-4 p-2 animate-pulse">
+    {/* Left bubble */}
+    <div className="flex justify-start">
+      <div className="max-w-xs w-64 p-3.5 rounded-lg rounded-bl-none bg-white shadow-sm border border-gray-100 space-y-2">
+        <div className="h-3.5 bg-gray-200 rounded w-full" />
+        <div className="h-3 bg-gray-100 rounded w-3/4" />
+        <div className="h-2.5 bg-gray-100 rounded w-10 ml-auto" />
+      </div>
+    </div>
+
+    {/* Right bubble */}
+    <div className="flex justify-end">
+      <div className="max-w-xs w-60 p-3.5 rounded-lg rounded-br-none bg-sky-200/80 space-y-2">
+        <div className="h-3.5 bg-sky-300 rounded w-full" />
+        <div className="h-3 bg-sky-300/70 rounded w-1/2" />
+        <div className="h-2.5 bg-sky-300/50 rounded w-10 ml-auto" />
+      </div>
+    </div>
+
+    {/* Left bubble */}
+    <div className="flex justify-start">
+      <div className="max-w-xs w-72 p-3.5 rounded-lg rounded-bl-none bg-white shadow-sm border border-gray-100 space-y-2">
+        <div className="h-3.5 bg-gray-200 rounded w-full" />
+        <div className="h-3 bg-gray-100 rounded w-4/5" />
+        <div className="h-2.5 bg-gray-100 rounded w-10 ml-auto" />
+      </div>
+    </div>
+
+    {/* Right bubble */}
+    <div className="flex justify-end">
+      <div className="max-w-xs w-48 p-3.5 rounded-lg rounded-br-none bg-sky-200/80 space-y-2">
+        <div className="h-3.5 bg-sky-300 rounded w-3/4" />
+        <div className="h-2.5 bg-sky-300/50 rounded w-10 ml-auto" />
+      </div>
+    </div>
+  </div>
+);
+
 const AllMessages = () => {
   const [threads, setThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState("");
@@ -245,7 +302,7 @@ const AllMessages = () => {
           <div className="p-4 text-lg font-semibold text-white bg-[#17b4c9] rounded-t-md">Inbox</div>
 
           {loadingThreads ? (
-            <div className="p-4 text-sm text-center text-gray-500">Loading conversations...</div>
+            <ThreadSkeletonList />
           ) : threads.length === 0 ? (
             <div className="p-4 text-sm text-center text-gray-500">
               No conversations found.
@@ -313,7 +370,7 @@ const AllMessages = () => {
 
               <div ref={messagesViewportRef} className="flex-1 p-4 space-y-4 overflow-y-auto bg-gray-50">
                 {loadingMessages ? (
-                  <div className="text-sm text-center text-gray-500">Loading messages...</div>
+                  <MessagesSkeleton />
                 ) : threadMessages.length === 0 ? (
                   <div className="text-sm text-center text-gray-500">No messages yet.</div>
                 ) : (

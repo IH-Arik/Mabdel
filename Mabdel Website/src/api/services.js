@@ -164,6 +164,8 @@ export const smartflowApi = {
   // ── AI call scheduling (business hours + pending meeting requests) ────────────
   getBusinessHours: () => client.get('/api/v1/smartflow/calendar/business-hours'),
   updateBusinessHours: (data) => client.put('/api/v1/smartflow/calendar/business-hours', data),
+  getCalendarProviderSettings: () => client.get('/api/v1/smartflow/calendar/provider-settings'),
+  setPrimaryCalendarProvider: (provider) => client.put('/api/v1/smartflow/calendar/provider-settings', { provider }),
   getCallMeetingRequests: (params) => client.get('/api/v1/smartflow/calls/meeting-requests', { params }),
   acceptCallMeetingRequest: (id) => client.post(`/api/v1/smartflow/calls/meeting-requests/${id}/accept`),
   declineCallMeetingRequest: (id) => client.post(`/api/v1/smartflow/calls/meeting-requests/${id}/decline`),
@@ -265,6 +267,7 @@ export const smartflowApi = {
     }
     return client.post('/api/v1/smartflow/ai/chat', { content: text, ...context });
   },
+  createAiConversation: () => client.post('/api/v1/smartflow/ai/conversations'),
   voiceChat: (blob) => {
     const fd = new FormData();
     fd.append('audio_file', blob, 'voice.webm');

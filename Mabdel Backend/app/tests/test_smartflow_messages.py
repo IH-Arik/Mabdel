@@ -271,6 +271,65 @@ def test_conversation_list_is_enriched_for_inbox_cards(client, mock_db):
     assert group_item["last_message_preview"].startswith("Alex Johnson:")
 
 
+def test_conversation_list_pagination_only_serializes_current_page_but_summary_covers_all(client, mock_db):
+    """list_conversations only fully serializes the requested page (perf: avoids
+    doing the full per-conversation lookup chain — latest message, sender, contact —
+    for conversations outside the current page), but the unread summary badges must
+    still reflect every conversation, not just the ones returned."""
+    headers = _auth_headers(client, mock_db, email="pagination@example.com")
+
+    conversation_ids = []
+    for index in range(3):
+        contact_id = _create_contact(
+            client, headers, name=f"Contact {index}", email=f"contact{index}@example.com"
+        )
+        conversation_response = client.post(
+            "/api/v1/smartflow/conversations",
+            headers=headers,
+            json={"contact_id": contact_id, "type": "direct", "platform": "whatsapp", "member_ids": []},
+        )
+        assert conversation_response.status_code == 201
+        conversation_id = conversation_response.json()["data"]["id"]
+        conversation_ids.append(conversation_id)
+
+        message_response = client.post(
+            "/api/v1/smartflow/messages",
+            headers=headers,
+            json={
+                "conversation_id": conversation_id,
+                "contact_id": contact_id,
+                "platform": "whatsapp",
+                "direction": "inbound",
+                "content": f"Unread message {index}",
+            },
+        )
+        assert message_response.status_code == 201
+
+    first_page = client.get(
+        "/api/v1/smartflow/conversations", headers=headers, params={"page": 1, "page_size": 2}
+    )
+    assert first_page.status_code == 200
+    first_payload = first_page.json()["data"]
+    assert len(first_payload["items"]) == 2
+    assert first_payload["pagination"]["total"] == 3
+    # Every returned item must be fully enriched (contact_name/last_message_preview
+    # come from the full serialize path) even though only the page was serialized.
+    for item in first_payload["items"]:
+        assert item["contact_name"]
+        assert item["last_message_preview"]
+    # The unread summary must count all 3 conversations, not just the 2 on this page.
+    assert first_payload["summary"]["total_unread"] >= 3
+    assert first_payload["summary"]["by_platform"]["whatsapp"] >= 3
+
+    second_page = client.get(
+        "/api/v1/smartflow/conversations", headers=headers, params={"page": 2, "page_size": 2}
+    )
+    assert second_page.status_code == 200
+    second_payload = second_page.json()["data"]
+    assert len(second_payload["items"]) == 1
+    assert second_payload["pagination"]["total"] == 3
+
+
 def test_ai_voice_invoice_command_returns_navigation_redirect(client, mock_db):
     headers = _auth_headers(client, mock_db, email="voice-invoice@example.com")
 
@@ -942,3 +1001,120 @@ def test_generate_ai_image(client, mock_db):
     assert "data" in res_data
     assert "image_url" in res_data["data"]
     assert res_data["data"]["image_url"].startswith("https://")
+
+
+# ── Multi-chat AI conversations (ChatGPT-style sidebar) ──────────────────
+
+
+def test_new_chat_button_creates_a_separate_untitled_conversation(client, mock_db):
+    headers = _auth_headers(client, mock_db, email="newchat@example.com")
+
+    response = client.post("/api/v1/smartflow/ai/conversations", headers=headers)
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["type"] == "ai"
+    assert data["title"] is None
+
+    second_response = client.post("/api/v1/smartflow/ai/conversations", headers=headers)
+    assert second_response.status_code == 201
+    assert second_response.json()["data"]["id"] != data["id"]
+
+
+def test_first_message_auto_titles_the_chat_and_second_message_does_not_rename_it(client, mock_db):
+    headers = _auth_headers(client, mock_db, email="autotitle@example.com")
+
+    create_response = client.post("/api/v1/smartflow/ai/conversations", headers=headers)
+    conversation_id = create_response.json()["data"]["id"]
+
+    first_message = client.post(
+        "/api/v1/smartflow/ai/chat",
+        headers=headers,
+        json={"content": "Draft me an invoice for Acme Corp", "conversation_id": conversation_id},
+    )
+    assert first_message.status_code == 200
+    assert first_message.json()["data"]["conversation_id"] == conversation_id
+
+    conversation = asyncio.run(
+        mock_db.conversations.find_one({"_id": __import__("bson").ObjectId(conversation_id)})
+    )
+    assert conversation["title"] == "Draft me an invoice for Acme Corp"
+
+    second_message = client.post(
+        "/api/v1/smartflow/ai/chat",
+        headers=headers,
+        json={"content": "Actually make it for Beta LLC instead", "conversation_id": conversation_id},
+    )
+    assert second_message.status_code == 200
+
+    conversation_after = asyncio.run(
+        mock_db.conversations.find_one({"_id": __import__("bson").ObjectId(conversation_id)})
+    )
+    # The title stays pinned to the FIRST message, not overwritten by the second.
+    assert conversation_after["title"] == "Draft me an invoice for Acme Corp"
+
+
+def test_two_new_chats_get_distinct_titles_and_do_not_cross_contaminate_history(client, mock_db):
+    headers = _auth_headers(client, mock_db, email="twochats@example.com")
+
+    chat_a_id = client.post("/api/v1/smartflow/ai/conversations", headers=headers).json()["data"]["id"]
+    chat_b_id = client.post("/api/v1/smartflow/ai/conversations", headers=headers).json()["data"]["id"]
+
+    client.post(
+        "/api/v1/smartflow/ai/chat",
+        headers=headers,
+        json={"content": "What are your business hours?", "conversation_id": chat_a_id},
+    )
+    client.post(
+        "/api/v1/smartflow/ai/chat",
+        headers=headers,
+        json={"content": "Help me write a lease agreement", "conversation_id": chat_b_id},
+    )
+
+    list_response = client.get(
+        "/api/v1/smartflow/conversations", headers=headers, params={"platform": "ai", "page_size": 20}
+    )
+    assert list_response.status_code == 200
+    items = list_response.json()["data"]["items"]
+    titles = {item["id"]: item["title"] for item in items}
+    assert titles[chat_a_id] == "What are your business hours?"
+    assert titles[chat_b_id] == "Help me write a lease agreement"
+
+    chat_a_messages = client.get(f"/api/v1/smartflow/conversations/{chat_a_id}/messages", headers=headers)
+    chat_a_contents = [m["content"] for m in chat_a_messages.json()["data"]["items"]]
+    assert not any("lease agreement" in c for c in chat_a_contents)
+
+
+def test_chat_without_conversation_id_continues_the_most_recently_active_chat(client, mock_db):
+    headers = _auth_headers(client, mock_db, email="mostrecent@example.com")
+
+    chat_a_id = client.post("/api/v1/smartflow/ai/conversations", headers=headers).json()["data"]["id"]
+    client.post(
+        "/api/v1/smartflow/ai/chat",
+        headers=headers,
+        json={"content": "First chat message", "conversation_id": chat_a_id},
+    )
+    # Chat B is created after chat A's message, so it becomes the most recently
+    # active conversation even before it has any messages of its own.
+    chat_b_id = client.post("/api/v1/smartflow/ai/conversations", headers=headers).json()["data"]["id"]
+
+    reply = client.post(
+        "/api/v1/smartflow/ai/chat",
+        headers=headers,
+        json={"content": "No explicit conversation_id here"},
+    )
+    assert reply.status_code == 200
+    assert reply.json()["data"]["conversation_id"] == chat_b_id
+
+
+def test_chat_with_another_users_conversation_id_is_rejected(client, mock_db):
+    owner_headers = _auth_headers(client, mock_db, email="owner-chat@example.com")
+    other_headers = _auth_headers(client, mock_db, email="other-chat@example.com")
+
+    owner_chat_id = client.post("/api/v1/smartflow/ai/conversations", headers=owner_headers).json()["data"]["id"]
+
+    response = client.post(
+        "/api/v1/smartflow/ai/chat",
+        headers=other_headers,
+        json={"content": "Trying to hijack someone else's chat", "conversation_id": owner_chat_id},
+    )
+    assert response.status_code == 404

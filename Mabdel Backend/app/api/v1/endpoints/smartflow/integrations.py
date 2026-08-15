@@ -124,14 +124,19 @@ async def complete_integration_oauth(
     error: str | None = None,
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> HTMLResponse | dict:
-    if platform == "google_business":
+    popup_platforms = {
+        "google_business": ("Google Calendar", "mabdel-google-calendar-oauth"),
+        "zoom": ("Zoom Calendar", "mabdel-zoom-calendar-oauth"),
+    }
+    if platform in popup_platforms:
+        label, message_type = popup_platforms[platform]
         if error:
-            html = """
+            html = f"""
             <html><body style="font-family:Arial,sans-serif;background:#0b1220;color:#fff;padding:24px;">
-            <h2>Google Calendar connection was not completed.</h2>
+            <h2>{label} connection was not completed.</h2>
             <p>You can close this window and try again.</p>
             <script>
-              if (window.opener) { window.opener.postMessage({ type: 'mabdel-google-calendar-oauth', status: 'error' }, '*'); }
+              if (window.opener) {{ window.opener.postMessage({{ type: '{message_type}', status: 'error' }}, '*'); }}
               window.close();
             </script>
             </body></html>
@@ -144,13 +149,14 @@ async def complete_integration_oauth(
             raise AppException(status_code=400, code="OAUTH_CALLBACK_INVALID", message="OAuth callback is missing required parameters.")
 
     data = await service.complete_integration_oauth(platform, code, state)
-    if platform == "google_business":
-        html = """
+    if platform in popup_platforms:
+        label, message_type = popup_platforms[platform]
+        html = f"""
         <html><body style="font-family:Arial,sans-serif;background:#0b1220;color:#fff;padding:24px;">
-        <h2>Google Calendar connected.</h2>
+        <h2>{label} connected.</h2>
         <p>You can close this window.</p>
         <script>
-          if (window.opener) { window.opener.postMessage({ type: 'mabdel-google-calendar-oauth', status: 'success' }, '*'); }
+          if (window.opener) {{ window.opener.postMessage({{ type: '{message_type}', status: 'success' }}, '*'); }}
           window.close();
         </script>
         </body></html>

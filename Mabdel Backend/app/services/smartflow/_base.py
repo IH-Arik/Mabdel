@@ -600,6 +600,29 @@ class SmartFlowBase:
     # ------------------------------------------------------------------
     # Conversation / message helpers
     # ------------------------------------------------------------------
+    async def _fetch_conversation_unread_count(self, conversation: dict, viewer_id: str | None) -> int:
+        """Just the unread-count query, no latest-message/contact/group lookups —
+        used for the conversation-list summary badges, which need this number for
+        every conversation (not just the current page), so it must stay cheap.
+        Mirrors the unread branch inside _serialize_conversation exactly."""
+        conversation_id = str(conversation.get("_id") or conversation.get("id"))
+        is_global_chat = bool(conversation.get("is_global_chat"))
+        if is_global_chat and viewer_id:
+            return await self.db.messages.count_documents(
+                {
+                    "conversation_id": conversation_id,
+                    "sender_user_id": {"$ne": viewer_id},
+                    "read_by": {"$ne": viewer_id},
+                }
+            )
+        unread_count = await self.db.messages.aggregate(
+            [
+                {"$match": {"conversation_id": conversation_id, "user_id": conversation.get("user_id")}},
+                {"$group": {"_id": None, "total": {"$sum": "$unread_count"}}},
+            ]
+        ).to_list(length=1)
+        return unread_count[0]["total"] if unread_count else 0
+
     async def _serialize_conversation(self, conversation: dict, viewer_user_id: str | None = None) -> dict:
         safe = self._to_public(conversation)
         viewer_id = viewer_user_id or safe.get("viewer_user_id") or safe.get("user_id")
@@ -611,25 +634,7 @@ class SmartFlowBase:
         async def _fetch_latest():
             return await self.db.messages.find(latest_filters).sort("timestamp", -1).limit(1).to_list(length=1)
 
-        async def _fetch_unread():
-            if is_global_chat and viewer_id:
-                return await self.db.messages.count_documents(
-                    {
-                        "conversation_id": safe["id"],
-                        "sender_user_id": {"$ne": viewer_id},
-                        "read_by": {"$ne": viewer_id},
-                    }
-                )
-            else:
-                unread_count = await self.db.messages.aggregate(
-                    [
-                        {"$match": {"conversation_id": safe["id"], "user_id": safe["user_id"]}},
-                        {"$group": {"_id": None, "total": {"$sum": "$unread_count"}}},
-                    ]
-                ).to_list(length=1)
-                return unread_count[0]["total"] if unread_count else 0
-
-        latest, unread_total = await asyncio.gather(_fetch_latest(), _fetch_unread())
+        latest, unread_total = await asyncio.gather(_fetch_latest(), self._fetch_conversation_unread_count(safe, viewer_id))
         latest_message = latest[0] if latest else None
         latest_sender_name = await self._resolve_message_sender_name(viewer_id or safe.get("user_id", ""), latest_message, safe)
         safe["last_message_preview"] = latest_message["content"] if latest_message else None
@@ -647,7 +652,13 @@ class SmartFlowBase:
         safe["platform_badge_color"] = self._platform_badge_color(safe.get("platform"))
 
         if safe["is_ai_assistant"]:
-            safe["title"] = "Mabdel AI Assistant"
+            # Each AI chat now keeps its own title (auto-named from its first
+            # message, see ConversationService._auto_title_from_message) so a
+            # ChatGPT-style sidebar of past chats can tell them apart — no longer
+            # force-overwritten with one fixed name. contact_name stays the fixed
+            # assistant identity (used for the open chat's header/avatar), separate
+            # from title (used for the sidebar list entry).
+            safe["title"] = safe.get("title") or None
             safe["contact_name"] = "Mabdel AI Assistant"
             safe["avatar_url"] = None
             safe["presence"] = "online"
@@ -1666,6 +1677,16 @@ class SmartFlowBase:
                 "is_configured": bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET),
             },
             {
+                "platform": "zoom",
+                "platform_label": "Zoom Calendar",
+                "description": "Sync meetings and generate real Zoom Meeting links.",
+                "icon_key": "zoom",
+                "brand_color": "#2D8CFF",
+                "auth_mode": "oauth",
+                "is_available": True,
+                "is_configured": bool(settings.ZOOM_CLIENT_ID and settings.ZOOM_CLIENT_SECRET),
+            },
+            {
                 "platform": "linkedin",
                 "platform_label": "LinkedIn",
                 "description": "B2B outreach and company updates.",
@@ -1733,6 +1754,20 @@ class SmartFlowBase:
                 ],
                 "token_payload": {"grant_type": "authorization_code"},
                 "extra_authorize_params": {"access_type": "offline", "prompt": "consent"},
+            },
+            "zoom": {
+                "provider": "zoom",
+                "authorize_url": "https://zoom.us/oauth/authorize",
+                "token_url": "https://zoom.us/oauth/token",
+                "client_id": settings.ZOOM_CLIENT_ID,
+                "client_secret": settings.ZOOM_CLIENT_SECRET,
+                "redirect_uri": settings.ZOOM_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/zoom/oauth/callback",
+                "scopes": ["meeting:write:meeting", "meeting:read:meeting", "user:read:user"],
+                "token_payload": {"grant_type": "authorization_code"},
+                "extra_authorize_params": {},
+                # Zoom's token endpoint requires client credentials as an HTTP Basic
+                # Auth header, not body params — every other provider here uses body params.
+                "token_auth": "basic",
             },
             "instagram": {
                 "provider": "meta",
@@ -1868,6 +1903,7 @@ class SmartFlowBase:
         safe["calendar_source"] = safe.get("calendar_source", "mabdel")
         safe["google_calendar_id"] = safe.get("google_calendar_id")
         safe["google_calendar_name"] = safe.get("google_calendar_name")
+        safe["zoom_meeting_id"] = safe.get("zoom_meeting_id")
         safe["share_url"] = self._calendar_share_url(safe["share_token"]) if safe.get("share_token") else None
         safe.pop("share_token", None)
         safe.pop("user_id", None)

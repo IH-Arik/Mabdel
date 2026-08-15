@@ -84,14 +84,10 @@ class CalDAVService:
             upsert=True,
         )
 
-        # Mutual exclusivity: Apple Calendar becomes the primary synced calendar.
-        # Any existing Google Calendar connection is downgraded to "meet-link only"
-        # (still usable for generating Meet links, no longer the calendar of record).
-        await self.db.social_integrations.update_many(
-            {"user_id": user_id, "platform": "google_business", "status": "connected"},
-            {"$set": {"sync_mode": "meet_link_only", "updated_at": now}},
-        )
-
+        # Which calendar is the primary two-way sync target (vs. connected purely to
+        # mint real meeting links) is now an explicit user choice — see
+        # CalendarService.get_calendar_provider_settings/set_primary_calendar_provider
+        # — not an automatic side effect of connecting a given provider.
         return {"connected": True, "provider": "caldav", "username": username, "server_url": server_url}
 
     async def disconnect(self, user_id: str) -> None:

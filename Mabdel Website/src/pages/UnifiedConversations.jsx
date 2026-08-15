@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import { formatCstTime } from '../utils/dateUtils';
 import { buildWebSocketUrl } from '../api/client';
@@ -24,6 +25,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLanguage } from '../context/LanguageContext';
+import { ConversationSkeletonList, MessagesThreadSkeleton } from '../components/Skeletons/MessageSkeleton';
 
 const PLATFORM_COLORS = {
   ai: '#9333ea',
@@ -289,6 +291,8 @@ function useVoiceRecorder(onError) {
   return { recording, loading, durationSeconds, audioBlob, audioUrl, start, stop, cancel, clearPreview, setLoading };
 }
 
+
+
 function ConvItem({ conversation, selected, onClick, t }) {
   return (
     <button
@@ -483,10 +487,13 @@ function AISuggestion({ conversationId, onUse, t }) {
 
 export default function UnifiedConversations() {
   const { t } = useLanguage();
+  const location = useLocation();
   const [allConversations, setAllConversations] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [, setSummary] = useState({});
-  const [selectedId, setSelectedId] = useState(null);
+  // Opens straight into a specific thread when navigated here with one (e.g. the
+  // Message button on a contact's profile), instead of landing on the bare inbox.
+  const [selectedId, setSelectedId] = useState(location.state?.conversationId || null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -981,9 +988,7 @@ export default function UnifiedConversations() {
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-16 animate-pulse border-b border-[#243041]/10 bg-slate-950/10 p-4" />
-            ))
+            <ConversationSkeletonList />
           ) : conversations.length ? (
             conversations.map((conversation) => (
               <ConvItem
@@ -1054,10 +1059,7 @@ export default function UnifiedConversations() {
 
             <div className="flex-1 overflow-y-auto p-6">
               {threadLoading ? (
-                <div className="flex h-full items-center justify-center text-slate-400">
-                  <Loader2 size={18} className="mr-2 animate-spin text-[#9333ea]" />
-                  {t('conv_loading_thread')}
-                </div>
+                <MessagesThreadSkeleton />
               ) : (
                 <div className="space-y-4">
                   <AnimatePresence initial={false}>

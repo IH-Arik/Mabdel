@@ -143,17 +143,42 @@ class ConversationService(SmartFlowBase):
             existing_ids = {item["_id"] for item in conversations}
             conversations.extend([item for item in global_chats if item["_id"] not in existing_ids])
 
-        items = list(await asyncio.gather(*[self._serialize_conversation(item, viewer_user_id=user_id) for item in conversations]))
-        if unread_only:
-            items = [item for item in items if item.get("unread_count", 0) > 0]
-        if search:
-            needle = search.strip().lower()
-            items = [item for item in items if self._conversation_matches_search(item, needle)]
-        total = len(items)
-        slice_start = (page - 1) * page_size
-        summary = self._conversation_list_summary(items)
+        if unread_only or search:
+            # unread_only/search filter on fields that only exist after full
+            # serialization (unread_count, contact_name, last_message_preview, ...),
+            # so there's no way to filter before paying for it — same as before.
+            items = list(await asyncio.gather(*[self._serialize_conversation(item, viewer_user_id=user_id) for item in conversations]))
+            if unread_only:
+                items = [item for item in items if item.get("unread_count", 0) > 0]
+            if search:
+                needle = search.strip().lower()
+                items = [item for item in items if self._conversation_matches_search(item, needle)]
+            total = len(items)
+            slice_start = (page - 1) * page_size
+            page_items = items[slice_start : slice_start + page_size]
+            summary = self._conversation_list_summary(items)
+        else:
+            # Plain listing (the common case on every page load): fully serializing
+            # every fetched conversation before paginating was doing 4-6 extra remote
+            # DB round-trips PER conversation for data nobody would see outside the
+            # current page. Only fully serialize the page actually being returned;
+            # the summary badges still need every conversation's unread count, but
+            # that alone is one cheap query each instead of the full serialize cost.
+            total = len(conversations)
+            slice_start = (page - 1) * page_size
+            page_slice = conversations[slice_start : slice_start + page_size]
+            page_items, unread_counts = await asyncio.gather(
+                asyncio.gather(*[self._serialize_conversation(item, viewer_user_id=user_id) for item in page_slice]),
+                asyncio.gather(*[self._fetch_conversation_unread_count(item, user_id) for item in conversations]),
+            )
+            page_items = list(page_items)
+            summary = {"total_unread": 0, "by_platform": {}}
+            for conversation, unread_count in zip(conversations, unread_counts):
+                summary["total_unread"] += unread_count
+                platform = conversation.get("platform", "unknown")
+                summary["by_platform"][platform] = summary["by_platform"].get(platform, 0) + unread_count
         return {
-            "items": items[slice_start : slice_start + page_size],
+            "items": page_items,
             "summary": summary,
             "pagination": {
                 "page": page,
@@ -444,14 +469,37 @@ class ConversationService(SmartFlowBase):
             await self._publish_global_chat_inbox_updates(conversation)
         return response
 
-    async def ensure_ai_conversation(self, user_id: str) -> dict:
-        conversation = await self.db.conversations.find_one({"user_id": user_id, "type": "ai"})
-        if conversation:
+    async def ensure_ai_conversation(self, user_id: str, conversation_id: str | None = None) -> dict:
+        """Get-or-create the AI conversation to chat in. If conversation_id is given
+        (an existing chat picked from the sidebar), it must be this user's own "ai"
+        conversation — a stale or foreign id fails loudly rather than silently
+        redirecting the message into a different chat. Otherwise falls back to the
+        most recently active AI conversation (multiple can now exist — one per
+        "New Chat" — so this is a sort, not just any match), creating one if this
+        user has never chatted with the assistant before."""
+        if conversation_id:
+            if not ObjectId.is_valid(conversation_id):
+                raise AppException(status_code=404, code="CONVERSATION_NOT_FOUND", message="Requested resource was not found.")
+            conversation = await self.db.conversations.find_one(
+                {"_id": ObjectId(conversation_id), "user_id": user_id, "type": "ai"}
+            )
+            if not conversation:
+                raise AppException(status_code=404, code="CONVERSATION_NOT_FOUND", message="Requested resource was not found.")
             return conversation
+
+        existing = await self.db.conversations.find({"user_id": user_id, "type": "ai"}).sort("updated_at", -1).limit(1).to_list(length=1)
+        if existing:
+            return existing[0]
+        return await self.create_ai_conversation(user_id)
+
+    async def create_ai_conversation(self, user_id: str) -> dict:
+        """Always creates a fresh AI conversation — backs the "New Chat" button.
+        Title starts unset; chat_with_ai auto-titles it from the first message,
+        same as ChatGPT naming a chat after what you first said in it."""
         now = utc_now()
         doc = {
             "user_id": user_id,
-            "title": "Mabdel AI",
+            "title": None,
             "contact_id": None,
             "type": "ai",
             "platform": "ai",
@@ -464,18 +512,33 @@ class ConversationService(SmartFlowBase):
         doc["_id"] = result.inserted_id
         return doc
 
+    @staticmethod
+    def _auto_title_from_message(content: str) -> str:
+        title = " ".join(content.strip().split())
+        if len(title) > 60:
+            title = title[:57].rstrip() + "..."
+        return title or "New Chat"
+
     async def chat_with_ai(
         self,
         user_id: str,
         content: str,
         response_mode: str = "text",
         voice_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> dict:
-        conversation = await self.ensure_ai_conversation(user_id)
+        conversation = await self.ensure_ai_conversation(user_id, conversation_id)
         history = await self.db.messages.find({"user_id": user_id, "conversation_id": str(conversation["_id"])}).sort(
             "timestamp", -1
         ).limit(20).to_list(length=20)
         history.reverse()
+        if not history and not conversation.get("title"):
+            # First message in this chat and it has no title yet (a fresh "New
+            # Chat", or a legacy single-conversation account) — name it from what
+            # was just said, same as ChatGPT auto-titling a new chat.
+            auto_title = self._auto_title_from_message(content)
+            await self.db.conversations.update_one({"_id": conversation["_id"]}, {"$set": {"title": auto_title}})
+            conversation = {**conversation, "title": auto_title}
         user_message = await self.create_message(
             user_id,
             {

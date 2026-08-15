@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLanguage } from '../context/LanguageContext';
+import { ConversationSkeletonList, MessagesThreadSkeleton } from '../components/Skeletons/MessageSkeleton';
 
 const PLATFORM_COLORS = {
   ai: '#9333ea',
@@ -967,9 +968,7 @@ export default function Conversations() {
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-16 animate-pulse border-b border-[#243041]/10 bg-slate-950/10 p-4" />
-            ))
+            <ConversationSkeletonList count={6} />
           ) : conversations.length ? (
             conversations.map((conversation) => (
               <ConvItem
@@ -1040,10 +1039,7 @@ export default function Conversations() {
 
             <div className="flex-1 overflow-y-auto p-6">
               {threadLoading ? (
-                <div className="flex h-full items-center justify-center text-slate-400">
-                  <Loader2 size={18} className="mr-2 animate-spin text-[#9333ea]" />
-                  {t('conv_loading_thread')}
-                </div>
+                <MessagesThreadSkeleton />
               ) : (
                 <div className="space-y-4">
                   <AnimatePresence initial={false}>

@@ -11,6 +11,7 @@ import {
   Mic,
   MicOff,
   Phone,
+  Plus,
   Send,
   Sparkles,
   Volume2,
@@ -36,7 +37,6 @@ const DESIRED_FIELDS = {
 };
 
 const FALLBACK_VOICE = 'neutral_assistant';
-const AI_CONVERSATION_STORAGE_KEY = 'voice_conversation_id';
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
 
@@ -208,10 +208,13 @@ export default function VoiceConversation() {
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [activeWorkflow, setActiveWorkflow] = useState(null);
   const [workflowBusy] = useState(false);
-  const [conversationId, setConversationId] = useState(() => {
-    if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(AI_CONVERSATION_STORAGE_KEY);
-  });
+  // Deliberately NOT restored from storage on mount — opening the Voice Assistant
+  // page always starts on a fresh, empty chat (like visiting chatgpt.com), with past
+  // chats reachable from the sidebar instead of silently auto-resuming the last one.
+  const [conversationId, setConversationId] = useState(null);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatHistoryLoading, setChatHistoryLoading] = useState(false);
+  const [newChatBusy, setNewChatBusy] = useState(false);
 
   const actionChips = useMemo(() => [
     { id: 'create_invoice', label: t('vcon_chip_create_invoice'), path: '/invoices', state: { prefill: {}, action: 'new_invoice' }, icon: FileText },
@@ -234,9 +237,6 @@ export default function VoiceConversation() {
 
   const persistConversationId = useCallback((value) => {
     setConversationId(value || null);
-    if (typeof window === 'undefined') return;
-    if (value) window.localStorage.setItem(AI_CONVERSATION_STORAGE_KEY, value);
-    else window.localStorage.removeItem(AI_CONVERSATION_STORAGE_KEY);
   }, []);
 
   const playVoice = useCallback((text, audioPayload) => {
@@ -334,14 +334,19 @@ export default function VoiceConversation() {
   );
 
   const handleAiChat = useCallback(
-    async (text) => {
+    // explicitConversationId lets callers force which chat this lands in without
+    // waiting for a just-set conversationId to actually re-render — React state
+    // updates aren't visible to this closure until the next render, so sendPrompt
+    // passes the id it just created directly instead of relying on state timing.
+    async (text, explicitConversationId) => {
       const response = await smartflowApi.aiChat(text, {
         response_mode: 'both',
         voice_id: selectedVoiceId,
+        conversation_id: explicitConversationId ?? conversationId,
       });
       const data = getApiData(response);
       const aiText = data?.ai_message?.content || data?.response || t('vcon_processed_request');
-      const nextConversationId = data?.conversation_id || conversationId;
+      const nextConversationId = data?.conversation_id || explicitConversationId || conversationId;
 
       pushMessage({
         role: 'assistant',
@@ -361,7 +366,10 @@ export default function VoiceConversation() {
   const loadStoredConversation = useCallback(async (preferredConversationId = null) => {
     let targetId = preferredConversationId || conversationId;
     if (!targetId) {
-      const response = await smartflowApi.getConversations({ page: 1, page_size: 20, platform: 'ai', archived: false });
+      // type: 'ai' (not platform: 'ai') — group conversations are also stored with
+      // platform "ai" internally (see ConversationService.create_group), so filtering
+      // by platform alone pulls in every group chat too, not just the AI assistant.
+      const response = await smartflowApi.getConversations({ page: 1, page_size: 20, type: 'ai', archived: false });
       const data = getApiData(response);
       const items = Array.isArray(data?.items) ? data.items : [];
       targetId = items[0]?.id || items[0]?._id || null;
@@ -381,6 +389,49 @@ export default function VoiceConversation() {
     if (thread.length) setIsSessionActive(true);
     return targetId;
   }, [conversationId, persistConversationId]);
+
+  const loadChatHistory = useCallback(async () => {
+    setChatHistoryLoading(true);
+    try {
+      const response = await smartflowApi.getConversations({ page: 1, page_size: 30, type: 'ai', archived: false });
+      const data = getApiData(response);
+      setChatHistory(toMessageArray(data));
+    } catch {
+      setChatHistory([]);
+    } finally {
+      setChatHistoryLoading(false);
+    }
+  }, []);
+
+  const handleSelectChat = useCallback(
+    async (targetId) => {
+      if (!targetId || targetId === conversationId) return;
+      setActiveWorkflow(null);
+      try {
+        await loadStoredConversation(targetId);
+      } catch (error) {
+        window.alert(error?.response?.data?.message || t('vcon_err_select_chat'));
+      }
+    },
+    [conversationId, loadStoredConversation, t],
+  );
+
+  const handleNewChat = useCallback(async () => {
+    setNewChatBusy(true);
+    try {
+      const response = await smartflowApi.createAiConversation();
+      const data = getApiData(response);
+      persistConversationId(data.id);
+      setMessages([]);
+      setActiveWorkflow(null);
+      setIsSessionActive(false);
+      loadChatHistory();
+    } catch (error) {
+      window.alert(error?.response?.data?.message || t('vcon_err_new_chat'));
+    } finally {
+      setNewChatBusy(false);
+    }
+  }, [loadChatHistory, persistConversationId, t]);
 
   const sendPrompt = useCallback(
     async (rawText, source = 'text') => {
@@ -403,8 +454,32 @@ export default function VoiceConversation() {
         const workflow = await handleWorkflowPrefill(text);
         if (!workflow) {
           setActiveWorkflow(null);
-          const result = await handleAiChat(text);
-          await loadStoredConversation(result?.conversation_id || conversationId);
+          // No chat open yet (fresh page load, or right after "New Chat") — mint one
+          // now rather than letting the backend fall back to "most recently active
+          // chat", which would silently continue an old conversation instead of
+          // actually starting the new one the empty screen implied.
+          let targetConversationId = conversationId;
+          if (!targetConversationId) {
+            try {
+              const createResponse = await smartflowApi.createAiConversation();
+              targetConversationId = getApiData(createResponse).id;
+              persistConversationId(targetConversationId);
+            } catch {
+              // Couldn't mint a fresh chat (e.g. backend temporarily unreachable) —
+              // don't block sending the message over it. Falls back to the backend's
+              // own default (continues whichever chat was last active there) rather
+              // than failing the whole send.
+              targetConversationId = null;
+            }
+          }
+          await handleAiChat(text, targetConversationId);
+          // The reply is already visible (handleAiChat pushed it into the local
+          // thread) — no need to reload the whole thread from the server just to
+          // show what's already shown. Refresh the sidebar list in the background
+          // (picks up a first-message auto-title / bumps this chat to the top)
+          // without blocking or re-showing "AI is thinking...".
+          loadChatHistory();
+          return;
         }
       } catch (error) {
         pushMessage({
@@ -416,7 +491,7 @@ export default function VoiceConversation() {
         setIsThinking(false);
       }
     },
-    [conversationId, handleAiChat, handleWorkflowPrefill, isThinking, loadStoredConversation, pushMessage, t, workflowBusy],
+    [conversationId, handleAiChat, handleWorkflowPrefill, isThinking, loadChatHistory, persistConversationId, pushMessage, t, workflowBusy],
   );
 
   const startListening = useCallback(async () => {
@@ -529,8 +604,10 @@ export default function VoiceConversation() {
   }, []);
 
   useEffect(() => {
-    loadStoredConversation().catch(() => {});
-  }, [loadStoredConversation]);
+    // Intentionally does NOT auto-resume the last chat (see conversationId's
+    // initializer above) — only load the sidebar list so past chats are reachable.
+    loadChatHistory();
+  }, [loadChatHistory]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -601,6 +678,48 @@ export default function VoiceConversation() {
           <p className="text-slate-400 text-xs mt-2 leading-relaxed">
             {t('vcon_subtitle')}
           </p>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('vcon_lbl_chat_history')}</p>
+            <button
+              onClick={handleNewChat}
+              disabled={newChatBusy}
+              title={t('vcon_btn_new_chat')}
+              className="p-1.5 rounded-lg bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {newChatBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            </button>
+          </div>
+          <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+            {chatHistoryLoading && !chatHistory.length ? (
+              <div className="flex items-center gap-2 text-xs text-slate-500 px-2 py-3">
+                <Loader2 size={13} className="animate-spin" />
+                {t('vcon_loading_history')}
+              </div>
+            ) : chatHistory.length ? (
+              chatHistory.map((item) => {
+                const isActive = item.id === conversationId;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelectChat(item.id)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium truncate transition-colors cursor-pointer ${
+                      isActive
+                        ? 'bg-purple-500/15 text-purple-200 border border-purple-500/30'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
+                    }`}
+                    title={item.title || t('vcon_untitled_chat')}
+                  >
+                    {item.title || t('vcon_untitled_chat')}
+                  </button>
+                );
+              })
+            ) : (
+              <p className="text-xs text-slate-600 px-2 py-3">{t('vcon_no_chat_history')}</p>
+            )}
+          </div>
         </div>
 
         <div>
