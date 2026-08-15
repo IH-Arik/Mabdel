@@ -246,6 +246,7 @@ ADAPTERS: dict[str, SocialProviderAdapter] = {
     "whatsapp": WhatsAppAdapter(),
     "telegram": TelegramAdapter(),
     "google_business": UnsupportedInboxAdapter("google_business"),
+    "zoom": UnsupportedInboxAdapter("zoom"),
     "linkedin": UnsupportedInboxAdapter("linkedin", "unsupported_by_provider"),
     "twitter_x": UnsupportedInboxAdapter("twitter_x", "needs_provider_access"),
     "snapchat": SnapchatAdapter(),

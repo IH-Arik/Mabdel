@@ -193,8 +193,14 @@ class SmartFlowService(SmartFlowBase):
     async def ensure_ai_conversation(self, user_id):
         return await self.conversation_service.ensure_ai_conversation(user_id)
 
-    async def chat_with_ai(self, user_id, content, response_mode="text", voice_id=None):
-        return await self.conversation_service.chat_with_ai(user_id, content, response_mode=response_mode, voice_id=voice_id)
+    async def chat_with_ai(self, user_id, content, response_mode="text", voice_id=None, conversation_id=None):
+        return await self.conversation_service.chat_with_ai(
+            user_id, content, response_mode=response_mode, voice_id=voice_id, conversation_id=conversation_id
+        )
+
+    async def create_ai_conversation(self, user_id):
+        conversation = await self.conversation_service.create_ai_conversation(user_id)
+        return await self.conversation_service._serialize_conversation(conversation, viewer_user_id=user_id)
 
     async def generate_ai_image(self, user_id, prompt):
         return await self.conversation_service.generate_ai_image(user_id, prompt)
@@ -339,6 +345,12 @@ class SmartFlowService(SmartFlowBase):
 
     async def update_business_hours(self, user_id, payload):
         return await self.calendar_service.update_business_hours(user_id, payload)
+
+    async def get_calendar_provider_settings(self, user_id):
+        return await self.calendar_service.get_calendar_provider_settings(user_id)
+
+    async def set_primary_calendar_provider(self, user_id, provider):
+        return await self.calendar_service.set_primary_calendar_provider(user_id, provider)
 
     async def create_pending_call_meeting_request(self, user_id, **kwargs):
         return await self.call_meeting_request_service.create_pending_request_for_user(user_id, **kwargs)

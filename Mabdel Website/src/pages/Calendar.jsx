@@ -751,67 +751,137 @@ function CalendarSyncPanel({
   googleSyncMode,
   integrationsLoading,
   onConnectGoogle,
+  onDisconnectGoogle,
   appleConnected,
   appleUsername,
   appleLoading,
   onConnectApple,
   onDisconnectApple,
+  zoomConnected,
+  zoomNeedsReauth,
+  onConnectZoom,
+  onDisconnectZoom,
+  primaryProvider,
+  providerSettingsLoading,
+  onChangePrimaryProvider,
 }) {
   const { t } = useLanguage();
   const label = googleNeedsReauth ? t('cal_btn_reconnect_google') : googleConnected ? t('cal_btn_google_connected') : t('cal_btn_connect_google');
+  const zoomLabel = zoomNeedsReauth ? t('cal_btn_reconnect_zoom') : zoomConnected ? t('cal_btn_zoom_connected') : t('cal_btn_connect_zoom');
+
+  const connectedOptions = [
+    appleConnected ? { value: 'caldav', label: t('cal_provider_apple') } : null,
+    googleConnected ? { value: 'google_business', label: t('cal_provider_google') } : null,
+    zoomConnected ? { value: 'zoom', label: t('cal_provider_zoom') } : null,
+  ].filter(Boolean);
+
+  // Once any provider is connected, it's the primary calendar and the other two
+  // connect buttons hide — disconnecting brings all three back. (A provider already
+  // connected stays visible with its own disconnect control regardless.)
+  const anyConnected = appleConnected || googleConnected || zoomConnected;
+
   return (
-    <div className={`${PANEL} p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 text-left`}>
-      <div>
-        <h2 className="font-bold text-white text-base">{t('cal_sync_providers')}</h2>
-        <p className="text-[#A4B0B7] text-sm mt-1">
-          {appleConnected
-            ? t('cal_sync_apple_primary_hint')
-            : t('cal_sync_google_apple_hint')}
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={onConnectGoogle}
-          disabled={integrationsLoading}
-          className={`px-4 py-3 rounded-xl bg-[#0A1019] border font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60 ${googleNeedsReauth ? 'border-amber-500/40 text-amber-300' : 'border-[#243246] text-white'}`}
-        >
-          {integrationsLoading ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : googleNeedsReauth ? (
-            <AlertTriangle size={15} className="text-amber-400" />
-          ) : googleConnected ? (
-            <CheckCircle2 size={15} className="text-emerald-400" />
-          ) : (
-            <Link2 size={15} />
-          )}
-          {label}
-          {googleConnected && googleSyncMode === 'meet_link_only' ? (
-            <span className="text-[10px] font-normal text-[#6F8092] normal-case ml-1">{t('cal_meet_links_only')}</span>
+    <div className={`${PANEL} p-5 flex flex-col gap-4 text-left`}>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h2 className="font-bold text-white text-base">{t('cal_sync_providers')}</h2>
+          <p className="text-[#A4B0B7] text-sm mt-1">{t('cal_sync_hint')}</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {googleConnected ? (
+            <button
+              type="button"
+              onClick={googleNeedsReauth ? onConnectGoogle : onDisconnectGoogle}
+              disabled={integrationsLoading}
+              className={`px-4 py-3 rounded-xl bg-[#0A1019] border font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60 ${googleNeedsReauth ? 'border-amber-500/40 text-amber-300' : 'border-[#243246] text-white'}`}
+            >
+              {integrationsLoading ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : googleNeedsReauth ? (
+                <AlertTriangle size={15} className="text-amber-400" />
+              ) : (
+                <CheckCircle2 size={15} className="text-emerald-400" />
+              )}
+              {label}
+              {googleSyncMode === 'meet_link_only' ? (
+                <span className="text-[10px] font-normal text-[#6F8092] normal-case ml-1">{t('cal_meet_links_only')}</span>
+              ) : null}
+            </button>
+          ) : !anyConnected ? (
+            <button
+              type="button"
+              onClick={onConnectGoogle}
+              disabled={integrationsLoading}
+              className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              {integrationsLoading ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
+              {label}
+            </button>
           ) : null}
-        </button>
-        {appleConnected ? (
-          <button
-            type="button"
-            onClick={onDisconnectApple}
-            disabled={appleLoading}
-            className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
-          >
-            {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} className="text-emerald-400" />}
-            {t('cal_btn_apple_connected', { user: appleUsername ? ` (${appleUsername})` : '' })}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onConnectApple}
-            disabled={appleLoading}
-            className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
-          >
-            {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
-            {t('cal_btn_connect_apple')}
-          </button>
-        )}
+          {appleConnected ? (
+            <button
+              type="button"
+              onClick={onDisconnectApple}
+              disabled={appleLoading}
+              className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} className="text-emerald-400" />}
+              {t('cal_btn_apple_connected', { user: appleUsername ? ` (${appleUsername})` : '' })}
+            </button>
+          ) : !anyConnected ? (
+            <button
+              type="button"
+              onClick={onConnectApple}
+              disabled={appleLoading}
+              className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
+              {t('cal_btn_connect_apple')}
+            </button>
+          ) : null}
+          {zoomConnected ? (
+            <button
+              type="button"
+              onClick={onDisconnectZoom}
+              disabled={integrationsLoading}
+              className={`px-4 py-3 rounded-xl bg-[#0A1019] border font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60 ${zoomNeedsReauth ? 'border-amber-500/40 text-amber-300' : 'border-[#243246] text-white'}`}
+            >
+              {zoomNeedsReauth ? <AlertTriangle size={15} className="text-amber-400" /> : <CheckCircle2 size={15} className="text-emerald-400" />}
+              {zoomLabel}
+            </button>
+          ) : !anyConnected ? (
+            <button
+              type="button"
+              onClick={onConnectZoom}
+              disabled={integrationsLoading}
+              className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              <Link2 size={15} />
+              {zoomLabel}
+            </button>
+          ) : null}
+        </div>
       </div>
+      {connectedOptions.length > 1 ? (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-3 border-t border-[#243246]">
+          <label htmlFor="cal-primary-provider" className="text-sm text-[#A4B0B7] shrink-0">
+            {t('cal_primary_provider_label')}
+          </label>
+          <select
+            id="cal-primary-provider"
+            value={primaryProvider || ''}
+            disabled={providerSettingsLoading}
+            onChange={(event) => onChangePrimaryProvider(event.target.value)}
+            className="bg-[#0A1019] border border-[#243246] text-white text-sm rounded-lg px-3 py-2 disabled:opacity-60"
+          >
+            {connectedOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -917,6 +987,10 @@ export default function Calendar() {
   const [showAppleModal, setShowAppleModal] = useState(false);
   const [appleSubmitting, setAppleSubmitting] = useState(false);
   const [appleError, setAppleError] = useState('');
+  const [zoomConnected, setZoomConnected] = useState(false);
+  const [zoomNeedsReauth, setZoomNeedsReauth] = useState(false);
+  const [primaryProvider, setPrimaryProvider] = useState(null);
+  const [providerSettingsLoading, setProviderSettingsLoading] = useState(false);
 
   useEffect(() => {
     if (location.state?.prefill) {
@@ -964,9 +1038,14 @@ export default function Calendar() {
       setGoogleConnected(Boolean(google?.connected));
       setGoogleNeedsReauth(google?.health_status === 'needs_reauth' || google?.sync_status === 'needs_reauth');
       setGoogleSyncMode(google?.sync_mode || 'full');
+      const zoom = items.find((item) => item.platform === 'zoom');
+      setZoomConnected(Boolean(zoom?.connected));
+      setZoomNeedsReauth(zoom?.health_status === 'needs_reauth' || zoom?.sync_status === 'needs_reauth');
     } catch {
       setGoogleConnected(false);
       setGoogleNeedsReauth(false);
+      setZoomConnected(false);
+      setZoomNeedsReauth(false);
     } finally {
       setIntegrationsLoading(false);
     }
@@ -987,11 +1066,37 @@ export default function Calendar() {
     }
   }, []);
 
+  const fetchProviderSettings = useCallback(async () => {
+    try {
+      const response = await smartflowApi.getCalendarProviderSettings();
+      const data = response?.data?.data || response?.data || {};
+      setPrimaryProvider(data.primary_calendar_provider || null);
+    } catch {
+      setPrimaryProvider(null);
+    }
+  }, []);
+
+  const handleChangePrimaryProvider = useCallback(
+    async (provider) => {
+      setProviderSettingsLoading(true);
+      try {
+        await smartflowApi.setPrimaryCalendarProvider(provider);
+        await fetchProviderSettings();
+      } catch (err) {
+        window.alert(err.response?.data?.message || t('cal_err_primary_provider'));
+      } finally {
+        setProviderSettingsLoading(false);
+      }
+    },
+    [fetchProviderSettings, t]
+  );
+
   useEffect(() => {
     fetchAll();
     fetchIntegrationState();
     fetchAppleState();
-  }, [fetchAll, fetchIntegrationState, fetchAppleState]);
+    fetchProviderSettings();
+  }, [fetchAll, fetchIntegrationState, fetchAppleState, fetchProviderSettings]);
 
   async function handleAppleConnectSubmit(formValues) {
     try {
@@ -1036,6 +1141,7 @@ export default function Calendar() {
         if (!closed && !expired) return;
         window.clearInterval(timer);
         await fetchIntegrationState();
+        await fetchProviderSettings();
         await fetchAll();
       }, 1500);
     } catch (err) {
@@ -1043,14 +1149,63 @@ export default function Calendar() {
     }
   }
 
+  async function handleGoogleDisconnect() {
+    try {
+      await smartflowApi.disconnectIntegration('google_business');
+      await fetchIntegrationState();
+      await fetchProviderSettings();
+    } catch (err) {
+      window.alert(err.response?.data?.message || t('cal_err_google_disconnect'));
+    }
+  }
+
+  async function handleZoomConnect() {
+    try {
+      const response = await smartflowApi.startIntegrationOAuth('zoom');
+      const authUrl = response?.data?.data?.auth_url || response?.data?.auth_url;
+      if (!authUrl) {
+        window.alert(t('cal_err_no_auth_url'));
+        return;
+      }
+      const popup = window.open(authUrl, 'mabdel-zoom-calendar', 'width=640,height=820');
+      const startedAt = Date.now();
+      const timer = window.setInterval(async () => {
+        const closed = !popup || popup.closed;
+        const expired = Date.now() - startedAt > 10 * 60 * 1000;
+        if (!closed && !expired) return;
+        window.clearInterval(timer);
+        await fetchIntegrationState();
+        await fetchProviderSettings();
+        await fetchAll();
+      }, 1500);
+    } catch (err) {
+      window.alert(err.response?.data?.message || t('cal_err_zoom_start'));
+    }
+  }
+
+  async function handleZoomDisconnect() {
+    try {
+      await smartflowApi.disconnectIntegration('zoom');
+      await fetchIntegrationState();
+      await fetchProviderSettings();
+    } catch (err) {
+      window.alert(err.response?.data?.message || t('cal_err_zoom_disconnect'));
+    }
+  }
+
   useEffect(() => {
     const onFocus = () => {
       fetchIntegrationState();
+      fetchProviderSettings();
       fetchAll();
     };
     const onMessage = (event) => {
-      if (event?.data?.type === 'mabdel-google-calendar-oauth') {
+      if (
+        event?.data?.type === 'mabdel-google-calendar-oauth' ||
+        event?.data?.type === 'mabdel-zoom-calendar-oauth'
+      ) {
         fetchIntegrationState();
+        fetchProviderSettings();
         fetchAll();
       }
     };
@@ -1060,7 +1215,7 @@ export default function Calendar() {
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('message', onMessage);
     };
-  }, [fetchAll, fetchIntegrationState]);
+  }, [fetchAll, fetchIntegrationState, fetchProviderSettings]);
 
   function handleEventSaved(saved) {
     if (!saved?.id) {
@@ -1118,6 +1273,7 @@ export default function Calendar() {
         googleSyncMode={googleSyncMode}
         integrationsLoading={integrationsLoading}
         onConnectGoogle={handleGoogleConnect}
+        onDisconnectGoogle={handleGoogleDisconnect}
         appleConnected={appleConnected}
         appleUsername={appleUsername}
         appleLoading={appleLoading}
@@ -1126,6 +1282,13 @@ export default function Calendar() {
           setShowAppleModal(true);
         }}
         onDisconnectApple={handleAppleDisconnect}
+        zoomConnected={zoomConnected}
+        zoomNeedsReauth={zoomNeedsReauth}
+        onConnectZoom={handleZoomConnect}
+        onDisconnectZoom={handleZoomDisconnect}
+        primaryProvider={primaryProvider}
+        providerSettingsLoading={providerSettingsLoading}
+        onChangePrimaryProvider={handleChangePrimaryProvider}
       />
 
       {showAppleModal ? (

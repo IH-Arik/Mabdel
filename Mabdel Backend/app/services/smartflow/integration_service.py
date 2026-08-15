@@ -16,8 +16,10 @@ from app.services.social_provider_adapters import get_social_provider_adapter
 from app.utils.helpers import utc_now
 
 from ._base import SmartFlowBase
+from .calendar_service import CalendarService
 from .conversation_service import ConversationService
 from .google_calendar_service import GoogleCalendarService
+from .zoom_calendar_service import ZoomCalendarService
 
 
 class IntegrationService(SmartFlowBase):
@@ -25,6 +27,8 @@ class IntegrationService(SmartFlowBase):
         super().__init__(db)
         self.conversation_service = conversation_service or ConversationService(db)
         self.google_calendar_service = GoogleCalendarService(db)
+        self.zoom_calendar_service = ZoomCalendarService(db)
+        self.calendar_service = CalendarService(db)
 
     async def list_integrations(self, user_id: str) -> list[dict]:
         team_ids = await self._resolve_team_user_ids(user_id)
@@ -120,16 +124,20 @@ class IntegrationService(SmartFlowBase):
         integration = await self.db.social_integrations.find_one({"user_id": user_id, "platform": platform, "status": "connected"})
         if not integration:
             raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
-        if platform == "google_business":
-            if integration.get("sync_mode") == "meet_link_only":
-                # Apple Calendar (CalDAV) is the primary synced calendar for this user;
-                # Google stays connected solely to mint Meet links, no inbound event pull.
+        if platform in {"google_business", "zoom"}:
+            provider_settings = await self.calendar_service.get_calendar_provider_settings(user_id)
+            if provider_settings["primary_calendar_provider"] != platform:
+                # Another provider is the primary synced calendar for this user; this
+                # one stays connected solely to mint real meeting links on demand, no
+                # inbound event pull (see CalendarService.get_calendar_provider_settings).
                 return {"platform": platform, "sync_status": "meet_link_only", "imported_count": 0}
             await self.db.social_integrations.update_one(
                 {"_id": integration["_id"]},
                 {"$set": {"sync_status": "syncing", "updated_at": utc_now()}},
             )
-            return await self.google_calendar_service.sync_events(user_id, integration)
+            if platform == "google_business":
+                return await self.google_calendar_service.sync_events(user_id, integration)
+            return await self.zoom_calendar_service.sync_events(user_id, integration)
         adapter = get_social_provider_adapter(platform)
         now = utc_now()
         if not adapter.supports_recent_sync:
@@ -356,11 +364,18 @@ class IntegrationService(SmartFlowBase):
 
         provider = self._oauth_provider(platform)
         token_payload = {
-            "client_id": provider["client_id"],
-            "client_secret": provider["client_secret"],
             "redirect_uri": provider["redirect_uri"],
             "code": code,
         }
+        # Zoom requires the client credentials in an HTTP Basic Auth header, not the
+        # request body (verified against Zoom's own OAuth docs) — every other
+        # provider here takes them in the body instead.
+        basic_auth = None
+        if provider.get("token_auth") == "basic":
+            basic_auth = httpx.BasicAuth(provider["client_id"], provider["client_secret"])
+        else:
+            token_payload["client_id"] = provider["client_id"]
+            token_payload["client_secret"] = provider["client_secret"]
         token_payload.update(provider["token_payload"])
         if provider["provider"] == "twitter":
             code_verifier = state_doc.get("code_verifier")
@@ -371,6 +386,7 @@ class IntegrationService(SmartFlowBase):
             token_response = await client.post(
                 provider["token_url"],
                 data=token_payload,
+                auth=basic_auth,
                 headers={"Accept": "application/json"},
             )
         if token_response.status_code >= 400:
@@ -414,6 +430,19 @@ class IntegrationService(SmartFlowBase):
                     for item in (google_context.get("calendars") or [])
                 ],
             }
+        elif platform == "zoom":
+            zoom_user = await self.zoom_calendar_service.fetch_account_context(access_token)
+            account_metadata = {
+                "external_account_id": zoom_user.get("email") or zoom_user.get("id"),
+                "external_account_name": zoom_user.get("email") or "Zoom Calendar",
+            }
+            provider_metadata = {
+                "calendar_provider": "zoom_calendar",
+                "zoom_user_id": zoom_user.get("id"),
+                "zoom_user_email": zoom_user.get("email"),
+                "zoom_account_id": zoom_user.get("account_id"),
+                "timezone": zoom_user.get("timezone") or "UTC",
+            }
         else:
             adapter = get_social_provider_adapter(platform)
             account_metadata = await adapter.fetch_account_metadata(access_token, token_data)
@@ -441,14 +470,9 @@ class IntegrationService(SmartFlowBase):
             },
         )
         await self.db.oauth_states.delete_one({"_id": state_doc["_id"]})
-        if platform == "google_business":
-            caldav_connection = await self.db.caldav_connections.find_one(
-                {"user_id": state_doc["user_id"], "status": "connected"}
-            )
-            await self.db.social_integrations.update_one(
-                {"_id": ObjectId(integration["id"])},
-                {"$set": {"sync_mode": "meet_link_only" if caldav_connection else "full"}},
-            )
+        if platform in {"google_business", "zoom"}:
+            # sync_integration itself now checks get_calendar_provider_settings to
+            # decide full pull-sync vs. meet-link-only — no connect-time flag needed.
             await self.sync_integration(state_doc["user_id"], platform)
         else:
             adapter = get_social_provider_adapter(platform)

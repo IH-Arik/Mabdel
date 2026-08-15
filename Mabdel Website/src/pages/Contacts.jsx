@@ -6,7 +6,7 @@ import {
   ChevronRight, Plus, ShieldCheck, Sparkles, MessageSquare, Upload,
   PhoneCall, Pencil, Grid, List, Activity, FileText
 } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import { formatCalendarDate } from '../utils/dateUtils';
 import { DatePickerInput } from '../components/ui/DateTimeInputs';
@@ -59,6 +59,8 @@ export default function Contacts() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [callingId, setCallingId] = useState(null);
+  const [messagingId, setMessagingId] = useState(null);
   const [importing, setImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
@@ -66,6 +68,7 @@ export default function Contacts() {
   const [importReport, setImportReport] = useState(null);
   
   const location = useLocation();
+  const navigate = useNavigate();
   
   // viewMode: 'dashboard', 'detail', 'create'
   const [viewMode, setViewMode] = useState('dashboard');
@@ -396,8 +399,58 @@ export default function Contacts() {
       return;
     }
 
-    setError('');
-    window.open(`tel:${sanitizedPhone}`, '_self');
+    // Places a real call through the platform's own telephony (same endpoint the
+    // Conversations view already uses) rather than a `tel:` link, which a desktop
+    // browser has no handler for and silently does nothing with.
+    try {
+      setError('');
+      setSuccessMessage('');
+      setCallingId(contact.id);
+      await smartflowApi.createOutboundCall({
+        contact_id: contact.id,
+        phone_number: sanitizedPhone,
+      });
+      setSuccessMessage(t('contacts_success_call_started', { name: contact.name || sanitizedPhone }));
+    } catch (err) {
+      setError(err?.response?.data?.message || t('contacts_err_call_failed'));
+    } finally {
+      setCallingId(null);
+    }
+  };
+
+  const handleMessageContact = async (contact) => {
+    // Open (or create) this contact's own conversation and jump straight into it —
+    // previously this just dumped the user on the generic inbox with no way to tell
+    // which thread belonged to the contact they were looking at.
+    try {
+      setError('');
+      setMessagingId(contact.id);
+      const response = await smartflowApi.getConversations({ page: 1, page_size: 100, archived: false });
+      const items = response.data?.data?.items || [];
+      const existing = items.find((item) => item.contact_id === contact.id);
+
+      let conversationId = existing?.id;
+      if (!conversationId) {
+        const created = await smartflowApi.createConversation({
+          contact_id: contact.id,
+          title: contact.name || null,
+          type: 'direct',
+          platform: 'whatsapp',
+          member_ids: [],
+        });
+        conversationId = created.data?.data?.id;
+      }
+
+      // /unified-conversation (not /conversations) — the two inboxes are
+      // complementary: /conversations shows only internal ai/global threads, while
+      // contact DMs live on external platforms (whatsapp by default here) and are
+      // filtered out of it. Sending there would open an invisible thread.
+      navigate('/unified-conversation', { state: { conversationId } });
+    } catch (err) {
+      setError(err?.response?.data?.message || t('contacts_err_message_failed'));
+    } finally {
+      setMessagingId(null);
+    }
   };
 
   const openEdit = (contact) => {
@@ -945,13 +998,18 @@ export default function Contacts() {
 
             {/* Quick Actions call / msg / edit triggers */}
             <div className="flex items-center gap-3">
-              <button onClick={() => handleCallContact(activeContact)} className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer">
+              <button
+                onClick={() => handleCallContact(activeContact)}
+                disabled={callingId === activeContact.id}
+                className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+              >
                 <PhoneCall size={16} className="text-purple-400 mb-1" />
                 <span>{t('contacts_call')}</span>
               </button>
               <button
-                onClick={() => window.location.href = `/conversations`}
-                className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all"
+                onClick={() => handleMessageContact(activeContact)}
+                disabled={messagingId === activeContact.id}
+                className="px-5 py-3.5 bg-slate-950 border border-slate-900 hover:border-slate-800 rounded-2xl flex flex-col items-center justify-center min-w-[72px] text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer disabled:opacity-50"
               >
                 <MessageSquare size={16} className="text-purple-400 mb-1" />
                 <span>{t('contacts_message')}</span>

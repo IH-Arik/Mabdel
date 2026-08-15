@@ -438,6 +438,10 @@ class BusinessHoursUpdateRequest(BaseModel):
         return value
 
 
+class CalendarProviderSettingsUpdateRequest(BaseModel):
+    provider: str | None = Field(default=None, max_length=32)
+
+
 class CallMeetingRequestResponse(BaseModel):
     id: str
     organization_id: str
@@ -458,6 +462,7 @@ class AIChatRequest(BaseModel):
     content: str = Field(min_length=1)
     response_mode: AIResponseMode = "text"
     voice_id: str | None = None
+    conversation_id: str | None = None
 
     @model_validator(mode="before")
     @classmethod

@@ -48,8 +48,22 @@ async def ai_chat(
         payload.content,
         response_mode=payload.response_mode,
         voice_id=payload.voice_id,
+        conversation_id=payload.conversation_id,
     )
     return success_response(data=data, message="AI response generated successfully.")
+
+
+@router.post("/ai/conversations", status_code=201)
+async def create_ai_conversation(
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
+    _: dict = Depends(require_subscription),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """Starts a brand-new AI chat — the "New Chat" button. Backs a ChatGPT-style
+    sidebar: each call creates a separate conversation the sidebar can list and
+    switch between, instead of every message landing in one single lifelong thread."""
+    data = await service.create_ai_conversation(str(current_user["_id"]))
+    return success_response(data=data, message="AI conversation created successfully.")
 
 
 @router.post("/ai/generate-image")

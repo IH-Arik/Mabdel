@@ -8,6 +8,7 @@ from app.schemas.smartflow import (
     CalendarEventCreateRequest,
     CalendarEventShareRequest,
     CalendarEventUpdateRequest,
+    CalendarProviderSettingsUpdateRequest,
 )
 from app.services.smartflow_service import SmartFlowService
 from app.utils.responses import success_response
@@ -35,6 +36,28 @@ async def update_business_hours(
 ) -> dict:
     data = await service.update_business_hours(str(current_user["_id"]), payload.model_dump(exclude_unset=True))
     return success_response(data=data, message="Business hours updated successfully.")
+
+
+@router.get("/calendar/provider-settings")
+async def get_calendar_provider_settings(
+    current_user: dict = Depends(require_permission("integrations", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """Which calendar provider (Google / Apple / Zoom) is the primary two-way sync
+    target, which providers are connected, and — for connected-but-not-primary
+    providers — whether they're still usable purely to mint real meeting links."""
+    data = await service.get_calendar_provider_settings(str(current_user["_id"]))
+    return success_response(data=data, message="Calendar provider settings fetched successfully.")
+
+
+@router.put("/calendar/provider-settings")
+async def set_primary_calendar_provider(
+    payload: CalendarProviderSettingsUpdateRequest,
+    current_user: dict = Depends(require_permission("integrations", "manage")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.set_primary_calendar_provider(str(current_user["_id"]), payload.provider)
+    return success_response(data=data, message="Primary calendar provider updated successfully.")
 
 
 @router.get("/calendar/events")

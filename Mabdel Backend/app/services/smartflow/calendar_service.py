@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import secrets
 from datetime import date, datetime, timedelta, timezone
 
@@ -7,23 +8,92 @@ from bson import ObjectId
 
 from app.core.exceptions import AppException
 from app.services.email_service import EmailService
-from app.utils.helpers import utc_now
+from app.utils.helpers import resolve_organization_user_ids, utc_now
 from pymongo import ReturnDocument
 
 from ._base import SmartFlowBase
 from .caldav_service import CalDAVService
 from .google_calendar_service import GoogleCalendarService
+from .zoom_calendar_service import ZoomCalendarService
 
 
 class CalendarService(SmartFlowBase):
+    CALENDAR_SYNC_PROVIDERS = ("caldav", "google_business", "zoom")
+
     def __init__(self, db) -> None:
         super().__init__(db)
         self.google_calendar_service = GoogleCalendarService(db)
         self.caldav_service = CalDAVService(db)
+        self.zoom_calendar_service = ZoomCalendarService(db)
 
-    async def _is_caldav_primary(self, user_id: str) -> bool:
-        connection = await self.caldav_service.get_connection(user_id)
-        return bool(connection) and connection.get("status") == "connected"
+    async def get_calendar_provider_settings(self, user_id: str) -> dict:
+        """Which calendar provider is the primary two-way sync target, and which
+        providers are connected at all. The primary is whatever the user explicitly
+        picked (organizations.primary_calendar_provider) — as long as that provider
+        is still actually connected — falling back to a legacy auto-priority
+        (CalDAV > Google > Zoom) for orgs that never made an explicit choice, so
+        upgrading doesn't silently disconnect anyone's existing sync.
+
+        Deliberately batched into as few remote round-trips as possible (this backs
+        a page-load endpoint against a remote MongoDB Atlas cluster, where each
+        sequential round-trip is real added latency): one query to resolve the org,
+        then caldav/team-ids/org-doc concurrently, then a single social_integrations
+        query covering both Google and Zoom together instead of two separate
+        per-platform lookups."""
+        organization_id = await self._resolve_organization_id(user_id)
+
+        async def _team_ids():
+            if organization_id:
+                return await resolve_organization_user_ids(self.db, organization_id)
+            return [user_id]
+
+        async def _org_doc():
+            if organization_id:
+                return await self.db.organizations.find_one({"organization_id": organization_id})
+            return None
+
+        team_ids, caldav_connection, org = await asyncio.gather(
+            _team_ids(), self.caldav_service.get_connection(user_id), _org_doc()
+        )
+        caldav_connected = bool(caldav_connection) and caldav_connection.get("status") == "connected"
+
+        connected_docs = await self.db.social_integrations.find(
+            {"user_id": {"$in": team_ids}, "platform": {"$in": ["google_business", "zoom"]}, "status": "connected"},
+            {"platform": 1},
+        ).to_list(length=10)
+        connected_platforms = {doc["platform"] for doc in connected_docs}
+
+        connected = {
+            "caldav": caldav_connected,
+            "google_business": "google_business" in connected_platforms,
+            "zoom": "zoom" in connected_platforms,
+        }
+        explicit_primary = (org or {}).get("primary_calendar_provider")
+        if explicit_primary in self.CALENDAR_SYNC_PROVIDERS and connected.get(explicit_primary):
+            primary = explicit_primary
+        else:
+            primary = next((provider for provider in self.CALENDAR_SYNC_PROVIDERS if connected.get(provider)), None)
+        return {"primary_calendar_provider": primary, "connected": connected}
+
+    async def set_primary_calendar_provider(self, user_id: str, provider: str | None) -> dict:
+        if provider is not None and provider not in self.CALENDAR_SYNC_PROVIDERS:
+            raise AppException(
+                status_code=422,
+                code="INVALID_CALENDAR_PROVIDER",
+                message=f"provider must be one of {', '.join(self.CALENDAR_SYNC_PROVIDERS)}, or null.",
+            )
+        organization_id = await self._resolve_organization_id(user_id)
+        if not organization_id:
+            raise AppException(status_code=422, code="NO_ORGANIZATION", message="Your account isn't part of an organization yet.")
+        await self.db.organizations.update_one(
+            {"organization_id": organization_id},
+            {
+                "$set": {"primary_calendar_provider": provider, "updated_at": utc_now()},
+                "$setOnInsert": {"organization_id": organization_id, "created_at": utc_now()},
+            },
+            upsert=True,
+        )
+        return await self.get_calendar_provider_settings(user_id)
 
     async def _maybe_opportunistic_caldav_sync(self, user_id: str) -> None:
         # Celery beat may not be running in every environment (e.g. local dev without
@@ -243,29 +313,48 @@ class CalendarService(SmartFlowBase):
     async def create_calendar_event(self, user_id: str, payload: dict) -> dict:
         self._validate_calendar_event_payload(payload)
         await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"])
-        caldav_primary = await self._is_caldav_primary(user_id)
-        # Leave meeting_link empty for online meetings when a Google Calendar is
-        # connected: _build_google_event_payload only requests a real Google Meet
-        # conference when no link was provided, so pre-filling here would replace
-        # the real Meet link with a local placeholder.
+        provider_settings = await self.get_calendar_provider_settings(user_id)
+        primary = provider_settings["primary_calendar_provider"]
+        connected = provider_settings["connected"]
+        # Leave meeting_link empty for online meetings when a real-link-capable
+        # provider is available: the provider's own create call only requests a real
+        # conference link when none was pre-filled, so setting one here would replace
+        # it with a local placeholder before the provider ever gets a chance.
+        needs_meet_link = payload.get("meeting_mode") == "online" and not payload.get("meeting_link")
         google_event = None
-        if not caldav_primary:
+        zoom_meeting = None
+
+        if primary == "google_business":
             try:
                 google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
             except AppException:
                 google_event = None
                 payload["sync_status"] = "error"
-        elif payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
-            # Apple Calendar is the primary synced calendar, but Google may still be
-            # connected purely to mint a real Meet link (meet_link_only mode).
+        elif primary == "zoom":
             try:
-                google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
+                zoom_meeting = await self.zoom_calendar_service.create_remote_event(user_id, payload)
             except AppException:
-                google_event = None
+                zoom_meeting = None
+                payload["sync_status"] = "error"
+        elif needs_meet_link:
+            # Not the primary synced calendar, but still connected purely to mint a
+            # real meeting link — Zoom preferred over Google if both are connected
+            # this way (arbitrary but stable tie-break; either produces a real link).
+            if connected.get("zoom"):
+                try:
+                    zoom_meeting = await self.zoom_calendar_service.create_remote_event(user_id, payload)
+                except AppException:
+                    zoom_meeting = None
+            elif connected.get("google_business"):
+                try:
+                    google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
+                except AppException:
+                    google_event = None
+
         if google_event:
-            if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
+            if needs_meet_link:
                 payload["meeting_link"] = self.google_calendar_service._extract_meeting_link(google_event)
-            if not caldav_primary:
+            if primary == "google_business":
                 payload["google_event_id"] = google_event.get("id")
                 payload["sync_status"] = "synced"
                 payload["calendar_source"] = "mabdel_google_sync"
@@ -277,17 +366,30 @@ class CalendarService(SmartFlowBase):
                     "google_updated": google_event.get("updated"),
                     "google_etag": google_event.get("etag"),
                 }
+        if zoom_meeting:
+            if needs_meet_link:
+                payload["meeting_link"] = self.zoom_calendar_service._extract_meeting_link(zoom_meeting)
+            if primary == "zoom":
+                payload["zoom_meeting_id"] = str(zoom_meeting.get("id"))
+                payload["sync_status"] = "synced"
+                payload["calendar_source"] = "mabdel_zoom_sync"
+                payload["provider_metadata"] = {
+                    "integration_platform": "zoom",
+                    "zoom_join_url": zoom_meeting.get("join_url"),
+                    "zoom_start_url": zoom_meeting.get("start_url"),
+                }
         if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
             payload["meeting_link"] = self._generate_meeting_link()
         document = {
             "user_id": user_id,
             **payload,
-            "sync_status": payload.get("sync_status") or ("synced" if payload.get("google_event_id") else "local"),
+            "sync_status": payload.get("sync_status")
+            or ("synced" if payload.get("google_event_id") or payload.get("zoom_meeting_id") else "local"),
             "share_token": None,
             "created_at": utc_now(),
             "updated_at": utc_now(),
         }
-        if caldav_primary:
+        if primary == "caldav":
             try:
                 caldav_uid = await self.caldav_service.push_event(user_id, document)
             except AppException:
@@ -313,11 +415,16 @@ class CalendarService(SmartFlowBase):
             merged["ends_at"],
             exclude_event_id=str(event["_id"]),
         )
-        caldav_primary = await self._is_caldav_primary(user_id)
+        provider_settings = await self.get_calendar_provider_settings(user_id)
+        primary = provider_settings["primary_calendar_provider"]
+        connected = provider_settings["connected"]
         google_event = None
+        zoom_meeting = None
         google_event_id = event.get("google_event_id")
+        zoom_meeting_id = event.get("zoom_meeting_id")
         needs_meet_link = merged.get("meeting_mode") == "online" and not merged.get("meeting_link")
-        if not caldav_primary:
+
+        if primary == "google_business":
             try:
                 if google_event_id:
                     google_event = await self.google_calendar_service.update_remote_event(user_id, google_event_id, merged)
@@ -329,18 +436,36 @@ class CalendarService(SmartFlowBase):
             except AppException:
                 google_event = None
                 clean_updates["sync_status"] = "error"
-        elif needs_meet_link:
+        elif primary == "zoom":
             try:
-                google_event = await self.google_calendar_service.create_remote_event(user_id, merged)
+                if zoom_meeting_id:
+                    zoom_meeting = await self.zoom_calendar_service.update_remote_event(user_id, zoom_meeting_id, merged)
+                else:
+                    zoom_meeting = await self.zoom_calendar_service.create_remote_event(user_id, merged)
+                    if zoom_meeting:
+                        clean_updates["zoom_meeting_id"] = str(zoom_meeting.get("id"))
+                        zoom_meeting_id = zoom_meeting.get("id")
             except AppException:
-                google_event = None
+                zoom_meeting = None
+                clean_updates["sync_status"] = "error"
+        elif needs_meet_link:
+            if connected.get("zoom"):
+                try:
+                    zoom_meeting = await self.zoom_calendar_service.create_remote_event(user_id, merged)
+                except AppException:
+                    zoom_meeting = None
+            elif connected.get("google_business"):
+                try:
+                    google_event = await self.google_calendar_service.create_remote_event(user_id, merged)
+                except AppException:
+                    google_event = None
         if google_event:
             if needs_meet_link:
                 real_link = self.google_calendar_service._extract_meeting_link(google_event)
                 if real_link:
                     clean_updates["meeting_link"] = real_link
                     merged["meeting_link"] = real_link
-            if not caldav_primary:
+            if primary == "google_business":
                 clean_updates["sync_status"] = "synced"
                 clean_updates["calendar_source"] = "mabdel_google_sync"
                 clean_updates["provider_metadata"] = {
@@ -351,12 +476,28 @@ class CalendarService(SmartFlowBase):
                     "google_updated": google_event.get("updated"),
                     "google_etag": google_event.get("etag"),
                 }
+        if zoom_meeting:
+            if needs_meet_link:
+                real_link = self.zoom_calendar_service._extract_meeting_link(zoom_meeting)
+                if real_link:
+                    clean_updates["meeting_link"] = real_link
+                    merged["meeting_link"] = real_link
+            if primary == "zoom":
+                clean_updates["sync_status"] = "synced"
+                clean_updates["calendar_source"] = "mabdel_zoom_sync"
+                clean_updates["provider_metadata"] = {
+                    "integration_platform": "zoom",
+                    "zoom_join_url": zoom_meeting.get("join_url"),
+                    "zoom_start_url": zoom_meeting.get("start_url"),
+                }
         if merged.get("meeting_mode") == "online" and not merged.get("meeting_link"):
             clean_updates["meeting_link"] = self._generate_meeting_link()
             merged["meeting_link"] = clean_updates["meeting_link"]
-        if "google_event_id" in clean_updates and not caldav_primary:
+        if "google_event_id" in clean_updates and primary == "google_business":
             clean_updates["sync_status"] = "synced" if clean_updates["google_event_id"] else "local"
-        if caldav_primary:
+        if "zoom_meeting_id" in clean_updates and primary == "zoom":
+            clean_updates["sync_status"] = "synced" if clean_updates["zoom_meeting_id"] else "local"
+        if primary == "caldav":
             try:
                 caldav_uid = await self.caldav_service.push_event(
                     user_id, {**merged, **clean_updates, "caldav_uid": event.get("caldav_uid")}
@@ -407,6 +548,8 @@ class CalendarService(SmartFlowBase):
         event = await self._get_owned_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")
         if event.get("google_event_id"):
             await self.google_calendar_service.delete_remote_event(user_id, event.get("google_event_id"))
+        if event.get("zoom_meeting_id"):
+            await self.zoom_calendar_service.delete_remote_event(user_id, event.get("zoom_meeting_id"))
         if event.get("caldav_uid"):
             await self.caldav_service.delete_event(user_id, event.get("caldav_uid"))
         await self.db.calendar_events.delete_one({"_id": event["_id"]})
