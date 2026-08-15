@@ -161,19 +161,41 @@ class ConversationService(SmartFlowBase):
             # Plain listing (the common case on every page load): fully serializing
             # every fetched conversation before paginating was doing 4-6 extra remote
             # DB round-trips PER conversation for data nobody would see outside the
-            # current page. Only fully serialize the page actually being returned;
-            # the summary badges still need every conversation's unread count, but
-            # that alone is one cheap query each instead of the full serialize cost.
+            # current page. Only fully serialize the page actually being returned.
+            # Unread counts for the summary badges (needed for every conversation,
+            # not just the current page) used to cost one aggregate query each, and
+            # then _serialize_conversation paid for the same query again per page
+            # item — a single batched aggregation replaces both, so a page of N
+            # conversations goes from up to 2N remote round-trips to 1-2 total.
+            # The per-item "latest message" lookup gets the same treatment.
             total = len(conversations)
             slice_start = (page - 1) * page_size
             page_slice = conversations[slice_start : slice_start + page_size]
-            page_items, unread_counts = await asyncio.gather(
-                asyncio.gather(*[self._serialize_conversation(item, viewer_user_id=user_id) for item in page_slice]),
-                asyncio.gather(*[self._fetch_conversation_unread_count(item, user_id) for item in conversations]),
+            unread_counts, latest_messages = await asyncio.gather(
+                self._fetch_conversation_unread_counts_batch(conversations, user_id, user_id),
+                self._fetch_latest_messages_batch(page_slice, user_id),
             )
-            page_items = list(page_items)
+            contacts_by_key, groups_by_conv_id = await asyncio.gather(
+                self._fetch_conversation_contacts_batch(page_slice, latest_messages, user_id),
+                self._fetch_conversation_groups_batch(page_slice, user_id),
+            )
+            member_names_by_id = await self._fetch_group_member_names_batch(page_slice, groups_by_conv_id, user_id)
+            page_items = list(await asyncio.gather(*[
+                self._serialize_conversation(
+                    item,
+                    viewer_user_id=user_id,
+                    precomputed_unread_count=unread_counts.get(str(item.get("_id") or item.get("id")), 0),
+                    precomputed_latest_message=latest_messages.get(str(item.get("_id") or item.get("id"))),
+                    has_precomputed_latest_message=True,
+                    precomputed_contacts_by_key=contacts_by_key,
+                    precomputed_groups_by_conv_id=groups_by_conv_id,
+                    precomputed_member_names_by_id=member_names_by_id,
+                )
+                for item in page_slice
+            ]))
             summary = {"total_unread": 0, "by_platform": {}}
-            for conversation, unread_count in zip(conversations, unread_counts):
+            for conversation in conversations:
+                unread_count = unread_counts.get(str(conversation.get("_id") or conversation.get("id")), 0)
                 summary["total_unread"] += unread_count
                 platform = conversation.get("platform", "unknown")
                 summary["by_platform"][platform] = summary["by_platform"].get(platform, 0) + unread_count
@@ -571,34 +593,39 @@ class ConversationService(SmartFlowBase):
             prompt_text=content,
             response_text=ai_result.get("content", ""),
         ))
-        ai_message = await self.create_message(
-            user_id,
-            {
-                "conversation_id": str(conversation["_id"]),
-                "platform": "ai",
-                "direction": "outbound",
-                "content": ai_result["content"],
-                "contact_id": None,
-                "media_url": None,
-                "reply_to_message_id": user_message["id"],
-                "forward_from_message_id": None,
-            },
+        # create_message (ai reply) and log_ai_command are independent writes —
+        # the latter doesn't touch ai_message at all — so run them concurrently
+        # instead of paying for both round-trips back to back.
+        ai_message, history_item = await asyncio.gather(
+            self.create_message(
+                user_id,
+                {
+                    "conversation_id": str(conversation["_id"]),
+                    "platform": "ai",
+                    "direction": "outbound",
+                    "content": ai_result["content"],
+                    "contact_id": None,
+                    "media_url": None,
+                    "reply_to_message_id": user_message["id"],
+                    "forward_from_message_id": None,
+                },
+            ),
+            self.log_ai_command(
+                user_id=user_id,
+                command_text=content,
+                command_type=ai_result["command_type"],
+                status="completed",
+                is_replayable=True,
+                preview_payload={
+                    "workflow": ai_result.get("workflow"),
+                    "navigation": ai_result.get("navigation"),
+                },
+            ),
         )
         asyncio.create_task(self.update_message(user_id, ai_message["id"], {"status": "read"}))
-        history_item = await self.log_ai_command(
-            user_id=user_id,
-            command_text=content,
-            command_type=ai_result["command_type"],
-            status="completed",
-            is_replayable=True,
-            preview_payload={
-                "workflow": ai_result.get("workflow"),
-                "navigation": ai_result.get("navigation"),
-            },
-        )
         audio = None
         if response_mode in {"audio", "both"}:
-            audio = self.ai_service.synthesize_speech(ai_message["content"], voice_id=voice_id)
+            audio = await self.ai_service.synthesize_speech(ai_message["content"], voice_id=voice_id)
         return {
             "conversation_id": str(conversation["_id"]),
             "state": ai_result["state"],
