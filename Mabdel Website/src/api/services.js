@@ -267,6 +267,7 @@ export const smartflowApi = {
     }
     return client.post('/api/v1/smartflow/ai/chat', { content: text, ...context });
   },
+  synthesizeAiSpeech: (text, voiceId) => client.post('/api/v1/smartflow/ai/synthesize-speech', { text, voice_id: voiceId }),
   createAiConversation: () => client.post('/api/v1/smartflow/ai/conversations'),
   voiceChat: (blob) => {
     const fd = new FormData();

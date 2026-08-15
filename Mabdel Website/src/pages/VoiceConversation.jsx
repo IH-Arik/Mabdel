@@ -4,17 +4,21 @@ import {
   Activity,
   Calendar,
   CheckCircle2,
+  ChevronDown,
   FileText,
   History,
   Loader2,
+  Menu,
   MessageSquare,
   Mic,
   MicOff,
   Phone,
   Plus,
   Send,
+  SlidersHorizontal,
   Sparkles,
   Volume2,
+  X,
   XCircle,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -215,6 +219,7 @@ export default function VoiceConversation() {
   const [chatHistory, setChatHistory] = useState([]);
   const [chatHistoryLoading, setChatHistoryLoading] = useState(false);
   const [newChatBusy, setNewChatBusy] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const actionChips = useMemo(() => [
     { id: 'create_invoice', label: t('vcon_chip_create_invoice'), path: '/invoices', state: { prefill: {}, action: 'new_invoice' }, icon: FileText },
@@ -339,8 +344,15 @@ export default function VoiceConversation() {
     // updates aren't visible to this closure until the next render, so sendPrompt
     // passes the id it just created directly instead of relying on state timing.
     async (text, explicitConversationId) => {
+      // Text and audio used to come back together (response_mode: 'both'), which
+      // meant sitting through the LLM reply AND TTS synthesis — sequential
+      // server-side since audio is generated from the finished text — before
+      // showing anything at all. Asking for text only here means the reply
+      // appears as soon as the LLM is done; audio is fetched separately right
+      // after and starts playing whenever it's ready, instead of blocking the
+      // visible reply on it.
       const response = await smartflowApi.aiChat(text, {
-        response_mode: 'both',
+        response_mode: 'text',
         voice_id: selectedVoiceId,
         conversation_id: explicitConversationId ?? conversationId,
       });
@@ -357,7 +369,16 @@ export default function VoiceConversation() {
       if (nextConversationId) {
         persistConversationId(nextConversationId);
       }
-      playVoice(aiText, data.audio);
+      smartflowApi.synthesizeAiSpeech(aiText, selectedVoiceId)
+        .then((speechResponse) => {
+          const speechData = getApiData(speechResponse);
+          playVoice(aiText, speechData?.audio);
+        })
+        .catch(() => {
+          // Text reply is already shown; falling back to no audio (or the
+          // browser's own speechSynthesis inside playVoice) is fine here.
+          playVoice(aiText, null);
+        });
       return data;
     },
     [conversationId, persistConversationId, playVoice, pushMessage, selectedVoiceId, t],
@@ -667,157 +688,227 @@ export default function VoiceConversation() {
     return t('vcon_status_ready');
   }, [isListening, isThinking, permissionState, t, workflowBusy]);
 
-  return (
-    <div className="flex h-[calc(100vh-10rem)] bg-[#0c101b] border border-[#243041]/60 rounded-3xl overflow-hidden shadow-xl text-left">
-      <div className="w-80 border-r border-[#243041]/40 bg-slate-950/20 p-6 hidden lg:flex flex-col gap-6">
-        <div>
-          <h2 className="text-white font-bold text-lg flex items-center gap-2">
-            <Sparkles className="text-purple-400" size={18} />
-            {t('vcon_title')}
-          </h2>
-          <p className="text-slate-400 text-xs mt-2 leading-relaxed">
-            {t('vcon_subtitle')}
-          </p>
-        </div>
+  const renderSidebarContent = () => (
+    <>
+      <div>
+        <h2 className="text-white font-bold text-lg flex items-center gap-2">
+          <Sparkles className="text-purple-400" size={18} />
+          {t('vcon_title')}
+        </h2>
+        <p className="text-slate-400 text-xs mt-2 leading-relaxed">
+          {t('vcon_subtitle')}
+        </p>
+      </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('vcon_lbl_chat_history')}</p>
-            <button
-              onClick={handleNewChat}
-              disabled={newChatBusy}
-              title={t('vcon_btn_new_chat')}
-              className="p-1.5 rounded-lg bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              {newChatBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            </button>
-          </div>
-          <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
-            {chatHistoryLoading && !chatHistory.length ? (
-              <div className="flex items-center gap-2 text-xs text-slate-500 px-2 py-3">
-                <Loader2 size={13} className="animate-spin" />
-                {t('vcon_loading_history')}
-              </div>
-            ) : chatHistory.length ? (
-              chatHistory.map((item) => {
-                const isActive = item.id === conversationId;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleSelectChat(item.id)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium truncate transition-colors cursor-pointer ${
-                      isActive
-                        ? 'bg-purple-500/15 text-purple-200 border border-purple-500/30'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
-                    }`}
-                    title={item.title || t('vcon_untitled_chat')}
-                  >
-                    {item.title || t('vcon_untitled_chat')}
-                  </button>
-                );
-              })
-            ) : (
-              <p className="text-xs text-slate-600 px-2 py-3">{t('vcon_no_chat_history')}</p>
-            )}
-          </div>
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('vcon_lbl_chat_history')}</p>
+          <button
+            onClick={handleNewChat}
+            disabled={newChatBusy}
+            title={t('vcon_btn_new_chat')}
+            className="p-1.5 rounded-lg bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {newChatBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+          </button>
         </div>
-
-        <div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{t('vcon_lbl_action_chips')}</p>
-          <div className="flex flex-wrap gap-2">
-            {actionChips.map((chip) => {
-              const Icon = chip.icon;
+        <div className="space-y-1 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
+          {chatHistoryLoading && !chatHistory.length ? (
+            <div className="flex items-center gap-2 text-xs text-slate-500 px-2 py-3">
+              <Loader2 size={13} className="animate-spin" />
+              {t('vcon_loading_history')}
+            </div>
+          ) : Array.isArray(chatHistory) && chatHistory.length ? (
+            chatHistory.filter((item) => item && (item.id || item._id)).map((item) => {
+              const itemId = item.id || item._id;
+              const isActive = itemId === conversationId;
               return (
                 <button
-                  key={chip.id}
-                  onClick={() => handleActionChip(chip)}
-                  className="px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-200 hover:text-purple-300 hover:border-purple-500/40 transition-colors text-xs font-semibold flex items-center gap-2 cursor-pointer"
+                  key={itemId}
+                  onClick={() => {
+                    handleSelectChat(itemId);
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium truncate transition-colors cursor-pointer ${
+                    isActive
+                      ? 'bg-purple-500/15 text-purple-200 border border-purple-500/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
+                  }`}
+                  title={item.title || item.name || t('vcon_untitled_chat')}
                 >
-                  <Icon size={14} />
-                  {chip.label}
+                  {item.title || item.name || t('vcon_untitled_chat')}
                 </button>
               );
-            })}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{t('vcon_lbl_prompt_buttons')}</p>
-          <div className="space-y-2">
-            {promptButtons.map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => sendPrompt(prompt, 'prompt')}
-                className="w-full text-left px-4 py-3 bg-[#9333ea]/5 border border-[#9333ea]/10 rounded-xl text-xs text-purple-300 font-semibold hover:bg-[#9333ea]/10 transition-colors cursor-pointer"
-              >
-                "{prompt}"
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-auto space-y-3">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t('vcon_lbl_assistant_status')}</p>
-            <p className="text-white font-semibold mt-2">{assistantStatus}</p>
-            {micError ? <p className="text-rose-300 text-xs mt-2">{micError}</p> : null}
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t('vcon_lbl_voice_output')}</label>
-            <select
-              value={selectedVoiceId}
-              onChange={(event) => setSelectedVoiceId(event.target.value)}
-              className="mt-2 w-full bg-slate-900 border border-slate-800 rounded-xl text-sm text-white px-3 py-2 outline-none"
-            >
-              {voices.length ? voices.map((voice) => (
-                <option key={voice.id} value={voice.id}>{voice.label}</option>
-              )) : <option value={FALLBACK_VOICE}>{t('vcon_default_voice')}</option>}
-            </select>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t('vcon_lbl_ai_language')}</label>
-            <select
-              value={aiLanguage}
-              onChange={(event) => setAiLanguage(event.target.value)}
-              className="mt-2 w-full bg-slate-900 border border-slate-800 rounded-xl text-sm text-white px-3 py-2 outline-none"
-            >
-              {AI_LANGUAGE_OPTIONS.map((language) => (
-                <option key={language.code} value={language.code}>{language.name}</option>
-              ))}
-            </select>
-            <p className="mt-2 text-xs text-slate-400">
-              {t('vcon_mobile_parity_hint')}
-            </p>
-          </div>
+            })
+          ) : (
+            <p className="text-xs text-slate-600 px-2 py-3">{t('vcon_no_chat_history')}</p>
+          )}
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col">
-        {!isSessionActive ? (
-          <div className="flex-1 flex flex-col items-center justify-center px-6">
-            <div className="w-32 h-32 rounded-full bg-purple-500/10 flex items-center justify-center mb-8 border border-purple-500/20">
-              <Mic size={48} className="text-purple-400" />
+      <div>
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{t('vcon_lbl_action_chips')}</p>
+        <div className="flex flex-wrap gap-2">
+          {Array.isArray(actionChips) && actionChips.map((chip) => {
+            if (!chip) return null;
+            const Icon = chip.icon;
+            return (
+              <button
+                key={chip.id}
+                onClick={() => {
+                  handleActionChip(chip);
+                  setIsMobileDrawerOpen(false);
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-200 hover:text-purple-300 hover:border-purple-500/40 transition-colors text-xs font-semibold flex items-center gap-2 cursor-pointer"
+              >
+                {Icon ? <Icon size={14} /> : null}
+                {chip.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{t('vcon_lbl_prompt_buttons')}</p>
+        <div className="space-y-2">
+          {Array.isArray(promptButtons) && promptButtons.map((prompt, idx) => (
+            <button
+              key={typeof prompt === 'string' ? prompt : idx}
+              onClick={() => {
+                sendPrompt(prompt, 'prompt');
+                setIsMobileDrawerOpen(false);
+              }}
+              className="w-full text-left px-4 py-3 bg-[#9333ea]/5 border border-[#9333ea]/10 rounded-xl text-xs text-purple-300 font-semibold hover:bg-[#9333ea]/10 transition-colors cursor-pointer"
+            >
+              "{String(prompt || '')}"
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-auto space-y-3">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t('vcon_lbl_assistant_status')}</p>
+          <p className="text-white font-semibold mt-2">{assistantStatus}</p>
+          {micError ? <p className="text-rose-300 text-xs mt-2">{micError}</p> : null}
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t('vcon_lbl_voice_output')}</label>
+          <select
+            value={selectedVoiceId}
+            onChange={(event) => setSelectedVoiceId(event.target.value)}
+            className="mt-2 w-full bg-slate-900 border border-slate-800 rounded-xl text-sm text-white px-3 py-2 outline-none"
+          >
+            {Array.isArray(voices) && voices.length ? voices.map((voice) => (
+              <option key={voice?.id || voice?.voice_id || voice} value={voice?.id || voice?.voice_id || voice}>
+                {voice?.label || voice?.name || voice?.id || String(voice)}
+              </option>
+            )) : <option value={FALLBACK_VOICE}>{t('vcon_default_voice')}</option>}
+          </select>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t('vcon_lbl_ai_language')}</label>
+          <select
+            value={aiLanguage}
+            onChange={(event) => setAiLanguage(event.target.value)}
+            className="mt-2 w-full bg-slate-900 border border-slate-800 rounded-xl text-sm text-white px-3 py-2 outline-none"
+          >
+            {AI_LANGUAGE_OPTIONS.map((language) => (
+              <option key={language.code} value={language.code}>{language.name}</option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-slate-400">
+            {t('vcon_mobile_parity_hint')}
+          </p>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="relative flex flex-col lg:flex-row h-[calc(100vh-5rem)] md:h-[calc(100vh-7rem)] min-h-[500px] bg-[#0c101b] border border-[#243041]/60 rounded-2xl md:rounded-3xl overflow-hidden shadow-xl text-left">
+      {/* Mobile Top Bar */}
+      <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-[#243041]/40 bg-slate-950/60 z-10">
+        <div className="flex items-center gap-2">
+          <Sparkles className="text-purple-400" size={18} />
+          <span className="text-white font-bold text-sm">{t('vcon_title')}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleNewChat}
+            disabled={newChatBusy}
+            className="p-2 rounded-xl bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+          >
+            <Plus size={14} />
+            <span className="hidden sm:inline">{t('vcon_btn_new_chat')}</span>
+          </button>
+          <button
+            onClick={() => setIsMobileDrawerOpen(true)}
+            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            title={t('vcon_lbl_action_chips')}
+          >
+            <SlidersHorizontal size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <div className="w-80 border-r border-[#243041]/40 bg-slate-950/20 p-6 hidden lg:flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+        {renderSidebarContent()}
+      </div>
+
+      {/* Mobile Sidebar Overlay / Drawer */}
+      {isMobileDrawerOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+          <div className="relative w-4/5 max-w-xs bg-[#0c101b] border-r border-[#243041] p-5 flex flex-col gap-5 overflow-y-auto z-10 shadow-2xl custom-scrollbar">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <span className="text-white font-bold text-sm flex items-center gap-2">
+                <Sparkles className="text-purple-400" size={16} />
+                {t('vcon_title')}
+              </span>
+              <button
+                onClick={() => setIsMobileDrawerOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white bg-slate-900 border border-slate-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">{t('vcon_hero_title')}</h2>
-            <p className="text-slate-400 text-sm mb-8 text-center max-w-sm">
+            {renderSidebarContent()}
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        {!isSessionActive ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center overflow-y-auto custom-scrollbar">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-purple-500/10 flex items-center justify-center mb-6 sm:mb-8 border border-purple-500/20">
+              <Mic size={40} className="text-purple-400 sm:w-12 sm:h-12" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">{t('vcon_hero_title')}</h2>
+            <p className="text-slate-400 text-xs sm:text-sm mb-6 sm:mb-8 max-w-sm">
               {t('vcon_hero_subtitle')}
             </p>
-            <p className="text-purple-300 text-xs font-semibold mb-5">
+            <p className="text-purple-300 text-xs font-semibold mb-5 px-2">
               {getInitialPrompt(aiLanguage, 'agreement')}
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto px-4 sm:px-0">
               <button
                 onClick={() => setIsSessionActive(true)}
-                className="px-8 py-4 bg-purple-500 hover:bg-purple-400 text-[#070a13] font-bold rounded-full transition-all shadow-lg shadow-purple-500/20 text-lg flex items-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-8 py-3.5 sm:py-4 bg-purple-500 hover:bg-purple-400 text-[#070a13] font-bold rounded-full transition-all shadow-lg shadow-purple-500/20 text-base sm:text-lg flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Phone size={20} />
                 {t('vcon_btn_connect')}
               </button>
               <button
                 onClick={startListening}
-                className="px-6 py-4 bg-slate-900 border border-slate-800 text-purple-300 rounded-full font-bold text-sm flex items-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3.5 sm:py-4 bg-slate-900 border border-slate-800 text-purple-300 rounded-full font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Mic size={18} />
                 {t('vcon_btn_start_listening')}
@@ -826,10 +917,10 @@ export default function VoiceConversation() {
           </div>
         ) : (
           <>
-            <div className="p-4 border-b border-[#243041]/40 flex items-center justify-between bg-slate-950/40">
-              <div className="flex items-center gap-3">
+            <div className="p-3 sm:p-4 border-b border-[#243041]/40 flex items-center justify-between bg-slate-950/40">
+              <div className="flex items-center gap-2.5">
                 <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-purple-400 animate-pulse' : isThinking ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-                <span className="text-white font-bold text-sm">{t('vcon_session_title')}</span>
+                <span className="text-white font-bold text-xs sm:text-sm truncate max-w-[200px] sm:max-w-none">{t('vcon_session_title')}</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -837,10 +928,10 @@ export default function VoiceConversation() {
                   onClick={() => {
                     if (audioRef.current) audioRef.current.play().catch(() => {});
                   }}
-                  className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
                   title={t('vcon_title_replay_audio')}
                 >
-                  <Volume2 size={16} />
+                  <Volume2 size={15} />
                 </button>
                 <button
                   onClick={() => {
@@ -849,17 +940,17 @@ export default function VoiceConversation() {
                     setActiveWorkflow(null);
                     setInterimTranscript('');
                   }}
-                  className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-300 hover:text-white transition-colors cursor-pointer"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-300 hover:text-white transition-colors cursor-pointer"
                   title={t('vcon_title_end_session')}
                 >
-                  <Phone size={16} className="rotate-[135deg]" />
+                  <Phone size={15} className="rotate-[135deg]" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-5 bg-slate-900/10">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5 bg-slate-900/10 custom-scrollbar">
               {messages.length === 0 ? (
-                <div className="max-w-xl bg-slate-800 border border-slate-700 text-white rounded-3xl rounded-bl-none p-4">
+                <div className="max-w-xl bg-slate-800 border border-slate-700 text-white rounded-2xl sm:rounded-3xl rounded-bl-none p-4 text-xs sm:text-sm">
                   {t('vcon_welcome_message')}
                 </div>
               ) : null}
@@ -872,7 +963,7 @@ export default function VoiceConversation() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[78%] p-4 rounded-3xl ${
+                    className={`max-w-[88%] sm:max-w-[82%] lg:max-w-[78%] p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl ${
                       message.role === 'user'
                         ? 'bg-purple-500/20 border border-purple-500/30 text-purple-50 rounded-br-none'
                         : message.tone === 'error'
@@ -882,8 +973,8 @@ export default function VoiceConversation() {
                             : 'bg-slate-800 border border-slate-700 text-white rounded-bl-none'
                     }`}
                   >
-                    <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{message.text}</p>
-                    {message.source ? <p className="text-[11px] mt-2 uppercase tracking-wider text-slate-400">{message.source}</p> : null}
+                    <p className="text-xs sm:text-sm font-medium leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                    {message.source ? <p className="text-[10px] sm:text-[11px] mt-1.5 uppercase tracking-wider text-slate-400">{message.source}</p> : null}
                     {message.action ? (
                       <button
                         onClick={message.action.onClick}
@@ -898,19 +989,19 @@ export default function VoiceConversation() {
 
               {isListening && interimTranscript ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
-                  <div className="max-w-[78%] px-4 py-3 bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded-3xl rounded-br-none">
+                  <div className="max-w-[88%] sm:max-w-[82%] lg:max-w-[78%] px-4 py-3 bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded-2xl sm:rounded-3xl rounded-br-none">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2">
                       <Activity size={14} className="animate-pulse" />
                       {t('vcon_partial_transcript')}
                     </div>
-                    <p className="text-sm">{interimTranscript}</p>
+                    <p className="text-xs sm:text-sm">{interimTranscript}</p>
                   </div>
                 </motion.div>
               ) : null}
 
               {isThinking ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                  <div className="px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-3xl rounded-bl-none text-sm font-medium flex items-center gap-2">
+                  <div className="px-4 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl sm:rounded-3xl rounded-bl-none text-xs sm:text-sm font-medium flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin text-purple-400" />
                     {t('vcon_ai_thinking')}
                   </div>
@@ -919,19 +1010,19 @@ export default function VoiceConversation() {
 
               {activeWorkflow?.intent && !activeWorkflow.missingFields?.length ? (
                 <div className="flex justify-start">
-                  <div className="max-w-[78%] p-4 rounded-3xl rounded-bl-none bg-[#9333ea]/8 border border-[#9333ea]/20 text-white">
+                  <div className="max-w-[88%] sm:max-w-[82%] lg:max-w-[78%] p-4 rounded-2xl sm:rounded-3xl rounded-bl-none bg-[#9333ea]/8 border border-[#9333ea]/20 text-white">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-purple-300 mb-3">
                       <CheckCircle2 size={14} />
                       {t('vcon_confirm_required')}
                     </div>
-                    <p className="text-sm text-slate-200 mb-4">
+                    <p className="text-xs sm:text-sm text-slate-200 mb-4">
                       {buildConfirmationText(activeWorkflow.intent, activeWorkflow.prefill, [], t)}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={executeWorkflow}
                         disabled={workflowBusy}
-                        className="px-4 py-2 rounded-xl bg-purple-500 text-[#031218] font-bold text-sm disabled:opacity-60 cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-purple-500 text-[#031218] font-bold text-xs sm:text-sm disabled:opacity-60 cursor-pointer"
                       >
                         {workflowBusy ? t('vcon_executing') : (activeWorkflow.submitLabel || t('vcon_btn_confirm_execute'))}
                       </button>
@@ -940,7 +1031,7 @@ export default function VoiceConversation() {
                           setActiveWorkflow(null);
                           pushMessage({ role: 'assistant', text: t('vcon_msg_cancelled'), tone: 'muted' });
                         }}
-                        className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-semibold text-sm cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-semibold text-xs sm:text-sm cursor-pointer"
                       >
                         {t('vcon_btn_cancel')}
                       </button>
@@ -952,7 +1043,7 @@ export default function VoiceConversation() {
               <div ref={bottomRef} />
             </div>
 
-            <div className="p-4 md:p-6 bg-slate-950/40 border-t border-[#243041]/40 space-y-3">
+            <div className="p-3 sm:p-4 md:p-6 bg-slate-950/40 border-t border-[#243041]/40 space-y-2.5 sm:space-y-3">
               {permissionState === 'denied' ? (
                 <div className="text-xs text-rose-300 flex items-center gap-2">
                   <XCircle size={14} />
@@ -960,26 +1051,26 @@ export default function VoiceConversation() {
                 </div>
               ) : null}
 
-              <div className="flex items-end gap-3">
+              <div className="flex items-end gap-2 sm:gap-3">
                 <button
                   onClick={isListening ? stopListening : startListening}
                   disabled={voiceLoading || isThinking || workflowBusy}
-                  className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg cursor-pointer ${
+                  className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all shadow-lg shrink-0 cursor-pointer ${
                     isListening
                       ? 'bg-purple-500 text-[#070a13] shadow-purple-500/20'
                       : 'bg-slate-800 text-white hover:bg-slate-700'
                   } disabled:opacity-60`}
                   title={isListening ? t('vcon_title_stop_listening') : t('vcon_title_start_listening')}
                 >
-                  {voiceLoading ? <Loader2 size={22} className="animate-spin" /> : isListening ? <MicOff size={22} /> : <Mic size={22} />}
+                  {voiceLoading ? <Loader2 size={18} className="animate-spin sm:w-[22px] sm:h-[22px]" /> : isListening ? <MicOff size={18} className="sm:w-[22px] sm:h-[22px]" /> : <Mic size={18} className="sm:w-[22px] sm:h-[22px]" />}
                 </button>
 
-                <div className="flex-1 rounded-3xl border border-slate-800 bg-slate-900/80 px-4 py-3">
+                <div className="flex-1 rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900/80 px-3 py-2 sm:px-4 sm:py-3">
                   <textarea
                     value={inputText}
                     onChange={(event) => setInputText(event.target.value)}
                     placeholder={t('vcon_ph_type_message')}
-                    className="w-full bg-transparent text-white placeholder:text-slate-500 outline-none resize-none min-h-[68px] text-sm"
+                    className="w-full bg-transparent text-white placeholder:text-slate-500 outline-none resize-none min-h-[44px] sm:min-h-[68px] text-xs sm:text-sm"
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && !event.shiftKey) {
                         event.preventDefault();
@@ -992,10 +1083,10 @@ export default function VoiceConversation() {
                 <button
                   onClick={() => sendPrompt(inputText, 'text')}
                   disabled={!inputText.trim() || isThinking || workflowBusy}
-                  className="w-14 h-14 rounded-2xl bg-purple-500 text-[#031218] flex items-center justify-center font-bold disabled:opacity-60 cursor-pointer"
+                  className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-purple-500 text-[#031218] flex items-center justify-center font-bold shrink-0 disabled:opacity-60 cursor-pointer"
                   title={t('vcon_title_send_text')}
                 >
-                  <Send size={18} />
+                  <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
               </div>
             </div>
