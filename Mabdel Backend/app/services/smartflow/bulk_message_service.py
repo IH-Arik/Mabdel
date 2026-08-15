@@ -5,7 +5,7 @@ from pathlib import Path
 from pymongo import ReturnDocument
 
 from app.core.exceptions import AppException
-from app.services.mabdel_ai_service import MabdelAIService
+from app.services.gocustify_ai_service import GoCustifyAIService
 from app.utils.helpers import utc_now
 
 from ._base import SmartFlowBase
@@ -37,7 +37,7 @@ class BulkMessageService(SmartFlowBase):
         clean_content = (content or "").strip()
         if not clean_content:
             raise AppException(status_code=422, code="CONTENT_REQUIRED", message="Write a message before using AI Improve.")
-        improved, tokens_used = MabdelAIService().improve_text(clean_content)
+        improved, tokens_used = GoCustifyAIService().improve_text(clean_content)
         if not improved:
             raise AppException(
                 status_code=503,

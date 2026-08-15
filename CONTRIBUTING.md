@@ -1,6 +1,6 @@
-# Contributing to Mabdel AI
+# Contributing to GoCustify AI
 
-Thank you for your interest in contributing to **Mabdel AI**! We value every contribution, whether it's a bug report, feature suggestion, documentation improvement, or code change.
+Thank you for your interest in contributing to **GoCustify AI**! We value every contribution, whether it's a bug report, feature suggestion, documentation improvement, or code change.
 
 ---
 
@@ -184,4 +184,4 @@ When requesting a feature, include:
 
 ---
 
-Thank you for helping make Mabdel AI better! 🚀
+Thank you for helping make GoCustify AI better! 🚀

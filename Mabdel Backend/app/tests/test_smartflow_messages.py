@@ -138,12 +138,12 @@ def test_typing_state_endpoint_round_trip(client, mock_db):
     typing_response = client.post(
         f"/api/v1/smartflow/conversations/{conversation_id}/typing",
         headers=headers,
-        json={"is_typing": True, "actor_name": "Mabdel AI", "actor_type": "ai"},
+        json={"is_typing": True, "actor_name": "GoCustify AI", "actor_type": "ai"},
     )
     assert typing_response.status_code == 200
     typing_payload = typing_response.json()["data"]
     assert typing_payload["is_typing"] is True
-    assert typing_payload["actor_name"] == "Mabdel AI"
+    assert typing_payload["actor_name"] == "GoCustify AI"
     assert typing_payload["expires_at"] is not None
 
     fetch_response = client.get(
@@ -634,7 +634,7 @@ def test_conversation_detail_and_rich_typing_state_for_chat_screen(client, mock_
         headers=headers,
         json={
             "is_typing": True,
-            "actor_name": "Mabdel AI",
+            "actor_name": "GoCustify AI",
             "actor_type": "ai",
             "preview_text": "Processing those files now...",
             "state_label": "Active Now",
@@ -696,7 +696,7 @@ def test_conversation_websocket_stream_connects_and_service_publishes_events(cli
     typing_response = client.post(
         f"/api/v1/smartflow/conversations/{conversation_id}/typing",
         headers=headers,
-        json={"is_typing": True, "actor_name": "Mabdel AI", "actor_type": "ai", "preview_text": "Thinking..."},
+        json={"is_typing": True, "actor_name": "GoCustify AI", "actor_type": "ai", "preview_text": "Thinking..."},
     )
     assert typing_response.status_code == 200
     assert published_events[-1][1] == "typing.updated"

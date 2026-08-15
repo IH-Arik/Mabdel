@@ -29,7 +29,7 @@ class PermissionsResponseData(BaseModel):
     device_id: str | None = None
     permissions: list[PermissionToggle]
     privacy_message_title: str = "PRIVACY SECURED"
-    privacy_message_body: str = "Mabdel uses end-to-end encryption for all shared data."
+    privacy_message_body: str = "GoCustify uses end-to-end encryption for all shared data."
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

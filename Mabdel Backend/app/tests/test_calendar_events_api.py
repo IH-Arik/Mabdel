@@ -134,7 +134,7 @@ def test_calendar_event_conflict_and_range_filters(client, mock_db):
         "/api/v1/smartflow/calendar/events",
         headers=headers,
         json={
-            "title": "Client Sync: Mabdel",
+            "title": "Client Sync: GoCustify",
             "starts_at": "2099-10-22T13:00:00",
             "ends_at": "2099-10-22T14:00:00",
             "contact_ids": [],
@@ -150,7 +150,7 @@ def test_calendar_event_conflict_and_range_filters(client, mock_db):
     )
     assert range_response.status_code == 200
     titles = [item["title"] for item in range_response.json()["data"]["items"]]
-    assert titles == ["Morning Sync", "Client Sync: Mabdel"]
+    assert titles == ["Morning Sync", "Client Sync: GoCustify"]
 
 
 def test_calendar_event_update_and_delete_flow(client, mock_db):

@@ -35,7 +35,7 @@ async def run():
     client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=10000)
     db = client[DATABASE_NAME]
 
-    print("\n=== Mabdel Owner Setup ===")
+    print("\n=== GoCustify Owner Setup ===")
     print(f"Database : {DATABASE_NAME}")
     print(f"Email    : {OWNER_EMAIL}\n")
 

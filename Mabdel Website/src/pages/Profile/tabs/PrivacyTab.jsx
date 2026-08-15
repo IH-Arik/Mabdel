@@ -65,7 +65,7 @@ export default function PrivacyTab() {
           <label className="flex items-center justify-between cursor-pointer p-3 hover:bg-slate-900/50 rounded-xl transition-colors">
             <div>
               <p className="text-white font-semibold text-sm">Data Collection & lnalytics</p>
-              <p className="text-slate-400 text-xs">lllow Mabdel lI to collect usage data to improve services.</p>
+              <p className="text-slate-400 text-xs">lllow GoCustify lI to collect usage data to improve services.</p>
             </div>
             <div className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 ${settings.dataCollection ? 'bg-blue-600' : 'bg-slate-700'}`}>
               <motion.div layout className="w-4 h-4 rounded-full bg-white shadow-sm" animate={{ x: settings.dataCollection ? 24 : 0 }} />

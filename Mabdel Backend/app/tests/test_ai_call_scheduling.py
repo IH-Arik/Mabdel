@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from app.core.config import settings
 from app.services.ai_phone_agent import AIPhoneAgent, _clean_spoken_email, _looks_affirmative, _looks_like_scheduling_request
-from app.services.mabdel_ai_service import MabdelAIService
+from app.services.gocustify_ai_service import GoCustifyAIService
 from app.services.smartflow.calendar_service import CalendarService
 from app.services.smartflow.call_meeting_request_service import CallMeetingRequestService
 from app.services.smartflow_service import SmartFlowService
@@ -415,7 +415,7 @@ def test_clean_spoken_email():
 
 
 def _make_agent(user_id: str, flow_service: SmartFlowService) -> AIPhoneAgent:
-    agent = AIPhoneAgent("call_test_1", MabdelAIService(), flow_service)
+    agent = AIPhoneAgent("call_test_1", GoCustifyAIService(), flow_service)
     agent.user_id = user_id
     agent.caller_phone = "+15551234567"
     return agent
@@ -537,12 +537,12 @@ def test_plain_chat_never_touches_stub_workflow_intents(mock_db, monkeypatch):
         workflow_called = True
         raise AssertionError("The AI phone agent must never invoke the command workflow")
 
-    monkeypatch.setattr("app.services.mabdel_ai_service.run_assistant_workflow", fake_run_assistant_workflow)
+    monkeypatch.setattr("app.services.gocustify_ai_service.run_assistant_workflow", fake_run_assistant_workflow)
 
     async def fake_generate_with_openai(self, user_text, history):
         return "A team member will follow up with you about that.", 10
 
-    monkeypatch.setattr(MabdelAIService, "_generate_with_openai", fake_generate_with_openai)
+    monkeypatch.setattr(GoCustifyAIService, "_generate_with_openai", fake_generate_with_openai)
 
     async def _run():
         user = await mock_db.users.insert_one({"organization_id": "org-agent-4"})
@@ -584,7 +584,7 @@ def test_greeting_uses_the_actual_business_name(mock_db):
 
     greeting, business_name = asyncio.run(_run())
     assert "Dentist Care" in greeting
-    assert "Mabdel" not in greeting
+    assert "GoCustify" not in greeting
     assert business_name == "Dentist Care"
 
 
@@ -609,7 +609,7 @@ def test_greeting_falls_back_gracefully_when_no_business_name_set(mock_db):
         return synthesized.get("text", "")
 
     greeting = asyncio.run(_run())
-    assert "Mabdel" not in greeting
+    assert "GoCustify" not in greeting
     assert "Thanks for calling" in greeting
 
 
@@ -620,7 +620,7 @@ def test_plain_chat_prompt_includes_business_name(mock_db, monkeypatch):
         captured_prompt["text"] = prompt
         return "A team member will follow up.", 5
 
-    monkeypatch.setattr(MabdelAIService, "_generate_with_openai", fake_generate)
+    monkeypatch.setattr(GoCustifyAIService, "_generate_with_openai", fake_generate)
 
     async def _run():
         user = await mock_db.users.insert_one({"organization_id": "org-greet-3"})
@@ -641,7 +641,7 @@ def test_plain_chat_prompt_includes_real_hours_and_address(mock_db, monkeypatch)
         captured_prompt["text"] = prompt
         return "We're open Monday to Friday, 9 to 5.", 5
 
-    monkeypatch.setattr(MabdelAIService, "_generate_with_openai", fake_generate)
+    monkeypatch.setattr(GoCustifyAIService, "_generate_with_openai", fake_generate)
 
     async def _run():
         await mock_db.organizations.insert_one(
@@ -689,7 +689,7 @@ def test_plain_chat_prompt_omits_unset_address_rather_than_guessing(mock_db, mon
         captured_prompt["text"] = prompt
         return "Let me have someone follow up with that.", 5
 
-    monkeypatch.setattr(MabdelAIService, "_generate_with_openai", fake_generate)
+    monkeypatch.setattr(GoCustifyAIService, "_generate_with_openai", fake_generate)
 
     async def _run():
         user = await mock_db.users.insert_one({"organization_id": "org-no-profile-1"})
@@ -714,7 +714,7 @@ def test_plain_chat_prompt_admits_unknown_when_hours_unconfigured(mock_db, monke
         captured_prompt["text"] = prompt
         return "Let me have someone follow up with our hours.", 5
 
-    monkeypatch.setattr(MabdelAIService, "_generate_with_openai", fake_generate)
+    monkeypatch.setattr(GoCustifyAIService, "_generate_with_openai", fake_generate)
 
     async def _run():
         await mock_db.organizations.insert_one(
@@ -734,7 +734,7 @@ def test_business_info_is_fetched_once_and_cached(mock_db, monkeypatch):
     async def fake_generate(self, prompt, history):
         return "ok", 1
 
-    monkeypatch.setattr(MabdelAIService, "_generate_with_openai", fake_generate)
+    monkeypatch.setattr(GoCustifyAIService, "_generate_with_openai", fake_generate)
 
     async def _run():
         await mock_db.organizations.insert_one(

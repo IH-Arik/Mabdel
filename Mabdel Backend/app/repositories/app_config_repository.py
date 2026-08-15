@@ -15,7 +15,7 @@ class AppConfigRepository:
     async def create_default_config(self) -> dict:
         now = datetime.now(UTC)
         config = {
-            "app_name": "Mabdel AI",
+            "app_name": "GoCustify AI",
             "maintenance_mode": False,
             "force_update": False,
             "minimum_supported_version": "1.0.0",

@@ -102,7 +102,7 @@ export const APP_TRANSLATIONS = {
 
     chat_unavailable: "Chat unavailable",
 
-    ai_assistant: "Mabdel AI Assistant",
+    ai_assistant: "GoCustify AI Assistant",
 
     ask_me_anything_about_your_business: "Ask me anything about your business...",
 
@@ -138,9 +138,9 @@ export const APP_TRANSLATIONS = {
 
     no_other_conversations: "No other conversations",
 
-    mabdel_ai: "Mabdel AI",
+    mabdel_ai: "GoCustify AI",
 
-    ask_mabdel_ai: "Ask Mabdel AI to create invoices, schedule meetings, draft messages, manage contacts, or open a workflow.",
+    ask_mabdel_ai: "Ask GoCustify AI to create invoices, schedule meetings, draft messages, manage contacts, or open a workflow.",
 
     preparing_microphone: "Preparing microphone...",
 
@@ -310,8 +310,8 @@ export const APP_TRANSLATIONS = {
       "Could not start the call. Make sure your Twilio is set up in Account Settings.",
     could_not_start_the_call_make_sure_your_telnyx_is_set_up_in_account_settings:
       "Could not start the call. Make sure your Telnyx is set up in Account Settings.",
-    invite_to_mabdel: "Invite to Mabdel",
-    on_mabdel: "On Mabdel",
+    invite_to_mabdel: "Invite to GoCustify",
+    on_mabdel: "On GoCustify",
     invite: "Invite",
     send_an_invite_to_contact: "Send an invite to {name}{via}.",
     contact_has_no_phone_number_saved: "has no phone number saved.",
@@ -502,7 +502,7 @@ export const APP_TRANSLATIONS = {
 
     welcome_back: "Welcome Back",
 
-    login_subtitle: "Login to your Mabdel AI business assistant",
+    login_subtitle: "Login to your GoCustify AI business assistant",
 
     email_address: "Email Address",
 
@@ -574,7 +574,7 @@ export const APP_TRANSLATIONS = {
 
     create_account: "Create Account",
 
-    join_mabdels_ai_business_assistant: "Join Mabdel’s AI business assistant.",
+    join_mabdels_ai_business_assistant: "Join GoCustify’s AI business assistant.",
 
     i_agree_to_the_terms_conditions: "I agree to the Terms & Conditions",
 
@@ -588,7 +588,7 @@ export const APP_TRANSLATIONS = {
 
     access_level: "Access Level",
 
-    unlock_mabdel_ais_full_power_and_get_started_as_an: "Unlock Mabdel AI's full power and get started as an Owner.",
+    unlock_mabdel_ais_full_power_and_get_started_as_an: "Unlock GoCustify AI's full power and get started as an Owner.",
 
     owner_features_include: "Owner Features Include",
 
@@ -622,7 +622,7 @@ export const APP_TRANSLATIONS = {
 
     time: "TIME",
 
-    mabdel: "Mabdel",
+    mabdel: "GoCustify",
 
     invite: "Invite",
 
@@ -642,7 +642,7 @@ export const APP_TRANSLATIONS = {
 
     push_notification: "Push Notification",
 
-    your_ai_assistant_mabdel_will_prioritize_push_noti: "Your AI assistant Mabdel will prioritize push notifications for urgent meetings.",
+    your_ai_assistant_mabdel_will_prioritize_push_noti: "Your AI assistant GoCustify will prioritize push notifications for urgent meetings.",
 
     reminder_time: "REMINDER TIME",
 
@@ -1119,7 +1119,7 @@ export const APP_TRANSLATIONS = {
 
     choose_your_plan: "Choose Your Plan",
 
-    empower_your_business_with_mabdel_ai: "Empower your business with Mabdel AI",
+    empower_your_business_with_mabdel_ai: "Empower your business with GoCustify AI",
 
     payments_are_secure_and_encrypted_cancel_anytime_f: "Payments are secure and encrypted. Cancel anytime from your App Store settings. Terms and conditions apply.",
 
@@ -1202,7 +1202,7 @@ export const APP_TRANSLATIONS = {
 
     permissions: "Permissions",
 
-    mabdel_ai_needs_access_to_some_features_to_provide: "Mabdel AI needs access to some features to provide the best business assistance experience.",
+    mabdel_ai_needs_access_to_some_features_to_provide: "GoCustify AI needs access to some features to provide the best business assistance experience.",
 
     accept_all: "Accept All",
 
@@ -3941,9 +3941,9 @@ export const APP_TRANSLATIONS = {
     enter_your_email_address_to_receive_a_4_digit_veri: "Enter your email address to receive a 4-digit verification code to reset your password.",
     enter_the_6_digit_code_sent_to_your_email: "Enter the 6-digit code sent to your email",
     i_didn_t_receive_a_code: "I didn’t receive a code",
-    join_mabdel_s_ai_business_assistant: "Join Mabdel’s AI business assistant.",
+    join_mabdel_s_ai_business_assistant: "Join GoCustify’s AI business assistant.",
     g: "G",
-    unlock_mabdel_ai_s_full_power_and_get_started_as_a: "Unlock Mabdel AI's full power and get started as an Owner.",
+    unlock_mabdel_ai_s_full_power_and_get_started_as_a: "Unlock GoCustify AI's full power and get started as an Owner.",
     no_phone_number: "No phone number",
     this_contact_has_no_phone_number_on_record: "This contact has no phone number on record.",
     search_name_or_number: "Search name or number",

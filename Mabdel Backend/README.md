@@ -1,4 +1,4 @@
-# Mabdel Backend — FastAPI REST API
+# GoCustify Backend — FastAPI REST API
 
 <div align="center">
 
@@ -9,7 +9,7 @@
 
 </div>
 
-The production-grade FastAPI backend powering the Mabdel AI platform. Provides a comprehensive REST API with JWT authentication, AI integration, real-time WebSockets, and full business logic for conversations, documents, invoices, and integrations.
+The production-grade FastAPI backend powering the GoCustify AI platform. Provides a comprehensive REST API with JWT authentication, AI integration, real-time WebSockets, and full business logic for conversations, documents, invoices, and integrations.
 
 ---
 

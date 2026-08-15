@@ -274,11 +274,11 @@ function AccountSettingsTab() {
                   ))}
                   {section.key === 'help' ? (
                     <a
-                      href="mailto:sales@mabdelai.com"
+                      href="mailto:sales@gocustify.com"
                       className="inline-flex items-center gap-2 text-sm font-semibold text-[#9333ea]"
                     >
                       <ExternalLink size={14} />
-                      sales@mabdelai.com
+                      sales@gocustify.com
                     </a>
                   ) : null}
                 </div>

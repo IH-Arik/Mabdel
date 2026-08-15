@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Mabdel backend exposes a versioned REST API at `/api/v1` along with a compatibility layer at `/api` for legacy clients. It is built using FastAPI and follows a modular architecture designed for high-performance AI workflows, real-time messaging, and multi-tenant dashboard management.
+The GoCustify backend exposes a versioned REST API at `/api/v1` along with a compatibility layer at `/api` for legacy clients. It is built using FastAPI and follows a modular architecture designed for high-performance AI workflows, real-time messaging, and multi-tenant dashboard management.
 
 Key Features:
 - **FastAPI Core**: Async-first, high-performance API.

@@ -11,9 +11,9 @@ from app.workflows.graph import run_assistant_workflow
 from app.workflows.intent_utils import ALLOWED_INTENTS, infer_intent_from_command
 
 
-class MabdelAIService:
+class GoCustifyAIService:
     system_prompt = (
-        "You are Mabdel, a business operations assistant for SmartFlow. "
+        "You are GoCustify, a business operations assistant for SmartFlow. "
         "Help with sales, revenue summaries, quarterly analysis, discrepancy checks, "
         "margin comparisons, projections, tax reports, project updates, and email drafting. "
         "When the user message came from voice, it has already been transcribed for you. "
@@ -673,7 +673,7 @@ class MabdelAIService:
         best_match = None
         best_score = -1.0
 
-        for entry in MabdelAIService.navigation_registry:
+        for entry in GoCustifyAIService.navigation_registry:
             score = 0.0
 
             # 1. Intent Match

@@ -47,17 +47,17 @@ class EmailService:
         )
 
     async def send_subordinate_credentials_email(self, email: str, login_email: str, password: str, role: str) -> None:
-        subject = f"Your Mabdel AI {role.capitalize()} Credentials"
-        
-        text = f"Welcome to Mabdel AI! You have been granted access as a {role}.\n\n" \
+        subject = f"Your GoCustify AI {role.capitalize()} Credentials"
+
+        text = f"Welcome to GoCustify AI! You have been granted access as a {role}.\n\n" \
                f"Your login email: {login_email}\n" \
                f"Your temporary password: {password}\n\n" \
                f"You can change this password later from your profile settings."
-               
+
         html = f"""
         <html>
             <body>
-                <h2>Welcome to Mabdel AI!</h2>
+                <h2>Welcome to GoCustify AI!</h2>
                 <p>You have been granted access as a <strong>{role}</strong>.</p>
                 <p><strong>Your login email:</strong> {login_email}</p>
                 <p><strong>Your temporary password:</strong> {password}</p>
@@ -70,9 +70,9 @@ class EmailService:
         await self._send_email(email=email, subject=subject, text=text, html=html)
 
     async def send_otp_email(self, email: str, otp_code: str, purpose: str) -> None:
-        subject = "Your Mabdel verification code"
+        subject = "Your GoCustify verification code"
         if purpose == "forgot_password":
-            subject = "Your Mabdel password reset code"
+            subject = "Your GoCustify password reset code"
 
         html = self._build_otp_template(otp_code=otp_code, purpose=purpose)
         text = f"Your OTP code is {otp_code}. It expires in {settings.OTP_EXPIRE_MINUTES} minutes."
@@ -184,7 +184,7 @@ class EmailService:
             action_text = "Reset your password"
         return f"""
         <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 16px;">
-          <h2 style="margin-bottom: 8px;">Mabdel AI</h2>
+          <h2 style="margin-bottom: 8px;">GoCustify AI</h2>
           <p style="margin: 0 0 12px 0;">{action_text}</p>
           <p style="margin: 0 0 8px 0;">Use this one-time code:</p>
           <div style="font-size: 28px; font-weight: 700; letter-spacing: 8px; margin: 16px 0;">{otp_code}</div>

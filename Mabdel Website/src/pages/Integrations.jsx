@@ -168,7 +168,7 @@ function TelegramModal({ onClose, onSuccess }) {
           <input
             value={botUsername}
             onChange={(e) => setBotUsername(e.target.value)}
-            placeholder="mabdel_bot"
+            placeholder="gocustify_bot"
             className={INPUT}
           />
         </div>

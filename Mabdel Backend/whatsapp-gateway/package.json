@@ -1,7 +1,7 @@
 {
-  "name": "mabdel-whatsapp-gateway",
+  "name": "gocustify-whatsapp-gateway",
   "version": "1.0.0",
-  "description": "Local WhatsApp Gateway for Mabdel AI proect using OpenWA",
+  "description": "Local WhatsApp Gateway for GoCustify AI proect using OpenWA",
   "main": "gateway.js",
   "scripts": {
     "start": "node gateway.js"

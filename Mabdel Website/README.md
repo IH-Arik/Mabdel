@@ -1,4 +1,4 @@
-# Mabdel Website — React Web Application
+# GoCustify Website — React Web Application
 
 <div align="center">
 
@@ -9,7 +9,7 @@
 
 </div>
 
-The production-grade React web application for the Mabdel AI platform. A premium dark-mode SaaS dashboard with full feature parity with the mobile app.
+The production-grade React web application for the GoCustify AI platform. A premium dark-mode SaaS dashboard with full feature parity with the mobile app.
 
 ---
 

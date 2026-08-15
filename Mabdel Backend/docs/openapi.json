@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Mabdel Auth API",
-    "description": "Backend API for Mabdel client applications. Provides authentication, onboarding, permissions, invoicing, and SmartFlow workflows.",
+    "title": "GoCustify Auth API",
+    "description": "Backend API for GoCustify client applications. Provides authentication, onboarding, permissions, invoicing, and SmartFlow workflows.",
     "version": "1.0.0"
   },
   "paths": {
@@ -1223,7 +1223,7 @@
                   "success": true,
                   "message": "App config fetched successfully.",
                   "data": {
-                    "app_name": "Mabdel AI",
+                    "app_name": "GoCustify AI",
                     "maintenance_mode": false,
                     "force_update": false,
                     "minimum_supported_version": "1.0.0",
@@ -13401,7 +13401,7 @@
             "type": "string",
             "title": "App Name",
             "examples": [
-              "Mabdel AI"
+              "GoCustify AI"
             ]
           },
           "maintenance_mode": {
@@ -19256,7 +19256,7 @@
           "privacy_message_body": {
             "type": "string",
             "title": "Privacy Message Body",
-            "default": "Mabdel uses end-to-end encryption for all shared data."
+            "default": "GoCustify uses end-to-end encryption for all shared data."
           },
           "created_at": {
             "anyOf": [

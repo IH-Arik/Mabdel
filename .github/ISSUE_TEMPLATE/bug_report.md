@@ -37,7 +37,7 @@ assignees: IH-Arik
 - **Browser** (for web): [e.g., Chrome 124, Firefox 126]
 - **Python Version** (for backend): [e.g., 3.11.8]
 - **Node Version** (for frontend): [e.g., 20.12.0]
-- **Mabdel Version / Commit**: [e.g., abc1234]
+- **GoCustify Version / Commit**: [e.g., abc1234]
 
 ## 📋 Additional Context
 

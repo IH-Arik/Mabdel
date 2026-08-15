@@ -543,7 +543,7 @@ const LeasePreviewScreen = () => {
               </View>
             ) : (
               <Text style={styles.providerHint}>
-                Use the existing Mabdel signing link flow.
+                Use the existing GoCustify signing link flow.
               </Text>
             )}
             <Text style={styles.modalLabel}>{t("recipient_details")}</Text>

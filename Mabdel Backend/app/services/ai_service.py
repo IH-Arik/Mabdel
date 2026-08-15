@@ -24,6 +24,6 @@ class AIService:
             f"Hello,\n\n"
             f"{payload.instruction.strip()}\n\n"
             f"Regards,\n"
-            f"Mabdel AI Assistant"
+            f"GoCustify AI Assistant"
         )
         return EmailDraftResponse(recipient=payload.recipient, subject=subject, body=body)

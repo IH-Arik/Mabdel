@@ -21,7 +21,7 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    APP_NAME: str = "Mabdel Backend API"
+    APP_NAME: str = "GoCustify Backend API"
     API_V1_PREFIX: str = "/api/v1"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str | None = None
     MAILTRAP_API_TOKEN: str | None = None
     MAIL_FROM: str = "hello@demomailtrap.co"
-    MAIL_FROM_NAME: str = "Mabdel AI"
+    MAIL_FROM_NAME: str = "GoCustify AI"
 
     # Business email domains (bulk sending + inbound replies into Unified Conversations).
     # EMAIL_DOMAIN_ROOT is the zone we own; owners get "<slug>.<root>" provisioned automatically.

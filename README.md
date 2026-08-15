@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/Mabdel%20AI-Production%20Ready-11C7E5?style=for-the-badge&labelColor=0A1019" alt="Mabdel AI" />
+<img src="https://img.shields.io/badge/GoCustify%20AI-Production%20Ready-11C7E5?style=for-the-badge&labelColor=0A1019" alt="GoCustify AI" />
 
-# Mabdel AI — Intelligent Business Communication Platform
+# GoCustify AI — Intelligent Business Communication Platform
 
 **The all-in-one AI-powered platform for modern businesses to manage conversations, automate workflows, generate smart documents, and close deals faster — across every channel.**
 
@@ -37,11 +37,11 @@
 
 ## 🚀 Overview
 
-**Mabdel AI** is a production-grade, full-stack SaaS platform that brings together AI-powered communication, document automation, and business intelligence into a single unified workspace. Designed for real estate agents, sales teams, and service businesses, Mabdel AI eliminates the friction of managing multiple disconnected tools.
+**GoCustify AI** is a production-grade, full-stack SaaS platform that brings together AI-powered communication, document automation, and business intelligence into a single unified workspace. Designed for real estate agents, sales teams, and service businesses, GoCustify AI eliminates the friction of managing multiple disconnected tools.
 
-### Why Mabdel AI?
+### Why GoCustify AI?
 
-| Problem | Mabdel AI Solution |
+| Problem | GoCustify AI Solution |
 |---|---|
 | Scattered conversations across WhatsApp, Instagram, Telegram | **Unified Inbox** — all channels in one view |
 | Manual lease & agreement drafting takes hours | **AI Document Generator** — draft in seconds |
@@ -116,7 +116,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Mabdel AI Platform                       │
+│                        GoCustify AI Platform                    │
 ├─────────────────┬───────────────────┬───────────────────────────┤
 │   Web App       │   Mobile App      │   Admin Dashboard         │
 │ React 18 + Vite │ React Native 0.74 │ React + Tailwind          │
@@ -189,7 +189,7 @@
 ## 📁 Project Structure
 
 ```
-Mabdel AI/                          # Monorepo root
+GoCustify AI/                          # Monorepo root
 │
 ├── Mabdel Backend/                 # FastAPI REST API server
 │   ├── app/
@@ -592,6 +592,6 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 **Built with ❤️ using FastAPI, React, and OpenAI**
 
-⭐ Star this repo if Mabdel AI helps your business!
+⭐ Star this repo if GoCustify AI helps your business!
 
 </div>

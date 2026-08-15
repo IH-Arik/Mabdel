@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class AppConfigResponseData(BaseModel):
-    app_name: str = Field(examples=["Mabdel AI"])
+    app_name: str = Field(examples=["GoCustify AI"])
     maintenance_mode: bool = Field(examples=[False])
     force_update: bool = Field(examples=[False])
     minimum_supported_version: str = Field(examples=["1.0.0"])
