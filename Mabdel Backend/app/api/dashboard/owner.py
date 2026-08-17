@@ -327,6 +327,14 @@ async def assign_team_role(
         upsert=True,
     )
 
+    # Keep this org's Global Chat and role group (Manager/Staff/Assistant Group)
+    # in sync with the new assignment — without this, members assigned here never
+    # show up in Global Chat or their role group even though the RBAC role exists.
+    from app.services.smartflow.smartflow_orchestrator import SmartFlowService
+    smartflow = SmartFlowService(db)
+    await smartflow.sync_user_global_chat_membership(target_user_id, org_id)
+    await smartflow.sync_user_role_group_membership(target_user_id, role_slug, org_id)
+
     return {
         "success": True,
         "message": f"User assigned as {role_slug} successfully.",

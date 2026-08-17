@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import { formatCstTime } from '../utils/dateUtils';
 import { buildWebSocketUrl } from '../api/client';
 import {
   AlertTriangle,
   Archive,
+  ArchiveRestore,
   CheckCheck,
   Info,
   Loader2,
@@ -18,6 +20,9 @@ import {
   Search,
   Send,
   Sparkles,
+  Trash2,
+  Bell,
+  BellOff,
   Video,
   X,
 } from 'lucide-react';
@@ -29,6 +34,7 @@ import { ConversationSkeletonList, MessagesThreadSkeleton } from '../components/
 const PLATFORM_COLORS = {
   ai: '#9333ea',
   global: '#10B981',
+  team: '#64748B',
   whatsapp: '#25D366',
   instagram: '#E4405F',
   facebook: '#1877F2',
@@ -39,6 +45,7 @@ const PLATFORM_COLORS = {
 const FILTER_OPTION_DEFS = [
   { key: 'all', labelKey: 'conv_filter_all' },
   { key: 'unread', labelKey: 'notif_filter_unread' },
+  { key: 'archived', label: 'Archived' },
 ];
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
@@ -66,7 +73,9 @@ const toMessageArray = (value) => {
   return [];
 };
 
-const EXTERNAL_PLATFORMS = ['whatsapp', 'facebook', 'instagram', 'email', 'sms'];
+// External channels stay on the Unified Conversations inbox; AI chats stay on
+// the Voice Assistant page. Neither belongs in this internal team-messaging view.
+const HIDDEN_INBOX_PLATFORMS = ['whatsapp', 'facebook', 'instagram', 'email', 'sms'];
 
 const normalizePlatform = (value) => {
   const lower = String(value || '').toLowerCase();
@@ -88,29 +97,51 @@ const getConversationName = (conversation, t) =>
   conversation?.directPeer?.name ||
   t('conv_anonymous');
 
-const normalizeConversation = (conversation, t) => ({
-  ...conversation,
-  id: conversation?.id || conversation?._id,
-  contact_name: getConversationName(conversation, t),
-  platform: normalizePlatform(conversation?.platform || conversation?.channel || conversation?.source || conversation?.type),
-  last_message_preview:
-    conversation?.last_message_preview ||
-    conversation?.lastMessage?.text ||
-    conversation?.latest_message?.content ||
-    '',
-  last_message_time:
-    conversation?.last_message_time ||
-    conversation?.lastMessage?.createdAt ||
-    conversation?.updated_at ||
-    conversation?.updatedAt ||
-    conversation?.created_at ||
-    conversation?.createdAt,
-  unread_count: Number(conversation?.unread_count || conversation?.unreadCount || 0),
-});
+// Plain internal conversations (team groups, and direct messages started from
+// a contact's "Message" button) are stored with platform: "ai" on the backend
+// — a filler value, since the schema has no dedicated "internal" platform —
+// which is also what real AI-assistant chats use. Without an override every
+// such conversation shows a confusing "AI" badge. Real AI chats (type "ai")
+// and global chat (its own "global" platform) are excluded from the override.
+//
+// This is display-only (platformBadge), kept separate from platform itself —
+// platform is also sent back to the backend as-is when actually sending a
+// message (see handleSend), and "team" isn't a value the backend's platform
+// schema accepts. Overwriting platform directly broke sending messages in
+// these conversations with a validation error.
+const normalizeConversation = (conversation, t) => {
+  const realPlatform = normalizePlatform(
+    conversation?.platform || conversation?.channel || conversation?.source || conversation?.type
+  );
+  const isInternalFiller = conversation?.platform === 'ai' && conversation?.type !== 'ai' && !conversation?.is_global_chat;
+  return {
+    ...conversation,
+    id: conversation?.id || conversation?._id,
+    contact_name: getConversationName(conversation, t),
+    // platform stays whatever the backend sent (e.g. "global_chat", "ai",
+    // "whatsapp") since it's also what gets sent back on message-send —
+    // normalizePlatform's output is a display-only value ("global", "team")
+    // and must never overwrite it. platformBadge is the display-only field.
+    platformBadge: isInternalFiller ? 'team' : realPlatform,
+    last_message_preview:
+      conversation?.last_message_preview ||
+      conversation?.lastMessage?.text ||
+      conversation?.latest_message?.content ||
+      '',
+    last_message_time:
+      conversation?.last_message_time ||
+      conversation?.lastMessage?.createdAt ||
+      conversation?.updated_at ||
+      conversation?.updatedAt ||
+      conversation?.created_at ||
+      conversation?.createdAt,
+    unread_count: Number(conversation?.unread_count || conversation?.unreadCount || 0),
+  };
+};
 
 const mergeConversationIntoList = (list, conversation, t) => {
   const normalized = normalizeConversation(conversation, t);
-  if (EXTERNAL_PLATFORMS.includes(normalizePlatform(normalized.platform))) {
+  if (HIDDEN_INBOX_PLATFORMS.includes(normalizePlatform(normalized.platform)) || isAiAssistantConversation(normalized)) {
     return list;
   }
   const withoutCurrent = list.filter((item) => item.id !== normalized.id);
@@ -181,6 +212,19 @@ const formatMessageTime = (value) => {
   return formatCstTime(date, { hour: '2-digit', hour12: false });
 };
 
+const formatMessageDateLabel = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 const formatConversationTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -189,10 +233,15 @@ const formatConversationTime = (value) => {
 };
 
 function PLATFORM_BADGE({ platform }) {
+  const color = PLATFORM_COLORS[platform] || '#9333ea';
   return (
     <span
-      className="text-[9px] font-bold uppercase tracking-widest"
-      style={{ color: PLATFORM_COLORS[platform] || '#9333ea' }}
+      className="text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded-md border"
+      style={{
+        color,
+        borderColor: `${color}33`,
+        backgroundColor: `${color}15`,
+      }}
     >
       {platform || 'chat'}
     </span>
@@ -286,17 +335,18 @@ function useVoiceRecorder(onError) {
   return { recording, loading, durationSeconds, audioBlob, audioUrl, start, stop, cancel, clearPreview, setLoading };
 }
 
-function ConvItem({ conversation, selected, onClick, t }) {
+const ConvItem = memo(function ConvItem({ conversation, selected, onClick, t }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full border-b border-[#243041]/10 p-4 text-left transition-all hover:bg-slate-900/40 ${
-        selected ? 'border-l-4 border-l-[#9333ea] bg-[#9333ea]/10' : ''
+      className={`w-full border-b border-[#243041]/10 p-4 text-left transition-all hover:bg-slate-900/40 cursor-pointer ${
+        selected ? 'border-l-4 border-l-[#9333ea] bg-gradient-to-r from-[#9333ea]/20 to-transparent' : ''
       }`}
     >
       <div className="flex gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-black uppercase text-[#9333ea]">
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-black uppercase text-[#9333ea]">
           {conversation.contact_name?.[0] || 'C'}
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0c101b]" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
@@ -305,8 +355,8 @@ function ConvItem({ conversation, selected, onClick, t }) {
               {formatConversationTime(conversation.last_message_time)}
             </span>
           </div>
-          <div className="mt-0.5 flex items-center gap-1">
-            <PLATFORM_BADGE platform={conversation.platform} />
+          <div className="mt-1 flex items-center gap-1.5">
+            <PLATFORM_BADGE platform={conversation.platformBadge ?? conversation.platform} />
             <span className="ml-1 truncate text-[10px] text-[#A4B0B7]">
               {conversation.last_message_preview || t('conv_no_messages')}
             </span>
@@ -320,7 +370,7 @@ function ConvItem({ conversation, selected, onClick, t }) {
       </div>
     </button>
   );
-}
+});
 
 function MessagePreview({ label, preview }) {
   if (!preview?.content) return null;
@@ -332,7 +382,7 @@ function MessagePreview({ label, preview }) {
   );
 }
 
-function MsgBubble({ message, onReply, onForward, t }) {
+const MsgBubble = memo(function MsgBubble({ message, onReply, onForward, t }) {
   const outbound = message.direction === 'outbound';
   const attachment = getPrimaryAttachment(message);
   const audioAttachment = isAudioAttachment(attachment) ? attachment : null;
@@ -406,7 +456,7 @@ function MsgBubble({ message, onReply, onForward, t }) {
       ) : null}
     </motion.div>
   );
-}
+});
 
 function AISuggestion({ conversationId, onUse, t }) {
   const [suggestions, setSuggestions] = useState([]);
@@ -478,15 +528,21 @@ function AISuggestion({ conversationId, onUse, t }) {
   );
 }
 
+let conversationsListCache = null;
+
 export default function Conversations() {
   const { t } = useLanguage();
-  const [allConversations, setAllConversations] = useState([]);
-  const [conversations, setConversations] = useState([]);
-  const [, setSummary] = useState({});
-  const [selectedId, setSelectedId] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [allConversations, setAllConversations] = useState(() => conversationsListCache?.allConversations || []);
+  const [conversations, setConversations] = useState(() => conversationsListCache?.conversations || []);
+  const [summary, setSummary] = useState({});
+  // A contact's "Message" button can deep-link straight into its conversation
+  // instead of landing on the generic inbox with nothing selected.
+  const [selectedId, setSelectedId] = useState(location.state?.conversationId || null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!conversationsListCache);
   const [threadLoading, setThreadLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -499,11 +555,39 @@ export default function Conversations() {
   const [typingState, setTypingState] = useState({ is_typing: false, actor_name: null, preview_text: null });
   const [audioSending, setAudioSending] = useState(false);
   const bottomRef = useRef(null);
+  const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const conversationSocketRef = useRef(null);
   const inboxSocketRef = useRef(null);
   const messagesCacheRef = useRef({});
+
+  const handleFileSelect = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedId || !selectedConversation) return;
+
+    setSending(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('attachment_file', file);
+      const uploadResponse = await smartflowApi.uploadConversationAttachment(selectedId, formData);
+      const attachment = getApiData(uploadResponse);
+      await smartflowApi.sendMessage({
+        conversation_id: selectedId,
+        content: '',
+        platform: selectedConversation.platform || 'whatsapp',
+        direction: 'outbound',
+        attachments: [attachment],
+      });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      await Promise.all([fetchMessages(selectedId, true), fetchConversationCollections()]);
+    } catch (sendError) {
+      setError(sendError?.response?.data?.message || t('conv_err_file_failed') || 'Failed to attach file');
+    } finally {
+      setSending(false);
+    }
+  };
 
   const setComposerError = useCallback((message) => {
     setError(message);
@@ -527,36 +611,68 @@ export default function Conversations() {
     setLoading: setVoiceLoading,
   } = useVoiceRecorder(setComposerError);
 
+  const [archivedList, setArchivedList] = useState([]);
+  const [activeList, setActiveList] = useState([]);
+
   const fetchConversationCollections = useCallback(
     async (options = {}) => {
-      const searchValue = options.search ?? search;
+      const searchValue = (options.search ?? search).trim();
       const filterValue = options.filter ?? activeFilter;
-      const params = {
-        page: 1,
-        page_size: 100,
-        archived: false,
-      };
-      if (searchValue.trim()) params.search = searchValue.trim();
 
-      const response = await smartflowApi.getConversations(params);
-      const data = getApiData(response);
+      const paramsActive = { page: 1, page_size: 100, archived: false };
+      const paramsArchived = { page: 1, page_size: 100, archived: true };
+      if (searchValue) {
+        paramsActive.search = searchValue;
+        paramsArchived.search = searchValue;
+      }
 
-      const allItems = toArray(data).map((item) => normalizeConversation(item, t)).filter((item) => !EXTERNAL_PLATFORMS.includes(normalizePlatform(item.platform)));
-      const visibleItems = filterValue === 'unread'
-        ? allItems.filter(item => item.unread_count > 0)
-        : allItems;
+      const [activeRes, archivedRes] = await Promise.all([
+        smartflowApi.getConversations(paramsActive),
+        smartflowApi.getConversations(paramsArchived),
+      ]);
 
-      setAllConversations(allItems);
+      const parsedActive = toArray(getApiData(activeRes))
+        .map((item) => normalizeConversation(item, t))
+        .filter((item) => !HIDDEN_INBOX_PLATFORMS.includes(normalizePlatform(item.platform)) && !isAiAssistantConversation(item));
+
+      const parsedArchived = toArray(getApiData(archivedRes))
+        .map((item) => normalizeConversation(item, t))
+        .filter((item) => !HIDDEN_INBOX_PLATFORMS.includes(normalizePlatform(item.platform)) && !isAiAssistantConversation(item));
+
+      setActiveList(parsedActive);
+      setArchivedList(parsedArchived);
+
+      let visibleItems = parsedActive;
+      if (filterValue === 'archived') {
+        visibleItems = parsedArchived;
+      } else if (filterValue === 'unread') {
+        visibleItems = parsedActive.filter((item) => item.unread_count > 0);
+      }
+
+      setAllConversations(parsedActive);
       setConversations(visibleItems);
-      setSummary(data?.summary || {});
+      setLoading(false);
+      conversationsListCache = { activeList: parsedActive, archivedList: parsedArchived, allConversations: parsedActive, conversations: visibleItems };
 
-      if (selectedId && !allItems.some((item) => item.id === selectedId)) {
+      const combined = [...parsedActive, ...parsedArchived];
+      if (selectedId && !combined.some((item) => item.id === selectedId)) {
         setSelectedId(null);
         setMessages([]);
       }
     },
     [activeFilter, search, selectedId, t],
   );
+
+  const handleFilterSelect = (key) => {
+    setActiveFilter(key);
+    let instant = activeList;
+    if (key === 'archived') {
+      instant = archivedList;
+    } else if (key === 'unread') {
+      instant = activeList.filter((item) => item.unread_count > 0);
+    }
+    setConversations(instant);
+  };
 
   const fetchMessages = useCallback(async (conversationId, forceRefresh = false) => {
     if (!conversationId) return;
@@ -605,47 +721,28 @@ export default function Conversations() {
   }, []);
 
   useEffect(() => {
+    if (location.state?.conversationId) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // Only ever meant to fire once, right after a deep-link navigation lands —
+    // re-running on every location/navigate identity change would wipe
+    // selectedId's already-consumed source state for no reason.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
     searchTimeoutRef.current = setTimeout(async () => {
-      setLoading(true);
       try {
-        const searchValue = search.trim();
-        const params = {
-          page: 1,
-          page_size: 100,
-          archived: false,
-        };
-        if (searchValue) params.search = searchValue;
-
-        const response = await smartflowApi.getConversations(params);
-        const data = getApiData(response);
-        const allItems = toArray(data).map((item) => normalizeConversation(item, t)).filter((item) => !EXTERNAL_PLATFORMS.includes(normalizePlatform(item.platform)));
-        const visibleItems = activeFilter === 'unread' 
-          ? allItems.filter(item => item.unread_count > 0)
-          : allItems;
-
-        if (!active) return;
-
-        setAllConversations(allItems);
-        setConversations(visibleItems);
-        setSummary(data?.summary || {});
-        setError('');
-
-        if (selectedId && !allItems.some((item) => item.id === selectedId)) {
-          setSelectedId(null);
-          setMessages([]);
-        }
+        await fetchConversationCollections({ search, filter: activeFilter });
+        if (active) setError('');
       } catch (loadError) {
-        if (!active) return;
-        setAllConversations([]);
-        setConversations([]);
-        setSummary({});
-        setError(loadError?.response?.data?.message || t('conv_err_load_list'));
+        if (active) setError(loadError?.response?.data?.message || t('conv_err_load_list'));
       } finally {
-        if (active) setLoading(false);
+        setLoading(false);
       }
     }, 250);
 
@@ -653,7 +750,7 @@ export default function Conversations() {
       active = false;
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, [activeFilter, search, selectedId, t]);
+  }, [activeFilter, fetchConversationCollections, search, t]);
 
   useEffect(() => {
     const token = getStoredAccessToken();
@@ -695,11 +792,21 @@ export default function Conversations() {
   }, [activeFilter, t]);
 
   useEffect(() => {
+    if (!selectedId && conversations.length > 0 && !loading) {
+      setSelectedId(conversations[0].id);
+    }
+  }, [conversations, selectedId, loading]);
+
+  useEffect(() => {
     if (!selectedId) return;
     fetchMessages(selectedId);
     smartflowApi.markConversationRead(selectedId).catch(() => {});
     setAllConversations((previous) => previous.map((item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item)));
     setConversations((previous) => previous.map((item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item)));
+    if (conversationsListCache) {
+      conversationsListCache.allConversations = conversationsListCache.allConversations.map((item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item));
+      conversationsListCache.conversations = conversationsListCache.conversations.map((item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item));
+    }
     fetchTypingState(selectedId);
 
     const interval = window.setInterval(() => fetchTypingState(selectedId), 3000);
@@ -748,13 +855,15 @@ export default function Conversations() {
 
   const filterCounts = useMemo(() => {
     const counts = Object.fromEntries(filterOptions.map((option) => [option.key, 0]));
-    counts.all = allConversations.length;
-    allConversations.forEach((conversation) => {
+    counts.all = activeList.length;
+    counts.unread = activeList.filter((item) => item.unread_count > 0).length;
+    counts.archived = archivedList.length;
+    activeList.forEach((conversation) => {
       const platform = normalizePlatform(conversation.platform);
       counts[platform] = (counts[platform] || 0) + 1;
     });
     return counts;
-  }, [allConversations, filterOptions]);
+  }, [activeList, archivedList, filterOptions]);
 
   const handleSend = async (event) => {
     event?.preventDefault();
@@ -859,8 +968,9 @@ export default function Conversations() {
   const handleArchive = async () => {
     if (!selectedId) return;
     setArchiving(true);
+    const targetArchived = !selectedConversation?.archived;
     try {
-      await smartflowApi.archiveConversation(selectedId);
+      await smartflowApi.archiveConversation(selectedId, targetArchived);
       setSelectedId(null);
       setMessages([]);
       await fetchConversationCollections();
@@ -868,6 +978,20 @@ export default function Conversations() {
       setError(archiveError?.response?.data?.message || t('conv_err_archive_failed'));
     } finally {
       setArchiving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedId) return;
+    if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) return;
+    try {
+      await smartflowApi.deleteConversation(selectedId);
+      setSelectedId(null);
+      setMessages([]);
+      delete messagesCacheRef.current[selectedId];
+      await fetchConversationCollections();
+    } catch (deleteError) {
+      setError(deleteError?.response?.data?.message || 'Failed to delete conversation');
     }
   };
 
@@ -954,7 +1078,7 @@ export default function Conversations() {
             {filterOptions.map((option) => (
               <button
                 key={option.key}
-                onClick={() => setActiveFilter(option.key)}
+                onClick={() => handleFilterSelect(option.key)}
                 className={`cursor-pointer rounded-xl px-3 py-1.5 text-xs font-black transition-all ${
                   activeFilter === option.key ? 'bg-[#9333ea]/20 text-[#c084fc] shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
@@ -966,7 +1090,7 @@ export default function Conversations() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {loading ? (
             <ConversationSkeletonList count={6} />
           ) : conversations.length ? (
@@ -1003,59 +1127,84 @@ export default function Conversations() {
           <>
             <div className="flex items-center justify-between border-b border-[#243041]/40 bg-[#0c101b]/60 p-4 backdrop-blur-md">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 text-sm font-black text-[#9333ea]">
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 text-sm font-black text-[#9333ea]">
                   {selectedConversation?.contact_name?.[0] || 'C'}
+                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0c101b]" />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-sm font-extrabold text-white">{headerName}</h3>
-                  <PLATFORM_BADGE platform={selectedConversation?.platform} />
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-extrabold text-white">{headerName}</h3>
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Active
+                    </span>
+                  </div>
+                  <PLATFORM_BADGE platform={selectedConversation?.platformBadge ?? selectedConversation?.platform} />
                 </div>
               </div>
               <div className="flex items-center gap-2 text-slate-400">
-                <button
-                  title={t('conv_call')}
-                  disabled={isGlobalChat}
-                  onClick={() => smartflowApi.createOutboundCall({ contact_id: selectedConversation?.contact_id, call_type: 'ai_call' }).catch(() => {})}
-                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea] disabled:opacity-40"
-                >
-                  <Phone size={16} />
-                </button>
-                <button title={t('conv_video')} className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
-                  <Video size={16} />
-                </button>
                 <button title={t('conv_info')} className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
                   <Info size={16} />
                 </button>
                 <button
-                  title={t('conv_archive')}
+                  title={selectedConversation?.archived ? 'Unarchive Conversation' : t('conv_archive')}
                   disabled={archiving || isGlobalChat}
                   onClick={handleArchive}
-                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-rose-950/20 hover:text-rose-400 disabled:opacity-60"
+                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea] disabled:opacity-60"
                 >
-                  {archiving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                  {archiving ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : selectedConversation?.archived ? (
+                    <ArchiveRestore size={16} className="text-purple-400" />
+                  ) : (
+                    <Archive size={16} />
+                  )}
+                </button>
+                <button
+                  title="Delete Conversation"
+                  disabled={isGlobalChat}
+                  onClick={handleDelete}
+                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-rose-950/30 hover:text-rose-400 disabled:opacity-40"
+                >
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
               {threadLoading ? (
                 <MessagesThreadSkeleton />
               ) : (
                 <div className="space-y-4">
                   <AnimatePresence initial={false}>
                     {messages.length ? (
-                      messages.map((message) => (
-                        <MsgBubble
-                          key={message.id}
-                          message={message}
-                          onReply={setReplyToMessage}
-                          onForward={(item) => {
-                            setForwardMessage(item);
-                            setForwardModalVisible(true);
-                          }}
-                          t={t}
-                        />
-                      ))
+                      messages.map((message, index) => {
+                        const prevMsg = messages[index - 1];
+                        const currentDateLabel = formatMessageDateLabel(message.timestamp);
+                        const prevDateLabel = prevMsg ? formatMessageDateLabel(prevMsg.timestamp) : null;
+                        const showDateDivider = currentDateLabel && currentDateLabel !== prevDateLabel;
+
+                        return (
+                          <div key={message.id} className="space-y-3">
+                            {showDateDivider ? (
+                              <div className="my-4 flex items-center justify-center">
+                                <span className="rounded-full border border-[#243041]/40 bg-slate-900 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 shadow-sm">
+                                  {currentDateLabel}
+                                </span>
+                              </div>
+                            ) : null}
+                            <MsgBubble
+                              message={message}
+                              onReply={setReplyToMessage}
+                              onForward={(item) => {
+                                setForwardMessage(item);
+                                setForwardModalVisible(true);
+                              }}
+                              t={t}
+                            />
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center py-16 text-slate-500">
                         <MessageSquare size={36} className="mb-2 opacity-30" />
@@ -1064,10 +1213,10 @@ export default function Conversations() {
                     )}
                   </AnimatePresence>
 
-                  {typingState?.is_typing ? (
+                  {typingState?.is_typing && typingState?.actor_name !== 'You' && typingState?.actor_type !== 'user' ? (
                     <div className="flex justify-start">
                       <div className="rounded-2xl rounded-tl-none border border-slate-900 bg-[#121625]/60 px-3.5 py-2.5 text-xs font-semibold text-slate-300">
-                        {typingState.actor_name || selectedConversation?.contact_name || t('conv_someone')} {t('conv_is_typing')}
+                        {selectedConversation?.contact_name || typingState.actor_name || t('conv_someone')} {t('conv_is_typing')}
                         {typingState.preview_text ? `: ${typingState.preview_text}` : '...'}
                       </div>
                     </div>
@@ -1149,8 +1298,16 @@ export default function Conversations() {
               ) : null}
 
               <form onSubmit={handleSend} className="flex items-end gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept="image/*,application/pdf,.doc,.docx,.txt"
+                />
                 <button
                   type="button"
+                  onClick={() => fileInputRef.current?.click()}
                   className="shrink-0 cursor-pointer rounded-xl border border-slate-900 bg-slate-950 p-3 text-slate-500 transition-all hover:text-white"
                   title={t('conv_attach')}
                   aria-label={t('conv_attach')}
@@ -1162,7 +1319,7 @@ export default function Conversations() {
                   onChange={(event) => handleComposerChange(event.target.value)}
                   placeholder={t('conv_message_placeholder')}
                   rows={2}
-                  className="max-h-32 min-h-[48px] flex-1 resize-none rounded-xl border border-slate-900 bg-slate-950 px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 transition-all focus:border-[#9333ea]/40 focus:outline-none"
+                  className="max-h-32 min-h-[48px] flex-1 resize-none rounded-xl border border-slate-900 bg-slate-950 px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 transition-all focus:border-[#9333ea] focus:ring-2 focus:ring-[#9333ea]/30 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -1222,7 +1379,7 @@ export default function Conversations() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-bold text-slate-200">{conversation.contact_name}</p>
-                        <p className="text-[10px] capitalize text-slate-500">{conversation.platform}</p>
+                        <p className="text-[10px] capitalize text-slate-500">{conversation.platformBadge ?? conversation.platform}</p>
                       </div>
                     </button>
                   ))

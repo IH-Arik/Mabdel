@@ -19,6 +19,7 @@ PlatformType = Literal[
     "email",
     "google_business",
     "ai",
+    "global_chat",
 ]
 MessageDirection = Literal["inbound", "outbound"]
 MessageStatus = Literal["sent", "delivered", "read"]

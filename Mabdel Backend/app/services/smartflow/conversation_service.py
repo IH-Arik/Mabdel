@@ -106,7 +106,7 @@ class ConversationService(SmartFlowBase):
         unread_only: bool = False,
         type_filter: str | None = None,
     ) -> dict:
-        filters: dict = {"user_id": user_id}
+        filters: dict = {"$or": [{"user_id": user_id}, {"member_ids": user_id, "is_global_chat": {"$ne": True}}]}
         platform_values = [value for value in (platforms or []) if value]
         if platform:
             platform_values.insert(0, platform)
@@ -193,7 +193,9 @@ class ConversationService(SmartFlowBase):
                 )
                 for item in page_slice
             ]))
-            summary = {"total_unread": 0, "by_platform": {}}
+            archived_count = await self.db.conversations.count_documents({"$or": [{"user_id": user_id}, {"member_ids": user_id}], "archived": True})
+            active_count = await self.db.conversations.count_documents({"$or": [{"user_id": user_id}, {"member_ids": user_id}], "archived": {"$ne": True}})
+            summary = {"total_unread": 0, "archived_count": archived_count, "active_count": active_count, "by_platform": {}}
             for conversation in conversations:
                 unread_count = unread_counts.get(str(conversation.get("_id") or conversation.get("id")), 0)
                 summary["total_unread"] += unread_count
@@ -214,12 +216,24 @@ class ConversationService(SmartFlowBase):
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
         if conversation.get("is_global_chat"):
             raise AppException(status_code=400, code="GLOBAL_CHAT_ARCHIVE_UNSUPPORTED", message="Global chat cannot be archived individually.")
+        if conversation.get("user_id") != user_id:
+            raise AppException(status_code=403, code="CONVERSATION_ARCHIVE_FORBIDDEN", message="Only the conversation owner can archive this conversation.")
         updated = await self.db.conversations.find_one_and_update(
             {"_id": conversation["_id"]},
             {"$set": {"archived": archived, "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
         return await self._serialize_conversation(updated, viewer_user_id=user_id)
+
+    async def delete_conversation(self, user_id: str, conversation_id: str) -> bool:
+        conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        if conversation.get("is_global_chat"):
+            raise AppException(status_code=400, code="GLOBAL_CHAT_DELETE_UNSUPPORTED", message="Global chat cannot be deleted.")
+        if conversation.get("user_id") != user_id:
+            raise AppException(status_code=403, code="CONVERSATION_DELETE_FORBIDDEN", message="Only the conversation owner can delete this conversation.")
+        await self.db.conversations.delete_one({"_id": conversation["_id"]})
+        await self.db.messages.delete_many({"conversation_id": conversation_id})
+        return True
 
     async def mark_conversation_read(self, user_id: str, conversation_id: str) -> dict:
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
@@ -251,8 +265,10 @@ class ConversationService(SmartFlowBase):
     ) -> dict:
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
         filters: dict = {"conversation_id": conversation_id}
-        if not conversation.get("is_global_chat"):
+        is_owner = conversation.get("user_id") == user_id
+        if not conversation.get("is_global_chat") and is_owner:
             filters["user_id"] = user_id
+        # If member but not owner: no user_id filter — fetch all messages in the conversation
         if search:
             filters["content"] = {"$regex": search, "$options": "i"}
         if platform:
@@ -273,8 +289,8 @@ class ConversationService(SmartFlowBase):
         now = utc_now()
         unread_count = 1 if payload["direction"] == "inbound" else 0
         document = {
-            "user_id": user_id,
-            "sender_user_id": user_id if conversation.get("is_global_chat") else None,
+            "user_id": conversation.get("user_id", user_id),  # conversation owner id for scoping
+            "sender_user_id": user_id,  # always the actual sender
             "organization_id": conversation.get("organization_id"),
             "is_global_chat": bool(conversation.get("is_global_chat")),
             "conversation_id": payload["conversation_id"],
@@ -312,7 +328,15 @@ class ConversationService(SmartFlowBase):
         if conversation.get("is_global_chat"):
             await self._publish_global_chat_inbox_updates(conversation)
         else:
-            await self._publish_inbox_update(user_id, payload["conversation_id"], conversation=conversation)
+            # Notify all members of the conversation so their sidebars update in real-time
+            member_ids = conversation.get("member_ids") or []
+            # Always notify the sender (owner may not be in member_ids)
+            notify_ids = list({user_id, conversation.get("user_id", user_id)} | set(member_ids))
+            for notify_id in notify_ids:
+                try:
+                    await self._publish_inbox_update(notify_id, payload["conversation_id"], conversation=conversation)
+                except Exception:
+                    continue
 
         if payload["direction"] == "outbound":
             asyncio.create_task(
@@ -727,7 +751,10 @@ class ConversationService(SmartFlowBase):
         return await self._serialize_group(group)
 
     async def list_groups(self, user_id: str, page: int, page_size: int, search: str | None) -> dict:
-        filters = {"user_id": user_id, "is_active": {"$ne": False}}
+        filters: dict = {
+            "$or": [{"user_id": user_id}, {"member_ids": user_id}],
+            "is_active": {"$ne": False},
+        }
         if search:
             filters["name"] = {"$regex": search, "$options": "i"}
         cursor = self.db.groups.find(filters).sort("updated_at", -1)

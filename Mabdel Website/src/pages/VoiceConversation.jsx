@@ -220,6 +220,7 @@ export default function VoiceConversation() {
   const [chatHistoryLoading, setChatHistoryLoading] = useState(false);
   const [newChatBusy, setNewChatBusy] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isChatHistoryCollapsed, setIsChatHistoryCollapsed] = useState(false);
 
   const actionChips = useMemo(() => [
     { id: 'create_invoice', label: t('vcon_chip_create_invoice'), path: '/invoices', state: { prefill: {}, action: 'new_invoice' }, icon: FileText },
@@ -701,8 +702,24 @@ export default function VoiceConversation() {
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('vcon_lbl_chat_history')}</p>
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => setIsChatHistoryCollapsed((prev) => !prev)}
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors cursor-pointer group"
+          >
+            <ChevronDown
+              size={14}
+              className={`transform transition-transform duration-200 text-slate-400 group-hover:text-purple-300 ${
+                isChatHistoryCollapsed ? '-rotate-90' : 'rotate-0'
+              }`}
+            />
+            <span>{t('vcon_lbl_chat_history')}</span>
+            {Array.isArray(chatHistory) && chatHistory.length ? (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 text-[10px] font-extrabold border border-purple-500/20">
+                {chatHistory.length}
+              </span>
+            ) : null}
+          </button>
           <button
             onClick={handleNewChat}
             disabled={newChatBusy}
@@ -712,38 +729,41 @@ export default function VoiceConversation() {
             {newChatBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           </button>
         </div>
-        <div className="space-y-1 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
-          {chatHistoryLoading && !chatHistory.length ? (
-            <div className="flex items-center gap-2 text-xs text-slate-500 px-2 py-3">
-              <Loader2 size={13} className="animate-spin" />
-              {t('vcon_loading_history')}
-            </div>
-          ) : Array.isArray(chatHistory) && chatHistory.length ? (
-            chatHistory.filter((item) => item && (item.id || item._id)).map((item) => {
-              const itemId = item.id || item._id;
-              const isActive = itemId === conversationId;
-              return (
-                <button
-                  key={itemId}
-                  onClick={() => {
-                    handleSelectChat(itemId);
-                    setIsMobileDrawerOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium truncate transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-purple-500/15 text-purple-200 border border-purple-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
-                  }`}
-                  title={item.title || item.name || t('vcon_untitled_chat')}
-                >
-                  {item.title || item.name || t('vcon_untitled_chat')}
-                </button>
-              );
-            })
-          ) : (
-            <p className="text-xs text-slate-600 px-2 py-3">{t('vcon_no_chat_history')}</p>
-          )}
-        </div>
+
+        {!isChatHistoryCollapsed && (
+          <div className="space-y-1 max-h-36 overflow-y-auto pr-1 custom-scrollbar transition-all duration-200">
+            {chatHistoryLoading && !chatHistory.length ? (
+              <div className="flex items-center gap-2 text-xs text-slate-500 px-2 py-2">
+                <Loader2 size={13} className="animate-spin text-purple-400" />
+                {t('vcon_loading_history')}
+              </div>
+            ) : Array.isArray(chatHistory) && chatHistory.length ? (
+              chatHistory.filter((item) => item && (item.id || item._id)).map((item) => {
+                const itemId = item.id || item._id;
+                const isActive = itemId === conversationId;
+                return (
+                  <button
+                    key={itemId}
+                    onClick={() => {
+                      handleSelectChat(itemId);
+                      setIsMobileDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium truncate transition-colors cursor-pointer ${
+                      isActive
+                        ? 'bg-purple-500/15 text-purple-200 border border-purple-500/30'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
+                    }`}
+                    title={item.title || item.name || t('vcon_untitled_chat')}
+                  >
+                    {item.title || item.name || t('vcon_untitled_chat')}
+                  </button>
+                );
+              })
+            ) : (
+              <p className="text-xs text-slate-600 px-2 py-2">{t('vcon_no_chat_history')}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div>
