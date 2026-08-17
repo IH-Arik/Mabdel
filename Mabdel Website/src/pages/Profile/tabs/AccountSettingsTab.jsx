@@ -89,7 +89,7 @@ function AccountSettingsTab() {
 
   const platformSummary = useMemo(() => {
     if (platformStatus === 'active' && telnyxStatus?.telnyx_phone_number) {
-      return t('aprof_active_num').replace('{number}', telnyxStatus.telnyx_phone_number);
+      return t('aprof_active_num', { number: telnyxStatus.telnyx_phone_number });
     }
     if (platformStatus === 'provisioning') return t('aprof_provisioning');
     if (platformStatus === 'failed') return t('aprof_failed');

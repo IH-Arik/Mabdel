@@ -142,6 +142,16 @@ async def archive_conversation(
     return success_response(data=data, message="Conversation updated successfully.")
 
 
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: str,
+    current_user: dict = Depends(require_permission("messages", "delete")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.delete_conversation(str(current_user["_id"]), conversation_id)
+    return success_response(data=data, message="Conversation deleted successfully.")
+
+
 @router.post("/conversations/{conversation_id}/mark-read")
 async def mark_conversation_read(
     conversation_id: str,

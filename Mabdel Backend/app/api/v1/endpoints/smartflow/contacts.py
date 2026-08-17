@@ -27,6 +27,17 @@ async def list_contacts(
     return success_response(data=data, message="Contacts fetched successfully.")
 
 
+@router.get("/team")
+async def list_team_members(
+    current_user: dict = Depends(require_permission("contacts", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """Colleagues in the same organization — any member can see who else is on
+    their team, unlike the dashboard's owner-only /owner/team roster."""
+    data = await service.list_team_members(str(current_user["_id"]))
+    return success_response(data=data, message="Team members fetched successfully.")
+
+
 @router.post("/contacts", status_code=status.HTTP_201_CREATED)
 async def create_contact(
     payload: ContactCreateRequest,

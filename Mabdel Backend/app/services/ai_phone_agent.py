@@ -1,5 +1,6 @@
 import base64
 import re
+import asyncio
 import logging
 from typing import Callable
 from datetime import datetime, timezone
@@ -115,6 +116,7 @@ class AIPhoneAgent:
         self.flow_service = flow_service
         self.audio_buffer = bytearray()
         self.is_processing = False
+        self.is_speaking = False
         self.stream_sid = None
         self.greeted = False
         self.user_id = None
@@ -190,22 +192,18 @@ class AIPhoneAgent:
         return info
 
     async def handle_media(self, payload_base64: str, stream_sid: str, send_callback: Callable):
+        """Legacy method kept for compatibility — buffering is now done in calls.py."""
         self.stream_sid = stream_sid
         audio_chunk = base64.b64decode(payload_base64)
         self.audio_buffer.extend(audio_chunk)
-
-        # In a real-world app, we would use a more sophisticated VAD (Voice Activity Detection).
-        # For this implementation, we rely on the fact that Telnyx streams are real-time.
-        # Trigger processing once the buffer has a few seconds of audio.
-        if len(self.audio_buffer) > SAMPLE_RATE * 5:  # 5 seconds max before forced processing
-            await self.process_and_respond(send_callback)
+        print(f"DEBUG_AGENT: Received media chunk of {len(audio_chunk)} bytes. Buffer size: {len(self.audio_buffer)}", flush=True)
 
     async def process_and_respond(self, send_callback: Callable):
         if self.is_processing or not self.audio_buffer:
             return
 
         self.is_processing = True
-        logger.debug("Call %s: Processing %d bytes of audio...", self.call_id, len(self.audio_buffer))
+        print(f"DEBUG_AGENT: process_and_respond called with buffer size: {len(self.audio_buffer)}", flush=True)
 
         try:
             wav_data = self._mulaw_to_wav(self.audio_buffer)
@@ -217,6 +215,7 @@ class AIPhoneAgent:
                 audio_mime_type="audio/wav",
                 audio_filename=f"call_{self.call_id}.wav",
             )
+            print(f"DEBUG_AGENT: Whisper transcript: '{transcript}', lang='{detected_language}', error='{error}'", flush=True)
 
             if not transcript or len(transcript.strip()) < 2:
                 self.is_processing = False
@@ -437,18 +436,35 @@ class AIPhoneAgent:
         # 3. Convert to Mu-law
         mulaw_data = pcm_to_mulaw(bytes(downsampled_pcm))
 
-        # 4. Stream to Telnyx in chunks of 160 bytes (20ms)
+        # 4. Stream to Telnyx in chunks of 160 bytes (20ms) with precise timing
         chunk_size = 160
-        for i in range(0, len(mulaw_data), chunk_size):
-            chunk = mulaw_data[i:i + chunk_size]
-            message = {
-                "event": "media",
-                "stream_id": self.stream_sid,
-                "media": {
-                    "payload": base64.b64encode(chunk).decode("utf-8")
+        print(f"DEBUG_AGENT: Streaming {len(mulaw_data)} bytes of mu-law audio to Telnyx ({len(mulaw_data)//chunk_size} chunks)...", flush=True)
+        self.is_speaking = True
+        try:
+            import time
+            start_time = time.perf_counter()
+            chunk_index = 0
+            for i in range(0, len(mulaw_data), chunk_size):
+                chunk = mulaw_data[i:i + chunk_size]
+                # Telnyx outbound media: ONLY "event" and "media" keys — any extra key
+                # (e.g. stream_id, track) causes stream_error 100002 and drops the stream.
+                message = {
+                    "event": "media",
+                    "media": {
+                        "payload": base64.b64encode(chunk).decode("utf-8")
+                    }
                 }
-            }
-            await send_callback(message)
+                await send_callback(message)
+                chunk_index += 1
+                target_time = start_time + (chunk_index * 0.02)
+                sleep_needed = target_time - time.perf_counter()
+                if sleep_needed > 0:
+                    await asyncio.sleep(sleep_needed)
+            print("DEBUG_AGENT: Finished streaming audio to Telnyx.", flush=True)
+        finally:
+            self.is_speaking = False
+            # Clear any inbound echo or noise buffered while AI was speaking
+            self.audio_buffer.clear()
 
     async def finalize_session(self):
         """Saves the accumulated transcript and AI summary to the call log."""

@@ -19,6 +19,7 @@ import {
   Search,
   Send,
   Sparkles,
+  Trash2,
   Video,
   X,
 } from 'lucide-react';
@@ -44,6 +45,7 @@ const FILTER_OPTION_DEFS = [
   { key: 'email', label: 'Email' },
   { key: 'facebook', label: 'Facebook' },
   { key: 'instagram', label: 'Instagram' },
+  { key: 'archived', label: 'Archived' },
 ];
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
@@ -97,7 +99,11 @@ const normalizeConversation = (conversation, t) => ({
   ...conversation,
   id: conversation?.id || conversation?._id,
   contact_name: getConversationName(conversation, t),
-  platform: normalizePlatform(conversation?.platform || conversation?.channel || conversation?.source || conversation?.type),
+  // platform stays the raw backend value since it's also sent back on
+  // message-send (e.g. "facebook_messenger" must not become "facebook" —
+  // that's not a valid platform value and would fail send validation).
+  // platformBadge is the display-only, shortened value.
+  platformBadge: normalizePlatform(conversation?.platform || conversation?.channel || conversation?.source || conversation?.type),
   last_message_preview:
     conversation?.last_message_preview ||
     conversation?.lastMessage?.text ||
@@ -313,7 +319,7 @@ function ConvItem({ conversation, selected, onClick, t }) {
             </span>
           </div>
           <div className="mt-0.5 flex items-center gap-1">
-            <PLATFORM_BADGE platform={conversation.platform} />
+            <PLATFORM_BADGE platform={conversation.platformBadge ?? conversation.platform} />
             <span className="ml-1 truncate text-[10px] text-[#A4B0B7]">
               {conversation.last_message_preview || t('conv_no_messages')}
             </span>
@@ -490,7 +496,7 @@ export default function UnifiedConversations() {
   const location = useLocation();
   const [allConversations, setAllConversations] = useState([]);
   const [conversations, setConversations] = useState([]);
-  const [, setSummary] = useState({});
+  const [summary, setSummary] = useState({});
   // Opens straight into a specific thread when navigated here with one (e.g. the
   // Message button on a contact's profile), instead of landing on the bare inbox.
   const [selectedId, setSelectedId] = useState(location.state?.conversationId || null);
@@ -537,40 +543,74 @@ export default function UnifiedConversations() {
     setLoading: setVoiceLoading,
   } = useVoiceRecorder(setComposerError);
 
+  const [archivedList, setArchivedList] = useState([]);
+  const [activeList, setActiveList] = useState([]);
+
   const fetchConversationCollections = useCallback(
     async (options = {}) => {
-      const searchValue = options.search ?? search;
+      const searchValue = (options.search ?? search).trim();
       const platformValue = options.platform ?? filterPlatform;
-      const params = {
-        page: 1,
-        page_size: 100,
-        archived: false,
-      };
-      if (searchValue.trim()) params.search = searchValue.trim();
-      if (platformValue && platformValue !== 'all') params.platform = platformValue;
 
-      const [allResponse, visibleResponse] = await Promise.all([
-        smartflowApi.getConversations({ page: 1, page_size: 100, archived: false }),
-        smartflowApi.getConversations(params),
+      const paramsActive = { page: 1, page_size: 100, archived: false };
+      const paramsArchived = { page: 1, page_size: 100, archived: true };
+      if (searchValue) {
+        paramsActive.search = searchValue;
+        paramsArchived.search = searchValue;
+      }
+      if (platformValue && !['all', 'archived'].includes(platformValue)) {
+        paramsActive.platform = platformValue;
+        paramsArchived.platform = platformValue;
+      }
+
+      const [activeRes, archivedRes] = await Promise.all([
+        smartflowApi.getConversations(paramsActive),
+        smartflowApi.getConversations(paramsArchived),
       ]);
 
-      const allData = getApiData(allResponse);
-      const visibleData = getApiData(visibleResponse);
+      // AI chats, group chats, global chat, and internal team messages all use
+      // the "ai"/"global" platform values as internal filler — none of them
+      // are real external-channel conversations, so they don't belong here.
+      // This inbox is for WhatsApp/SMS/email/etc. only; internal stuff lives
+      // on /conversations and AI chats live on the Voice Assistant page.
+      const parsedActive = toArray(getApiData(activeRes))
+        .map((item) => normalizeConversation(item, t))
+        .filter((item) => !INTERNAL_PLATFORMS.includes(normalizePlatform(item.platform)) && !isAiAssistantConversation(item));
+      const parsedArchived = toArray(getApiData(archivedRes))
+        .map((item) => normalizeConversation(item, t))
+        .filter((item) => !INTERNAL_PLATFORMS.includes(normalizePlatform(item.platform)) && !isAiAssistantConversation(item));
 
-      const allItems = toArray(allData).map((item) => normalizeConversation(item, t));
-      const visibleItems = toArray(visibleData).map((item) => normalizeConversation(item, t));
+      setActiveList(parsedActive);
+      setArchivedList(parsedArchived);
 
-      setAllConversations(allItems);
+      let visibleItems = parsedActive;
+      if (platformValue === 'archived') {
+        visibleItems = parsedArchived;
+      } else if (platformValue && platformValue !== 'all') {
+        visibleItems = parsedActive.filter((item) => normalizePlatform(item.platform) === platformValue);
+      }
+
+      setAllConversations(parsedActive);
       setConversations(visibleItems);
-      setSummary(allData?.summary || {});
 
-      if (selectedId && !allItems.some((item) => item.id === selectedId)) {
+      const combined = [...parsedActive, ...parsedArchived];
+      if (selectedId && !combined.some((item) => item.id === selectedId)) {
         setSelectedId(null);
         setMessages([]);
       }
     },
     [filterPlatform, search, selectedId, t],
   );
+
+  const handleFilterSelect = (key) => {
+    setFilterPlatform(key);
+    let instant = activeList;
+    if (key === 'archived') {
+      instant = archivedList;
+    } else if (key !== 'all') {
+      instant = activeList.filter((item) => normalizePlatform(item.platform) === key);
+    }
+    setConversations(instant);
+  };
 
   const fetchMessages = useCallback(async (conversationId, forceRefresh = false) => {
     if (!conversationId) return;
@@ -624,46 +664,13 @@ export default function UnifiedConversations() {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
     searchTimeoutRef.current = setTimeout(async () => {
-      setLoading(true);
       try {
-        const searchValue = search.trim();
-        const params = {
-          page: 1,
-          page_size: 100,
-          archived: false,
-        };
-        if (searchValue) params.search = searchValue;
-        if (filterPlatform && filterPlatform !== 'all') params.platform = filterPlatform;
-
-        const [allResponse, visibleResponse] = await Promise.all([
-          smartflowApi.getConversations({ page: 1, page_size: 100, archived: false }),
-          smartflowApi.getConversations(params),
-        ]);
-
-        const allData = getApiData(allResponse);
-        const visibleData = getApiData(visibleResponse);
-        const allItems = toArray(allData).map((item) => normalizeConversation(item, t)).filter((item) => !INTERNAL_PLATFORMS.includes(normalizePlatform(item.platform)));
-        const visibleItems = toArray(visibleData).map((item) => normalizeConversation(item, t)).filter((item) => !INTERNAL_PLATFORMS.includes(normalizePlatform(item.platform)));
-
-        if (!active) return;
-
-        setAllConversations(allItems);
-        setConversations(visibleItems);
-        setSummary(allData?.summary || {});
-        setError('');
-
-        if (selectedId && !allItems.some((item) => item.id === selectedId)) {
-          setSelectedId(null);
-          setMessages([]);
-        }
+        await fetchConversationCollections({ search, platform: filterPlatform });
+        if (active) setError('');
       } catch (loadError) {
-        if (!active) return;
-        setAllConversations([]);
-        setConversations([]);
-        setSummary({});
-        setError(loadError?.response?.data?.message || t('conv_err_load_list'));
+        if (active) setError(loadError?.response?.data?.message || t('conv_err_load_list'));
       } finally {
-        if (active) setLoading(false);
+        setLoading(false);
       }
     }, 250);
 
@@ -671,7 +678,7 @@ export default function UnifiedConversations() {
       active = false;
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, [filterPlatform, search, selectedId, t]);
+  }, [fetchConversationCollections, filterPlatform, search, t]);
 
   useEffect(() => {
     const token = getStoredAccessToken();
@@ -711,6 +718,12 @@ export default function UnifiedConversations() {
       inboxSocketRef.current = null;
     };
   }, [filterPlatform, t]);
+
+  useEffect(() => {
+    if (!selectedId && conversations.length > 0 && !loading) {
+      setSelectedId(conversations[0].id);
+    }
+  }, [conversations, selectedId, loading]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -769,13 +782,14 @@ export default function UnifiedConversations() {
 
   const filterCounts = useMemo(() => {
     const counts = Object.fromEntries(filterOptions.map((option) => [option.key, 0]));
-    counts.all = allConversations.length;
-    allConversations.forEach((conversation) => {
+    counts.all = activeList.length;
+    counts.archived = archivedList.length;
+    activeList.forEach((conversation) => {
       const platform = normalizePlatform(conversation.platform);
       counts[platform] = (counts[platform] || 0) + 1;
     });
     return counts;
-  }, [allConversations, filterOptions]);
+  }, [activeList, archivedList, filterOptions]);
 
   const handleSend = async (event) => {
     event?.preventDefault();
@@ -892,6 +906,20 @@ export default function UnifiedConversations() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedId) return;
+    if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) return;
+    try {
+      await smartflowApi.deleteConversation(selectedId);
+      setSelectedId(null);
+      setMessages([]);
+      delete messagesCacheRef.current[selectedId];
+      await fetchConversationCollections();
+    } catch (deleteError) {
+      setError(deleteError?.response?.data?.message || 'Failed to delete conversation');
+    }
+  };
+
   const handleSendAudio = async () => {
     if (!audioBlob || !selectedId || !selectedConversation) return;
 
@@ -974,7 +1002,7 @@ export default function UnifiedConversations() {
             {visibleFilters.map((option) => (
               <button
                 key={option.key}
-                onClick={() => setFilterPlatform(option.key)}
+                onClick={() => handleFilterSelect(option.key)}
                 className={`cursor-pointer rounded-xl px-3 py-1.5 text-xs font-black transition-all ${
                   filterPlatform === option.key ? 'bg-[#9333ea]/20 text-[#c084fc] shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
@@ -1028,21 +1056,10 @@ export default function UnifiedConversations() {
                 </div>
                 <div className="text-left">
                   <h3 className="text-sm font-extrabold text-white">{headerName}</h3>
-                  <PLATFORM_BADGE platform={selectedConversation?.platform} />
+                  <PLATFORM_BADGE platform={selectedConversation?.platformBadge ?? selectedConversation?.platform} />
                 </div>
               </div>
               <div className="flex items-center gap-2 text-slate-400">
-                <button
-                  title={t('conv_call')}
-                  disabled={isGlobalChat}
-                  onClick={() => smartflowApi.createOutboundCall({ contact_id: selectedConversation?.contact_id, call_type: 'ai_call' }).catch(() => {})}
-                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea] disabled:opacity-40"
-                >
-                  <Phone size={16} />
-                </button>
-                <button title={t('conv_video')} className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
-                  <Video size={16} />
-                </button>
                 <button title={t('conv_info')} className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
                   <Info size={16} />
                 </button>
@@ -1050,9 +1067,17 @@ export default function UnifiedConversations() {
                   title={t('conv_archive')}
                   disabled={archiving || isGlobalChat}
                   onClick={handleArchive}
-                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-rose-950/20 hover:text-rose-400 disabled:opacity-60"
+                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea] disabled:opacity-60"
                 >
                   {archiving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                </button>
+                <button
+                  title="Delete Conversation"
+                  disabled={isGlobalChat}
+                  onClick={handleDelete}
+                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-rose-950/30 hover:text-rose-400 disabled:opacity-40"
+                >
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
@@ -1084,10 +1109,10 @@ export default function UnifiedConversations() {
                     )}
                   </AnimatePresence>
 
-                  {typingState?.is_typing ? (
+                  {typingState?.is_typing && typingState?.actor_name !== 'You' && typingState?.actor_type !== 'user' ? (
                     <div className="flex justify-start">
                       <div className="rounded-2xl rounded-tl-none border border-slate-900 bg-[#121625]/60 px-3.5 py-2.5 text-xs font-semibold text-slate-300">
-                        {typingState.actor_name || selectedConversation?.contact_name || t('conv_someone')} {t('conv_is_typing')}
+                        {selectedConversation?.contact_name || typingState.actor_name || t('conv_someone')} {t('conv_is_typing')}
                         {typingState.preview_text ? `: ${typingState.preview_text}` : '...'}
                       </div>
                     </div>
@@ -1242,7 +1267,7 @@ export default function UnifiedConversations() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-bold text-slate-200">{conversation.contact_name}</p>
-                        <p className="text-[10px] capitalize text-slate-500">{conversation.platform}</p>
+                        <p className="text-[10px] capitalize text-slate-500">{conversation.platformBadge ?? conversation.platform}</p>
                       </div>
                     </button>
                   ))
