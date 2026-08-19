@@ -31,10 +31,12 @@ function getCallId(call) {
 }
 
 function getCallerName(call) {
+  if (call?.isFallback) return call.callerName || call.callerNumber || 'Unknown Caller';
   return call?.options?.remoteCallerName || call?.options?.callerName || call?.options?.destinationNumber || 'Unknown Caller';
 }
 
 function getCallerNumber(call) {
+  if (call?.isFallback) return call.callerNumber || '';
   return call?.options?.remoteCallerNumber || call?.options?.destinationNumber || '';
 }
 
@@ -71,6 +73,7 @@ export function TelnyxVoiceProvider({ children }) {
   const durationSecondsRef = useRef(0);
   const currentCallRef = useRef(null);
   const finalizedCallIdsRef = useRef(new Set());
+  const remoteAudioRef = useRef(null); // hidden <audio> for remote call audio
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
   const [identity, setIdentity] = useState('');
@@ -82,6 +85,7 @@ export function TelnyxVoiceProvider({ children }) {
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [transcriptSegments, setTranscriptSegments] = useState([]);
   const [callStatusText, setCallStatusText] = useState('Ready');
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   const clearHeartbeat = () => {
     if (heartbeatRef.current) {
@@ -176,13 +180,16 @@ export function TelnyxVoiceProvider({ children }) {
 
   const handleNotification = useCallback(
     (notification) => {
+      console.log('[TelnyxVoice] notification:', notification?.type, 'call state:', notification?.call?.state, 'direction:', notification?.call?.direction, 'full:', notification);
       if (notification?.type !== 'callUpdate' || !notification.call) return;
       const call = notification.call;
       const callId = getCallId(call);
       const state = normalizeState(call);
+      console.log('[TelnyxVoice] callId:', callId, 'state:', state, 'isTerminal:', TERMINAL_STATES.has(state));
       if (!callId || finalizedCallIdsRef.current.has(callId)) return;
 
       if (TERMINAL_STATES.has(state)) {
+        console.warn('[TelnyxVoice] TERMINAL STATE — call ending. cause:', call?.cause, 'causeCode:', call?.causeCode, 'sipCode:', call?.sipCode, call);
         finalizeCall(call, 'Call ended');
         return;
       }
@@ -197,6 +204,7 @@ export function TelnyxVoiceProvider({ children }) {
       }
 
       if (CONNECTED_STATES.has(state)) {
+        console.log('[TelnyxVoice] CONNECTED');
         currentCallRef.current = call;
         setIncomingCall(null);
         setCurrentCall(call);
@@ -205,6 +213,13 @@ export function TelnyxVoiceProvider({ children }) {
         durationSecondsRef.current = 0;
         setDurationSeconds(0);
         emitCallSync({ type: 'call_connected', callSid: callId });
+        // Explicitly play remote audio to bypass browser autoplay restrictions
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.volume = 1;
+          remoteAudioRef.current.play().catch((err) =>
+            console.warn('[TelnyxVoice] Remote audio play() blocked:', err)
+          );
+        }
       }
     },
     [finalizeCall, incomingCall]
@@ -243,19 +258,39 @@ export function TelnyxVoiceProvider({ children }) {
         }
       }
 
-      const client = new TelnyxRTC({ login_token: payload.token });
+      const client = new TelnyxRTC({
+        login_token: payload.token,
+      });
+
+      if (remoteAudioRef.current) {
+        client.remoteElement = remoteAudioRef.current;
+        console.log('[TelnyxVoice] client.remoteElement assigned successfully.');
+      }
 
       client.on('telnyx.ready', () => {
+        console.log('[TelnyxVoice] SDK ready — identity:', payload.identity);
         setStatus('ready');
         setCallStatusText('Ready');
         setError('');
+        pushRegistration(true, payload.identity || '');
       });
 
       client.on('telnyx.socket.close', () => {
+        console.warn('[TelnyxVoice] Socket closed');
         setStatus('offline');
+        pushRegistration(false, payload.identity || '');
+        if (isAuthenticated) {
+          window.setTimeout(() => {
+            if (!currentCallRef.current) {
+              console.log('[TelnyxVoice] Auto-reconnecting voice runtime...');
+              initClient();
+            }
+          }, 5000);
+        }
       });
 
       client.on('telnyx.error', (event) => {
+        console.error('[TelnyxVoice] SDK error:', event);
         setError(event?.error?.message || event?.message || 'Telnyx voice error.');
         setStatus('error');
       });
@@ -265,13 +300,15 @@ export function TelnyxVoiceProvider({ children }) {
       clientRef.current = client;
       identityRef.current = payload.identity || '';
       setIdentity(payload.identity || '');
+      setPhoneNumber(payload.phone_number || '');
+      console.log('[TelnyxVoice] callerNumber (from number):', payload.phone_number);
 
       client.connect();
-      await pushRegistration(true, payload.identity || '');
       clearHeartbeat();
       heartbeatRef.current = window.setInterval(() => pushRegistration(true), 60000);
       scheduleRefresh(payload.refresh_after_seconds || 20 * 60 * 60);
     } catch (initError) {
+      console.error('[TelnyxVoice] initClient error:', initError);
       setStatus('error');
       setError(initError?.response?.data?.message || initError?.message || 'Voice runtime could not start.');
     }
@@ -324,8 +361,9 @@ export function TelnyxVoiceProvider({ children }) {
   }, [isAuthenticated]);
 
   const startOutboundCall = useCallback(
-    async ({ phoneNumber, displayName }) => {
-      const normalized = normalizePhone(phoneNumber);
+    async ({ phoneNumber: destNumber, displayName }) => {
+      const normalized = normalizePhone(destNumber);
+      console.log('[TelnyxVoice] startOutboundCall → normalized:', normalized, 'callerNumber:', phoneNumber, 'clientReady:', !!clientRef.current, 'status:', status);
       if (!normalized || !/^\+\d{10,15}$/.test(normalized)) {
         throw new Error('Enter a valid international phone number.');
       }
@@ -334,34 +372,95 @@ export function TelnyxVoiceProvider({ children }) {
       }
       setStatus('calling');
       setCallStatusText('Connecting call');
-      const call = clientRef.current.newCall({
+      const callOptions = {
         destinationNumber: normalized,
         callerName: displayName || normalized,
         clientState: encodeClientState({
           user_id: user?._id || user?.id || '',
           display_name: displayName || normalized,
         }),
-      });
+      };
+      // callerNumber must be a Telnyx-owned number — without it Telnyx returns SIP 403
+      if (phoneNumber) callOptions.callerNumber = phoneNumber;
+      if (remoteAudioRef.current) callOptions.remoteElement = remoteAudioRef.current;
+      const call = clientRef.current.newCall(callOptions);
+      console.log('[TelnyxVoice] newCall created:', call, 'callId:', getCallId(call));
       currentCallRef.current = call;
       setCurrentCall(call);
       setCurrentCallSid(getCallId(call));
       emitCallSync({ type: 'outbound_started', phoneNumber: normalized });
       return call;
     },
-    [user]
+    [user, status, phoneNumber]
   );
+
+  // Fallback incoming call check: poll recent ringing calls if no active WebRTC call
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
+    const checkFallbackRingingCall = async () => {
+      if (incomingCall || currentCall) return;
+      try {
+        const res = await smartflowApi.listCalls({ page: 1, page_size: 5 });
+        const calls = res?.data?.data?.items || res?.data?.items || [];
+        const ringingCall = calls.find(
+          (item) => item.status === 'ringing' && item.direction === 'inbound'
+        );
+        if (ringingCall) {
+          const callId = ringingCall.twilio_call_sid || ringingCall.call_sid;
+          if (callId && !finalizedCallIdsRef.current.has(callId)) {
+            setIncomingCall({
+              isFallback: true,
+              callSid: callId,
+              callerName: ringingCall.from_number || 'Incoming Call',
+              callerNumber: ringingCall.from_number || '',
+            });
+            setCurrentCallSid(callId);
+            setCallStatusText('Incoming call');
+          }
+        }
+      } catch {
+        // quiet fallback
+      }
+    };
+
+    const interval = window.setInterval(checkFallbackRingingCall, 3000);
+    return () => window.clearInterval(interval);
+  }, [isAuthenticated, incomingCall, currentCall]);
 
   const acceptIncomingCall = useCallback(async () => {
     if (!incomingCall) return;
+    if (incomingCall.isFallback) {
+      try {
+        await smartflowApi.callAction(incomingCall.callSid, { action: 'receive' });
+        setCallStatusText('Call transferred');
+      } catch (err) {
+        console.error('[TelnyxVoice] Fallback receive failed:', err);
+      }
+      setIncomingCall(null);
+      return;
+    }
     setCallStatusText('Connecting call');
     currentCallRef.current = incomingCall;
     setCurrentCall(incomingCall);
-    incomingCall.answer();
+    incomingCall.answer({
+      remoteElement: remoteAudioRef.current,
+    });
   }, [incomingCall]);
 
   const rejectIncomingCall = useCallback(async () => {
     if (!incomingCall) return;
-    const callId = getCallId(incomingCall);
+    const callId = getCallId(incomingCall) || incomingCall.callSid;
+    if (incomingCall.isFallback) {
+      try {
+        await smartflowApi.callAction(incomingCall.callSid, { action: 'cancel' });
+      } catch (err) {
+        console.error('[TelnyxVoice] Fallback cancel failed:', err);
+      }
+      setIncomingCall(null);
+      setCallStatusText('Call rejected');
+      return;
+    }
     incomingCall.hangup();
     setIncomingCall(null);
     setCallStatusText('Call rejected');
@@ -374,10 +473,32 @@ export function TelnyxVoiceProvider({ children }) {
       return;
     }
     if (incomingCall) {
-      incomingCall.hangup();
+      if (incomingCall.isFallback) {
+        try {
+          await smartflowApi.callAction(incomingCall.callSid, { action: 'cancel' });
+        } catch {
+          // ignore
+        }
+      } else {
+        incomingCall.hangup();
+      }
       setIncomingCall(null);
     }
   }, [currentCall, incomingCall]);
+
+  const transferToAi = useCallback(async () => {
+    const targetSid = currentCallSid || (incomingCall && (getCallId(incomingCall) || incomingCall.callSid));
+    if (!targetSid) return;
+    try {
+      await smartflowApi.callAction(targetSid, { action: 'transfer_to_ai' });
+      setCallStatusText('Transferred to AI');
+    } catch (err) {
+      console.error('[TelnyxVoice] Transfer to AI failed:', err);
+    }
+    if (incomingCall?.isFallback) {
+      setIncomingCall(null);
+    }
+  }, [currentCallSid, incomingCall]);
 
   const toggleMute = useCallback(() => {
     if (!currentCall) return;
@@ -441,7 +562,19 @@ export function TelnyxVoiceProvider({ children }) {
     ]
   );
 
-  return <TelnyxVoiceContext.Provider value={value}>{children}</TelnyxVoiceContext.Provider>;
+  return (
+    <TelnyxVoiceContext.Provider value={value}>
+      {/* Hidden audio element that Telnyx SDK uses to play remote (incoming) audio */}
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+        style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+        id="telnyx-remote-audio"
+      />
+      {children}
+    </TelnyxVoiceContext.Provider>
+  );
 }
 
 export function useTelnyxVoice() {

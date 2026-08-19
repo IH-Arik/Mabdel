@@ -173,7 +173,7 @@ PHRASES: dict[str, dict[str, str]] = {
         "ja": "すみません、この会議リクエストをチームに送信してよろしいですか——はい、いいえ？",
     },
     "sent_to_team": {
-        "en": "Done — I've sent this to the team, and they'll confirm shortly. Anything else I can help with?",
+        "en": "Done — I've submitted your meeting request for {when} to the team, and they'll confirm shortly. Anything else I can help with?",
         "hi": "हो गया — मैंने यह टीम को भेज दिया है, वे जल्द ही पुष्टि करेंगे। क्या मैं किसी और चीज़ में मदद कर सकता हूं?",
         "ar": "تم — لقد أرسلت هذا إلى الفريق، وسيؤكدون قريبًا. هل هناك شيء آخر يمكنني مساعدتك به؟",
         "es": "Listo — le envié esto al equipo, y confirmarán en breve. ¿Hay algo más en lo que pueda ayudarte?",
@@ -184,6 +184,19 @@ PHRASES: dict[str, dict[str, str]] = {
         "tr": "Tamamdır — bunu ekibe gönderdim, kısa süre içinde onaylayacaklar. Başka bir konuda yardımcı olabilir miyim?",
         "zh": "好了——我已经把这个发给团队了，他们很快会确认。还有什么我可以帮您的吗？",
         "ja": "完了しました——チームに送信しましたので、まもなく確認のご連絡があります。他に何かお手伝いできることはございますか？",
+    },
+    "meeting_booked_direct": {
+        "en": "Great news — your meeting for {when} is confirmed and booked on our calendar! Anything else I can help with?",
+        "hi": "बढ़िया खबर — {when} के लिए आपकी मीटिंग हमारे कैलेंडर पर कंफर्म और बुक हो गई है! क्या मैं किसी और चीज़ में मदद कर सकता हूं?",
+        "ar": "أخبار رائعة — تم تأكيد اجتماعك في {when} وحجزه على تقويمنا! هل هناك شيء آخر يمكنني مساعدتك به؟",
+        "es": "¡Buenas noticias! Tu reunión para {when} está confirmada y reservada en nuestro calendario. ¿Hay algo más en lo que pueda ayudarte?",
+        "fr": "Excellente nouvelle — votre réunion pour {when} est confirmée et réservée sur notre calendrier ! Puis-je vous aider avec autre chose ?",
+        "pt": "Ótimas notícias — sua reunião para {when} está confirmada e agendada em nosso calendário! Posso ajudar com mais alguma coisa?",
+        "ru": "Отличные новости — ваша встреча на {when} подтверждена и забронирована в нашем календаре! Могу ли я ещё чем-то помочь?",
+        "ur": "بہت اچھی خبر — {when} کے لیے آپ کی میٹنگ ہمارے کیلنڈر پر تصدیق شدہ اور بک ہو گئی ہے! کیا میں کسی اور چیز میں مدد کر سکتا ہوں؟",
+        "tr": "Harika haber — {when} için toplantınız onaylandı ve takvimimize eklendi! Başka bir konuda yardımcı olabilir miyim?",
+        "zh": "好消息——您在{when}的会议已确认并添加到我们的日历中！还有什么我可以帮您的吗？",
+        "ja": "朗報です——{when}の会議が確認され、カレンダーに予約されました！他に何かお手伝いできることはございますか？",
     },
     "declined_send": {
         "en": "No problem, I won't send that. Anything else I can help with?",

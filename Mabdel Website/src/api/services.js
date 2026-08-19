@@ -5,6 +5,7 @@ export const smartflowApi = {
   
   // Contacts
   getContacts: (params) => client.get('/api/v1/smartflow/contacts', { params }),
+  getTeamMembers: () => client.get('/api/v1/smartflow/team'),
   getContact: (id) => client.get(`/api/v1/smartflow/contacts/${id}`),
   createContact: (data) => client.post('/api/v1/smartflow/contacts', data),
   importContacts: (data) => client.post('/api/v1/smartflow/contacts/import', data),
@@ -16,6 +17,7 @@ export const smartflowApi = {
 
   // Conversations
   markRead: (id) => client.post(`/api/v1/smartflow/conversations/${id}/mark-read`),
+  deleteConversation: (id) => client.delete(`/api/v1/smartflow/conversations/${id}`),
   getTypingStatus: (id) => client.get(`/api/v1/smartflow/conversations/${id}/typing`),
   setTypingStatus: (id, payload) => client.post(`/api/v1/smartflow/conversations/${id}/typing`, payload),
 
@@ -65,6 +67,7 @@ export const smartflowApi = {
   getCalls: (params) => client.get('/api/v1/smartflow/calls', { params }),
   createCall: (data) => client.post('/api/v1/smartflow/calls', data),
   createOutboundCall: (data) => client.post('/api/v1/smartflow/calls/outbound', data),
+  requestCallCallback: (id) => client.post(`/api/v1/smartflow/calls/${id}/callback`),
   getCallRecording: (id) => client.get(`/api/v1/smartflow/calls/${id}/recording`, { responseType: 'blob' }),
 
   // Integrations
@@ -248,7 +251,7 @@ export const smartflowApi = {
   getConversations: (params) => client.get('/api/v1/smartflow/conversations', { params }),
   getConversation: (id) => client.get(`/api/v1/smartflow/conversations/${id}`),
   createConversation: (data) => client.post('/api/v1/smartflow/conversations', data),
-  archiveConversation: (id) => client.patch(`/api/v1/smartflow/conversations/${id}/archive`, { archived: true }),
+  archiveConversation: (id, archived = true) => client.patch(`/api/v1/smartflow/conversations/${id}/archive`, null, { params: { archived } }),
   markConversationRead: (id) => client.post(`/api/v1/smartflow/conversations/${id}/mark-read`),
   getMessages: (id, params) => client.get(`/api/v1/smartflow/conversations/${id}/messages`, { params }),
   uploadConversationAttachment: (id, formData) => client.post(`/api/v1/smartflow/conversations/${id}/attachments`, formData, {

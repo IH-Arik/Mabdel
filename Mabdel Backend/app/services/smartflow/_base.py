@@ -319,24 +319,33 @@ class SmartFlowBase:
         if not ObjectId.is_valid(conversation_id):
             raise AppException(status_code=404, code=code, message="Requested resource was not found.")
 
+        # Path 1: owner
         conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "user_id": user_id})
         if conversation:
             return conversation
 
+        # Path 2: global chat member
         conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "is_global_chat": True})
-        if not conversation or conversation.get("is_active", True) is False:
-            raise AppException(status_code=404, code=code, message="Requested resource was not found.")
+        if conversation:
+            if conversation.get("is_active", True) is False:
+                raise AppException(status_code=404, code=code, message="Requested resource was not found.")
+            user = await self._get_user_document(user_id)
+            organization_id = user.get("organization_id")
+            if (
+                not organization_id
+                or conversation.get("organization_id") != organization_id
+                or user_id not in conversation.get("member_ids", [])
+                or not self._user_has_global_chat_access(user)
+            ):
+                raise AppException(status_code=403, code="GLOBAL_CHAT_ACCESS_DENIED", message="You do not have access to this global chat.")
+            return conversation
 
-        user = await self._get_user_document(user_id)
-        organization_id = user.get("organization_id")
-        if (
-            not organization_id
-            or conversation.get("organization_id") != organization_id
-            or user_id not in conversation.get("member_ids", [])
-            or not self._user_has_global_chat_access(user)
-        ):
-            raise AppException(status_code=403, code="GLOBAL_CHAT_ACCESS_DENIED", message="You do not have access to this global chat.")
-        return conversation
+        # Path 3: non-global conversation member (teammate inbox)
+        conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "member_ids": user_id})
+        if conversation:
+            return conversation
+
+        raise AppException(status_code=404, code=code, message="Requested resource was not found.")
 
     async def _get_accessible_message(self, user_id: str, message_id: str, code: str = "MESSAGE_NOT_FOUND") -> dict:
         if not ObjectId.is_valid(message_id):
@@ -445,8 +454,9 @@ class SmartFlowBase:
         safe["call_type_label"] = self._call_type_label(safe.get("call_type"), safe.get("ai_ready"))
         safe["status_label"] = self._call_status_label(safe.get("status"), safe.get("call_type"))
         safe["status_tone"] = self._call_status_tone(safe.get("status"), safe.get("call_type"))
-        safe["display_time_label"] = self._call_time_label(safe.get("timestamp"))
-        safe["date_bucket"] = self._date_bucket(safe.get("timestamp"))
+        timestamp_val = safe.get("timestamp") or safe.get("created_at")
+        safe["display_time_label"] = self._call_time_label(timestamp_val)
+        safe["date_bucket"] = self._date_bucket(timestamp_val)
         safe["recording_available"] = bool(safe.get("recording_url"))
         safe["transcript_available"] = bool(safe.get("transcript"))
         safe["ai_summary"] = safe.get("ai_summary") or None
@@ -808,7 +818,17 @@ class SmartFlowBase:
             self._serialize_message_mentions(resolved_viewer_id, safe.get("mentions", [])),
         )
         attachments = safe.get("attachments") or self._legacy_message_attachments(safe.get("media_url"))
-        if is_global_chat and viewer_id:
+        if viewer_id and safe.get("sender_user_id"):
+            # Use sender_user_id to determine direction for all conversation types
+            safe["sender_is_self"] = safe.get("sender_user_id") == viewer_id
+            if is_global_chat:
+                safe["direction"] = "outbound" if safe["sender_is_self"] else "inbound"
+                safe["is_read"] = safe["sender_is_self"] or viewer_id in (safe.get("read_by") or [])
+                safe["read_receipt_label"] = None
+            else:
+                safe["is_read"] = safe.get("status") == "read" or safe.get("read_at") is not None
+                safe["read_receipt_label"] = self._format_read_receipt_label(safe.get("read_at")) if safe["is_read"] else None
+        elif is_global_chat and viewer_id:
             safe["sender_is_self"] = safe.get("sender_user_id") == viewer_id
             safe["direction"] = "outbound" if safe["sender_is_self"] else "inbound"
             safe["is_read"] = safe["sender_is_self"] or viewer_id in (safe.get("read_by") or [])
@@ -975,10 +995,17 @@ class SmartFlowBase:
         if conversation is None:
             if not ObjectId.is_valid(conversation_id):
                 return
+            # Path 1: owner
             conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "user_id": user_id})
             if not conversation:
+                # Path 2: global chat member
                 conversation = await self.db.conversations.find_one(
                     {"_id": ObjectId(conversation_id), "is_global_chat": True, "member_ids": user_id}
+                )
+            if not conversation:
+                # Path 3: non-global member (teammate inbox)
+                conversation = await self.db.conversations.find_one(
+                    {"_id": ObjectId(conversation_id), "member_ids": user_id}
                 )
         if not conversation:
             return
@@ -1434,7 +1461,7 @@ class SmartFlowBase:
             raise AppException(status_code=404, code="GROUP_NOT_FOUND", message="Requested resource was not found.")
         group = await self.db.groups.find_one({
             "_id": ObjectId(group_id),
-            "$or": [{"owner_user_id": user_id}, {"user_id": user_id}]
+            "$or": [{"owner_user_id": user_id}, {"user_id": user_id}, {"member_ids": user_id}]
         })
         if not group:
             group = await self.db.groups.find_one({"_id": ObjectId(group_id), "is_global_chat": True, "member_ids": user_id})
@@ -1511,6 +1538,21 @@ class SmartFlowBase:
             else "user"
         )
 
+        # Without organization_id, these assignments were invisible to
+        # /owner/team (its query filters by organization_id) even though the
+        # member really is in the role group — team management showed way
+        # fewer people than actually exist. Same fallback as the dashboard's
+        # own "assign role" endpoint: use the owner's own id as their org
+        # identity if they don't have one yet, and persist it so it's
+        # consistent on every future lookup, not just this one.
+        org_id = (owner or {}).get("organization_id")
+        if not org_id:
+            org_id = owner_user_id
+            await self.db.users.update_one(
+                {"_id": ObjectId(owner_user_id)} if ObjectId.is_valid(owner_user_id) else {"_id": owner_user_id},
+                {"$set": {"organization_id": org_id}},
+            )
+
         for member_id in dict.fromkeys(added_member_ids):
             target_user_id = await self._resolve_group_member_user_id(member_id)
             if not target_user_id:
@@ -1521,7 +1563,13 @@ class SmartFlowBase:
                     role_slug=role_slug,
                     assigned_by=owner_user_id,
                     assigned_by_role=assigner_role,
+                    organization_id=org_id,
                 )
+                # Role-group membership implies org membership, so keep the org's
+                # global chat in sync here too — otherwise members added this way
+                # (rather than through the admin/rbac invite endpoints, which do
+                # call this) never show up in the org-wide Global Chat group.
+                await self.sync_user_global_chat_membership(target_user_id, org_id)
             except AppException as exc:
                 logger.warning(
                     "Skipped RBAC role sync (assign %s -> %s): %s", target_user_id, role_slug, exc.message
@@ -3793,6 +3841,16 @@ class SmartFlowBase:
             phone_match = re.search(r"\+?[\d][\d\s\-\(\)]{6,}\d", text)
             if phone_match and not prefill.get("phone"):
                 prefill["phone"] = re.sub(r"[\s\-\(\)]", "", phone_match.group(0))
+            return prefill
+
+        if intent == "call":
+            phone_match = re.search(r"\+?[\d][\d\s\-\(\)]{6,}\d", text)
+            if phone_match and not prefill.get("phone_number"):
+                prefill["phone_number"] = re.sub(r"[\s\-\(\)]", "", phone_match.group(0))
+            if not prefill.get("phone_number") and workflow_output and workflow_output.get("phone_number"):
+                prefill["phone_number"] = workflow_output["phone_number"]
+            if not prefill.get("purpose"):
+                prefill["purpose"] = text[:120]
             return prefill
 
         return prefill

@@ -72,6 +72,7 @@ class CallService:
                 connection_id=settings.TELNYX_VOICE_APPLICATION_ID or "",
                 to=to_number,
                 from_=request_from_number,
+                timeout_secs=60,
                 client_state=self._encode_client_state({"user_id": user_id, "call_log_id": call_log_id}),
             )
         except telnyx.TelnyxError as exc:
@@ -83,8 +84,10 @@ class CallService:
             ) from exc
 
         data = response.model_dump() if hasattr(response, "model_dump") else dict(response)
+        nested_data = data.get("data") or {}
+        sid = nested_data.get("call_control_id") or nested_data.get("call_leg_id") or data.get("call_control_id") or data.get("call_leg_id")
         return {
-            "sid": data.get("call_control_id") or data.get("call_leg_id"),
+            "sid": sid,
             "status": "queued",
             "to": to_number,
             "from": request_from_number,
@@ -119,12 +122,17 @@ class CallService:
             kwargs = {
                 "stream_url": websocket_url,
                 "stream_track": settings.TELNYX_STREAM_TRACK,
-                "stream_bidirectional_mode": "rtp",
+                # send_silence_when_idle keeps the Telnyx WebSocket connection alive
+                # when we are not actively sending audio back (prevents stream_error).
+                # Do NOT set stream_bidirectional_mode="rtp" — that sends raw RTP bytes
+                # instead of WebSocket JSON frames and causes stream_error 100002.
+                "send_silence_when_idle": True,
             }
         try:
             client.calls.actions.answer(call_control_id, **kwargs)
         except telnyx.TelnyxError as exc:
             logger.warning("Telnyx answer failed for %s: %s", call_control_id, exc)
+
 
     async def hangup_call(self, call_control_id: str) -> bool:
         client = self._client()
@@ -145,16 +153,27 @@ class CallService:
             return False
 
     async def start_streaming(self, call_control_id: str, *, websocket_url: str) -> bool:
+        import asyncio
         client = self._client()
-        try:
-            client.calls.actions.start_streaming(
+        print(f"[start_streaming] call_id={call_control_id} url={websocket_url}", flush=True)
+
+        def _do_start_streaming():
+            return client.calls.actions.start_streaming(
                 call_control_id,
                 stream_url=websocket_url,
                 stream_track=settings.TELNYX_STREAM_TRACK,
-                stream_bidirectional_mode="rtp",
+                # Keep the bidirectional WebSocket alive even when the AI is between
+                # turns, matching the inbound answer-call streaming behavior that is
+                # already known to work.
+                send_silence_when_idle=True,
             )
+
+        try:
+            await asyncio.to_thread(_do_start_streaming)
+            print(f"[start_streaming] SUCCESS for {call_control_id}", flush=True)
             return True
         except telnyx.TelnyxError as exc:
+            print(f"[start_streaming] FAILED for {call_control_id}: {exc}", flush=True)
             logger.warning("Telnyx start_streaming failed for %s: %s", call_control_id, exc)
             return False
 

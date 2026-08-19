@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from bson import ObjectId
 from pymongo import ReturnDocument
 
 from app.utils.helpers import utc_now
@@ -28,6 +29,30 @@ class ContactService(SmartFlowBase):
         page_result["items"] = await self._attach_membership_flags([self._serialize_contact(item) for item in page_result["items"]])
         page_result["summary"] = await self._contact_summary(team_ids)
         return page_result
+
+    async def list_team_members(self, user_id: str) -> dict:
+        """Colleagues in the same organization — not CRM contacts, real GoCustify
+        accounts. Reuses the same org-scoping already trusted for contacts/
+        invoices/leases visibility, just without filtering down to a creator."""
+        team_ids = await self._resolve_team_user_ids(user_id)
+        colleague_ids = [tid for tid in team_ids if tid != user_id and ObjectId.is_valid(tid)]
+        if not colleague_ids:
+            return {"items": [], "total": 0}
+
+        members = []
+        async for user_doc in self.db.users.find({"_id": {"$in": [ObjectId(cid) for cid in colleague_ids]}}):
+            members.append({
+                "id": str(user_doc["_id"]),
+                "name": user_doc.get("full_name") or user_doc.get("name") or "",
+                "email": user_doc.get("email"),
+                "phone": user_doc.get("phone_number") or user_doc.get("phone"),
+                "avatar_url": user_doc.get("profilePhoto") or user_doc.get("profile_photo"),
+                "role": user_doc.get("role"),
+                "presence": user_doc.get("presence", "offline"),
+                "status": user_doc.get("status", "active"),
+            })
+        members.sort(key=lambda m: m["name"].lower())
+        return {"items": members, "total": len(members)}
 
     async def get_contact(self, user_id: str, contact_id: str) -> dict:
         contact = await self._get_team_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
@@ -259,6 +284,19 @@ class ContactService(SmartFlowBase):
             variants.add(digit_only)
             if raw.startswith("+"):
                 variants.add(f"+{digit_only}")
+            # The same real number is often stored differently in different
+            # places — local format with a leading 0 (e.g. "01533834739") vs.
+            # full international format with a country code (e.g.
+            # "8801533834739"/"+8801533834739"). As plain strings those never
+            # match even though they're the same subscriber, which was
+            # silently mismatching real GoCustify users into "Invite" instead
+            # of "On GoCustify". Matching on the last 10 and last 9 digits
+            # (typical national mobile-number lengths) catches this without
+            # needing a full country-code parsing library.
+            if len(digit_only) >= 10:
+                variants.add(digit_only[-10:])
+            if len(digit_only) >= 9:
+                variants.add(digit_only[-9:])
         return {variant for variant in variants if variant}
 
     def _normalize_import_entry(self, entry: dict, *, index: int) -> dict:

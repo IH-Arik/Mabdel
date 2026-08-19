@@ -58,6 +58,7 @@ const IncomingCallScreen = () => {
       callSid: activeCallSid,
       callerName: callerName || null,
       callerNumber: callerNumber || null,
+      mode: "forwarded",
     });
   };
 
@@ -71,10 +72,11 @@ const IncomingCallScreen = () => {
     } catch (e) {
       // transfer may still proceed
     }
-    navigation.navigate("AiCall", {
+    navigation.navigate("ActiveCall", {
       callSid: activeCallSid,
       callerName: callerName || null,
       callerNumber: callerNumber || null,
+      mode: "ai",
     });
   };
 

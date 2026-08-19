@@ -72,3 +72,19 @@ def wav_to_mulaw(wav_bytes: bytes) -> bytes:
         with wave.open(buf, "rb") as wav_file:
             pcm_data = wav_file.readframes(wav_file.getnframes())
             return pcm_to_mulaw(pcm_data)
+
+
+# Precomputed 256-entry lookup table mapping mu-law byte -> 16-bit PCM integer sample
+MULAW_TO_PCM_TABLE = [ulaw_to_linear(i) for i in range(256)]
+
+
+def mulaw_rms_energy(mulaw_bytes: bytes) -> float:
+    """
+    Calculates the RMS energy of an 8-bit mu-law audio chunk.
+    Speech typically has RMS > 400, while silence/background noise is < 300.
+    """
+    if not mulaw_bytes:
+        return 0.0
+    total = sum(MULAW_TO_PCM_TABLE[b] ** 2 for b in mulaw_bytes)
+    return (total / len(mulaw_bytes)) ** 0.5
+

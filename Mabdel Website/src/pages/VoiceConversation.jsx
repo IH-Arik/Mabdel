@@ -38,6 +38,7 @@ const DESIRED_FIELDS = {
   invoice: ['client_name', 'client_email', 'items', 'due_date'],
   agreement: ['prompt', 'client_name', 'client_email', 'client_phone', 'agreement_type', 'start_date'],
   lease: ['prompt', 'tenant_name', 'tenant_email', 'tenant_phone', 'monthly_rent', 'start_date', 'end_date'],
+  call: ['phone_number'],
 };
 
 const FALLBACK_VOICE = 'neutral_assistant';
@@ -103,11 +104,12 @@ const mergePrefill = (previous = {}, incoming = {}) => {
 
 const getWorkflowLabel = (intent, t) => {
   switch (intent) {
-    case 'invoice': return t('vcon_wf_invoice');
-    case 'bulk_message': return t('vcon_wf_bulk_message');
-    case 'calendar': return t('vcon_wf_meeting');
-    case 'lease': return t('vcon_wf_lease');
-    case 'agreement': return t('vcon_wf_agreement');
+    case 'invoice': return t('vcon_wf_invoice') || 'Invoice';
+    case 'bulk_message': return t('vcon_wf_bulk_message') || 'Bulk Message';
+    case 'calendar': return t('vcon_wf_meeting') || 'Meeting';
+    case 'lease': return t('vcon_wf_lease') || 'Lease';
+    case 'agreement': return t('vcon_wf_agreement') || 'Agreement';
+    case 'call': return t('vcon_wf_call') || 'Phone Call';
     default: return intent;
   }
 };
@@ -117,26 +119,33 @@ const getWorkflowQuestion = (intent, fieldKey, t) =>
 
 const getWorkflowDestination = (intent, prefill = {}, t) => {
   if (intent === 'invoice') {
-    return { path: '/invoices', state: { prefill, action: 'new_invoice' }, label: t('vcon_chip_create_invoice') };
+    return { path: '/invoices', state: { prefill, action: 'new_invoice' }, label: t('vcon_chip_create_invoice') || 'Create Invoice' };
   }
   if (intent === 'calendar') {
-    return { path: '/calendar', state: { prefill, action: 'new_meeting' }, label: t('vcon_chip_schedule_meeting') };
+    return { path: '/calendar', state: { prefill, action: 'new_meeting' }, label: t('vcon_chip_schedule_meeting') || 'Schedule Meeting' };
   }
   if (intent === 'bulk_message') {
-    return { path: '/bulk-messaging', state: { prefill, action: 'new_bulk_message' }, label: t('vcon_chip_bulk_message') };
+    return { path: '/bulk-messaging', state: { prefill, action: 'new_bulk_message' }, label: t('vcon_chip_bulk_message') || 'Bulk Message' };
   }
   if (intent === 'agreement') {
     return {
       path: '/documents',
       state: { prefill: { ...prefill, type: 'agreement' }, action: 'new_agreement', tab: 'agreements' },
-      label: t('vcon_chip_new_agreement'),
+      label: t('vcon_chip_new_agreement') || 'New Agreement',
     };
   }
   if (intent === 'lease') {
     return {
       path: '/documents',
       state: { prefill: { ...prefill, type: 'lease' }, action: 'new_lease', tab: 'leases' },
-      label: t('vcon_chip_new_lease'),
+      label: t('vcon_chip_new_lease') || 'New Lease',
+    };
+  }
+  if (intent === 'call') {
+    return {
+      path: '/calls',
+      state: { prefill, action: 'new_call' },
+      label: t('vcon_chip_place_call') || 'Initiate Call',
     };
   }
   return null;
@@ -170,6 +179,11 @@ const buildConfirmationText = (intent, prefill = {}, missingFields = [], t) => {
   if (intent === 'lease') {
     if (prefill.tenant_name) previewParts.push(`${t('vcon_lbl_tenant')} ${prefill.tenant_name}`);
     if (prefill.monthly_rent || prefill.rent) previewParts.push(`${t('vcon_lbl_rent')} ${prefill.monthly_rent || prefill.rent}`);
+  }
+
+  if (intent === 'call') {
+    if (prefill.phone_number || prefill.phone) previewParts.push(`Phone: ${prefill.phone_number || prefill.phone}`);
+    if (prefill.purpose) previewParts.push(`Purpose: "${prefill.purpose}"`);
   }
 
   if (missingFields.length) {
@@ -220,6 +234,7 @@ export default function VoiceConversation() {
   const [chatHistoryLoading, setChatHistoryLoading] = useState(false);
   const [newChatBusy, setNewChatBusy] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isChatHistoryCollapsed, setIsChatHistoryCollapsed] = useState(false);
 
   const actionChips = useMemo(() => [
     { id: 'create_invoice', label: t('vcon_chip_create_invoice'), path: '/invoices', state: { prefill: {}, action: 'new_invoice' }, icon: FileText },
@@ -701,8 +716,24 @@ export default function VoiceConversation() {
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('vcon_lbl_chat_history')}</p>
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => setIsChatHistoryCollapsed((prev) => !prev)}
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors cursor-pointer group"
+          >
+            <ChevronDown
+              size={14}
+              className={`transform transition-transform duration-200 text-slate-400 group-hover:text-purple-300 ${
+                isChatHistoryCollapsed ? '-rotate-90' : 'rotate-0'
+              }`}
+            />
+            <span>{t('vcon_lbl_chat_history')}</span>
+            {Array.isArray(chatHistory) && chatHistory.length ? (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 text-[10px] font-extrabold border border-purple-500/20">
+                {chatHistory.length}
+              </span>
+            ) : null}
+          </button>
           <button
             onClick={handleNewChat}
             disabled={newChatBusy}
@@ -712,38 +743,41 @@ export default function VoiceConversation() {
             {newChatBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           </button>
         </div>
-        <div className="space-y-1 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
-          {chatHistoryLoading && !chatHistory.length ? (
-            <div className="flex items-center gap-2 text-xs text-slate-500 px-2 py-3">
-              <Loader2 size={13} className="animate-spin" />
-              {t('vcon_loading_history')}
-            </div>
-          ) : Array.isArray(chatHistory) && chatHistory.length ? (
-            chatHistory.filter((item) => item && (item.id || item._id)).map((item) => {
-              const itemId = item.id || item._id;
-              const isActive = itemId === conversationId;
-              return (
-                <button
-                  key={itemId}
-                  onClick={() => {
-                    handleSelectChat(itemId);
-                    setIsMobileDrawerOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium truncate transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-purple-500/15 text-purple-200 border border-purple-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
-                  }`}
-                  title={item.title || item.name || t('vcon_untitled_chat')}
-                >
-                  {item.title || item.name || t('vcon_untitled_chat')}
-                </button>
-              );
-            })
-          ) : (
-            <p className="text-xs text-slate-600 px-2 py-3">{t('vcon_no_chat_history')}</p>
-          )}
-        </div>
+
+        {!isChatHistoryCollapsed && (
+          <div className="space-y-1 max-h-36 overflow-y-auto pr-1 custom-scrollbar transition-all duration-200">
+            {chatHistoryLoading && !chatHistory.length ? (
+              <div className="flex items-center gap-2 text-xs text-slate-500 px-2 py-2">
+                <Loader2 size={13} className="animate-spin text-purple-400" />
+                {t('vcon_loading_history')}
+              </div>
+            ) : Array.isArray(chatHistory) && chatHistory.length ? (
+              chatHistory.filter((item) => item && (item.id || item._id)).map((item) => {
+                const itemId = item.id || item._id;
+                const isActive = itemId === conversationId;
+                return (
+                  <button
+                    key={itemId}
+                    onClick={() => {
+                      handleSelectChat(itemId);
+                      setIsMobileDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium truncate transition-colors cursor-pointer ${
+                      isActive
+                        ? 'bg-purple-500/15 text-purple-200 border border-purple-500/30'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
+                    }`}
+                    title={item.title || item.name || t('vcon_untitled_chat')}
+                  >
+                    {item.title || item.name || t('vcon_untitled_chat')}
+                  </button>
+                );
+              })
+            ) : (
+              <p className="text-xs text-slate-600 px-2 py-2">{t('vcon_no_chat_history')}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div>

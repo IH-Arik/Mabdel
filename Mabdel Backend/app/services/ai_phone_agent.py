@@ -1,5 +1,6 @@
 import base64
 import re
+import asyncio
 import logging
 from typing import Callable
 from datetime import datetime, timezone
@@ -115,6 +116,7 @@ class AIPhoneAgent:
         self.flow_service = flow_service
         self.audio_buffer = bytearray()
         self.is_processing = False
+        self.is_speaking = False
         self.stream_sid = None
         self.greeted = False
         self.user_id = None
@@ -137,6 +139,8 @@ class AIPhoneAgent:
         # we've heard the caller say anything.
         self.language: str = call_phrases.DEFAULT_LANGUAGE
         self.language_locked = False
+        self.offered_scheduling_in_last_turn = False
+        self.captured_requests: list[dict] = []
 
     async def greet(self, send_callback: Callable):
         if self.greeted:
@@ -157,30 +161,82 @@ class AIPhoneAgent:
             return None
         try:
             profile = await self.flow_service.db.business_profiles.find_one({"user_id": self.user_id})
+            if profile and profile.get("business_name") and profile["business_name"].strip():
+                return profile["business_name"].strip()
+
+            from bson import ObjectId
+            user = await self.flow_service.db.users.find_one({"_id": self.user_id})
+            if not user:
+                try:
+                    user = await self.flow_service.db.users.find_one({"_id": ObjectId(self.user_id)})
+                except Exception:
+                    user = None
+            if user and user.get("organization_id"):
+                org = await self.flow_service.db.organizations.find_one({"organization_id": user["organization_id"]})
+                if org and (org.get("company_name") or org.get("name")):
+                    return (org.get("company_name") or org.get("name")).strip()
         except Exception:
             logger.warning("Call %s: could not look up business name", self.call_id, exc_info=True)
-            return None
-        name = (profile or {}).get("business_name")
-        return name.strip() if name and name.strip() else None
+        return None
 
     async def _get_business_info(self) -> dict:
-        """Real address/phone/hours the caller might ask about — fetched once and
-        cached, so "what are your hours?" is answered from actual business_profiles /
-        organizations.business_hours data instead of the LLM guessing."""
+        """Real address/phone/hours/services the caller might ask about — fetched once and
+        cached from business_profiles, organizations, and user records."""
         if self.business_info is not None:
             return self.business_info
-        info: dict = {"address_text": None, "phone_number": None, "website": None, "hours_text": None}
+        info: dict = {
+            "address_text": None,
+            "phone_number": None,
+            "website": None,
+            "hours_text": None,
+            "services_text": None,
+            "industry": None,
+            "email": None,
+        }
         if self.user_id and self.user_id != "guest":
+            profile = None
+            org = None
+            user = None
             try:
+                from bson import ObjectId
                 profile = await self.flow_service.db.business_profiles.find_one({"user_id": self.user_id})
+                user = await self.flow_service.db.users.find_one({"_id": self.user_id})
+                if not user:
+                    try:
+                        user = await self.flow_service.db.users.find_one({"_id": ObjectId(self.user_id)})
+                    except Exception:
+                        user = None
+                if user and user.get("organization_id"):
+                    org = await self.flow_service.db.organizations.find_one({"organization_id": user["organization_id"]})
             except Exception:
-                logger.warning("Call %s: could not look up business profile", self.call_id, exc_info=True)
-                profile = None
+                logger.warning("Call %s: could not look up business profile or org", self.call_id, exc_info=True)
+
             if profile:
                 address = profile.get("office_address") or {}
                 info["address_text"] = profile.get("office_address_text") or self.flow_service._business_address_text(address)
                 info["phone_number"] = profile.get("phone_number")
                 info["website"] = profile.get("website")
+                info["services_text"] = profile.get("services_offered") or profile.get("description") or profile.get("about_us")
+                info["email"] = profile.get("email")
+
+            if org:
+                if not info["address_text"]:
+                    info["address_text"] = org.get("address") or org.get("office_address")
+                if not info["phone_number"]:
+                    info["phone_number"] = org.get("phone_number") or org.get("telnyx_phone_number")
+                if not info["website"]:
+                    info["website"] = org.get("website")
+                if not info["services_text"]:
+                    info["services_text"] = org.get("services_offered") or org.get("description") or org.get("about_us")
+                if not info["industry"]:
+                    info["industry"] = org.get("industry")
+                if not info["email"]:
+                    info["email"] = org.get("email")
+
+            if user:
+                if not info["email"]:
+                    info["email"] = user.get("email")
+
             try:
                 hours = await self.flow_service.get_business_hours(self.user_id)
                 info["hours_text"] = _format_business_hours_text(hours, self.language)
@@ -190,22 +246,18 @@ class AIPhoneAgent:
         return info
 
     async def handle_media(self, payload_base64: str, stream_sid: str, send_callback: Callable):
+        """Legacy method kept for compatibility — buffering is now done in calls.py."""
         self.stream_sid = stream_sid
         audio_chunk = base64.b64decode(payload_base64)
         self.audio_buffer.extend(audio_chunk)
-
-        # In a real-world app, we would use a more sophisticated VAD (Voice Activity Detection).
-        # For this implementation, we rely on the fact that Telnyx streams are real-time.
-        # Trigger processing once the buffer has a few seconds of audio.
-        if len(self.audio_buffer) > SAMPLE_RATE * 5:  # 5 seconds max before forced processing
-            await self.process_and_respond(send_callback)
+        print(f"DEBUG_AGENT: Received media chunk of {len(audio_chunk)} bytes. Buffer size: {len(self.audio_buffer)}", flush=True)
 
     async def process_and_respond(self, send_callback: Callable):
         if self.is_processing or not self.audio_buffer:
             return
 
         self.is_processing = True
-        logger.debug("Call %s: Processing %d bytes of audio...", self.call_id, len(self.audio_buffer))
+        print(f"DEBUG_AGENT: process_and_respond called with buffer size: {len(self.audio_buffer)}", flush=True)
 
         try:
             wav_data = self._mulaw_to_wav(self.audio_buffer)
@@ -217,6 +269,7 @@ class AIPhoneAgent:
                 audio_mime_type="audio/wav",
                 audio_filename=f"call_{self.call_id}.wav",
             )
+            print(f"DEBUG_AGENT: Whisper transcript: '{transcript}', lang='{detected_language}', error='{error}'", flush=True)
 
             if not transcript or len(transcript.strip()) < 2:
                 self.is_processing = False
@@ -236,7 +289,11 @@ class AIPhoneAgent:
             from app.utils.audio import utc_now
             await self.flow_service.db.call_logs.update_one(
                 {"twilio_call_sid": self.call_id, "user_id": self.user_id},
-                {"$set": {"speaker_segments": self.transcript_log, "updated_at": utc_now()}},
+                {"$set": {
+                    "speaker_segments": self.transcript_log,
+                    "captured_requests": self.captured_requests,
+                    "updated_at": utc_now(),
+                }},
             )
 
             logger.debug("Call %s: AI Response: '%s'", self.call_id, response_text)
@@ -251,12 +308,16 @@ class AIPhoneAgent:
             self.is_processing = False
 
     async def _advance_conversation(self, transcript: str) -> str:
-        """The scheduling micro-flow. Anything outside of it (small talk, questions)
-        gets a plain conversational reply — no other business action is ever taken
-        on a call."""
+        """Manages conversation flow. Drives multi-turn meeting scheduling when requested;
+        otherwise delegates to _plain_chat_reply to answer business inquiries, capture
+        structured requests for team follow-up, or offer meeting slots."""
         if self.phase == "idle":
-            if _looks_like_scheduling_request(transcript, self.language):
+            is_scheduling = _looks_like_scheduling_request(transcript, self.language)
+            is_affirmative_followup = self.offered_scheduling_in_last_turn and _looks_affirmative(transcript, self.language)
+            if is_scheduling or is_affirmative_followup:
+                self.offered_scheduling_in_last_turn = False
                 return await self._offer_next_slot()
+            self.offered_scheduling_in_last_turn = False
             return await self._plain_chat_reply(transcript)
 
         if self.phase == "offering_slot":
@@ -291,9 +352,18 @@ class AIPhoneAgent:
 
         if self.phase == "confirming":
             if _looks_affirmative(transcript, self.language):
-                await self._submit_pending_request()
+                when = _friendly_slot(self.proposed_slot["date"], self.proposed_slot["time"], self.language) if self.proposed_slot else ""
+                res = await self._submit_pending_request()
                 self.phase = "idle"
-                return phrase("sent_to_team", self.language)
+                outcome = (res or {}).get("booking_outcome", "pending")
+                if outcome == "booked":
+                    return phrase("meeting_booked_direct", self.language, when=when)
+                elif outcome == "conflict":
+                    if self.proposed_slot:
+                        self.declined_slots.add(f"{self.proposed_slot['date']} {self.proposed_slot['time']}")
+                    return await self._offer_next_slot()
+                else:
+                    return phrase("sent_to_team", self.language, when=when)
             if _looks_negative(transcript, self.language):
                 self.phase = "idle"
                 self.proposed_slot = None
@@ -328,9 +398,11 @@ class AIPhoneAgent:
             return phrase("offer_slot_retry", self.language, when=when)
         return phrase("offer_slot_first", self.language, when=when)
 
-    async def _submit_pending_request(self) -> None:
+    async def _submit_pending_request(self) -> dict:
+        """Attempts direct calendar booking when available, falling back to creating
+        a pending meeting request if manual approval is required or info is missing."""
         if not self.proposed_slot or not self.user_id:
-            return
+            return {"booking_outcome": "pending"}
         try:
             # The slot is business-local (e.g. "09:00" in the org's own timezone) —
             # convert to the UTC instant calendar_events/call_meeting_requests store.
@@ -339,14 +411,19 @@ class AIPhoneAgent:
             )
         except ValueError:
             logger.warning("Call %s: could not parse proposed slot %s", self.call_id, self.proposed_slot)
-            return
+            return {"booking_outcome": "pending"}
         from datetime import timedelta
 
         hours = await self.flow_service.get_business_hours(self.user_id)
         ends_at = starts_at + timedelta(minutes=hours.get("slot_minutes", 60))
 
+        if not self.caller_phone:
+            call_log = await self.flow_service.db.call_logs.find_one({"twilio_call_sid": self.call_id})
+            if call_log:
+                self.caller_phone = call_log.get("from_number") or call_log.get("phone_number")
+
         try:
-            await self.flow_service.create_pending_call_meeting_request(
+            res = await self.flow_service.book_or_request_meeting_for_user(
                 self.user_id,
                 call_sid=self.call_id,
                 caller_name=self.caller_name or "Phone caller",
@@ -355,14 +432,15 @@ class AIPhoneAgent:
                 requested_start=starts_at,
                 requested_end=ends_at,
             )
+            return res or {"booking_outcome": "pending"}
         except Exception:
-            logger.exception("Call %s: failed to create pending meeting request", self.call_id)
+            logger.exception("Call %s: failed to process meeting booking/request", self.call_id)
+            return {"booking_outcome": "pending"}
 
     async def _plain_chat_reply(self, transcript: str) -> str:
-        """Ordinary conversation — deliberately bypasses the general command workflow
-        (invoice/lease/agreement/bulk_message/... intents) since none of those actually
-        execute anything real yet; a call should never sound like it did something it
-        didn't."""
+        """General conversation — answers questions using verified business facts, captures
+        structured action/document requests into captured_requests for team follow-up, and
+        offers meeting scheduling without making false claims of real-time document creation."""
         if self.business_name is None:
             self.business_name = await self._get_business_name()
         business_context = (
@@ -377,34 +455,59 @@ class AIPhoneAgent:
         )
         info = await self._get_business_info()
         facts = [f"- {label}: {value}" for label, value in (
-            ("Hours", info["hours_text"]),
-            ("Address", info["address_text"]),
-            ("Phone", info["phone_number"]),
-            ("Website", info["website"]),
+            ("Business Name", self.business_name),
+            ("Industry / Category", info.get("industry")),
+            ("Services / About", info.get("services_text")),
+            ("Operating Hours", info.get("hours_text")),
+            ("Office Address / Location", info.get("address_text")),
+            ("Contact Phone", info.get("phone_number")),
+            ("Official Website", info.get("website")),
+            ("Contact Email", info.get("email")),
         ) if value]
-        if facts:
-            facts_instruction = (
-                "Here are this business's REAL facts — if the caller asks about hours, "
-                "location/address, phone number, or website, answer using ONLY these "
-                "values, stated plainly (do not invent or guess anything not listed here):\n"
-                + "\n".join(facts) + "\n"
-            )
-        else:
-            facts_instruction = (
-                "You don't have this business's hours or address on file — if asked, say "
-                "you're not sure and a team member will follow up with the details. Never "
-                "guess or invent hours or an address. "
-            )
+
+        facts_block = "\n".join(facts) if facts else "No explicit business profile records on file yet."
+
+        facts_instruction = (
+            "VERIFIED BUSINESS FACTS:\n"
+            f"{facts_block}\n\n"
+            "FALLBACK & EXPLANATION STRATEGY FOR MISSING / UNKNOWN DETAILS:\n"
+            "- Operating Hours: If hours are not listed in FACTS, state warmly that operating hours vary, and offer to take their details or preferred time for a team member to confirm.\n"
+            "- Location / Address: If address is not listed in FACTS, state warmly that you can log their request so the office team can send full location/directions.\n"
+            "- Pricing / Rates: If asked about prices or rates, explain warmly that pricing depends on their specific project or service requirements, and offer to request a custom quote or schedule a call.\n"
+            "- Services: Use known facts. If asked for a specific service not listed, explain warmly what is known, and offer to note their requirement for a specialist to confirm.\n"
+            "- STRICT NON-HALLUCINATION RULE: DO NOT invent street addresses, specific operating hours, prices, or unlisted guarantees under any circumstances.\n"
+        )
+        from app.workflows.intent_utils import infer_intent_from_command
+        detected_intent = infer_intent_from_command(transcript)
+        if detected_intent and detected_intent not in ("call", "calendar"):
+            from app.utils.audio import utc_now
+            self.captured_requests.append({
+                "intent": detected_intent,
+                "transcript": transcript,
+                "timestamp": utc_now().isoformat(),
+            })
+
+        orchestrator_instruction = (
+            "YOUR ROLE AS AN INTELLIGENT AI RECEPTIONIST AND ORCHESTRATOR:\n"
+            "1. GENERAL INQUIRIES & FACTS: If the caller asks about business hours, address, phone number, website, or services, answer using ONLY the REAL facts provided above.\n"
+            "2. ACTION & DOCUMENT REQUESTS (Invoices, Agreements, Leases, Quotes, Service Requests, Messages):\n"
+            "   - Respond warmly and reassure the caller that you have logged their request for the team to process and send out right away.\n"
+            "   - If key details are missing (such as their account name, email, or invoice number), ask the caller to provide them so the team has complete information.\n"
+            "   - ABSOLUTELY NEVER state, claim, or pretend that an invoice, agreement, or lease document has ALREADY been generated or sent during the call. Be 100% honest that their request has been logged for team execution.\n"
+            "3. MEETING SCHEDULING: If they want to schedule a call or meeting, offer to set a time.\n"
+            "Keep your reply to 1 to 2 short natural spoken sentences."
+        )
+
         try:
             reply, _tokens = await self.ai_service._generate_with_openai(
-                f"{business_context}{language_instruction}{facts_instruction}You are on a live phone call. The caller said: \"{transcript}\". "
-                "Reply naturally in one or two short sentences, as if speaking. If they "
-                "want something you can't do over the phone (like creating a document or "
-                "invoice), say a team member will follow up, and offer to schedule a "
-                "meeting with them instead.",
+                f"{business_context}{language_instruction}{facts_instruction}\n{orchestrator_instruction}\n"
+                f"The caller said: \"{transcript}\".",
                 None,
             )
             if reply:
+                lowered_reply = reply.lower()
+                if any(w in lowered_reply for w in ["schedule", "meeting", "call", "appointment", "slot", "meet", "time"]):
+                    self.offered_scheduling_in_last_turn = True
                 return reply
         except Exception:
             logger.warning("Call %s: plain chat reply failed", self.call_id, exc_info=True)
@@ -437,18 +540,35 @@ class AIPhoneAgent:
         # 3. Convert to Mu-law
         mulaw_data = pcm_to_mulaw(bytes(downsampled_pcm))
 
-        # 4. Stream to Telnyx in chunks of 160 bytes (20ms)
+        # 4. Stream to Telnyx in chunks of 160 bytes (20ms) with precise timing
         chunk_size = 160
-        for i in range(0, len(mulaw_data), chunk_size):
-            chunk = mulaw_data[i:i + chunk_size]
-            message = {
-                "event": "media",
-                "stream_id": self.stream_sid,
-                "media": {
-                    "payload": base64.b64encode(chunk).decode("utf-8")
+        print(f"DEBUG_AGENT: Streaming {len(mulaw_data)} bytes of mu-law audio to Telnyx ({len(mulaw_data)//chunk_size} chunks)...", flush=True)
+        self.is_speaking = True
+        try:
+            import time
+            start_time = time.perf_counter()
+            chunk_index = 0
+            for i in range(0, len(mulaw_data), chunk_size):
+                chunk = mulaw_data[i:i + chunk_size]
+                # Telnyx outbound media: ONLY "event" and "media" keys — any extra key
+                # (e.g. stream_id, track) causes stream_error 100002 and drops the stream.
+                message = {
+                    "event": "media",
+                    "media": {
+                        "payload": base64.b64encode(chunk).decode("utf-8")
+                    }
                 }
-            }
-            await send_callback(message)
+                await send_callback(message)
+                chunk_index += 1
+                target_time = start_time + (chunk_index * 0.02)
+                sleep_needed = target_time - time.perf_counter()
+                if sleep_needed > 0:
+                    await asyncio.sleep(sleep_needed)
+            print("DEBUG_AGENT: Finished streaming audio to Telnyx.", flush=True)
+        finally:
+            self.is_speaking = False
+            # Clear any inbound echo or noise buffered while AI was speaking
+            self.audio_buffer.clear()
 
     async def finalize_session(self):
         """Saves the accumulated transcript and AI summary to the call log."""

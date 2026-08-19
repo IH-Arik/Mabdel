@@ -23,6 +23,7 @@ const INITIAL_PROMPTS = {
     bulk_message: 'What message do you want to send and to whom?',
     calendar: 'Tell me about the meeting — title, date, and time.',
     contact: 'Tell me about the contact — first name, last name, phone, and email.',
+    call: 'Tell me who you want to call and their phone number.',
   },
   'bn-BD': {
     invoice: 'ইনভয়েস সম্পর্কে বলুন — ক্লায়েন্টের নাম, সার্ভিসের বিবরণ, পরিমাণ এবং নির্ধারিত তারিখ।',
@@ -31,6 +32,7 @@ const INITIAL_PROMPTS = {
     bulk_message: 'আপনি কী বার্তা পাঠাতে চান এবং কাকে পাঠাবেন?',
     calendar: 'মিটিং সম্পর্কে বলুন — শিরোনাম, তারিখ এবং সময়।',
     contact: 'কন্ট্যাক্ট সম্পর্কে বলুন — নাম, ফোন এবং ইমেইল।',
+    call: 'কাকে ফোন করতে চান এবং তার ফোন নম্বর বলুন।',
   },
   'hi-IN': {
     invoice: 'इनवॉइस के बारे में बताएं — क्लाइंट का नाम, सेवा विवरण, राशि और देय तिथि।',
@@ -165,6 +167,10 @@ const FIELD_QUESTIONS = {
       date_of_birth: "What is the contact's date of birth? (say skip to skip)",
       notes: "Any notes for this contact? (say skip to skip)",
     },
+    call: {
+      phone_number: 'What is the phone number you want to call?',
+      purpose: 'What is the purpose of the call?',
+    },
   },
   'bn-BD': {
     agreement: {
@@ -215,6 +221,10 @@ const FIELD_QUESTIONS = {
       email: 'কন্ট্যাক্টের ইমেইল ঠিকানা কী? (যেমন john@gmail.com)',
       date_of_birth: "কন্ট্যাক্টের জন্মতারিখ কী? (বাদ দিতে 'skip' বলুন)",
       notes: "কোনো নোট আছে? (বাদ দিতে 'skip' বলুন)",
+    },
+    call: {
+      phone_number: 'আপনি কোন ফোন নম্বরে কল করতে চান?',
+      purpose: 'কল করার উদ্দেশ্য কী?',
     },
   },
   'hi-IN': {
