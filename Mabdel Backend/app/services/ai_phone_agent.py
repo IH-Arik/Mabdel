@@ -250,14 +250,13 @@ class AIPhoneAgent:
         self.stream_sid = stream_sid
         audio_chunk = base64.b64decode(payload_base64)
         self.audio_buffer.extend(audio_chunk)
-        print(f"DEBUG_AGENT: Received media chunk of {len(audio_chunk)} bytes. Buffer size: {len(self.audio_buffer)}", flush=True)
 
     async def process_and_respond(self, send_callback: Callable):
         if self.is_processing or not self.audio_buffer:
             return
 
         self.is_processing = True
-        print(f"DEBUG_AGENT: process_and_respond called with buffer size: {len(self.audio_buffer)}", flush=True)
+        logger.debug("Call %s: process_and_respond called with buffer size: %d", self.call_id, len(self.audio_buffer))
 
         try:
             wav_data = self._mulaw_to_wav(self.audio_buffer)
@@ -269,7 +268,7 @@ class AIPhoneAgent:
                 audio_mime_type="audio/wav",
                 audio_filename=f"call_{self.call_id}.wav",
             )
-            print(f"DEBUG_AGENT: Whisper transcript: '{transcript}', lang='{detected_language}', error='{error}'", flush=True)
+            logger.debug("Call %s: Whisper transcript: '%s', lang='%s', error='%s'", self.call_id, transcript, detected_language, error)
 
             if not transcript or len(transcript.strip()) < 2:
                 self.is_processing = False
@@ -542,7 +541,10 @@ class AIPhoneAgent:
 
         # 4. Stream to Telnyx in chunks of 160 bytes (20ms) with precise timing
         chunk_size = 160
-        print(f"DEBUG_AGENT: Streaming {len(mulaw_data)} bytes of mu-law audio to Telnyx ({len(mulaw_data)//chunk_size} chunks)...", flush=True)
+        logger.debug(
+            "Call %s: streaming %d bytes of mu-law audio to Telnyx (%d chunks)",
+            self.call_id, len(mulaw_data), len(mulaw_data) // chunk_size,
+        )
         self.is_speaking = True
         try:
             import time
@@ -564,7 +566,7 @@ class AIPhoneAgent:
                 sleep_needed = target_time - time.perf_counter()
                 if sleep_needed > 0:
                     await asyncio.sleep(sleep_needed)
-            print("DEBUG_AGENT: Finished streaming audio to Telnyx.", flush=True)
+            logger.debug("Call %s: finished streaming audio to Telnyx.", self.call_id)
         finally:
             self.is_speaking = False
             # Clear any inbound echo or noise buffered while AI was speaking
