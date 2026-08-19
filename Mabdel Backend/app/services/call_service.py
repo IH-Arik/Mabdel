@@ -161,7 +161,11 @@ class CallService:
             return client.calls.actions.start_streaming(
                 call_control_id,
                 stream_url=websocket_url,
-                stream_track="both_tracks",
+                stream_track=settings.TELNYX_STREAM_TRACK,
+                # Keep the bidirectional WebSocket alive even when the AI is between
+                # turns, matching the inbound answer-call streaming behavior that is
+                # already known to work.
+                send_silence_when_idle=True,
             )
 
         try:

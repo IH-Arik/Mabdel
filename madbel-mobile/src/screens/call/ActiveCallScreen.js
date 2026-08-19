@@ -1,5 +1,5 @@
 import { useAppLanguage } from "../../context/LanguageContext";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
@@ -10,15 +10,11 @@ import {
 } from "react-native-responsive-dimensions";
 import {
   Phone,
-  MicOff,
-  Volume2,
-  Grid,
-  Pause,
-  Circle,
-  UserPlus,
+  PhoneForwarded,
   Brain,
+  PhoneCall,
 } from "lucide-react-native";
-import { useMadbelCallActionMutation, useMadbelGetCallTranscriptQuery } from "../../redux/slices/madbelApiSlice";
+import { useMadbelCallActionMutation, useMadbelGetLiveCallTranscriptQuery } from "../../redux/slices/madbelApiSlice";
 
 const ActiveCallScreen = () => {
   const { t } = useAppLanguage();
@@ -29,13 +25,14 @@ const ActiveCallScreen = () => {
   const authUser = useSelector((state) => state?.auth?.user);
   const myUserId = authUser?._id || authUser?.id || authUser?.userId;
 
-  const { callSid, call_sid, callId, callerName, callerNumber } = route.params || {};
+  const { callSid, call_sid, callId, callerName, callerNumber, mode: initialMode } = route.params || {};
   const activeCallSid = callSid || call_sid || callId || null;
+  const [currentMode, setCurrentMode] = useState(initialMode || "forwarded"); // "forwarded" or "ai"
 
   const timer = useCallTimer(true);
   const [callAction] = useMadbelCallActionMutation();
 
-  const { data: transcriptResponse } = useMadbelGetCallTranscriptQuery(
+  const { data: transcriptResponse } = useMadbelGetLiveCallTranscriptQuery(
     activeCallSid,
     {
       pollingInterval: 2000,
@@ -52,15 +49,15 @@ const ActiveCallScreen = () => {
         .map((seg) => `${seg.speaker === "ai" ? "AI" : (callerName || "Caller")}: ${seg.text}`)
         .join("\n");
     }
-    return transcriptData?.transcript || "Waiting for transcript...";
+    return transcriptData?.transcript || t("waiting_for_transcript") || "Live call transcription in progress...";
   })();
 
-  // Blinking effect for recording dot
+  // Blinking effect for live indicator
   useEffect(() => {
     const blink = Animated.loop(
       Animated.sequence([
         Animated.timing(blinkAnim, {
-          toValue: 0.2,
+          toValue: 0.3,
           duration: 800,
           useNativeDriver: true,
         }),
@@ -91,98 +88,91 @@ const ActiveCallScreen = () => {
     });
   };
 
+  const handleTransferToMyPhone = async () => {
+    try {
+      await callAction({
+        call_sid: activeCallSid,
+        action: "receive",
+        user_id: myUserId || "guest",
+      }).unwrap();
+      setCurrentMode("forwarded");
+    } catch (e) {
+      // transfer error
+    }
+  };
+
+  const isForwarded = currentMode === "forwarded";
+
   return (
     <View style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Flashing Recording indicator & Timer */}
+        {/* Header Status Pill & Call Timer */}
         <View style={styles.topRow}>
-          <Animated.View style={[styles.recActivePill, { opacity: blinkAnim }]}>
-            <View style={styles.recDot} />
-            <Text style={styles.recText}>{t("rec_active")}</Text>
+          <Animated.View style={[isForwarded ? styles.forwardedPill : styles.aiPill, { opacity: blinkAnim }]}>
+            <View style={isForwarded ? styles.forwardedDot : styles.aiDot} />
+            <Text style={isForwarded ? styles.forwardedPillText : styles.aiPillText}>
+              {isForwarded ? (t("call_forwarded_pill") || "FORWARDED TO PHONE") : (t("ai_active_pill") || "AI RECEPTIONIST ACTIVE")}
+            </Text>
           </Animated.View>
           <Text style={styles.timerText}>{timer}</Text>
         </View>
 
         {/* Circular Avatar */}
         <View style={styles.avatarContainer}>
-          <View style={styles.avatarOutline}>
+          <View style={[styles.avatarOutline, isForwarded ? styles.avatarForwardedBorder : styles.avatarAiBorder]}>
             <View style={styles.avatarInitialsWrap}>
               <Text style={styles.avatarInitialsText}>
                 {callerName ? callerName.slice(0, 2).toUpperCase() : "??"}
               </Text>
             </View>
           </View>
-          <View style={styles.aiReadyBadge}>
-            <Text style={styles.aiReadyText}>{t("ai_ready_call")}</Text>
+        </View>
+
+        {/* Contact Info & Clear Honest Status Banner */}
+        <View style={styles.contactInfo}>
+          <Text style={styles.contactName}>{callerName || "Caller"}</Text>
+          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}
+
+          {/* Honest Status Banner */}
+          <View style={styles.statusBanner}>
+            {isForwarded ? (
+              <>
+                <PhoneForwarded size={18} color="#10B981" style={{ marginRight: 8 }} />
+                <Text style={styles.statusBannerText}>
+                  {t("call_forwarded_banner_msg") || "Call routed to your registered phone. Answer your cellular phone to talk."}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Brain size={18} color="#A855F7" style={{ marginRight: 8 }} />
+                <Text style={styles.statusBannerText}>
+                  {t("ai_active_banner_msg") || "AI Receptionist is answering this call. Watching real-time transcript below."}
+                </Text>
+              </>
+            )}
           </View>
         </View>
 
-        {/* Caller Info */}
-        <View style={styles.contactInfo}>
-          <Text style={styles.contactName}>{callerName || "Unknown Caller"}</Text>
-          {callerNumber ? <Text style={styles.contactPhone}>{callerNumber}</Text> : null}</View>
+        {/* Option to Take Over AI Call to Cellular Phone */}
+        {!isForwarded && (
+          <Pressable style={styles.takeOverBtn} onPress={handleTransferToMyPhone}>
+            <PhoneCall size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.takeOverBtnText}>
+              {t("transfer_to_my_phone") || "Transfer Call to My Phone"}
+            </Text>
+          </Pressable>
+        )}
 
-        {/* AI Smart Transcript Card */}
+        {/* Live AI Call Transcript Monitor Card */}
         <View style={styles.transcriptCard}>
           <View style={styles.cardHeader}>
             <Brain size={16} color="#00D2FF" style={{ marginRight: 6 }} />
-            <Text style={styles.cardTitle}>{t("ai_smart_transcript")}</Text>
+            <Text style={styles.cardTitle}>{t("ai_smart_transcript") || "LIVE CALL TRANSCRIPT"}</Text>
           </View>
           <Text style={styles.transcriptText}>{displayTranscript}</Text>
           <View style={styles.liveUpdateContainer}>
             <Animated.View style={[styles.liveUpdateDot, { opacity: blinkAnim }]} />
-            <Text style={styles.liveUpdateText}>{t("live_update")}</Text>
-          </View>
-        </View>
-
-        {/* Controls Grid */}
-        <View style={styles.controlsGrid}>
-          {/* Row 1 */}
-          <View style={styles.controlsRow}>
-            <View style={styles.controlItem}>
-              <Pressable style={styles.controlCircle}>
-                <MicOff size={22} color="#FFFFFF" />
-              </Pressable>
-              <Text style={styles.controlLabel}>{t("mute")}</Text>
-            </View>
-
-            <View style={styles.controlItem}>
-              <Pressable style={styles.controlCircle}>
-                <Volume2 size={22} color="#FFFFFF" />
-              </Pressable>
-              <Text style={styles.controlLabel}>{t("speaker")}</Text>
-            </View>
-
-            <View style={styles.controlItem}>
-              <Pressable style={styles.controlCircle}>
-                <Grid size={22} color="#FFFFFF" />
-              </Pressable>
-              <Text style={styles.controlLabel}>{t("keypad")}</Text>
-            </View>
-          </View>
-
-          {/* Row 2 */}
-          <View style={styles.controlsRow}>
-            <View style={styles.controlItem}>
-              <Pressable style={styles.controlCircle}>
-                <Pause size={22} color="#FFFFFF" />
-              </Pressable>
-              <Text style={styles.controlLabel}>{t("hold")}</Text>
-            </View>
-
-            <View style={styles.controlItem}>
-              <Pressable style={[styles.controlCircle, styles.recordingCircle]}>
-                <Circle size={14} color="#00D2FF" fill="#00D2FF" />
-              </Pressable>
-              <Text style={styles.recordingLabel}>{t("recording")}</Text>
-            </View>
-
-            <View style={styles.controlItem}>
-              <Pressable style={styles.controlCircle}>
-                <UserPlus size={22} color="#FFFFFF" />
-              </Pressable>
-              <Text style={styles.controlLabel}>{t("add_call")}</Text>
-            </View>
+            <Text style={styles.liveUpdateText}>{t("live_update") || "LIVE TRANSCRIPT POLLING"}</Text>
           </View>
         </View>
 
@@ -191,6 +181,7 @@ const ActiveCallScreen = () => {
           <Pressable style={styles.endCallBtn} onPress={handleEndCall}>
             <Phone size={28} color="#FFFFFF" style={{ transform: [{ rotate: "135deg" }] }} />
           </Pressable>
+          <Text style={styles.endCallLabel}>{t("end_call") || "End Call"}</Text>
         </View>
       </View>
     </View>
@@ -213,25 +204,48 @@ const styles = StyleSheet.create({
     paddingTop: responsiveHeight(1.5),
     gap: 8,
   },
-  recActivePill: {
+  forwardedPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#200E0E",
+    backgroundColor: "#064E3B",
     borderWidth: 1,
-    borderColor: "#5F1A1A",
+    borderColor: "#10B981",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 5,
   },
-  recDot: {
+  forwardedDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#FF5E5E",
+    backgroundColor: "#10B981",
     marginRight: 6,
   },
-  recText: {
-    color: "#FF8A8A",
+  forwardedPillText: {
+    color: "#6EE7B7",
+    fontSize: 10.5,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  aiPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#3B0764",
+    borderWidth: 1,
+    borderColor: "#A855F7",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  aiDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#C084FC",
+    marginRight: 6,
+  },
+  aiPillText: {
+    color: "#E9D5FF",
     fontSize: 10.5,
     fontWeight: "700",
     letterSpacing: 0.5,
@@ -246,61 +260,89 @@ const styles = StyleSheet.create({
     marginTop: responsiveHeight(1),
   },
   avatarOutline: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     borderWidth: 2,
-    borderColor: "#00D2FF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#00D2FF",
+    backgroundColor: "#000000",
+  },
+  avatarForwardedBorder: {
+    borderColor: "#10B981",
+    shadowColor: "#10B981",
     shadowOpacity: 0.5,
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 10,
     elevation: 8,
-    backgroundColor: "#000000",
+  },
+  avatarAiBorder: {
+    borderColor: "#A855F7",
+    shadowColor: "#A855F7",
+    shadowOpacity: 0.5,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 10,
+    elevation: 8,
   },
   avatarInitialsWrap: {
-    width: 134,
-    height: 134,
-    borderRadius: 67,
+    width: 124,
+    height: 124,
+    borderRadius: 62,
     backgroundColor: "#0F2A38",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarInitialsText: {
     color: "#00D2FF",
-    fontSize: 40,
+    fontSize: 36,
     fontWeight: "700",
-  },
-  aiReadyBadge: {
-    position: "absolute",
-    bottom: -8,
-    backgroundColor: "#000000",
-    borderWidth: 1.2,
-    borderColor: "#00D2FF",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  aiReadyText: {
-    color: "#00D2FF",
-    fontSize: 9,
-    fontWeight: "800",
   },
   contactInfo: {
     alignItems: "center",
-    marginTop: responsiveHeight(1.5),
+    marginTop: responsiveHeight(1),
   },
   contactName: {
     color: "#FFFFFF",
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
   },
   contactPhone: {
     color: "#8E9AA0",
-    fontSize: 15,
-    marginTop: 4,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  statusBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#111827",
+    borderWidth: 1,
+    borderColor: "#1F2937",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 12,
+    marginHorizontal: 10,
+  },
+  statusBannerText: {
+    color: "#D1D5DB",
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 17,
+  },
+  takeOverBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#0284C7",
+    borderRadius: 14,
+    paddingVertical: 12,
+    marginHorizontal: 10,
+    marginTop: 8,
+  },
+  takeOverBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
   },
   transcriptCard: {
     backgroundColor: "#161B26",
@@ -309,11 +351,12 @@ const styles = StyleSheet.create({
     borderColor: "#20242F",
     padding: 16,
     marginVertical: responsiveHeight(1),
+    maxHeight: 180,
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   cardTitle: {
     color: "#8E9AA0",
@@ -323,8 +366,8 @@ const styles = StyleSheet.create({
   },
   transcriptText: {
     color: "#E2E8F0",
-    fontSize: 13.5,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 19,
     fontStyle: "italic",
   },
   liveUpdateContainer: {
@@ -342,65 +385,26 @@ const styles = StyleSheet.create({
   },
   liveUpdateText: {
     color: "#8E9AA0",
-    fontSize: 10,
-    fontWeight: "500",
-  },
-  controlsGrid: {
-    gap: 16,
-    marginTop: responsiveHeight(1),
-  },
-  controlsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: responsiveWidth(2),
-  },
-  controlItem: {
-    alignItems: "center",
-    width: "30%",
-  },
-  controlCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#161B26",
-    borderWidth: 1,
-    borderColor: "#20242F",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  recordingCircle: {
-    borderColor: "#00D2FF",
-    shadowColor: "#00D2FF",
-    shadowOpacity: 0.4,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  controlLabel: {
-    color: "#8E9AA0",
     fontSize: 9.5,
-    fontWeight: "700",
-    marginTop: 8,
-    letterSpacing: 0.5,
-  },
-  recordingLabel: {
-    color: "#00D2FF",
-    fontSize: 9.5,
-    fontWeight: "700",
-    marginTop: 8,
-    letterSpacing: 0.5,
+    fontWeight: "600",
   },
   endCallContainer: {
     alignItems: "center",
-    marginTop: responsiveHeight(2),
+    marginTop: responsiveHeight(1),
   },
   endCallBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: "#A80B13",
     justifyContent: "center",
     alignItems: "center",
+  },
+  endCallLabel: {
+    color: "#EF4444",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 6,
   },
 });
 

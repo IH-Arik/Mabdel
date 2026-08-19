@@ -67,6 +67,7 @@ function normalizeCall(call, t) {
     transcript_available: Boolean(call.transcript_available || call.transcript),
     ai_summary_available: Boolean(call.ai_summary_available || call.ai_summary || call.ai_ready),
     callback_available: Boolean(phoneNumber || call.contact_id),
+    callback_requested: Boolean(call.callback_requested || call.status === 'callback'),
     ai_handled: hasAiHandledState(call),
   };
 }
@@ -148,7 +149,7 @@ function CallStats({ summary, t }) {
   );
 }
 
-function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording, t }) {
+function CallAnalysisPanel({ call, onClose, onDirectCall, onRequestCallback, onDownloadRecording, t }) {
   const [aiSummary, setAiSummary] = useState(null);
   const [transcript, setTranscript] = useState([]);
   const [recordingUrl, setRecordingUrl] = useState('');
@@ -296,12 +297,29 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording, t }
             )}
 
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => onCallback(call)}
-                className="cursor-pointer rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-4 py-2 text-sm font-bold text-[#9333ea] transition-colors hover:bg-[#9333ea]/20"
-              >
-                {t('calls_callback')}
-              </button>
+              {call.callback_available && (
+                <>
+                  <button
+                    onClick={() => onDirectCall(call)}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#9333ea]/30 bg-[#9333ea]/15 px-4 py-2 text-sm font-bold text-[#a855f7] transition-colors hover:bg-[#9333ea]/25"
+                  >
+                    <Phone size={14} />
+                    {t('calls_call_now')}
+                  </button>
+
+                  <button
+                    onClick={() => onRequestCallback(call)}
+                    disabled={call.callback_requested}
+                    className={`cursor-pointer rounded-xl border px-4 py-2 text-sm font-bold transition-colors ${
+                      call.callback_requested
+                        ? 'border-emerald-500/30 bg-emerald-950/40 text-emerald-400 opacity-80'
+                        : 'border-[#22c55e]/20 bg-[#22c55e]/10 text-[#22c55e] hover:bg-[#22c55e]/20'
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {call.callback_requested ? (t('calls_callback_queued') || 'Callback Queued') : (t('calls_request_callback') || 'Queue Callback')}
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => onDownloadRecording(call)}
                 disabled={!recordingUrl}
@@ -362,7 +380,7 @@ function CallAnalysisPanel({ call, onClose, onCallback, onDownloadRecording, t }
   );
 }
 
-function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPending, t }) {
+function CallRow({ item, onAnalyze, onDirectCall, onRequestCallback, onDownloadRecording, callbackPending, runtimeReady, t }) {
   const iconMap = {
     outbound: { icon: PhoneOutgoing, color: 'text-[#8B5CF6]' },
     missed: { icon: PhoneMissed, color: 'text-rose-400' },
@@ -405,13 +423,36 @@ function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPen
           </span>
 
           {item.callback_available && (
-            <button
-              onClick={() => onCallback(item)}
-              disabled={callbackPending}
-              className="cursor-pointer rounded-xl border border-[#22c55e]/20 bg-[#22c55e]/10 px-3 py-2 text-xs font-bold text-[#22c55e] transition-colors hover:bg-[#22c55e]/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {callbackPending ? t('calls_calling') : t('calls_callback')}
-            </button>
+            <>
+              <button
+                onClick={() => onDirectCall(item)}
+                disabled={!runtimeReady}
+                title={t('calls_call_now')}
+                className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#9333ea]/30 bg-[#9333ea]/15 px-3 py-2 text-xs font-bold text-[#a855f7] transition-colors hover:bg-[#9333ea]/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Phone size={13} />
+                <span>{t('calls_call_now')}</span>
+              </button>
+
+              <button
+                onClick={() => onRequestCallback(item)}
+                disabled={callbackPending || item.callback_requested}
+                title={item.callback_requested ? (t('calls_callback_queued') || 'Callback Queued') : (t('calls_request_callback') || 'Queue Callback')}
+                className={`cursor-pointer rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
+                  item.callback_requested
+                    ? 'border-emerald-500/30 bg-emerald-950/40 text-emerald-400 opacity-80'
+                    : 'border-[#22c55e]/20 bg-[#22c55e]/10 text-[#22c55e] hover:bg-[#22c55e]/20'
+                } disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                {callbackPending ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : item.callback_requested ? (
+                  <span>✓ {t('calls_callback_queued') || 'Queued'}</span>
+                ) : (
+                  <span>{t('calls_request_callback') || 'Queue Callback'}</span>
+                )}
+              </button>
+            </>
           )}
 
           {item.recording_available && (
@@ -436,7 +477,7 @@ function CallRow({ item, onAnalyze, onCallback, onDownloadRecording, callbackPen
   );
 }
 
-function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone = '', t }) {
+function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
   const [phone, setPhone] = useState(initialPhone);
   const [calling, setCalling] = useState(false);
   const [error, setError] = useState('');
@@ -505,11 +546,11 @@ function MakeCallModal({ onClose, onSuccess, onCall, runtimeReady, initialPhone 
           </button>
           <button
             onClick={call}
-            disabled={calling || !runtimeReady}
+            disabled={calling}
             className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#9333ea] py-3 font-bold text-[#02080B] transition-colors hover:bg-[#a855f7] disabled:opacity-60"
           >
             {calling ? <Loader2 size={16} className="animate-spin" /> : <Phone size={16} />}
-            {calling ? t('calls_calling') : runtimeReady ? t('calls_call_now') : t('calls_voice_unavailable')}
+            {calling ? t('calls_calling') : t('calls_call_now')}
           </button>
         </div>
       </motion.div>
@@ -606,22 +647,42 @@ export default function Calls() {
     setAnalyzingCall(call);
   };
 
-  const handleCallback = async (call) => {
+  const handleDirectCall = async (call) => {
     const phoneNumber = normalizePhone(call.phone_number || '');
     if (!phoneNumber) {
-      setError(t('calls_err_no_callback_number'));
+      setError(t('calls_err_no_number') || 'No phone number available.');
+      return;
+    }
+    try {
+      await startOutboundCall({
+        phoneNumber,
+        displayName: call.display_name || call.contact_name || phoneNumber,
+      });
+      setSuccess(t('calls_success_call_started') || 'Browser call initiated.');
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_call_failed'));
+    }
+  };
+
+  const handleRequestCallback = async (call) => {
+    const phoneNumber = normalizePhone(call.phone_number || '');
+    if (!phoneNumber) {
+      setError(t('calls_err_no_callback_number') || 'No callback number available.');
+      return;
+    }
+    if (call.callback_requested || pendingCallbackId === call.id) {
       return;
     }
 
     try {
       setPendingCallbackId(call.id);
-      await startOutboundCall({
-        phoneNumber,
-        displayName: call.display_name || call.contact_name || phoneNumber,
-      });
-      setSuccess(t('calls_success_callback_started'));
+      if (call.id) {
+        await smartflowApi.requestCallCallback(call.id);
+      }
+      setSuccess(t('calls_success_callback_queued') || 'Callback request added to queue.');
+      await fetchCalls(1, false);
     } catch (requestError) {
-      setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_callback_failed'));
+      setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_callback_failed') || 'Could not queue callback request.');
     } finally {
       setPendingCallbackId('');
     }
@@ -687,7 +748,8 @@ export default function Calls() {
             <CallAnalysisPanel
               call={analyzingCall}
               onClose={() => setAnalyzingCall(null)}
-              onCallback={handleCallback}
+              onDirectCall={handleDirectCall}
+              onRequestCallback={handleRequestCallback}
               onDownloadRecording={handleDownloadRecording}
               t={t}
             />
@@ -724,9 +786,11 @@ export default function Calls() {
                 key={call.id}
                 item={call}
                 onAnalyze={handleAnalyze}
-                onCallback={handleCallback}
+                onDirectCall={handleDirectCall}
+                onRequestCallback={handleRequestCallback}
                 onDownloadRecording={handleDownloadRecording}
                 callbackPending={pendingCallbackId === call.id}
+                runtimeReady={isVoiceReady}
                 t={t}
               />
             ))}
@@ -761,8 +825,7 @@ export default function Calls() {
             <MakeCallModal
               initialPhone={initialPhone}
               onClose={() => setShowCallModal(false)}
-              runtimeReady={isVoiceReady}
-              onCall={(phoneNumber) => startOutboundCall({ phoneNumber, displayName: phoneNumber })}
+              onCall={(phoneNumber) => smartflowApi.createOutboundCall({ phone_number: phoneNumber, ai_ready: true })}
               onSuccess={async (message) => {
                 setSuccess(message);
                 await fetchCalls(1, false);

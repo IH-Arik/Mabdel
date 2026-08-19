@@ -31,10 +31,12 @@ function getCallId(call) {
 }
 
 function getCallerName(call) {
+  if (call?.isFallback) return call.callerName || call.callerNumber || 'Unknown Caller';
   return call?.options?.remoteCallerName || call?.options?.callerName || call?.options?.destinationNumber || 'Unknown Caller';
 }
 
 function getCallerNumber(call) {
+  if (call?.isFallback) return call.callerNumber || '';
   return call?.options?.remoteCallerNumber || call?.options?.destinationNumber || '';
 }
 
@@ -270,11 +272,21 @@ export function TelnyxVoiceProvider({ children }) {
         setStatus('ready');
         setCallStatusText('Ready');
         setError('');
+        pushRegistration(true, payload.identity || '');
       });
 
       client.on('telnyx.socket.close', () => {
         console.warn('[TelnyxVoice] Socket closed');
         setStatus('offline');
+        pushRegistration(false, payload.identity || '');
+        if (isAuthenticated) {
+          window.setTimeout(() => {
+            if (!currentCallRef.current) {
+              console.log('[TelnyxVoice] Auto-reconnecting voice runtime...');
+              initClient();
+            }
+          }, 5000);
+        }
       });
 
       client.on('telnyx.error', (event) => {
@@ -292,7 +304,6 @@ export function TelnyxVoiceProvider({ children }) {
       console.log('[TelnyxVoice] callerNumber (from number):', payload.phone_number);
 
       client.connect();
-      await pushRegistration(true, payload.identity || '');
       clearHeartbeat();
       heartbeatRef.current = window.setInterval(() => pushRegistration(true), 60000);
       scheduleRefresh(payload.refresh_after_seconds || 20 * 60 * 60);
@@ -383,8 +394,52 @@ export function TelnyxVoiceProvider({ children }) {
     [user, status, phoneNumber]
   );
 
+  // Fallback incoming call check: poll recent ringing calls if no active WebRTC call
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
+    const checkFallbackRingingCall = async () => {
+      if (incomingCall || currentCall) return;
+      try {
+        const res = await smartflowApi.listCalls({ page: 1, page_size: 5 });
+        const calls = res?.data?.data?.items || res?.data?.items || [];
+        const ringingCall = calls.find(
+          (item) => item.status === 'ringing' && item.direction === 'inbound'
+        );
+        if (ringingCall) {
+          const callId = ringingCall.twilio_call_sid || ringingCall.call_sid;
+          if (callId && !finalizedCallIdsRef.current.has(callId)) {
+            setIncomingCall({
+              isFallback: true,
+              callSid: callId,
+              callerName: ringingCall.from_number || 'Incoming Call',
+              callerNumber: ringingCall.from_number || '',
+            });
+            setCurrentCallSid(callId);
+            setCallStatusText('Incoming call');
+          }
+        }
+      } catch {
+        // quiet fallback
+      }
+    };
+
+    const interval = window.setInterval(checkFallbackRingingCall, 3000);
+    return () => window.clearInterval(interval);
+  }, [isAuthenticated, incomingCall, currentCall]);
+
   const acceptIncomingCall = useCallback(async () => {
     if (!incomingCall) return;
+    if (incomingCall.isFallback) {
+      try {
+        await smartflowApi.callAction(incomingCall.callSid, { action: 'receive' });
+        setCallStatusText('Call transferred');
+      } catch (err) {
+        console.error('[TelnyxVoice] Fallback receive failed:', err);
+      }
+      setIncomingCall(null);
+      return;
+    }
     setCallStatusText('Connecting call');
     currentCallRef.current = incomingCall;
     setCurrentCall(incomingCall);
@@ -395,7 +450,17 @@ export function TelnyxVoiceProvider({ children }) {
 
   const rejectIncomingCall = useCallback(async () => {
     if (!incomingCall) return;
-    const callId = getCallId(incomingCall);
+    const callId = getCallId(incomingCall) || incomingCall.callSid;
+    if (incomingCall.isFallback) {
+      try {
+        await smartflowApi.callAction(incomingCall.callSid, { action: 'cancel' });
+      } catch (err) {
+        console.error('[TelnyxVoice] Fallback cancel failed:', err);
+      }
+      setIncomingCall(null);
+      setCallStatusText('Call rejected');
+      return;
+    }
     incomingCall.hangup();
     setIncomingCall(null);
     setCallStatusText('Call rejected');
@@ -408,10 +473,32 @@ export function TelnyxVoiceProvider({ children }) {
       return;
     }
     if (incomingCall) {
-      incomingCall.hangup();
+      if (incomingCall.isFallback) {
+        try {
+          await smartflowApi.callAction(incomingCall.callSid, { action: 'cancel' });
+        } catch {
+          // ignore
+        }
+      } else {
+        incomingCall.hangup();
+      }
       setIncomingCall(null);
     }
   }, [currentCall, incomingCall]);
+
+  const transferToAi = useCallback(async () => {
+    const targetSid = currentCallSid || (incomingCall && (getCallId(incomingCall) || incomingCall.callSid));
+    if (!targetSid) return;
+    try {
+      await smartflowApi.callAction(targetSid, { action: 'transfer_to_ai' });
+      setCallStatusText('Transferred to AI');
+    } catch (err) {
+      console.error('[TelnyxVoice] Transfer to AI failed:', err);
+    }
+    if (incomingCall?.isFallback) {
+      setIncomingCall(null);
+    }
+  }, [currentCallSid, incomingCall]);
 
   const toggleMute = useCallback(() => {
     if (!currentCall) return;

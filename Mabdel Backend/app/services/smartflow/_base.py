@@ -454,8 +454,9 @@ class SmartFlowBase:
         safe["call_type_label"] = self._call_type_label(safe.get("call_type"), safe.get("ai_ready"))
         safe["status_label"] = self._call_status_label(safe.get("status"), safe.get("call_type"))
         safe["status_tone"] = self._call_status_tone(safe.get("status"), safe.get("call_type"))
-        safe["display_time_label"] = self._call_time_label(safe.get("timestamp"))
-        safe["date_bucket"] = self._date_bucket(safe.get("timestamp"))
+        timestamp_val = safe.get("timestamp") or safe.get("created_at")
+        safe["display_time_label"] = self._call_time_label(timestamp_val)
+        safe["date_bucket"] = self._date_bucket(timestamp_val)
         safe["recording_available"] = bool(safe.get("recording_url"))
         safe["transcript_available"] = bool(safe.get("transcript"))
         safe["ai_summary"] = safe.get("ai_summary") or None
@@ -3840,6 +3841,16 @@ class SmartFlowBase:
             phone_match = re.search(r"\+?[\d][\d\s\-\(\)]{6,}\d", text)
             if phone_match and not prefill.get("phone"):
                 prefill["phone"] = re.sub(r"[\s\-\(\)]", "", phone_match.group(0))
+            return prefill
+
+        if intent == "call":
+            phone_match = re.search(r"\+?[\d][\d\s\-\(\)]{6,}\d", text)
+            if phone_match and not prefill.get("phone_number"):
+                prefill["phone_number"] = re.sub(r"[\s\-\(\)]", "", phone_match.group(0))
+            if not prefill.get("phone_number") and workflow_output and workflow_output.get("phone_number"):
+                prefill["phone_number"] = workflow_output["phone_number"]
+            if not prefill.get("purpose"):
+                prefill["purpose"] = text[:120]
             return prefill
 
         return prefill

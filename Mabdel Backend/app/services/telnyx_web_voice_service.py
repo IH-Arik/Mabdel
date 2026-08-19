@@ -17,7 +17,7 @@ VOICE_RUNTIME_SETTINGS_TYPE = "telnyx_web_voice_runtime_v1"
 # background tab never gets caught mid-call with an expired socket.
 TOKEN_TTL_SECONDS = 24 * 60 * 60
 TOKEN_REFRESH_MARGIN_SECONDS = 4 * 60 * 60
-REGISTRATION_TTL_SECONDS = 180
+REGISTRATION_TTL_SECONDS = 600
 
 
 def utc_now() -> datetime:
@@ -141,7 +141,6 @@ class TelnyxWebVoiceService:
 
         identity = credential["sip_username"]
         expires_at = utc_now() + timedelta(seconds=TOKEN_TTL_SECONDS)
-        await self.set_registration(user_id=user_id, identity=identity, active=True)
         return {
             "token": token,
             "identity": identity,

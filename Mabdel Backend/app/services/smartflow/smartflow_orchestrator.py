@@ -364,6 +364,9 @@ class SmartFlowService(SmartFlowBase):
     async def create_pending_call_meeting_request(self, user_id, **kwargs):
         return await self.call_meeting_request_service.create_pending_request_for_user(user_id, **kwargs)
 
+    async def book_or_request_meeting_for_user(self, user_id, **kwargs):
+        return await self.call_meeting_request_service.book_or_request_meeting_for_user(user_id, **kwargs)
+
     async def list_call_meeting_requests(self, user_id, page, page_size, status_filter):
         return await self.call_meeting_request_service.list_pending(user_id, page, page_size, status_filter)
 
