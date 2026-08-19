@@ -75,7 +75,10 @@ export default function Contacts() {
   const [selectedContactId, setSelectedContactId] = useState(null);
   
   // Tab State
-  const [activeTab, setActiveTab] = useState('on_mabdel'); // 'on_mabdel' or 'invite'
+  const [activeTab, setActiveTab] = useState('on_mabdel'); // 'on_mabdel', 'invite', or 'team'
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [messagingTeamId, setMessagingTeamId] = useState(null);
 
   // Edit/Create Contact form state
   const [editId, setEditId] = useState(null);
@@ -118,8 +121,19 @@ export default function Contacts() {
     try {
       setLoading(true);
       setError('');
-      const response = await smartflowApi.getContacts({ page: 1, page_size: 100 });
-      const rawItems = response.data?.data?.items || [];
+      // The backend caps page_size at 100 and this account has 400+ contacts —
+      // fetching only page 1 silently dropped everything past the first 100
+      // from the directory, search, and the On GoCustify/Invite counts. Pull
+      // every page (the first request tells us how many there are) instead.
+      const firstPage = await smartflowApi.getContacts({ page: 1, page_size: 100 });
+      const pagination = firstPage.data?.data?.pagination;
+      const totalPages = pagination?.pages || 1;
+      const restPages = await Promise.all(
+        Array.from({ length: Math.max(totalPages - 1, 0) }, (_, index) =>
+          smartflowApi.getContacts({ page: index + 2, page_size: 100 })
+        )
+      );
+      const rawItems = [firstPage, ...restPages].flatMap((response) => response.data?.data?.items || []);
       const backendItems = rawItems.map(item => {
         let avatarText = item.avatarText;
         if (!avatarText) {
@@ -177,9 +191,42 @@ export default function Contacts() {
     }
   }, [t]);
 
+  // Colleagues in the same organization — real GoCustify accounts, not CRM
+  // contacts, so they come from a separate endpoint and never mix into the
+  // On GoCustify/Invite counts (those are about external contacts specifically).
+  const fetchTeamMembers = useCallback(async () => {
+    try {
+      setTeamLoading(true);
+      const response = await smartflowApi.getTeamMembers();
+      const items = response.data?.data?.items || [];
+      setTeamMembers(items.map((member) => ({
+        id: member.id,
+        name: member.name || t('contacts_unnamed'),
+        email: member.email || '',
+        phone: member.phone || '',
+        avatar_url: member.avatar_url || null,
+        avatarText: (member.name || '??').split(' ').map((part) => part[0]).join('').substring(0, 2).toUpperCase(),
+        role: member.role_slug || member.role || '',
+        company: (member.role_slug || member.role)
+          ? (member.role_slug || member.role).charAt(0).toUpperCase() + (member.role_slug || member.role).slice(1)
+          : 'Team Member',
+        location: 'Colleague',
+        last_interaction: '—',
+        status: member.status || 'active',
+        online: member.presence === 'online',
+      })));
+    } catch (error) {
+      console.error('Error fetching team members:', error);
+      setTeamMembers([]);
+    } finally {
+      setTeamLoading(false);
+    }
+  }, [t]);
+
   useEffect(() => {
     fetchContacts();
-  }, [fetchContacts]);
+    fetchTeamMembers();
+  }, [fetchContacts, fetchTeamMembers]);
 
   useEffect(() => {
     if (!selectedContactId && contacts.length > 0) {
@@ -268,6 +315,15 @@ export default function Contacts() {
         const formData = new FormData();
         formData.append('avatar_file', avatarFile);
         await smartflowApi.uploadContactAvatar(savedContactId, formData);
+      }
+
+      // A freshly-created contact almost always lands on "Invite to GoCustify"
+      // (it isn't a registered app user yet) — without switching tabs here, the
+      // save looks like it silently failed, since the still-active "On
+      // GoCustify" tab never gains anything to show for it.
+      if (!editId) {
+        const isNewContactAppUser = Boolean(res.data?.data?.is_app_user);
+        setActiveTab(isNewContactAppUser ? 'on_mabdel' : 'invite');
       }
 
       await fetchContacts();
@@ -435,21 +491,57 @@ export default function Contacts() {
           contact_id: contact.id,
           title: contact.name || null,
           type: 'direct',
-          platform: 'whatsapp',
+          // "ai" here isn't an AI chat — it's the same internal-conversation
+          // filler value the backend uses for team groups, since the schema
+          // has no dedicated "internal message" platform. This button starts a
+          // plain internal message, not a WhatsApp one, so it must NOT use a
+          // real external-channel platform value (that would silently route it
+          // through an actual WhatsApp/SMS/etc. send).
+          platform: 'ai',
           member_ids: [],
         });
         conversationId = created.data?.data?.id;
       }
 
-      // /unified-conversation (not /conversations) — the two inboxes are
-      // complementary: /conversations shows only internal ai/global threads, while
-      // contact DMs live on external platforms (whatsapp by default here) and are
-      // filtered out of it. Sending there would open an invisible thread.
-      navigate('/unified-conversation', { state: { conversationId } });
+      // /conversations (not /unified-conversation) — that inbox is for external
+      // channel threads (WhatsApp/SMS/email/etc.); this is a plain internal
+      // message to a contact, so it belongs in the internal Messages view.
+      navigate('/conversations', { state: { conversationId } });
     } catch (err) {
       setError(err?.response?.data?.message || t('contacts_err_message_failed'));
     } finally {
       setMessagingId(null);
+    }
+  };
+
+  const handleMessageTeamMember = async (member) => {
+    // Colleagues are real users, not CRM contacts, so there's no contact_id to
+    // key off — the conversation is matched/created by member_ids instead.
+    try {
+      setError('');
+      setMessagingTeamId(member.id);
+      const response = await smartflowApi.getConversations({ page: 1, page_size: 100, archived: false });
+      const items = response.data?.data?.items || [];
+      const existing = items.find(
+        (item) => !item.is_group && !item.is_ai_assistant && (item.member_ids || []).includes(member.id)
+      );
+
+      let conversationId = existing?.id;
+      if (!conversationId) {
+        const created = await smartflowApi.createConversation({
+          title: member.name || null,
+          type: 'direct',
+          platform: 'ai',
+          member_ids: [member.id],
+        });
+        conversationId = created.data?.data?.id;
+      }
+
+      navigate('/conversations', { state: { conversationId } });
+    } catch (err) {
+      setError(err?.response?.data?.message || t('contacts_err_message_failed'));
+    } finally {
+      setMessagingTeamId(null);
     }
   };
 
@@ -508,7 +600,7 @@ export default function Contacts() {
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const onMabdelContacts = useMemo(() => contacts.filter((c) => c.is_app_user === true), [contacts]);
   const inviteContacts = useMemo(() => contacts.filter((c) => c.is_app_user !== true), [contacts]);
-  const tabFilteredContacts = activeTab === 'on_mabdel' ? onMabdelContacts : inviteContacts;
+  const tabFilteredContacts = activeTab === 'team' ? teamMembers : (activeTab === 'on_mabdel' ? onMabdelContacts : inviteContacts);
   const filteredContacts = tabFilteredContacts.filter(c => {
     if (!normalizedSearch) return true;
     return (
@@ -518,6 +610,7 @@ export default function Contacts() {
     );
   });
   const showcasedContacts = filteredContacts.slice(0, 4);
+  const isLoadingCurrentTab = activeTab === 'team' ? teamLoading : loading;
 
   return (
     <div className="h-full flex flex-col space-y-6">
@@ -556,6 +649,16 @@ export default function Contacts() {
                 }`}
               >
                 {t('contacts_tab_invite', { n: inviteContacts.length })}
+              </button>
+              <button
+                onClick={() => setActiveTab('team')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                  activeTab === 'team'
+                    ? 'bg-purple-500/20 text-purple-400 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Team ({teamMembers.length})
               </button>
             </div>
 
@@ -780,7 +883,7 @@ export default function Contacts() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-900/50">
-                    {!loading && filteredContacts.length === 0 ? (
+                    {!isLoadingCurrentTab && filteredContacts.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-6 py-10 text-center text-sm font-semibold text-slate-400">
                           {normalizedSearch ? t('contacts_no_search_results') : t('contacts_no_contacts_available')}
@@ -788,9 +891,13 @@ export default function Contacts() {
                       </tr>
                     ) : null}
                     {filteredContacts.map(item => (
-                      <tr 
+                      <tr
                         key={item.id}
                         onClick={() => {
+                          if (activeTab === 'team') {
+                            handleMessageTeamMember(item);
+                            return;
+                          }
                           setSelectedContactId(item.id);
                           setViewMode('detail');
                         }}
@@ -826,34 +933,49 @@ export default function Contacts() {
                         <td className="px-6 py-4 text-xs text-slate-400">{item.last_interaction}</td>
                         <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEdit(item);
-                              }}
-                              className="p-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCallContact(item);
-                              }}
-                              className="p-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-emerald-400 rounded-xl transition-all"
-                            >
-                              <Phone size={12} />
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteContact(item.id);
-                              }}
-                              disabled={deletingId === item.id}
-                              className="p-2 bg-slate-950 border border-slate-900 hover:border-red-950/20 text-slate-400 hover:text-red-400 rounded-xl transition-all"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            {activeTab === 'team' ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMessageTeamMember(item);
+                                }}
+                                disabled={messagingTeamId === item.id}
+                                className="p-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-purple-400 rounded-xl transition-all disabled:opacity-60"
+                              >
+                                <MessageSquare size={12} />
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEdit(item);
+                                  }}
+                                  className="p-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all"
+                                >
+                                  <Pencil size={12} />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCallContact(item);
+                                  }}
+                                  className="p-2 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-emerald-400 rounded-xl transition-all"
+                                >
+                                  <Phone size={12} />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteContact(item.id);
+                                  }}
+                                  disabled={deletingId === item.id}
+                                  className="p-2 bg-slate-950 border border-slate-900 hover:border-red-950/20 text-slate-400 hover:text-red-400 rounded-xl transition-all"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -864,15 +986,19 @@ export default function Contacts() {
             ) : (
               /* Grid Layout View mode fallback */
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-                {!loading && filteredContacts.length === 0 ? (
+                {!isLoadingCurrentTab && filteredContacts.length === 0 ? (
                   <div className="md:col-span-2 lg:col-span-3 rounded-2xl border border-slate-900 bg-slate-950/40 px-4 py-10 text-center text-sm font-semibold text-slate-400">
                     {normalizedSearch ? t('contacts_no_search_results') : t('contacts_no_contacts_available')}
                   </div>
                 ) : null}
                 {filteredContacts.map(item => (
-                  <div 
+                  <div
                     key={item.id}
                     onClick={() => {
+                      if (activeTab === 'team') {
+                        handleMessageTeamMember(item);
+                        return;
+                      }
                       setSelectedContactId(item.id);
                       setViewMode('detail');
                     }}

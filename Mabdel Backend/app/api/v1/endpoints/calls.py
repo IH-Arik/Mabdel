@@ -41,19 +41,34 @@ def get_voice_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) ->
 async def call_action(
     call_sid: str,
     request: CallActionRequest,
+    current_user: dict = Depends(get_current_user),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     """
     User action on a live call (receive, transfer_to_ai, cancel).
 
     ``call_sid`` here is the Telnyx ``call_control_id``.
+    Secured by JWT authentication.
     """
-    user = await service.db.users.find_one({"_id": request.user_id})
-    if not user:
-        user = await service.db.users.find_one({"_id": ObjectId(request.user_id)})
+    user_id = str(current_user["_id"])
+    user = current_user
 
-    if not user:
-        raise AppException(status_code=404, code="USER_NOT_FOUND", message="User not found")
+    # If request specifies a user_id, ensure caller has access (same user or same organization)
+    if request.user_id and request.user_id != user_id:
+        target_user = await service.db.users.find_one({"_id": request.user_id})
+        if not target_user:
+            try:
+                target_user = await service.db.users.find_one({"_id": ObjectId(request.user_id)})
+            except Exception:
+                target_user = None
+
+        if target_user:
+            curr_org = current_user.get("organization_id")
+            target_org = target_user.get("organization_id")
+            if curr_org and target_org and curr_org == target_org:
+                user = target_user
+            else:
+                raise AppException(status_code=403, code="FORBIDDEN_USER_ACTION", message="Not authorized to perform actions for this user")
 
     if request.action == "receive":
         forward_to = user.get("forwarding_number") or user.get("phone_number")
@@ -71,6 +86,7 @@ async def call_action(
         raise AppException(status_code=502, code="TELNYX_UPDATE_FAILED", message="Failed to update call via Telnyx")
 
     return success_response(message=f"Call action '{request.action}' executed successfully.")
+
 
 
 @router.post("/calls/webhook")
@@ -107,15 +123,17 @@ async def handle_telnyx_call_webhook(
     payload = event.payload
     call_id = payload.call_control_id or "unknown"
 
+    print(f"RECEIVED TELNYX WEBHOOK: event_type={event.event_type}, call_id={call_id}, payload_dict={payload.model_dump() if hasattr(payload, 'model_dump') else str(payload)}", flush=True)
+
     if event.event_type == "call.initiated":
         if payload.direction == "incoming":
             await _handle_incoming_call(call_id, payload, service, voice_service)
         elif payload.direction == "outgoing":
             await _handle_outgoing_call_initiated(call_id, payload, service)
     elif event.event_type == "call.hangup":
-        await _handle_call_status(service, call_id, event.event_type, payload)
+        background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
     elif event.event_type in {"call.answered", "call.bridged"}:
-        await _handle_call_status(service, call_id, event.event_type, payload)
+        background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
     elif event.event_type == "call.recording.saved":
         recording_url = ((payload.recording_urls or {}).get("mp3")) or (payload.recording_urls or {}).get("wav")
         call_log = await service.db.call_logs.find_one({"twilio_call_sid": call_id})
@@ -169,6 +187,7 @@ async def _handle_incoming_call(
         logger.warning("Incoming call to %s: no matching organization found, routing as guest", to_number)
     user_id = str(attribution_user["_id"]) if attribution_user else "guest"
 
+    now = utc_now()
     await service.db.call_logs.insert_one(
         {
             "user_id": user_id,
@@ -177,7 +196,8 @@ async def _handle_incoming_call(
             "phone_number": to_number,
             "status": "ringing",
             "direction": "inbound",
-            "created_at": utc_now(),
+            "timestamp": now.isoformat(),
+            "created_at": now,
         }
     )
 
@@ -225,6 +245,7 @@ async def _handle_outgoing_call_initiated(call_id: str, payload, service: SmartF
         logger.warning("Call %s: outgoing call with no matching call_log and no client_state user_id.", call_id)
         return
 
+    now = utc_now()
     await service.db.call_logs.insert_one(
         {
             "user_id": user_id,
@@ -235,7 +256,8 @@ async def _handle_outgoing_call_initiated(call_id: str, payload, service: SmartF
             "status": "initiated",
             "direction": "outbound",
             "call_type": "outgoing_direct",
-            "created_at": utc_now(),
+            "timestamp": now.isoformat(),
+            "created_at": now,
         }
     )
 
@@ -257,6 +279,27 @@ async def _handle_call_status(service: SmartFlowService, call_id: str, event_typ
         from_number=payload.from_number,
         to_number=payload.to_number,
     )
+    
+    # If this is an outbound automated AI call and the PSTN leg is now live, connect
+    # the AI stream once. Some carriers/Telnyx flows surface the stable connected state
+    # as `call.bridged` rather than only `call.answered`.
+    should_start_ai_stream = (
+        event_type in {"call.answered", "call.bridged"}
+        and call.get("call_type") == "outbound"
+        and call.get("ai_ready")
+        and not call.get("ai_stream_started")
+    )
+    if should_start_ai_stream:
+        logger.info("Outbound call %s answered: starting streaming to AI", call_id)
+        try:
+            started = await call_service.start_streaming(call_id, websocket_url=call_service.build_media_stream_url(call_id))
+            if started:
+                await service.db.call_logs.update_one(
+                    {"_id": call["_id"]},
+                    {"$set": {"ai_stream_started": True, "updated_at": utc_now()}},
+                )
+        except Exception as e:
+            logger.error("Failed to start outbound streaming for call %s: %s", call_id, e)
 
 
 async def _process_recording(
@@ -314,12 +357,21 @@ async def get_live_call_transcript(
     Polled by the mobile app during an active AI call session.
     """
     user_id = str(current_user["_id"])
-    call_log = await service.db.call_logs.find_one({"twilio_call_sid": call_sid, "user_id": user_id})
+    call_log = await service.db.call_logs.find_one({"twilio_call_sid": call_sid})
     if not call_log:
         return success_response(
             data={"call_sid": call_sid, "speaker_segments": [], "transcript_available": False},
             message="Call log not found yet.",
         )
+
+    log_user_id = str(call_log.get("user_id") or "")
+    if log_user_id != user_id and log_user_id != "guest":
+        team_user_ids = []
+        if current_user.get("organization_id"):
+            team_user_ids = await resolve_organization_user_ids(service.db, current_user["organization_id"])
+        if log_user_id not in team_user_ids:
+            raise AppException(status_code=403, code="FORBIDDEN_CALL_ACCESS", message="Not authorized to view transcript for this call")
+
     return success_response(
         data={
             "call_sid": call_sid,
@@ -337,14 +389,12 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     Receive live audio chunks, send AI audio reply.
     """
     await websocket.accept()
-    await websocket.send_json(call_service.build_connected_event(call_id).model_dump())
 
     # Initialize AI Agent for this call
     db = await get_mongo_database()
     flow_service = SmartFlowService(db)
 
     # Resolve the business owner from the call log created by the incoming webhook.
-    # Falls back to first user if the log isn't found yet.
     call_log = await db.call_logs.find_one({"twilio_call_sid": call_id})
     if call_log and call_log.get("user_id") and call_log["user_id"] != "guest":
         user_id_val = call_log["user_id"]
@@ -358,6 +408,10 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     active_sessions[call_id] = agent
 
     greeting_task = None
+    speech_duration_ms = 0
+    silence_duration_ms = 0
+    has_speech = False
+    ENERGY_THRESHOLD = 350.0  # RMS threshold for mu-law speech detection
 
     async def send_to_telnyx(message: dict):
         try:
@@ -366,6 +420,9 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
             pass
 
     try:
+        from app.utils.audio import mulaw_rms_energy
+        import base64
+
         while True:
             raw_message = await websocket.receive()
             if raw_message.get("type") == "websocket.disconnect":
@@ -379,37 +436,58 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
             if stream_message is None:
                 continue
 
-            if stream_message.event == "start":
+            if stream_message.event == "connected":
+                pass  # Telnyx sends this first — no reply needed
+
+            elif stream_message.event == "start":
                 agent.stream_sid = stream_message.stream_id
-                await websocket.send_json(
-                    call_service.build_stream_started_event(call_id, stream_sid=stream_message.stream_id).model_dump()
-                )
                 # Greet the user in the background to avoid blocking the message loop
                 greeting_task = asyncio.create_task(agent.greet(send_to_telnyx))
+
             elif stream_message.event == "media":
                 if stream_message.media and "payload" in stream_message.media:
-                    # Pass audio to agent for processing
-                    await agent.handle_media(
-                        stream_message.media["payload"],
-                        stream_message.stream_id,
-                        send_to_telnyx,
-                    )
+                    # Echo suppression: ignore inbound audio while AI is speaking or processing
+                    if agent.is_speaking or agent.is_processing:
+                        agent.audio_buffer.clear()
+                        speech_duration_ms = 0
+                        silence_duration_ms = 0
+                        has_speech = False
+                        continue
 
-                await websocket.send_json(
-                    call_service.build_audio_ack(
-                        call_id,
-                        call_service.media_payload_size(stream_message),
-                        stream_sid=stream_message.stream_id,
-                    ).model_dump()
-                )
-            elif stream_message.event == "stop":
-                if greeting_task:
-                    greeting_task.cancel()
-                await websocket.send_json(
-                    call_service.build_stream_stopped_event(call_id, stream_sid=stream_message.stream_id).model_dump()
-                )
-                await agent.finalize_session()
+                    audio_chunk = base64.b64decode(stream_message.media["payload"])
+                    energy = mulaw_rms_energy(audio_chunk)
+
+                    if energy >= ENERGY_THRESHOLD:
+                        # Speech detected!
+                        speech_duration_ms += 20
+                        silence_duration_ms = 0
+                        has_speech = True
+                        agent.audio_buffer.extend(audio_chunk)
+                    else:
+                        # Quiet/Silence chunk
+                        if has_speech:
+                            # Keep up to 400ms trailing silence for natural cadence
+                            if silence_duration_ms < 400:
+                                agent.audio_buffer.extend(audio_chunk)
+                            silence_duration_ms += 20
+
+                            # Trigger response after 750ms of silence if caller spoke at least 300ms
+                            if silence_duration_ms >= 750 and speech_duration_ms >= 300:
+                                speech_duration_ms = 0
+                                silence_duration_ms = 0
+                                has_speech = False
+                                asyncio.create_task(agent.process_and_respond(send_to_telnyx))
+
+                    # Hard cap: force-process if buffer grows over 10 seconds of active speech
+                    if len(agent.audio_buffer) >= 8000 * 10 and not agent.is_processing:
+                        speech_duration_ms = 0
+                        silence_duration_ms = 0
+                        has_speech = False
+                        asyncio.create_task(agent.process_and_respond(send_to_telnyx))
+
+            elif stream_message.event in ("stop", "error"):
                 break
+
     finally:
         if greeting_task:
             greeting_task.cancel()

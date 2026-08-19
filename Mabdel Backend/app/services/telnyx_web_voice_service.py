@@ -17,7 +17,7 @@ VOICE_RUNTIME_SETTINGS_TYPE = "telnyx_web_voice_runtime_v1"
 # background tab never gets caught mid-call with an expired socket.
 TOKEN_TTL_SECONDS = 24 * 60 * 60
 TOKEN_REFRESH_MARGIN_SECONDS = 4 * 60 * 60
-REGISTRATION_TTL_SECONDS = 180
+REGISTRATION_TTL_SECONDS = 600
 
 
 def utc_now() -> datetime:
@@ -128,15 +128,25 @@ class TelnyxWebVoiceService:
                 message=f"Telnyx web voice token could not be created: {exc}",
             ) from exc
 
+        user_oid = ObjectId(user_id)
+        user = await self.db.users.find_one({"_id": user_oid})
+        if not user:
+            raise AppException(status_code=404, code="USER_NOT_FOUND", message="User not found.")
+
+        from app.services.telnyx_provisioning_service import TelnyxProvisioningService
+        prov_service = TelnyxProvisioningService(self.db)
+        org = await prov_service.get_organization_for_user(user)
+        resolved_phone_number = prov_service.get_org_phone_number(org) or settings.TELNYX_PHONE_NUMBER
+        print(f"[DEBUG_TOKEN] user_id: {user_id}, org_id: {user.get('organization_id')}, resolved_phone_number: {resolved_phone_number}")
+
         identity = credential["sip_username"]
         expires_at = utc_now() + timedelta(seconds=TOKEN_TTL_SECONDS)
-        await self.set_registration(user_id=user_id, identity=identity, active=True)
         return {
             "token": token,
             "identity": identity,
             "expires_at": expires_at.isoformat(),
             "refresh_after_seconds": TOKEN_TTL_SECONDS - TOKEN_REFRESH_MARGIN_SECONDS,
-            "phone_number": settings.TELNYX_PHONE_NUMBER,
+            "phone_number": resolved_phone_number,
         }
 
     async def set_registration(self, *, user_id: str, identity: str, active: bool) -> None:

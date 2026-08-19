@@ -1391,17 +1391,16 @@ export const buildSmartflowEndpoints = (builder) => ({
         method: "POST",
         pathParams: ["call_sid"],
         hasBody: true,
-        skipAuth: true,
       }),
       invalidatesTags: [{ type: "MadbelSmartFlow", id: "LIST" }],
     }),
+
 
     madbelGetLiveCallTranscript: builder.query({
       query: buildApiRequest({
         path: "/api/v1/calls/{call_sid}/transcript",
         method: "GET",
         pathParams: ["call_sid"],
-        skipAuth: true,
       }),
     }),
 

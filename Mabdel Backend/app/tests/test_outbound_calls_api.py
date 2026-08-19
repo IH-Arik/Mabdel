@@ -137,6 +137,55 @@ def test_outbound_call_webhook_updates_call_log(client, mock_db, monkeypatch):
     assert updated_log["duration"] == 63
 
 
+def test_outbound_ai_call_starts_streaming_on_bridged_event(client, mock_db, monkeypatch):
+    headers = _auth_headers(client, mock_db, email="calls-ai-bridged@example.com")
+    contact_id = _create_contact(client, headers, name="AI Call Target", phone="+8801700000004")
+
+    monkeypatch.setattr(settings, "TELNYX_PHONE_NUMBER", "+15550000000")
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    async def fake_initiate(self, *, to_number: str, from_number: str | None, user_id: str, call_log_id: str) -> dict:
+        return {
+            "sid": "v2:outbound-ai-bridged",
+            "status": "queued",
+            "to": to_number,
+            "from": from_number or settings.TELNYX_PHONE_NUMBER,
+        }
+
+    started_streams: list[dict] = []
+
+    async def fake_start_streaming(self, call_control_id: str, *, websocket_url: str) -> bool:
+        started_streams.append({"call_control_id": call_control_id, "websocket_url": websocket_url})
+        return True
+
+    monkeypatch.setattr(CallService, "initiate_outbound_call", fake_initiate)
+    monkeypatch.setattr(CallService, "start_streaming", fake_start_streaming)
+
+    create_response = client.post(
+        "/api/v1/smartflow/calls/outbound",
+        headers=headers,
+        json={"contact_id": contact_id, "ai_ready": True},
+    )
+    assert create_response.status_code == 201
+
+    bridged_body = _webhook_envelope(
+        "call.bridged",
+        {
+            "call_control_id": "v2:outbound-ai-bridged",
+            "from": "+15550000000",
+            "to": "+8801700000004",
+        },
+    )
+    webhook_response = client.post("/api/v1/calls/webhook", content=bridged_body)
+    assert webhook_response.status_code == 200
+
+    assert len(started_streams) == 1
+    assert started_streams[0]["call_control_id"] == "v2:outbound-ai-bridged"
+
+    updated_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:outbound-ai-bridged"}))
+    assert updated_log["ai_stream_started"] is True
+
+
 def test_outbound_call_requires_telnyx_configuration(client, mock_db, monkeypatch):
     headers = _auth_headers(client, mock_db, email="calls-unconfigured@example.com")
     contact_id = _create_contact(client, headers, name="Nasrin Akter", phone="+8801700000003")

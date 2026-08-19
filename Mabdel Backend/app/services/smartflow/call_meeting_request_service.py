@@ -67,6 +67,80 @@ class CallMeetingRequestService(SmartFlowBase):
             requested_end=requested_end,
         )
 
+    async def book_or_request_meeting_for_user(
+        self,
+        user_id: str,
+        *,
+        call_sid: str | None,
+        caller_name: str,
+        caller_email: str | None,
+        caller_phone: str | None,
+        requested_start: datetime,
+        requested_end: datetime,
+    ) -> dict:
+        """Attempts direct calendar booking when available, falling back to creating
+        a pending request if manual approval is required or missing details."""
+        organization_id = await self._require_organization_id(user_id)
+        try:
+            org = await self.db.organizations.find_one({"organization_id": organization_id})
+        except Exception:
+            org = None
+        require_manual_approval = (org or {}).get("require_meeting_approval", False)
+        has_contact_info = bool(caller_name and (caller_email or caller_phone))
+
+        if not require_manual_approval and has_contact_info:
+            try:
+                event = await self.calendar_service.create_calendar_event(
+                    user_id,
+                    {
+                        "title": f"Call meeting with {caller_name}",
+                        "description": f"Auto-booked by AI Phone Agent during live call. Caller: {caller_name}"
+                        + (f" ({caller_phone})" if caller_phone else ""),
+                        "starts_at": requested_start,
+                        "ends_at": requested_end,
+                        "meeting_mode": "online",
+                    },
+                )
+                now = utc_now()
+                doc = {
+                    "organization_id": organization_id,
+                    "call_sid": call_sid,
+                    "caller_name": caller_name.strip() or "Phone caller",
+                    "caller_email": (caller_email or "").strip().lower() or None,
+                    "caller_phone": caller_phone,
+                    "requested_start": requested_start,
+                    "requested_end": requested_end,
+                    "status": "confirmed",
+                    "meeting_link": event.get("meeting_link"),
+                    "confirmed_by_user_id": "ai_agent",
+                    "created_at": now,
+                    "updated_at": now,
+                }
+                result = await self.db.call_meeting_requests.insert_one(doc)
+                doc["_id"] = result.inserted_id
+                if doc.get("caller_email"):
+                    await self._send_confirmation_email(doc)
+                await self._notify_organization(doc)
+                serialized = _serialize(doc)
+                serialized["booking_outcome"] = "booked"
+                return serialized
+            except AppException as exc:
+                if exc.code == "CALL_MEETING_REQUEST_SLOT_TAKEN" or exc.code == "CALENDAR_CONFLICT":
+                    return {"status": "conflict", "booking_outcome": "conflict"}
+                pass
+
+        pending_doc = await self.create_pending_request(
+            organization_id=organization_id,
+            call_sid=call_sid,
+            caller_name=caller_name,
+            caller_email=caller_email,
+            caller_phone=caller_phone,
+            requested_start=requested_start,
+            requested_end=requested_end,
+        )
+        pending_doc["booking_outcome"] = "pending"
+        return pending_doc
+
     async def create_pending_request(
         self,
         *,

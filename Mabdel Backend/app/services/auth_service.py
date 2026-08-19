@@ -62,7 +62,8 @@ class AuthService:
 
     async def login_user(self, payload: LoginRequest) -> TokenResponse:
         user = await self.auth_repository.get_user_by_email(payload.email)
-        if not user or not verify_password(payload.password, user["password_hash"]):
+        pwd_hash = (user.get("password_hash") if user else None) or (user.get("hashed_password") if user else None) or ""
+        if not user or not pwd_hash or not verify_password(payload.password, pwd_hash):
             raise AppException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 code="INVALID_CREDENTIALS",
