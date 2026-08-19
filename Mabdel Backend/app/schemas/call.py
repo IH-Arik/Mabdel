@@ -58,4 +58,4 @@ class TelnyxStreamMessage(BaseModel):
 
 class CallActionRequest(BaseModel):
     action: str  # "receive", "transfer_to_ai", "cancel"
-    user_id: str
+    user_id: str | None = None

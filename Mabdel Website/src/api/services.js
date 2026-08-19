@@ -67,6 +67,7 @@ export const smartflowApi = {
   getCalls: (params) => client.get('/api/v1/smartflow/calls', { params }),
   createCall: (data) => client.post('/api/v1/smartflow/calls', data),
   createOutboundCall: (data) => client.post('/api/v1/smartflow/calls/outbound', data),
+  requestCallCallback: (id) => client.post(`/api/v1/smartflow/calls/${id}/callback`),
   getCallRecording: (id) => client.get(`/api/v1/smartflow/calls/${id}/recording`, { responseType: 'blob' }),
 
   // Integrations

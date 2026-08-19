@@ -38,6 +38,7 @@ const DESIRED_FIELDS = {
   invoice: ['client_name', 'client_email', 'items', 'due_date'],
   agreement: ['prompt', 'client_name', 'client_email', 'client_phone', 'agreement_type', 'start_date'],
   lease: ['prompt', 'tenant_name', 'tenant_email', 'tenant_phone', 'monthly_rent', 'start_date', 'end_date'],
+  call: ['phone_number'],
 };
 
 const FALLBACK_VOICE = 'neutral_assistant';
@@ -103,11 +104,12 @@ const mergePrefill = (previous = {}, incoming = {}) => {
 
 const getWorkflowLabel = (intent, t) => {
   switch (intent) {
-    case 'invoice': return t('vcon_wf_invoice');
-    case 'bulk_message': return t('vcon_wf_bulk_message');
-    case 'calendar': return t('vcon_wf_meeting');
-    case 'lease': return t('vcon_wf_lease');
-    case 'agreement': return t('vcon_wf_agreement');
+    case 'invoice': return t('vcon_wf_invoice') || 'Invoice';
+    case 'bulk_message': return t('vcon_wf_bulk_message') || 'Bulk Message';
+    case 'calendar': return t('vcon_wf_meeting') || 'Meeting';
+    case 'lease': return t('vcon_wf_lease') || 'Lease';
+    case 'agreement': return t('vcon_wf_agreement') || 'Agreement';
+    case 'call': return t('vcon_wf_call') || 'Phone Call';
     default: return intent;
   }
 };
@@ -117,26 +119,33 @@ const getWorkflowQuestion = (intent, fieldKey, t) =>
 
 const getWorkflowDestination = (intent, prefill = {}, t) => {
   if (intent === 'invoice') {
-    return { path: '/invoices', state: { prefill, action: 'new_invoice' }, label: t('vcon_chip_create_invoice') };
+    return { path: '/invoices', state: { prefill, action: 'new_invoice' }, label: t('vcon_chip_create_invoice') || 'Create Invoice' };
   }
   if (intent === 'calendar') {
-    return { path: '/calendar', state: { prefill, action: 'new_meeting' }, label: t('vcon_chip_schedule_meeting') };
+    return { path: '/calendar', state: { prefill, action: 'new_meeting' }, label: t('vcon_chip_schedule_meeting') || 'Schedule Meeting' };
   }
   if (intent === 'bulk_message') {
-    return { path: '/bulk-messaging', state: { prefill, action: 'new_bulk_message' }, label: t('vcon_chip_bulk_message') };
+    return { path: '/bulk-messaging', state: { prefill, action: 'new_bulk_message' }, label: t('vcon_chip_bulk_message') || 'Bulk Message' };
   }
   if (intent === 'agreement') {
     return {
       path: '/documents',
       state: { prefill: { ...prefill, type: 'agreement' }, action: 'new_agreement', tab: 'agreements' },
-      label: t('vcon_chip_new_agreement'),
+      label: t('vcon_chip_new_agreement') || 'New Agreement',
     };
   }
   if (intent === 'lease') {
     return {
       path: '/documents',
       state: { prefill: { ...prefill, type: 'lease' }, action: 'new_lease', tab: 'leases' },
-      label: t('vcon_chip_new_lease'),
+      label: t('vcon_chip_new_lease') || 'New Lease',
+    };
+  }
+  if (intent === 'call') {
+    return {
+      path: '/calls',
+      state: { prefill, action: 'new_call' },
+      label: t('vcon_chip_place_call') || 'Initiate Call',
     };
   }
   return null;
@@ -170,6 +179,11 @@ const buildConfirmationText = (intent, prefill = {}, missingFields = [], t) => {
   if (intent === 'lease') {
     if (prefill.tenant_name) previewParts.push(`${t('vcon_lbl_tenant')} ${prefill.tenant_name}`);
     if (prefill.monthly_rent || prefill.rent) previewParts.push(`${t('vcon_lbl_rent')} ${prefill.monthly_rent || prefill.rent}`);
+  }
+
+  if (intent === 'call') {
+    if (prefill.phone_number || prefill.phone) previewParts.push(`Phone: ${prefill.phone_number || prefill.phone}`);
+    if (prefill.purpose) previewParts.push(`Purpose: "${prefill.purpose}"`);
   }
 
   if (missingFields.length) {

@@ -41,19 +41,34 @@ def get_voice_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) ->
 async def call_action(
     call_sid: str,
     request: CallActionRequest,
+    current_user: dict = Depends(get_current_user),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     """
     User action on a live call (receive, transfer_to_ai, cancel).
 
     ``call_sid`` here is the Telnyx ``call_control_id``.
+    Secured by JWT authentication.
     """
-    user = await service.db.users.find_one({"_id": request.user_id})
-    if not user:
-        user = await service.db.users.find_one({"_id": ObjectId(request.user_id)})
+    user_id = str(current_user["_id"])
+    user = current_user
 
-    if not user:
-        raise AppException(status_code=404, code="USER_NOT_FOUND", message="User not found")
+    # If request specifies a user_id, ensure caller has access (same user or same organization)
+    if request.user_id and request.user_id != user_id:
+        target_user = await service.db.users.find_one({"_id": request.user_id})
+        if not target_user:
+            try:
+                target_user = await service.db.users.find_one({"_id": ObjectId(request.user_id)})
+            except Exception:
+                target_user = None
+
+        if target_user:
+            curr_org = current_user.get("organization_id")
+            target_org = target_user.get("organization_id")
+            if curr_org and target_org and curr_org == target_org:
+                user = target_user
+            else:
+                raise AppException(status_code=403, code="FORBIDDEN_USER_ACTION", message="Not authorized to perform actions for this user")
 
     if request.action == "receive":
         forward_to = user.get("forwarding_number") or user.get("phone_number")
@@ -71,6 +86,7 @@ async def call_action(
         raise AppException(status_code=502, code="TELNYX_UPDATE_FAILED", message="Failed to update call via Telnyx")
 
     return success_response(message=f"Call action '{request.action}' executed successfully.")
+
 
 
 @router.post("/calls/webhook")
@@ -171,6 +187,7 @@ async def _handle_incoming_call(
         logger.warning("Incoming call to %s: no matching organization found, routing as guest", to_number)
     user_id = str(attribution_user["_id"]) if attribution_user else "guest"
 
+    now = utc_now()
     await service.db.call_logs.insert_one(
         {
             "user_id": user_id,
@@ -179,7 +196,8 @@ async def _handle_incoming_call(
             "phone_number": to_number,
             "status": "ringing",
             "direction": "inbound",
-            "created_at": utc_now(),
+            "timestamp": now.isoformat(),
+            "created_at": now,
         }
     )
 
@@ -227,6 +245,7 @@ async def _handle_outgoing_call_initiated(call_id: str, payload, service: SmartF
         logger.warning("Call %s: outgoing call with no matching call_log and no client_state user_id.", call_id)
         return
 
+    now = utc_now()
     await service.db.call_logs.insert_one(
         {
             "user_id": user_id,
@@ -237,7 +256,8 @@ async def _handle_outgoing_call_initiated(call_id: str, payload, service: SmartF
             "status": "initiated",
             "direction": "outbound",
             "call_type": "outgoing_direct",
-            "created_at": utc_now(),
+            "timestamp": now.isoformat(),
+            "created_at": now,
         }
     )
 
@@ -260,11 +280,24 @@ async def _handle_call_status(service: SmartFlowService, call_id: str, event_typ
         to_number=payload.to_number,
     )
     
-    # If this is an outbound automated AI call and it was answered, connect the AI stream!
-    if event_type == "call.answered" and call.get("call_type") == "outbound" and call.get("ai_ready"):
+    # If this is an outbound automated AI call and the PSTN leg is now live, connect
+    # the AI stream once. Some carriers/Telnyx flows surface the stable connected state
+    # as `call.bridged` rather than only `call.answered`.
+    should_start_ai_stream = (
+        event_type in {"call.answered", "call.bridged"}
+        and call.get("call_type") == "outbound"
+        and call.get("ai_ready")
+        and not call.get("ai_stream_started")
+    )
+    if should_start_ai_stream:
         logger.info("Outbound call %s answered: starting streaming to AI", call_id)
         try:
-            await call_service.start_streaming(call_id, websocket_url=call_service.build_media_stream_url(call_id))
+            started = await call_service.start_streaming(call_id, websocket_url=call_service.build_media_stream_url(call_id))
+            if started:
+                await service.db.call_logs.update_one(
+                    {"_id": call["_id"]},
+                    {"$set": {"ai_stream_started": True, "updated_at": utc_now()}},
+                )
         except Exception as e:
             logger.error("Failed to start outbound streaming for call %s: %s", call_id, e)
 
@@ -324,12 +357,21 @@ async def get_live_call_transcript(
     Polled by the mobile app during an active AI call session.
     """
     user_id = str(current_user["_id"])
-    call_log = await service.db.call_logs.find_one({"twilio_call_sid": call_sid, "user_id": user_id})
+    call_log = await service.db.call_logs.find_one({"twilio_call_sid": call_sid})
     if not call_log:
         return success_response(
             data={"call_sid": call_sid, "speaker_segments": [], "transcript_available": False},
             message="Call log not found yet.",
         )
+
+    log_user_id = str(call_log.get("user_id") or "")
+    if log_user_id != user_id and log_user_id != "guest":
+        team_user_ids = []
+        if current_user.get("organization_id"):
+            team_user_ids = await resolve_organization_user_ids(service.db, current_user["organization_id"])
+        if log_user_id not in team_user_ids:
+            raise AppException(status_code=403, code="FORBIDDEN_CALL_ACCESS", message="Not authorized to view transcript for this call")
+
     return success_response(
         data={
             "call_sid": call_sid,
@@ -457,4 +499,3 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
             await websocket.close()
         except Exception:
             pass
-
