@@ -8,12 +8,21 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # PROD_SSH_KEY is base64-encoded on purpose — pasting a raw multi-line PEM key
+      # into GitHub's secret box is fragile (terminal line-wrapping when copying it
+      # tends to corrupt it, which is silent until ssh-action fails to parse it at
+      # deploy time). A single base64 line has no wrapping to go wrong.
+      - name: Decode SSH key
+        run: |
+          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
+          key_path: /tmp/deploy_key
           script: |
             set -e
             cd /home/ubuntu/Mabdel
@@ -26,7 +35,7 @@ jobs:
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
+          key_path: /tmp/deploy_key
           script: |
             sleep 10
             curl -sf https://api.gocustify.com/health
