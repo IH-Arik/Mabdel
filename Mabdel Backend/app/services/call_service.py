@@ -124,9 +124,15 @@ class CallService:
                 "stream_track": settings.TELNYX_STREAM_TRACK,
                 # send_silence_when_idle keeps the Telnyx WebSocket connection alive
                 # when we are not actively sending audio back (prevents stream_error).
-                # Do NOT set stream_bidirectional_mode="rtp" — that sends raw RTP bytes
-                # instead of WebSocket JSON frames and causes stream_error 100002.
                 "send_silence_when_idle": True,
+                # Required for Telnyx to actually play back the raw base64 PCMU audio
+                # chunks we send over the WebSocket — without this, Telnyx accepts our
+                # outbound "media" frames but silently never plays them into the call
+                # (per Telnyx docs, "rtp" is the correct mode for raw-payload chunks
+                # sent as {"event":"media","media":{"payload":...}}, despite the name —
+                # it is NOT raw RTP framing on the wire, the JSON envelope is unchanged).
+                "stream_bidirectional_mode": "rtp",
+                "stream_bidirectional_codec": "PCMU",
             }
         try:
             client.calls.actions.answer(call_control_id, **kwargs)
@@ -183,6 +189,10 @@ class CallService:
                 # turns, matching the inbound answer-call streaming behavior that is
                 # already known to work.
                 send_silence_when_idle=True,
+                # Same as answer_call — required for Telnyx to actually play back the
+                # audio we send, not just forward the caller's audio to us.
+                stream_bidirectional_mode="rtp",
+                stream_bidirectional_codec="PCMU",
             )
 
         try:
