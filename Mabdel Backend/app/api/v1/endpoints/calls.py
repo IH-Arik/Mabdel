@@ -411,13 +411,23 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     speech_duration_ms = 0
     silence_duration_ms = 0
     has_speech = False
+    barge_in_speech_ms = 0
     ENERGY_THRESHOLD = 350.0  # RMS threshold for mu-law speech detection
+    BARGE_IN_THRESHOLD_MS = 200  # sustained real speech while AI is talking counts as an interrupt
 
     async def send_to_telnyx(message: dict):
         try:
             await websocket.send_json(message)
         except Exception:
             pass
+
+    async def run_turn_and_maybe_hangup(coro):
+        """Runs a greet()/process_and_respond() call, then hangs up the call if the
+        agent hit repeated OpenAI failures and gave up (see AIPhoneAgent._speak) —
+        otherwise a broken pipeline just leaves the caller on dead air forever."""
+        await coro
+        if agent.should_hangup:
+            await call_service.hangup_call(call_id)
 
     try:
         from app.utils.audio import mulaw_rms_energy
@@ -442,20 +452,40 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
             elif stream_message.event == "start":
                 agent.stream_sid = stream_message.stream_id
                 # Greet the user in the background to avoid blocking the message loop
-                greeting_task = asyncio.create_task(agent.greet(send_to_telnyx))
+                greeting_task = asyncio.create_task(run_turn_and_maybe_hangup(agent.greet(send_to_telnyx)))
 
             elif stream_message.event == "media":
                 if stream_message.media and "payload" in stream_message.media:
-                    # Echo suppression: ignore inbound audio while AI is speaking or processing
-                    if agent.is_speaking or agent.is_processing:
+                    audio_chunk = base64.b64decode(stream_message.media["payload"])
+                    energy = mulaw_rms_energy(audio_chunk)
+
+                    if agent.is_speaking:
+                        # AI audio is on the line — watch for a real caller interruption
+                        # rather than blindly discarding everything (that let the AI talk
+                        # over the caller with no way to break in).
+                        if energy >= ENERGY_THRESHOLD:
+                            barge_in_speech_ms += 20
+                            agent.audio_buffer.extend(audio_chunk)
+                            if barge_in_speech_ms >= BARGE_IN_THRESHOLD_MS:
+                                agent.barge_in_triggered = True
+                                speech_duration_ms = barge_in_speech_ms
+                                silence_duration_ms = 0
+                                has_speech = True
+                                barge_in_speech_ms = 0
+                        else:
+                            barge_in_speech_ms = 0
+                            agent.audio_buffer.clear()
+                        continue
+
+                    # Echo suppression while the AI is transcribing/thinking — there's no
+                    # audible AI speech yet for the caller to interrupt during this gap.
+                    if agent.is_processing:
                         agent.audio_buffer.clear()
                         speech_duration_ms = 0
                         silence_duration_ms = 0
                         has_speech = False
+                        barge_in_speech_ms = 0
                         continue
-
-                    audio_chunk = base64.b64decode(stream_message.media["payload"])
-                    energy = mulaw_rms_energy(audio_chunk)
 
                     if energy >= ENERGY_THRESHOLD:
                         # Speech detected!
@@ -476,14 +506,14 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                                 speech_duration_ms = 0
                                 silence_duration_ms = 0
                                 has_speech = False
-                                asyncio.create_task(agent.process_and_respond(send_to_telnyx))
+                                asyncio.create_task(run_turn_and_maybe_hangup(agent.process_and_respond(send_to_telnyx)))
 
                     # Hard cap: force-process if buffer grows over 10 seconds of active speech
                     if len(agent.audio_buffer) >= 8000 * 10 and not agent.is_processing:
                         speech_duration_ms = 0
                         silence_duration_ms = 0
                         has_speech = False
-                        asyncio.create_task(agent.process_and_respond(send_to_telnyx))
+                        asyncio.create_task(run_turn_and_maybe_hangup(agent.process_and_respond(send_to_telnyx)))
 
             elif stream_message.event in ("stop", "error"):
                 break

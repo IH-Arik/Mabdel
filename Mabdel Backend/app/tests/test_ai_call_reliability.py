@@ -1,0 +1,297 @@
+from __future__ import annotations
+
+import asyncio
+import base64
+import io
+import wave
+
+from app.services.ai_phone_agent import MAX_CONSECUTIVE_FAILURES, AIPhoneAgent
+from app.services.call_phrases import phrase
+from app.services.call_service import CallService
+from app.services.gocustify_ai_service import GoCustifyAIService
+from app.services.smartflow_service import SmartFlowService
+
+
+def _make_agent(flow_service: SmartFlowService) -> AIPhoneAgent:
+    agent = AIPhoneAgent("call_reliability_1", GoCustifyAIService(), flow_service)
+    agent.user_id = "guest"
+    return agent
+
+
+def _short_wav_base64(num_samples: int = 3000) -> str:
+    """A minimal 24kHz mono 16-bit silent WAV, matching what OpenAI TTS returns —
+    enough samples that stream_audio_to_telnyx produces multiple 160-byte chunks."""
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(24000)
+        wav_file.writeframes(b"\x00\x00" * num_samples)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
+# ── Recording disclosure ─────────────────────────────────────────────────
+
+
+def test_greeting_includes_recording_disclosure(mock_db, monkeypatch):
+    captured_texts: list[str] = []
+
+    async def fake_synthesize(self, text, voice_id=None):
+        captured_texts.append(text)
+        return {"audio_base64": _short_wav_base64()}
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(flow_service)
+        agent.stream_sid = "MZ_test"  # set by the "start" event before a real greet() call
+        sent: list[dict] = []
+
+        async def send_callback(message):
+            sent.append(message)
+
+        await agent.greet(send_callback)
+        return sent
+
+    sent = asyncio.run(_run())
+    assert captured_texts, "synthesize_speech should have been called for the greeting"
+    disclosure = phrase("recording_disclosure", "en")
+    assert disclosure in captured_texts[0]
+    assert sent, "greeting audio should have been streamed to Telnyx"
+
+
+# ── Dead-air failsafe ────────────────────────────────────────────────────
+
+
+def test_speak_retries_once_before_giving_up(mock_db, monkeypatch):
+    call_count = 0
+
+    async def fake_synthesize(self, text, voice_id=None):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return {"audio_base64": None, "status": "generation_failed"}
+        return {"audio_base64": _short_wav_base64()}
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(flow_service)
+
+        async def send_callback(message):
+            pass
+
+        ok = await agent._speak("hello there", send_callback)
+        return ok, agent.consecutive_failures, agent.should_hangup
+
+    ok, failures, should_hangup = asyncio.run(_run())
+    assert call_count == 2  # first attempt failed, retry succeeded
+    assert ok is True
+    assert failures == 0
+    assert should_hangup is False
+
+
+def test_repeated_tts_failure_triggers_apology_and_hangup(mock_db, monkeypatch):
+    async def fake_synthesize(self, text, voice_id=None):
+        return {"audio_base64": None, "status": "generation_failed"}
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(flow_service)
+
+        async def send_callback(message):
+            pass
+
+        results = []
+        for _ in range(MAX_CONSECUTIVE_FAILURES):
+            results.append(await agent._speak("hello there", send_callback))
+        return results, agent.consecutive_failures, agent.should_hangup
+
+    results, failures, should_hangup = asyncio.run(_run())
+    assert all(result is False for result in results)
+    assert failures == MAX_CONSECUTIVE_FAILURES
+    assert should_hangup is True
+
+
+def test_repeated_transcription_failure_triggers_hangup(mock_db, monkeypatch):
+    def fake_transcribe(self, audio_base64, audio_mime_type, audio_filename):
+        return None, None, "connection to OpenAI failed"
+
+    async def fake_synthesize(self, text, voice_id=None):
+        return {"audio_base64": _short_wav_base64()}
+
+    monkeypatch.setattr(GoCustifyAIService, "_transcribe_with_language", fake_transcribe)
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(flow_service)
+
+        async def send_callback(message):
+            pass
+
+        for _ in range(MAX_CONSECUTIVE_FAILURES):
+            agent.audio_buffer.extend(b"\xff" * 8000)  # fake mu-law audio to process
+            await agent.process_and_respond(send_callback)
+        return agent.consecutive_failures, agent.should_hangup
+
+    failures, should_hangup = asyncio.run(_run())
+    assert failures == MAX_CONSECUTIVE_FAILURES
+    assert should_hangup is True
+
+
+def test_transient_no_speech_does_not_count_as_failure(mock_db, monkeypatch):
+    """A silent/empty transcript (nobody spoke) is not a pipeline failure and must
+    not count toward the dead-air failsafe."""
+
+    def fake_transcribe(self, audio_base64, audio_mime_type, audio_filename):
+        return None, None, "OpenAI returned an empty transcript."
+
+    monkeypatch.setattr(GoCustifyAIService, "_transcribe_with_language", fake_transcribe)
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(flow_service)
+
+        async def send_callback(message):
+            pass
+
+        for _ in range(MAX_CONSECUTIVE_FAILURES + 2):
+            agent.audio_buffer.extend(b"\xff" * 8000)
+            await agent.process_and_respond(send_callback)
+        return agent.consecutive_failures, agent.should_hangup
+
+    failures, should_hangup = asyncio.run(_run())
+    assert failures == 0
+    assert should_hangup is False
+
+
+# ── Barge-in ──────────────────────────────────────────────────────────────
+
+
+def test_stream_audio_stops_early_on_barge_in(mock_db, monkeypatch):
+    async def fake_synthesize(self, text, voice_id=None):
+        return {"audio_base64": _short_wav_base64()}
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(flow_service)
+        agent.stream_sid = "MZ_test"
+        sent_chunks: list[dict] = []
+
+        async def send_callback(message):
+            sent_chunks.append(message)
+            if len(sent_chunks) == 1:
+                # Simulate calls.py detecting a real caller interruption mid-speech.
+                agent.barge_in_triggered = True
+
+        audio_b64 = _short_wav_base64(num_samples=6000)  # enough for several 20ms chunks
+        agent.audio_buffer.extend(b"leftover-caller-speech")
+        await agent.stream_audio_to_telnyx(audio_b64, send_callback)
+        return sent_chunks, agent.is_speaking, agent.barge_in_triggered, bytes(agent.audio_buffer)
+
+    sent_chunks, is_speaking, barge_in_triggered, remaining_buffer = asyncio.run(_run())
+    assert len(sent_chunks) == 1  # stopped after the interrupt instead of streaming the full reply
+    assert is_speaking is False
+    assert barge_in_triggered is False  # reset after being consumed
+    assert remaining_buffer == b"leftover-caller-speech"  # caller's interrupt speech was preserved, not wiped
+
+
+def test_stream_audio_clears_buffer_when_no_barge_in(mock_db, monkeypatch):
+    async def fake_synthesize(self, text, voice_id=None):
+        return {"audio_base64": _short_wav_base64()}
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(flow_service)
+        agent.stream_sid = "MZ_test"
+        agent.audio_buffer.extend(b"stale-echo-noise")
+
+        async def send_callback(message):
+            pass
+
+        audio_b64 = _short_wav_base64()
+        await agent.stream_audio_to_telnyx(audio_b64, send_callback)
+        return bytes(agent.audio_buffer)
+
+    remaining_buffer = asyncio.run(_run())
+    assert remaining_buffer == b""  # normal completion still clears any buffered echo/noise
+
+
+# ── Call recording ────────────────────────────────────────────────────────
+
+
+def _fake_telnyx_client(monkeypatch, recorded_calls: dict):
+    class FakeActions:
+        def answer(self, call_control_id, **kwargs):
+            recorded_calls.setdefault("answer", []).append((call_control_id, kwargs))
+
+        def start_streaming(self, call_control_id, **kwargs):
+            recorded_calls.setdefault("start_streaming", []).append((call_control_id, kwargs))
+
+        def start_recording(self, call_control_id, **kwargs):
+            recorded_calls.setdefault("start_recording", []).append((call_control_id, kwargs))
+
+    class FakeCalls:
+        actions = FakeActions()
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            self.calls = FakeCalls()
+
+    import app.services.call_service as module
+
+    monkeypatch.setattr(module, "telnyx", type("T", (), {"Client": FakeClient, "TelnyxError": Exception}))
+    monkeypatch.setattr(module.settings, "TELNYX_API_KEY", "test-key")
+
+
+def test_answering_into_ai_stream_starts_recording(monkeypatch):
+    recorded_calls: dict = {}
+    _fake_telnyx_client(monkeypatch, recorded_calls)
+    call_service = CallService()
+
+    asyncio.run(call_service.answer_call("v2:rec-test", websocket_url="wss://example.test/stream"))
+
+    assert len(recorded_calls.get("answer", [])) == 1
+    assert len(recorded_calls.get("start_recording", [])) == 1
+    call_control_id, kwargs = recorded_calls["start_recording"][0]
+    assert call_control_id == "v2:rec-test"
+    assert kwargs == {"channels": "single", "format": "mp3"}
+
+
+def test_answering_without_ai_stream_does_not_start_recording(monkeypatch):
+    """Calls handed off to a human in the browser (no websocket_url) aren't recorded —
+    only AI-handled calls, which is what the recording+transcript pipeline is for."""
+    recorded_calls: dict = {}
+    _fake_telnyx_client(monkeypatch, recorded_calls)
+    call_service = CallService()
+
+    asyncio.run(call_service.answer_call("v2:no-rec-test", websocket_url=None))
+
+    assert len(recorded_calls.get("answer", [])) == 1
+    assert "start_recording" not in recorded_calls
+
+
+def test_start_streaming_starts_recording(monkeypatch):
+    """Covers the outbound-AI-call and transfer-to-AI paths, which join the AI via
+    start_streaming rather than answer_call."""
+    recorded_calls: dict = {}
+    _fake_telnyx_client(monkeypatch, recorded_calls)
+    call_service = CallService()
+
+    result = asyncio.run(call_service.start_streaming("v2:outbound-rec-test", websocket_url="wss://example.test/stream"))
+
+    assert result is True
+    assert len(recorded_calls.get("start_streaming", [])) == 1
+    assert len(recorded_calls.get("start_recording", [])) == 1
+    call_control_id, kwargs = recorded_calls["start_recording"][0]
+    assert call_control_id == "v2:outbound-rec-test"
+    assert kwargs == {"channels": "single", "format": "mp3"}

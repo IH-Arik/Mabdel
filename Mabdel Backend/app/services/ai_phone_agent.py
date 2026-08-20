@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 MU_LAW_SILENCE = 0xFF
 SAMPLE_RATE = 8000
 
+# After this many consecutive OpenAI (transcription/TTS) failures in a row, stop
+# retrying silently and apologize + hang up instead of leaving the caller on dead air.
+MAX_CONSECUTIVE_FAILURES = 2
+
 
 def _looks_like_scheduling_request(text: str, language: str = "en") -> bool:
     return matches_any(text, language, call_phrases.SCHEDULING_KEYWORDS)
@@ -117,6 +121,9 @@ class AIPhoneAgent:
         self.audio_buffer = bytearray()
         self.is_processing = False
         self.is_speaking = False
+        self.barge_in_triggered = False
+        self.consecutive_failures = 0
+        self.should_hangup = False
         self.stream_sid = None
         self.greeted = False
         self.user_id = None
@@ -152,9 +159,32 @@ class AIPhoneAgent:
         else:
             # No business name on file yet — a generic greeting beats a wrong one.
             greeting_text = phrase("greeting_no_business", self.language)
-        audio_result = await self.ai_service.synthesize_speech(greeting_text)
+        greeting_text = f"{phrase('recording_disclosure', self.language)} {greeting_text}"
+        await self._speak(greeting_text, send_callback)
+
+    async def _speak(self, text: str, send_callback: Callable) -> bool:
+        """Synthesizes and streams `text`, retrying once on failure. On repeated
+        failure across turns, apologizes (best-effort) and flags the call to hang
+        up rather than leaving the caller on dead air indefinitely."""
+        audio_result = await self.ai_service.synthesize_speech(text)
+        if not audio_result or not audio_result.get("audio_base64"):
+            audio_result = await self.ai_service.synthesize_speech(text)  # one retry
+
         if audio_result and audio_result.get("audio_base64"):
+            self.consecutive_failures = 0
             await self.stream_audio_to_telnyx(audio_result["audio_base64"], send_callback)
+            return True
+
+        self.consecutive_failures += 1
+        logger.warning(
+            "Call %s: TTS failed %d consecutive time(s)", self.call_id, self.consecutive_failures
+        )
+        if self.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+            self.should_hangup = True
+            apology_audio = await self.ai_service.synthesize_speech(phrase("technical_issue", self.language))
+            if apology_audio and apology_audio.get("audio_base64"):
+                await self.stream_audio_to_telnyx(apology_audio["audio_base64"], send_callback)
+        return False
 
     async def _get_business_name(self) -> str | None:
         if not self.user_id or self.user_id == "guest":
@@ -271,6 +301,22 @@ class AIPhoneAgent:
             logger.debug("Call %s: Whisper transcript: '%s', lang='%s', error='%s'", self.call_id, transcript, detected_language, error)
 
             if not transcript or len(transcript.strip()) < 2:
+                if error and error != "OpenAI returned an empty transcript.":
+                    # A real transcription failure (API error, missing key, bad
+                    # payload) — not just silence/no speech — counts toward the
+                    # dead-air failsafe below.
+                    self.consecutive_failures += 1
+                    logger.warning(
+                        "Call %s: transcription failed %d consecutive time(s): %s",
+                        self.call_id, self.consecutive_failures, error,
+                    )
+                    if self.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                        self.should_hangup = True
+                        apology_audio = await self.ai_service.synthesize_speech(
+                            phrase("technical_issue", self.language)
+                        )
+                        if apology_audio and apology_audio.get("audio_base64"):
+                            await self.stream_audio_to_telnyx(apology_audio["audio_base64"], send_callback)
                 self.is_processing = False
                 return
 
@@ -297,12 +343,19 @@ class AIPhoneAgent:
 
             logger.debug("Call %s: AI Response: '%s'", self.call_id, response_text)
 
-            audio_result = await self.ai_service.synthesize_speech(response_text)
-            if audio_result and audio_result.get("audio_base64"):
-                await self.stream_audio_to_telnyx(audio_result["audio_base64"], send_callback)
+            await self._speak(response_text, send_callback)
 
         except Exception:
             logger.exception("Call %s: Error in AI Phone Agent", self.call_id)
+            self.consecutive_failures += 1
+            if self.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                self.should_hangup = True
+                try:
+                    apology_audio = await self.ai_service.synthesize_speech(phrase("technical_issue", self.language))
+                    if apology_audio and apology_audio.get("audio_base64"):
+                        await self.stream_audio_to_telnyx(apology_audio["audio_base64"], send_callback)
+                except Exception:
+                    logger.exception("Call %s: apology speech also failed", self.call_id)
         finally:
             self.is_processing = False
 
@@ -562,6 +615,9 @@ class AIPhoneAgent:
                 }
                 await send_callback(message)
                 chunk_index += 1
+                if self.barge_in_triggered:
+                    logger.debug("Call %s: barge-in detected, cutting AI speech short.", self.call_id)
+                    break
                 target_time = start_time + (chunk_index * 0.02)
                 sleep_needed = target_time - time.perf_counter()
                 if sleep_needed > 0:
@@ -569,8 +625,13 @@ class AIPhoneAgent:
             logger.debug("Call %s: finished streaming audio to Telnyx.", self.call_id)
         finally:
             self.is_speaking = False
-            # Clear any inbound echo or noise buffered while AI was speaking
-            self.audio_buffer.clear()
+            if self.barge_in_triggered:
+                # Caller interrupted — keep the speech captured during the interrupt as
+                # the start of their next utterance instead of wiping it.
+                self.barge_in_triggered = False
+            else:
+                # Clear any inbound echo or noise buffered while AI was speaking
+                self.audio_buffer.clear()
 
     async def finalize_session(self):
         """Saves the accumulated transcript and AI summary to the call log."""
