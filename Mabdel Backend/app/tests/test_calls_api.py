@@ -159,6 +159,61 @@ def test_call_webhook_busy_hangup_maps_to_busy_status(client, mock_db, monkeypat
     assert call_log["status"] == "busy"
 
 
+def test_recording_saved_webhook_transcribes_and_summarizes(client, mock_db, monkeypatch) -> None:
+    """The call.recording.saved webhook is the real end of the recording -> transcript
+    -> AI analysis pipeline: downloads the audio, transcribes it, summarizes it, and
+    saves both onto the call log."""
+    import asyncio
+
+    import httpx
+
+    from app.services.gocustify_ai_service import GoCustifyAIService
+
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+    monkeypatch.setattr(CallService, "answer_call", _noop_answer)
+
+    inbound_body = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:recording-test", "direction": "incoming", "from": "+1555", "to": "+1666"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=inbound_body).status_code == 200
+
+    class FakeResponse:
+        status_code = 200
+        content = b"fake-mp3-bytes"
+
+    async def fake_get(self, url, *args, **kwargs):
+        assert url == "https://recordings.telnyx.test/rec-123.mp3"
+        return FakeResponse()
+
+    def fake_transcribe(self, audio_base64, audio_mime_type, audio_filename):
+        return "Caller asked about pricing and office hours.", None
+
+    def fake_summarize(self, transcript):
+        assert transcript == "Caller asked about pricing and office hours."
+        return {"summary": "Pricing and hours inquiry.", "key_points": ["pricing", "hours"], "status": "generated"}
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    monkeypatch.setattr(GoCustifyAIService, "_transcribe_audio_with_openai", fake_transcribe)
+    monkeypatch.setattr(GoCustifyAIService, "summarize_call", fake_summarize)
+
+    recording_body = _webhook_envelope(
+        "call.recording.saved",
+        {
+            "call_control_id": "v2:recording-test",
+            "recording_urls": {"mp3": "https://recordings.telnyx.test/rec-123.mp3"},
+        },
+    )
+    response = client.post("/api/v1/calls/webhook", content=recording_body)
+    assert response.status_code == 200
+
+    call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:recording-test"}))
+    assert call_log["recording_url"] == "https://recordings.telnyx.test/rec-123.mp3"
+    assert call_log["recording_transcript"] == "Caller asked about pricing and office hours."
+    assert call_log["ai_summary"]["summary"] == "Pricing and hours inquiry."
+    assert call_log["ai_summary"]["status"] == "generated"
+
+
 def test_call_stream_handles_telnyx_media_events(client) -> None:
     with client.websocket_connect("/api/v1/calls/stream/CAstream") as websocket:
         websocket.send_json({"event": "connected"})

@@ -8,6 +8,7 @@ import {
   Phone,
   PhoneIncoming,
   PhoneMissed,
+  PhoneOff,
   PhoneOutgoing,
   RefreshCw,
   Search,
@@ -496,8 +497,8 @@ function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
     setCalling(true);
     setError('');
     try {
-      await onCall(normalized);
-      onSuccess(t('calls_success_call_started'));
+      const response = await onCall(normalized);
+      onSuccess(t('calls_success_call_started'), response);
       onClose();
     } catch (requestError) {
       setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_call_failed'));
@@ -573,8 +574,57 @@ export default function Calls() {
   const [showCallModal, setShowCallModal] = useState(false);
   const [initialPhone, setInitialPhone] = useState('');
   const [pendingCallbackId, setPendingCallbackId] = useState('');
+  const [activeAiCall, setActiveAiCall] = useState(null); // { id, callSid, phone, status, status_label }
+  const [endingAiCall, setEndingAiCall] = useState(false);
+  const activeAiCallPollRef = useRef(null);
   const location = useLocation();
   const { startOutboundCall, isReady: isVoiceReady, error: voiceError } = useTelnyxVoice();
+
+  const AI_CALL_TERMINAL_STATUSES = useMemo(() => new Set(['completed', 'busy', 'no_answer', 'canceled', 'failed']), []);
+
+  const stopAiCallPolling = useCallback(() => {
+    if (activeAiCallPollRef.current) {
+      window.clearInterval(activeAiCallPollRef.current);
+      activeAiCallPollRef.current = null;
+    }
+  }, []);
+
+  const pollActiveAiCall = useCallback((callId) => {
+    stopAiCallPolling();
+    activeAiCallPollRef.current = window.setInterval(async () => {
+      try {
+        const response = await smartflowApi.getCallLog(callId);
+        const log = response?.data?.data;
+        if (!log) return;
+        setActiveAiCall((prev) => (prev && prev.id === callId ? { ...prev, status: log.status, status_label: log.status_label } : prev));
+        if (AI_CALL_TERMINAL_STATUSES.has(log.status)) {
+          stopAiCallPolling();
+          setActiveAiCall(null);
+          fetchCalls(1, false);
+        }
+      } catch {
+        // transient — next tick retries
+      }
+    }, 3000);
+  }, [AI_CALL_TERMINAL_STATUSES, stopAiCallPolling]);
+
+  useEffect(() => stopAiCallPolling, [stopAiCallPolling]);
+
+  const handleEndAiCall = async () => {
+    if (!activeAiCall?.callSid) return;
+    setEndingAiCall(true);
+    try {
+      await smartflowApi.performCallAction(activeAiCall.callSid, 'cancel');
+      stopAiCallPolling();
+      setActiveAiCall(null);
+      setSuccess(t('calls_success_call_ended') || 'Call ended.');
+      fetchCalls(1, false);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_call_failed'));
+    } finally {
+      setEndingAiCall(false);
+    }
+  };
 
   const fetchCalls = useCallback(async (nextPage = 1, append = false) => {
     try {
@@ -738,6 +788,29 @@ export default function Calls() {
         </div>
       ) : null}
 
+      {activeAiCall && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#9333ea]/30 bg-[#9333ea]/10 p-4">
+          <div className="flex items-center gap-3">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#9333ea]/20">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#9333ea]/30" />
+              <Phone size={16} className="text-[#9333ea]" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">{t('calls_ai_call_active', { phone: activeAiCall.phone })}</p>
+              <p className="text-xs text-[#A4B0B7]">{activeAiCall.status_label || activeAiCall.status}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleEndAiCall}
+            disabled={endingAiCall}
+            className="flex cursor-pointer items-center gap-2 rounded-xl bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600 disabled:opacity-60"
+          >
+            {endingAiCall ? <Loader2 size={14} className="animate-spin" /> : <PhoneOff size={14} />}
+            {t('calls_end_call')}
+          </button>
+        </div>
+      )}
+
       <CallMeetingRequests />
 
       {!loading && <CallStats summary={summary} t={t} />}
@@ -826,9 +899,16 @@ export default function Calls() {
               initialPhone={initialPhone}
               onClose={() => setShowCallModal(false)}
               onCall={(phoneNumber) => smartflowApi.createOutboundCall({ phone_number: phoneNumber, ai_ready: true })}
-              onSuccess={async (message) => {
+              onSuccess={async (message, response) => {
                 setSuccess(message);
+                const log = response?.data?.data?.call_log;
+                const callSid = response?.data?.data?.twilio_call_sid || log?.twilio_call_sid;
+                if (log?.id && callSid) {
+                  setActiveAiCall({ id: log.id, callSid, phone: log.phone_number || initialPhone, status: log.status, status_label: log.status_label });
+                  pollActiveAiCall(log.id);
+                }
                 await fetchCalls(1, false);
+                window.setTimeout(() => fetchCalls(1, false), 4000); // catch the ringing/in_progress transition shortly after dial
             }}
               t={t}
           />
