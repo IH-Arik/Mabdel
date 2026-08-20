@@ -20,7 +20,11 @@ jobs:
       - name: Decode SSH key
         run: |
           echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > "$GITHUB_WORKSPACE/deploy_key.pem"
-          chmod 600 "$GITHUB_WORKSPACE/deploy_key.pem"
+          # appleboy/ssh-action reads this from inside its own Docker container,
+          # under a different UID than the one that created the file — 600 makes it
+          # unreadable to that container ("permission denied"). The runner is
+          # single-tenant and destroyed right after this job, so 644 here is fine.
+          chmod 644 "$GITHUB_WORKSPACE/deploy_key.pem"
           head -1 "$GITHUB_WORKSPACE/deploy_key.pem"
 
       - name: Deploy via SSH
