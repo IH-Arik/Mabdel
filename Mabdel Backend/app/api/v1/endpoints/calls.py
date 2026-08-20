@@ -451,6 +451,7 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
 
             elif stream_message.event == "start":
                 agent.stream_sid = stream_message.stream_id
+                print(f"[call_stream] Call {call_id}: 'start' event received, stream_sid={agent.stream_sid}", flush=True)
                 # Greet the user in the background to avoid blocking the message loop
                 greeting_task = asyncio.create_task(run_turn_and_maybe_hangup(agent.greet(send_to_telnyx)))
 
