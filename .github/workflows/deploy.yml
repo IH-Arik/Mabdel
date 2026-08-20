@@ -6,50 +6,17 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # PROD_SSH_KEY is base64-encoded on purpose — pasting a raw multi-line PEM key
-      # into GitHub's secret box is fragile (terminal line-wrapping corrupts it).
-      # Writing the decoded key into $GITHUB_WORKSPACE matters: appleboy/ssh-action
-      # runs in its own Docker container, which only mounts a few specific host
-      # paths (workspace, runner_temp, home, workflow) — NOT /tmp. A key written to
-      # /tmp is invisible to that container ("no such file or directory").
-      - name: Decode SSH key
+      - name: Pull and rebuild
         run: |
-          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > "$GITHUB_WORKSPACE/deploy_key.pem"
-          # appleboy/ssh-action reads this from inside its own Docker container,
-          # under a different UID than the one that created the file — 600 makes it
-          # unreadable to that container ("permission denied"). The runner is
-          # single-tenant and destroyed right after this job, so 644 here is fine.
-          chmod 644 "$GITHUB_WORKSPACE/deploy_key.pem"
-          head -1 "$GITHUB_WORKSPACE/deploy_key.pem"
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key_path: /github/workspace/deploy_key.pem
-          script: |
-            set -e
-            cd /home/ubuntu/Mabdel
-            git pull origin master
-            cd "Mabdel Backend"
-            sudo docker compose -f docker-compose.prod.yml up -d --build
+          set -e
+          cd /home/ubuntu/Mabdel
+          git pull origin master
+          cd "Mabdel Backend"
+          sudo docker compose -f docker-compose.prod.yml up -d --build
 
       - name: Verify health
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key_path: /github/workspace/deploy_key.pem
-          script: |
-            sleep 10
-            curl -sf https://api.gocustify.com/health
-
-      - name: Clean up key
-        if: always()
-        run: rm -f "$GITHUB_WORKSPACE/deploy_key.pem"
+        run: |
+          sleep 10
+          curl -sf https://api.gocustify.com/health
