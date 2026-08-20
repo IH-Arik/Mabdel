@@ -166,9 +166,13 @@ class AIPhoneAgent:
         """Synthesizes and streams `text`, retrying once on failure. On repeated
         failure across turns, apologizes (best-effort) and flags the call to hang
         up rather than leaving the caller on dead air indefinitely."""
+        print(f"[_speak] Call {self.call_id}: synthesizing {len(text)} chars, stream_sid={self.stream_sid}", flush=True)
         audio_result = await self.ai_service.synthesize_speech(text)
+        print(f"[_speak] Call {self.call_id}: TTS status={audio_result.get('status') if audio_result else None}, "
+              f"has_audio={bool(audio_result and audio_result.get('audio_base64'))}", flush=True)
         if not audio_result or not audio_result.get("audio_base64"):
             audio_result = await self.ai_service.synthesize_speech(text)  # one retry
+            print(f"[_speak] Call {self.call_id}: retry TTS status={audio_result.get('status') if audio_result else None}", flush=True)
 
         if audio_result and audio_result.get("audio_base64"):
             self.consecutive_failures = 0
@@ -572,6 +576,7 @@ class AIPhoneAgent:
         the same encoding Twilio used — the audio pipeline is unchanged by the provider swap.
         """
         if not self.stream_sid:
+            print(f"[stream_audio_to_telnyx] Call {self.call_id}: ABORTED — stream_sid not set", flush=True)
             return
 
         from app.utils.audio import pcm_to_mulaw
@@ -594,9 +599,9 @@ class AIPhoneAgent:
 
         # 4. Stream to Telnyx in chunks of 160 bytes (20ms) with precise timing
         chunk_size = 160
-        logger.debug(
-            "Call %s: streaming %d bytes of mu-law audio to Telnyx (%d chunks)",
-            self.call_id, len(mulaw_data), len(mulaw_data) // chunk_size,
+        print(
+            f"[stream_audio_to_telnyx] Call {self.call_id}: sending {len(mulaw_data)} bytes "
+            f"({len(mulaw_data) // chunk_size} chunks) to stream_sid={self.stream_sid}", flush=True,
         )
         self.is_speaking = True
         try:
@@ -622,7 +627,7 @@ class AIPhoneAgent:
                 sleep_needed = target_time - time.perf_counter()
                 if sleep_needed > 0:
                     await asyncio.sleep(sleep_needed)
-            logger.debug("Call %s: finished streaming audio to Telnyx.", self.call_id)
+            print(f"[stream_audio_to_telnyx] Call {self.call_id}: finished sending {chunk_index} chunks.", flush=True)
         finally:
             self.is_speaking = False
             if self.barge_in_triggered:
