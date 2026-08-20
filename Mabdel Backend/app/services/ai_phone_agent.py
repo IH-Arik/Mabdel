@@ -121,6 +121,7 @@ class AIPhoneAgent:
         self.audio_buffer = bytearray()
         self.is_processing = False
         self.is_speaking = False
+        self.speaking_started_at: float | None = None
         self.barge_in_triggered = False
         self.consecutive_failures = 0
         self.should_hangup = False
@@ -606,6 +607,7 @@ class AIPhoneAgent:
         self.is_speaking = True
         try:
             import time
+            self.speaking_started_at = time.monotonic()
             start_time = time.perf_counter()
             chunk_index = 0
             for i in range(0, len(mulaw_data), chunk_size):
@@ -621,7 +623,7 @@ class AIPhoneAgent:
                 await send_callback(message)
                 chunk_index += 1
                 if self.barge_in_triggered:
-                    logger.debug("Call %s: barge-in detected, cutting AI speech short.", self.call_id)
+                    print(f"[stream_audio_to_telnyx] Call {self.call_id}: barge-in detected after {chunk_index} chunks, cutting AI speech short.", flush=True)
                     break
                 target_time = start_time + (chunk_index * 0.02)
                 sleep_needed = target_time - time.perf_counter()

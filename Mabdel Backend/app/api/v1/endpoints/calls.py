@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, WebSocket
 from fastapi.responses import JSONResponse
 import asyncio
+import time
 
 from app.dependencies import get_current_user, get_mongo_database
 from app.schemas.call import CallActionRequest
@@ -413,7 +414,15 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     has_speech = False
     barge_in_speech_ms = 0
     ENERGY_THRESHOLD = 350.0  # RMS threshold for mu-law speech detection
-    BARGE_IN_THRESHOLD_MS = 200  # sustained real speech while AI is talking counts as an interrupt
+    # Real phone lines echo the AI's own voice back to us with no acoustic echo
+    # cancellation on our side — a naive barge-in check reliably self-triggers within
+    # ~100-200ms of every utterance, cutting the AI off almost immediately. A grace
+    # period (skip detection right as speech starts, while echo is loudest/most
+    # correlated) plus a stricter threshold and longer sustained-speech requirement
+    # cuts false positives down to something that needs a real, deliberate interruption.
+    BARGE_IN_GRACE_SECONDS = 0.6
+    BARGE_IN_ENERGY_THRESHOLD = ENERGY_THRESHOLD * 1.8
+    BARGE_IN_THRESHOLD_MS = 600  # sustained real speech while AI is talking counts as an interrupt
 
     async def send_to_telnyx(message: dict):
         try:
@@ -463,8 +472,13 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                     if agent.is_speaking:
                         # AI audio is on the line — watch for a real caller interruption
                         # rather than blindly discarding everything (that let the AI talk
-                        # over the caller with no way to break in).
-                        if energy >= ENERGY_THRESHOLD:
+                        # over the caller with no way to break in). Skip detection during
+                        # the grace window right after speech starts — that's when line
+                        # echo of the AI's own voice is loudest and most likely to false-
+                        # trigger, since we have no acoustic echo cancellation here.
+                        started_at = agent.speaking_started_at
+                        in_grace_period = started_at is None or (time.monotonic() - started_at) < BARGE_IN_GRACE_SECONDS
+                        if not in_grace_period and energy >= BARGE_IN_ENERGY_THRESHOLD:
                             barge_in_speech_ms += 20
                             agent.audio_buffer.extend(audio_chunk)
                             if barge_in_speech_ms >= BARGE_IN_THRESHOLD_MS:
