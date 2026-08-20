@@ -8,27 +8,27 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       # PROD_SSH_KEY is base64-encoded on purpose — pasting a raw multi-line PEM key
-      # into GitHub's secret box is fragile (terminal line-wrapping when copying it
-      # tends to corrupt it, which is silent until ssh-action fails to parse it at
-      # deploy time). Decoding it here, in-workflow, means a human never has to
-      # correctly copy-paste the multi-line key at all. appleboy/ssh-action runs in
-      # its own Docker container that doesn't mount the runner's /tmp, so the
-      # decoded key is passed as content via a step output, not a file path.
+      # into GitHub's secret box is fragile (terminal line-wrapping corrupts it).
+      # Writing the decoded key into $GITHUB_WORKSPACE matters: appleboy/ssh-action
+      # runs in its own Docker container, which only mounts a few specific host
+      # paths (workspace, runner_temp, home, workflow) — NOT /tmp. A key written to
+      # /tmp is invisible to that container ("no such file or directory").
       - name: Decode SSH key
-        id: decode
         run: |
-          DECODED=$(echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d)
-          echo "ssh_key<<SSHKEY_EOF" >> "$GITHUB_OUTPUT"
-          echo "$DECODED" >> "$GITHUB_OUTPUT"
-          echo "SSHKEY_EOF" >> "$GITHUB_OUTPUT"
+          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > "$GITHUB_WORKSPACE/deploy_key.pem"
+          chmod 600 "$GITHUB_WORKSPACE/deploy_key.pem"
+          head -1 "$GITHUB_WORKSPACE/deploy_key.pem"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ steps.decode.outputs.ssh_key }}
+          key_path: /github/workspace/deploy_key.pem
           script: |
             set -e
             cd /home/ubuntu/Mabdel
@@ -41,7 +41,11 @@ jobs:
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ steps.decode.outputs.ssh_key }}
+          key_path: /github/workspace/deploy_key.pem
           script: |
             sleep 10
             curl -sf https://api.gocustify.com/health
+
+      - name: Clean up key
+        if: always()
+        run: rm -f "$GITHUB_WORKSPACE/deploy_key.pem"
