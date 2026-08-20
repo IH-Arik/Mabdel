@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Copy,
   Globe,
+  Link2,
   Loader2,
   Mail,
   RefreshCw,
@@ -61,6 +62,13 @@ export default function BusinessEmailDomain() {
 
   const availabilityTimer = useRef(null);
 
+  const [zohoConnected, setZohoConnected] = useState(false);
+  const [zohoEmail, setZohoEmail] = useState('');
+  const [zohoNeedsReauth, setZohoNeedsReauth] = useState(false);
+  const [zohoLoading, setZohoLoading] = useState(true);
+  const [zohoBusy, setZohoBusy] = useState(false);
+  const zohoWindowRef = useRef(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -73,9 +81,77 @@ export default function BusinessEmailDomain() {
     }
   }, [t]);
 
+  const loadZohoStatus = useCallback(async () => {
+    setZohoLoading(true);
+    try {
+      const response = await smartflowApi.getIntegrationStatus();
+      const items = unwrap(response)?.items || [];
+      const zoho = items.find((item) => item.platform === 'zoho');
+      setZohoConnected(Boolean(zoho?.connected));
+      setZohoEmail(zoho?.external_account_name || '');
+      setZohoNeedsReauth(zoho?.health_status === 'needs_reauth' || zoho?.sync_status === 'needs_reauth');
+    } catch {
+      setZohoConnected(false);
+      setZohoEmail('');
+    } finally {
+      setZohoLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadZohoStatus();
+  }, [load, loadZohoStatus]);
+
+  useEffect(() => {
+    function handleFocus() {
+      if (zohoWindowRef.current && zohoWindowRef.current.closed) {
+        zohoWindowRef.current = null;
+        loadZohoStatus();
+      }
+    }
+    function handleMessage(event) {
+      if (event?.data?.type === 'mabdel-zoho-mail-oauth') {
+        loadZohoStatus();
+      }
+    }
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [loadZohoStatus]);
+
+  async function handleConnectZoho() {
+    setZohoBusy(true);
+    try {
+      const res = await smartflowApi.startIntegrationOAuth('zoho');
+      const url = res?.data?.data?.auth_url || res?.data?.auth_url;
+      if (!url) {
+        setError(t('bed_err_zoho_no_auth_url'));
+        return;
+      }
+      zohoWindowRef.current = window.open(url, '_blank');
+    } catch (err) {
+      setError(err.response?.data?.message || t('bed_err_zoho_connect'));
+    } finally {
+      setZohoBusy(false);
+    }
+  }
+
+  async function handleDisconnectZoho() {
+    setZohoBusy(true);
+    try {
+      await smartflowApi.disconnectIntegration('zoho');
+      await loadZohoStatus();
+      setNotice(t('bed_msg_zoho_disconnected'));
+    } catch (err) {
+      setError(err.response?.data?.message || t('bed_err_zoho_disconnect'));
+    } finally {
+      setZohoBusy(false);
+    }
+  }
 
   // Debounced availability preview while the owner types a business name.
   useEffect(() => {
@@ -162,6 +238,7 @@ export default function BusinessEmailDomain() {
   const StatusIcon = statusStyle.Icon;
 
   return (
+    <>
     <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 space-y-4 text-left">
       <div className="flex items-start gap-3">
         <div
@@ -364,5 +441,59 @@ export default function BusinessEmailDomain() {
         </div>
       )}
     </div>
+
+    <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 space-y-3 text-left">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#E4252722' }}>
+          <Link2 size={20} className="text-[#E42527]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[#F3F9FF] font-bold text-[16px]">{t('bed_zoho_title')}</h3>
+          <p className="text-[#9BA7BB] text-[13px] mt-0.5">{t('bed_zoho_subtitle')}</p>
+        </div>
+        {zohoConnected ? (
+          <span
+            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold ${
+              zohoNeedsReauth ? 'text-amber-300 bg-amber-500/10' : 'text-emerald-400 bg-emerald-500/10'
+            }`}
+          >
+            {zohoNeedsReauth ? <AlertCircle size={13} /> : <CheckCircle2 size={13} />}
+            {zohoNeedsReauth ? t('bed_zoho_needs_reauth') : t('bed_zoho_connected')}
+          </span>
+        ) : null}
+      </div>
+
+      {domain?.status === 'verified' && zohoConnected ? (
+        <p className="text-amber-300 text-[13px] leading-relaxed bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+          {t('bed_zoho_overrides_domain_hint')}
+        </p>
+      ) : null}
+
+      {zohoConnected ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {zohoEmail ? <span className="text-[#C6D2E2] text-[14px] break-all">{zohoEmail}</span> : null}
+          <button
+            type="button"
+            onClick={zohoNeedsReauth ? handleConnectZoho : handleDisconnectZoho}
+            disabled={zohoBusy || zohoLoading}
+            className="h-[38px] px-4 bg-[#0C0E12] border border-[#1E2530] text-rose-400 rounded-xl font-semibold hover:bg-rose-500/10 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2 text-[13px]"
+          >
+            {zohoBusy ? <Loader2 size={14} className="animate-spin" /> : zohoNeedsReauth ? <RefreshCw size={14} /> : <Trash2 size={14} />}
+            {zohoNeedsReauth ? t('bed_zoho_btn_reconnect') : t('bed_zoho_btn_disconnect')}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleConnectZoho}
+          disabled={zohoBusy || zohoLoading}
+          className="h-[42px] px-4 bg-[#0C0E12] border border-[#1E2530] text-[#F3F9FF] rounded-xl font-semibold hover:border-[#E42527]/50 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2 text-[14px]"
+        >
+          {zohoBusy || zohoLoading ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
+          {t('bed_zoho_btn_connect')}
+        </button>
+      )}
+    </div>
+    </>
   );
 }
