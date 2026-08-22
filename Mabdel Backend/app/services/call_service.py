@@ -124,15 +124,52 @@ class CallService:
                 "stream_track": settings.TELNYX_STREAM_TRACK,
                 # send_silence_when_idle keeps the Telnyx WebSocket connection alive
                 # when we are not actively sending audio back (prevents stream_error).
-                # Do NOT set stream_bidirectional_mode="rtp" — that sends raw RTP bytes
-                # instead of WebSocket JSON frames and causes stream_error 100002.
                 "send_silence_when_idle": True,
+                # Required for Telnyx to actually play back the raw base64 PCMU audio
+                # chunks we send over the WebSocket — without this, Telnyx accepts our
+                # outbound "media" frames but silently never plays them into the call
+                # (per Telnyx docs, "rtp" is the correct mode for raw-payload chunks
+                # sent as {"event":"media","media":{"payload":...}}, despite the name —
+                # it is NOT raw RTP framing on the wire, the JSON envelope is unchanged).
+                "stream_bidirectional_mode": "rtp",
+                "stream_bidirectional_codec": "PCMU",
             }
         try:
             client.calls.actions.answer(call_control_id, **kwargs)
         except telnyx.TelnyxError as exc:
             logger.warning("Telnyx answer failed for %s: %s", call_control_id, exc)
+            return
+        if websocket_url:
+            await self.start_recording(call_control_id)
+            await self.start_noise_suppression(call_control_id)
 
+    async def start_noise_suppression(self, call_control_id: str) -> bool:
+        """Cleans up the caller's inbound audio before it reaches us — reduces
+        background noise and line artifacts that can otherwise be mistaken for
+        real caller speech (e.g. by the barge-in energy check)."""
+        client = self._client()
+        try:
+            client.calls.actions.start_noise_suppression(
+                call_control_id, direction="inbound", noise_suppression_engine="Krisp"
+            )
+            return True
+        except telnyx.TelnyxError as exc:
+            logger.warning("Telnyx start_noise_suppression failed for %s: %s", call_control_id, exc)
+            return False
+
+    async def start_recording(self, call_control_id: str) -> bool:
+        """Starts recording so the call.recording.saved webhook fires and
+        _process_recording can transcribe/summarize the raw audio afterward.
+        Best-effort: a failure here shouldn't break the call itself, since the
+        live-transcript AI summary (see AIPhoneAgent.finalize_session) works
+        independently of this."""
+        client = self._client()
+        try:
+            client.calls.actions.start_recording(call_control_id, channels="single", format="mp3")
+            return True
+        except telnyx.TelnyxError as exc:
+            logger.warning("Telnyx start_recording failed for %s: %s", call_control_id, exc)
+            return False
 
     async def hangup_call(self, call_control_id: str) -> bool:
         client = self._client()
@@ -166,11 +203,17 @@ class CallService:
                 # turns, matching the inbound answer-call streaming behavior that is
                 # already known to work.
                 send_silence_when_idle=True,
+                # Same as answer_call — required for Telnyx to actually play back the
+                # audio we send, not just forward the caller's audio to us.
+                stream_bidirectional_mode="rtp",
+                stream_bidirectional_codec="PCMU",
             )
 
         try:
             await asyncio.to_thread(_do_start_streaming)
             print(f"[start_streaming] SUCCESS for {call_control_id}", flush=True)
+            await self.start_recording(call_control_id)
+            await self.start_noise_suppression(call_control_id)
             return True
         except telnyx.TelnyxError as exc:
             print(f"[start_streaming] FAILED for {call_control_id}: {exc}", flush=True)

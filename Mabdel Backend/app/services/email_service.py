@@ -29,12 +29,38 @@ class EmailService:
         from_name: str | None = None,
         reply_to: str | None = None,
         headers: dict | None = None,
+        sender_provider: str | None = None,
+        sender_user_id: str | None = None,
+        db=None,
     ) -> None:
         """Send from an organization's own verified domain when one is set up.
 
         Falls back to the platform sender when ``from_email`` is None, so callers
         can pass the resolved sender straight through without branching.
+
+        ``sender_provider``/``sender_user_id``/``db`` come from
+        ``EmailDomainService.resolve_sender`` — when the sender resolved to a
+        connected Zoho Mail account (``sender_provider == "zoho"``), this routes
+        through Zoho's own send API instead of Resend/SMTP, since that mailbox
+        lives on Zoho's infrastructure, not ours.
         """
+        if sender_provider == "zoho" and sender_user_id and db is not None:
+            from app.services.email_domain.zoho_mail_service import ZohoMailService
+
+            sent = await ZohoMailService(db).send_email(
+                sender_user_id,
+                to=email,
+                subject=subject,
+                html=html,
+                text=text,
+                reply_to=reply_to,
+            )
+            if sent:
+                return
+            # Connection vanished between resolve and send (disconnected mid-flight,
+            # token unrecoverable) — fall through to the platform default rather
+            # than losing the message.
+
         await self._send_email(
             email=email,
             subject=subject,

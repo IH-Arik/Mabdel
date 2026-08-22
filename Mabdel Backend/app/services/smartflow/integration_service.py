@@ -25,10 +25,18 @@ from .zoom_calendar_service import ZoomCalendarService
 class IntegrationService(SmartFlowBase):
     def __init__(self, db: AsyncIOMotorDatabase, conversation_service: ConversationService | None = None) -> None:
         super().__init__(db)
+        # Local import: app.services.email_domain's package __init__ pulls in
+        # inbound_service.py, which imports SmartFlowService — importing it at
+        # module load time here would be circular (smartflow -> email_domain ->
+        # smartflow_service -> smartflow). Same precedent as
+        # SmartFlowBase._resolve_bulk_sender's local EmailDomainService import.
+        from app.services.email_domain.zoho_mail_service import ZohoMailService
+
         self.conversation_service = conversation_service or ConversationService(db)
         self.google_calendar_service = GoogleCalendarService(db)
         self.zoom_calendar_service = ZoomCalendarService(db)
         self.calendar_service = CalendarService(db)
+        self.zoho_mail_service = ZohoMailService(db)
 
     async def list_integrations(self, user_id: str) -> list[dict]:
         team_ids = await self._resolve_team_user_ids(user_id)
@@ -442,6 +450,17 @@ class IntegrationService(SmartFlowBase):
                 "zoom_user_email": zoom_user.get("email"),
                 "zoom_account_id": zoom_user.get("account_id"),
                 "timezone": zoom_user.get("timezone") or "UTC",
+            }
+        elif platform == "zoho":
+            zoho_account = await self.zoho_mail_service.fetch_account_context(access_token)
+            account_metadata = {
+                "external_account_id": zoho_account.get("email") or zoho_account.get("account_id"),
+                "external_account_name": zoho_account.get("email") or "Zoho Mail",
+            }
+            provider_metadata = {
+                "account_id": zoho_account.get("account_id"),
+                "email": zoho_account.get("email"),
+                "display_name": zoho_account.get("display_name"),
             }
         else:
             adapter = get_social_provider_adapter(platform)

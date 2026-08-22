@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     ZOOM_CLIENT_ID: str | None = None
     ZOOM_CLIENT_SECRET: str | None = None
     ZOOM_REDIRECT_URI: str | None = None
+    ZOHO_CLIENT_ID: str | None = None
+    ZOHO_CLIENT_SECRET: str | None = None
+    ZOHO_REDIRECT_URI: str | None = None
     DOCUSIGN_CLIENT_ID: str | None = None
     DOCUSIGN_CLIENT_SECRET: str | None = None
     DOCUSIGN_ACCOUNT_ID: str | None = None

@@ -1,0 +1,22 @@
+name: Deploy to production
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull and rebuild
+        run: |
+          set -e
+          cd /home/ubuntu/Mabdel
+          git pull origin master
+          cd "Mabdel Backend"
+          sudo docker compose -f docker-compose.prod.yml up -d --build
+
+      - name: Verify health
+        run: |
+          sleep 10
+          curl -sf https://api.gocustify.com/health

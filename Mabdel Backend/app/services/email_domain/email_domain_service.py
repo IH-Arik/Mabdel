@@ -76,7 +76,18 @@ class EmailDomainService:
         )
 
     async def resolve_sender(self, user_id: str, prefix: str | None = None) -> dict | None:
-        """Resolve the From identity for an owner, or None to use the platform default."""
+        """Resolve the From identity for an owner, or None to use the platform default.
+
+        A connected Zoho Mail account (a business that already hosts its domain's
+        mail on Zoho) takes priority over the Resend-provisioned domain below: it's
+        an explicit, deliberate connection of a real existing mailbox, whereas the
+        Resend domain may just be an auto-provisioned subdomain nobody actively
+        chose. Only one sender is ever returned — never mix the two.
+        """
+        zoho_sender = await self._resolve_zoho_sender(user_id)
+        if zoho_sender:
+            return zoho_sender
+
         record = await self.get_domain_by_user_id(user_id)
         if not record or record.get("status") != "verified":
             return None
@@ -85,6 +96,23 @@ class EmailDomainService:
             "email": f"{local_part}@{record['domain']}",
             "name": record.get("from_name") or None,
             "domain": record["domain"],
+        }
+
+    async def _resolve_zoho_sender(self, user_id: str) -> dict | None:
+        from .zoho_mail_service import ZohoMailService
+
+        integration = await ZohoMailService(self.db).get_connected_integration(user_id)
+        if not integration:
+            return None
+        provider_metadata = integration.get("provider_metadata") or {}
+        email = provider_metadata.get("email")
+        if not email:
+            return None
+        return {
+            "email": email,
+            "name": provider_metadata.get("display_name") or None,
+            "domain": email.split("@")[-1],
+            "provider": "zoho",
         }
 
     # ── provisioning ──────────────────────────────────────────────────────
