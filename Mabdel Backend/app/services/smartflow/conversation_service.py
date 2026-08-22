@@ -173,7 +173,7 @@ class ConversationService(SmartFlowBase):
             page_slice = conversations[slice_start : slice_start + page_size]
             unread_counts, latest_messages = await asyncio.gather(
                 self._fetch_conversation_unread_counts_batch(conversations, user_id, user_id),
-                self._fetch_latest_messages_batch(page_slice, user_id),
+                self._fetch_latest_messages_batch(page_slice),
             )
             contacts_by_key, groups_by_conv_id = await asyncio.gather(
                 self._fetch_conversation_contacts_batch(page_slice, latest_messages, user_id),
@@ -238,7 +238,7 @@ class ConversationService(SmartFlowBase):
     async def mark_conversation_read(self, user_id: str, conversation_id: str) -> dict:
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
         now = utc_now()
-        if conversation.get("is_global_chat"):
+        if self._is_shared_member_conversation(conversation):
             await self.db.messages.update_many(
                 {"conversation_id": conversation_id, "sender_user_id": {"$ne": user_id}},
                 {"$addToSet": {"read_by": user_id}, "$set": {"updated_at": now}},
@@ -312,7 +312,9 @@ class ConversationService(SmartFlowBase):
             "provider_event_id": payload.get("provider_event_id"),
             "provider_message_id": payload.get("provider_message_id"),
             "external_account_id": payload.get("external_account_id"),
-            "read_by": [user_id] if conversation.get("is_global_chat") else [],
+            # Shared threads track read state per viewer, so the sender starts as the
+            # only reader; external-channel inboxes keep using unread_count instead.
+            "read_by": [user_id] if self._is_shared_member_conversation(conversation) else [],
         }
         insert_result, _ = await asyncio.gather(
             self.db.messages.insert_one(document),

@@ -610,14 +610,28 @@ class SmartFlowBase:
     # ------------------------------------------------------------------
     # Conversation / message helpers
     # ------------------------------------------------------------------
+    @staticmethod
+    def _is_shared_member_conversation(conversation: dict) -> bool:
+        """Is this a thread between colleagues rather than an external-channel inbox?
+
+        Unread state on an external channel is a property of the *message* (an inbound
+        WhatsApp/SMS is unread until the business reads it), but in a thread with two
+        or more members it is a property of the *viewer* — A's message is unread for B
+        and already read for A. Those need the per-viewer ``read_by`` model that global
+        chat has always used; ``member_ids`` holds every human in the thread, so more
+        than one means it is shared.
+        """
+        if bool(conversation.get("is_global_chat")):
+            return True
+        return len(conversation.get("member_ids") or []) > 1
+
     async def _fetch_conversation_unread_count(self, conversation: dict, viewer_id: str | None) -> int:
         """Just the unread-count query, no latest-message/contact/group lookups —
         used for the conversation-list summary badges, which need this number for
         every conversation (not just the current page), so it must stay cheap.
         Mirrors the unread branch inside _serialize_conversation exactly."""
         conversation_id = str(conversation.get("_id") or conversation.get("id"))
-        is_global_chat = bool(conversation.get("is_global_chat"))
-        if is_global_chat and viewer_id:
+        if self._is_shared_member_conversation(conversation) and viewer_id:
             return await self.db.messages.count_documents(
                 {
                     "conversation_id": conversation_id,
@@ -633,6 +647,31 @@ class SmartFlowBase:
         ).to_list(length=1)
         return unread_count[0]["total"] if unread_count else 0
 
+    @staticmethod
+    def _messages_match_by_owner(conversations: list[dict], conversation_ids: list[str]) -> dict:
+        """A $match selecting every message in ``conversation_ids``, scoped to each
+        conversation's *own* owner.
+
+        Messages are stamped with the conversation owner's ``user_id`` (see
+        ConversationService.create_message), never the sender's. Matching against the
+        viewer instead silently returned nothing whenever someone opened a colleague's
+        conversation — which is every conversation they were added to as a member —
+        so the sidebar showed "No messages" and a zero unread badge on threads that
+        were not empty at all.
+        """
+        wanted = set(conversation_ids)
+        ids_by_owner: dict[str, list[str]] = {}
+        for conversation in conversations:
+            conversation_id = str(conversation.get("_id") or conversation.get("id"))
+            if conversation_id in wanted:
+                ids_by_owner.setdefault(conversation.get("user_id"), []).append(conversation_id)
+        return {
+            "$or": [
+                {"conversation_id": {"$in": ids}, "user_id": owner_id}
+                for owner_id, ids in ids_by_owner.items()
+            ]
+        }
+
     async def _fetch_conversation_unread_counts_batch(
         self, conversations: list[dict], owner_user_id: str, viewer_id: str | None
     ) -> dict[str, int]:
@@ -640,23 +679,26 @@ class SmartFlowBase:
         branch (global vs normal) instead of one remote round-trip per conversation.
         Used by list_conversations, which otherwise pays 2N round-trips just for
         unread counts (once for the summary badges, once again per page item inside
-        _serialize_conversation). Assumes every non-global conversation passed in
-        belongs to owner_user_id, which holds for list_conversations's own query."""
+        _serialize_conversation).
+
+        Note the conversations passed in are *not* all owned by the viewer —
+        list_conversations also returns threads they are only a member of — so
+        messages are matched per conversation owner, not against the viewer."""
         counts: dict[str, int] = {}
-        global_ids: list[str] = []
+        shared_ids: list[str] = []
         normal_ids: list[str] = []
         for conversation in conversations:
             conversation_id = str(conversation.get("_id") or conversation.get("id"))
             counts[conversation_id] = 0
-            if bool(conversation.get("is_global_chat")) and viewer_id:
-                global_ids.append(conversation_id)
+            if self._is_shared_member_conversation(conversation) and viewer_id:
+                shared_ids.append(conversation_id)
             else:
                 normal_ids.append(conversation_id)
 
-        if global_ids:
+        if shared_ids:
             async for row in self.db.messages.aggregate([
                 {"$match": {
-                    "conversation_id": {"$in": global_ids},
+                    "conversation_id": {"$in": shared_ids},
                     "sender_user_id": {"$ne": viewer_id},
                     "read_by": {"$ne": viewer_id},
                 }},
@@ -666,20 +708,18 @@ class SmartFlowBase:
 
         if normal_ids:
             async for row in self.db.messages.aggregate([
-                {"$match": {"conversation_id": {"$in": normal_ids}, "user_id": owner_user_id}},
+                {"$match": self._messages_match_by_owner(conversations, normal_ids)},
                 {"$group": {"_id": "$conversation_id", "total": {"$sum": "$unread_count"}}},
             ]):
                 counts[row["_id"]] = row["total"]
 
         return counts
 
-    async def _fetch_latest_messages_batch(
-        self, conversations: list[dict], owner_user_id: str
-    ) -> dict[str, dict | None]:
+    async def _fetch_latest_messages_batch(self, conversations: list[dict]) -> dict[str, dict | None]:
         """Batched form of the per-conversation 'latest message' lookup inside
         _serialize_conversation — one aggregation per branch instead of one
-        remote round-trip per conversation. Same owner_user_id assumption as
-        _fetch_conversation_unread_counts_batch."""
+        remote round-trip per conversation. Scoped per conversation owner, not by
+        viewer; see _messages_match_by_owner."""
         latest_by_id: dict[str, dict | None] = {}
         global_ids: list[str] = []
         normal_ids: list[str] = []
@@ -693,7 +733,7 @@ class SmartFlowBase:
 
         if normal_ids:
             async for row in self.db.messages.aggregate([
-                {"$match": {"conversation_id": {"$in": normal_ids}, "user_id": owner_user_id}},
+                {"$match": self._messages_match_by_owner(conversations, normal_ids)},
                 {"$sort": {"timestamp": -1}},
                 {"$group": {"_id": "$conversation_id", "doc": {"$first": "$$ROOT"}}},
             ]):
@@ -1031,6 +1071,25 @@ class SmartFlowBase:
             ]
         ).to_list(length=20)
         grouped.extend(direct_grouped)
+
+        # Threads with colleagues carry the *owner's* user_id on every message and an
+        # unread_count of 0, so the aggregate above cannot see them — they are counted
+        # per viewer, the same way global chat is.
+        team_filters: dict = {"member_ids": user_id, "is_global_chat": {"$ne": True}}
+        if platform:
+            team_filters["platform"] = platform
+        for chat in await self.db.conversations.find(team_filters).to_list(length=200):
+            if not self._is_shared_member_conversation(chat):
+                continue
+            unread = await self.db.messages.count_documents(
+                {
+                    "conversation_id": str(chat["_id"]),
+                    "sender_user_id": {"$ne": user_id},
+                    "read_by": {"$ne": user_id},
+                }
+            )
+            if unread:
+                grouped.append({"_id": chat.get("platform", "ai"), "unread": unread})
 
         user = await self.db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else None
         if user and self._user_has_global_chat_access(user) and user.get("organization_id"):
