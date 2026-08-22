@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 import telnyx
 from fastapi import Request
@@ -47,7 +47,10 @@ class CallService:
 
     def build_media_stream_url(self, call_id: str) -> str:
         base_url = settings.PUBLIC_BACKEND_URL.rstrip("/")
-        websocket_base = f"{base_url}{settings.API_V1_PREFIX}/calls/stream/{call_id}"
+        # A Telnyx call_control_id is base64 after the "v2:" prefix, so it can contain
+        # "/", "+" and "=". Interpolated raw, a "/" splits the path and the WebSocket
+        # route stops matching entirely — quote it so every id routes to one segment.
+        websocket_base = f"{base_url}{settings.API_V1_PREFIX}/calls/stream/{quote(call_id, safe='')}"
         if websocket_base.startswith("https://"):
             return "wss://" + websocket_base.removeprefix("https://")
         if websocket_base.startswith("http://"):
@@ -133,6 +136,14 @@ class CallService:
                 # it is NOT raw RTP framing on the wire, the JSON envelope is unchanged).
                 "stream_bidirectional_mode": "rtp",
                 "stream_bidirectional_codec": "PCMU",
+                # Telnyx defaults this to "opposite" — the *other* leg of a bridged
+                # call. An AI call has no opposite leg (we answer the caller directly,
+                # nothing is bridged or transferred), so the default silently routes
+                # every AI audio frame to a leg that doesn't exist: Telnyx accepts the
+                # frames without error, the caller's audio still transcribes fine, and
+                # the caller simply never hears the AI. "self" plays it back into the
+                # leg the stream is attached to, which is the one the caller is on.
+                "stream_bidirectional_target_legs": "self",
             }
         try:
             client.calls.actions.answer(call_control_id, **kwargs)
@@ -192,32 +203,33 @@ class CallService:
     async def start_streaming(self, call_control_id: str, *, websocket_url: str) -> bool:
         import asyncio
         client = self._client()
-        print(f"[start_streaming] call_id={call_control_id} url={websocket_url}", flush=True)
+        logger.info("Telnyx start_streaming: call=%s url=%s", call_control_id, websocket_url)
 
         def _do_start_streaming():
+            # NOTE: no send_silence_when_idle here — it is an *answer*-only parameter.
+            # Passing it raises TypeError before the request ever reaches Telnyx.
             return client.calls.actions.start_streaming(
                 call_control_id,
                 stream_url=websocket_url,
                 stream_track=settings.TELNYX_STREAM_TRACK,
-                # Keep the bidirectional WebSocket alive even when the AI is between
-                # turns, matching the inbound answer-call streaming behavior that is
-                # already known to work.
-                send_silence_when_idle=True,
                 # Same as answer_call — required for Telnyx to actually play back the
                 # audio we send, not just forward the caller's audio to us.
                 stream_bidirectional_mode="rtp",
                 stream_bidirectional_codec="PCMU",
+                # Defaults to "opposite"; an unbridged AI call has no opposite leg, so
+                # the default silently discards every AI audio frame. See answer_call.
+                stream_bidirectional_target_legs="self",
             )
 
         try:
             await asyncio.to_thread(_do_start_streaming)
-            print(f"[start_streaming] SUCCESS for {call_control_id}", flush=True)
             await self.start_recording(call_control_id)
             await self.start_noise_suppression(call_control_id)
             return True
-        except telnyx.TelnyxError as exc:
-            print(f"[start_streaming] FAILED for {call_control_id}: {exc}", flush=True)
-            logger.warning("Telnyx start_streaming failed for %s: %s", call_control_id, exc)
+        except Exception as exc:
+            # Deliberately broad: a bad/unsupported parameter raises TypeError, not
+            # TelnyxError, and must not escape as a 500 or kill the webhook handler.
+            logger.warning("Telnyx start_streaming failed for %s: %s", call_control_id, exc, exc_info=True)
             return False
 
     # ── inbound webhook + signature ─────────────────────────────────────

@@ -124,7 +124,7 @@ async def handle_telnyx_call_webhook(
     payload = event.payload
     call_id = payload.call_control_id or "unknown"
 
-    print(f"RECEIVED TELNYX WEBHOOK: event_type={event.event_type}, call_id={call_id}, payload_dict={payload.model_dump() if hasattr(payload, 'model_dump') else str(payload)}", flush=True)
+    logger.info("Telnyx webhook: event_type=%s call_id=%s", event.event_type, call_id)
 
     if event.event_type == "call.initiated":
         if payload.direction == "incoming":
@@ -409,6 +409,7 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     active_sessions[call_id] = agent
 
     greeting_task = None
+    send_failed = False
     speech_duration_ms = 0
     silence_duration_ms = 0
     has_speech = False
@@ -428,7 +429,13 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
         try:
             await websocket.send_json(message)
         except Exception:
-            pass
+            # One failure per audio chunk would flood the log, so only the first is
+            # reported — but it must not stay silent: this swallowing is what hid the
+            # AI's audio never reaching the caller.
+            nonlocal send_failed
+            if not send_failed:
+                send_failed = True
+                logger.warning("Call %s: failed sending audio frame to Telnyx", call_id, exc_info=True)
 
     async def run_turn_and_maybe_hangup(coro):
         """Runs a greet()/process_and_respond() call, then hangs up the call if the
@@ -460,7 +467,7 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
 
             elif stream_message.event == "start":
                 agent.stream_sid = stream_message.stream_id
-                print(f"[call_stream] Call {call_id}: 'start' event received, stream_sid={agent.stream_sid}", flush=True)
+                logger.info("Call %s: Telnyx stream started (stream_sid=%s)", call_id, agent.stream_sid)
                 # Greet the user in the background to avoid blocking the message loop
                 greeting_task = asyncio.create_task(run_turn_and_maybe_hangup(agent.greet(send_to_telnyx)))
 
@@ -530,7 +537,14 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                         has_speech = False
                         asyncio.create_task(run_turn_and_maybe_hangup(agent.process_and_respond(send_to_telnyx)))
 
-            elif stream_message.event in ("stop", "error"):
+            elif stream_message.event == "error":
+                # Telnyx reports stream problems (bad codec, malformed frames, rejected
+                # parameters) here. Dropping it silently is what made the "AI is mute"
+                # failure so hard to trace — the stream just ended with no explanation.
+                logger.error("Call %s: Telnyx stream error: %s", call_id, text_payload)
+                break
+
+            elif stream_message.event == "stop":
                 break
 
     finally:

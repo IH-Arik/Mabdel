@@ -94,6 +94,11 @@ export const smartflowApi = {
   updateInvoiceStatus: (id, data) => client.post(`/api/v1/invoices/${id}/status`, data),
   getInvoiceTimeline: (id) => client.get(`/api/v1/invoices/${id}/timeline`),
   downloadInvoice: (id) => client.get(`/api/v1/invoices/${id}/pdf`, { responseType: 'blob' }),
+  createInvoicePaymentLink: (id) => client.post(`/api/v1/invoices/${id}/payment-link`),
+
+  // Stripe Connect
+  getStripeConnectStatus: () => client.get('/api/v1/stripe/connect/status'),
+  startStripeConnectOnboarding: () => client.post('/api/v1/stripe/connect/onboard'),
 
   // Settings
   getSettings: () => client.get('/api/v1/smartflow/settings'),
