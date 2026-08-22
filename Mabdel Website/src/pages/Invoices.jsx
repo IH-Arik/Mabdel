@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  FileText, Download, Plus, Search, 
-  CheckCircle, Clock, AlertCircle, MoreVertical, 
-  ArrowLeft, Check, Trash2, Mic, Send, 
-  DollarSign, Mail, MapPin, 
-  Activity, Phone, AlertTriangle, 
-  Sparkles, Settings, Loader2
+import {
+  FileText, Download, Plus, Search,
+  CheckCircle, Clock, AlertCircle, MoreVertical,
+  ArrowLeft, Check, Trash2, Mic, Send,
+  DollarSign, Mail, MapPin,
+  Activity, Phone, AlertTriangle,
+  Sparkles, Settings, Loader2, CreditCard, Link2
 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
 import { formatCalendarDate, formatCstDate, formatCstTime } from '../utils/dateUtils';
@@ -165,6 +165,71 @@ export default function Invoices() {
   // Details view variables
   const [aiVoiceReminderScheduled, setAiVoiceReminderScheduled] = useState(false);
   const [aiVoiceReminderTime, setAiVoiceReminderTime] = useState('2 days');
+
+  // Stripe Connect state
+  const [stripeStatus, setStripeStatus] = useState(null);
+  const [connectingStripe, setConnectingStripe] = useState(false);
+  const [creatingPaymentLink, setCreatingPaymentLink] = useState(false);
+
+  const fetchStripeStatus = useCallback(async () => {
+    try {
+      const response = await smartflowApi.getStripeConnectStatus();
+      setStripeStatus(response.data?.data || null);
+    } catch (err) {
+      console.error('Failed to fetch Stripe Connect status:', err);
+      setStripeStatus(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStripeStatus();
+  }, [fetchStripeStatus]);
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('stripe') === 'return') {
+      fetchStripeStatus();
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, navigate, fetchStripeStatus]);
+
+  const handleConnectStripe = async () => {
+    if (connectingStripe) return;
+    try {
+      setConnectingStripe(true);
+      const response = await smartflowApi.startStripeConnectOnboarding();
+      const onboardingUrl = response.data?.data?.onboarding_url;
+      if (onboardingUrl) {
+        window.location.href = onboardingUrl;
+      }
+    } catch (err) {
+      console.error('Stripe Connect onboarding failed:', err);
+      alert(err?.response?.data?.message || t('inv_err_stripe_connect_failed'));
+    } finally {
+      setConnectingStripe(false);
+    }
+  };
+
+  const handleCreatePaymentLink = async () => {
+    if (!activeInvoice?.id || creatingPaymentLink) return;
+    try {
+      setCreatingPaymentLink(true);
+      let paymentUrl = activeInvoice.payment_url;
+      if (!paymentUrl) {
+        const response = await smartflowApi.createInvoicePaymentLink(activeInvoice.id);
+        paymentUrl = response.data?.data?.payment_url;
+        await fetchInvoiceDetails(activeInvoice.id);
+      }
+      if (paymentUrl && navigator.clipboard) {
+        await navigator.clipboard.writeText(paymentUrl);
+        alert(t('inv_msg_payment_link_copied'));
+      }
+    } catch (err) {
+      console.error('Create payment link failed:', err);
+      alert(err?.response?.data?.message || t('inv_err_payment_link_failed'));
+    } finally {
+      setCreatingPaymentLink(false);
+    }
+  };
 
   // Fetch Invoices
   const fetchInvoices = useCallback(async () => {
@@ -493,6 +558,34 @@ export default function Invoices() {
             </button>
           </div>
 
+          {/* Stripe Connect banner */}
+          {stripeStatus && !stripeStatus.stripe_charges_enabled && (
+            <div className="bg-[#0c101b] border border-purple-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 rounded-xl bg-purple-950/60 flex items-center justify-center text-purple-400 border border-purple-500/20 flex-shrink-0">
+                  <CreditCard size={16} />
+                </span>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white">{t('inv_stripe_connect_title')}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{t('inv_stripe_connect_subtitle')}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleConnectStripe}
+                disabled={connectingStripe}
+                className="px-4 py-2 bg-purple-400 hover:bg-purple-300 text-[#070a13] rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60 self-start sm:self-auto"
+              >
+                {connectingStripe ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />}
+                {t('inv_btn_connect_stripe')}
+              </button>
+            </div>
+          )}
+          {stripeStatus?.stripe_charges_enabled && (
+            <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-400">
+              <CheckCircle size={12} /> {t('inv_stripe_connected')}
+            </div>
+          )}
+
           {/* Stats Summary cards row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Total Outstanding */}
@@ -783,6 +876,18 @@ export default function Invoices() {
                         </div>
                       )}
                     </div>
+
+                    {/* Stripe payment link */}
+                    {stripeStatus?.stripe_charges_enabled && activeInvoice.status !== 'paid' && (
+                      <button
+                        onClick={handleCreatePaymentLink}
+                        disabled={creatingPaymentLink}
+                        className="w-full py-2.5 bg-slate-950 hover:bg-slate-900 border border-purple-500/20 text-purple-400 hover:text-purple-300 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
+                      >
+                        {creatingPaymentLink ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
+                        {activeInvoice.payment_url ? t('inv_btn_copy_payment_link') : t('inv_btn_create_payment_link')}
+                      </button>
+                    )}
 
                     {/* AI Suggestions Box */}
                     {activeInvoice.status !== 'paid' && (

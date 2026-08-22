@@ -104,6 +104,7 @@ class InvoiceResponse(BaseModel):
     viewed_at: datetime | None = None
     paid_at: datetime | None = None
     share_url: str | None = None
+    payment_url: str | None = None
     total_items: int
     items: list[InvoiceLineItemResponse]
     timeline: list[InvoiceTimelineEventResponse] = Field(default_factory=list)

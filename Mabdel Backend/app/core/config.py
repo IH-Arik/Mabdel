@@ -140,6 +140,13 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     SMTP_USE_TLS: bool = True
 
+    STRIPE_PUBLISHABLE_KEY: str | None = None
+    STRIPE_SECRET_KEY: str | None = None
+    STRIPE_RESTRICTED_KEY: str | None = None
+    STRIPE_WEBHOOK_SECRET: str | None = None
+    STRIPE_PLATFORM_FEE_PERCENT: float = 0.0
+    PUBLIC_FRONTEND_URL: str = "https://gocustify.com"
+
     OTP_EXPIRE_MINUTES: int = 5
     OTP_RESEND_COOLDOWN_SECONDS: int = 60
     OTP_MAX_ATTEMPTS: int = 5

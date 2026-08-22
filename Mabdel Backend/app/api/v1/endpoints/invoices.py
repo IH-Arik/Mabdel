@@ -127,6 +127,17 @@ async def update_invoice_status(
     return success_response(data=result.model_dump(), message="Invoice status updated successfully.")
 
 
+@router.post("/{invoice_id}/payment-link")
+async def create_invoice_payment_link(
+    invoice_id: str,
+    current_user: dict = Depends(require_permission("invoices", "edit")),
+    _: dict = Depends(require_subscription),
+    service: InvoiceService = Depends(get_invoice_service),
+) -> dict:
+    result = await service.create_payment_link(str(current_user["_id"]), invoice_id)
+    return success_response(data=result.model_dump(), message="Invoice payment link created successfully.")
+
+
 @router.get("/{invoice_id}/timeline")
 async def get_invoice_timeline(
     invoice_id: str,

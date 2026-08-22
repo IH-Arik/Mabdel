@@ -1,15 +1,14 @@
 ﻿from fastapi import APIRouter, Depends, Request, Header
 from motor.motor_asyncio import AsyncIOMotorDatabase
+import stripe
 from app.services.dashboard.dashboard_service import DashboardService
 from app.services.email_domain import InboundEmailService
+from app.services.invoice_service import InvoiceService
 from app.dependencies import get_dashboard_service, get_mongo_database
 from app.core.config import settings
 from app.core.exceptions import AppException
 import json
 import logging
-import hmac
-import hashlib
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +18,26 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 async def stripe_webhook(
     request: Request,
     stripe_signature: str = Header(None),
-    service: DashboardService = Depends(get_dashboard_service)
+    service: DashboardService = Depends(get_dashboard_service),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
     payload = await request.body()
     if settings.STRIPE_WEBHOOK_SECRET:
-        _verify_stripe_signature(payload, stripe_signature)
-    try:
-        event = json.loads(payload)
-    except json.JSONDecodeError as exc:
-        raise AppException(status_code=400, code="INVALID_WEBHOOK_PAYLOAD", message="Invalid JSON payload.") from exc
+        event = _verify_stripe_signature(payload, stripe_signature)
+    else:
+        try:
+            event = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise AppException(status_code=400, code="INVALID_WEBHOOK_PAYLOAD", message="Invalid JSON payload.") from exc
 
-    await service.handle_stripe_webhook(event)
-    
+    session_object = event.get("data", {}).get("object", {}) if event.get("type") == "checkout.session.completed" else {}
+    if session_object.get("metadata", {}).get("type") == "invoice_payment":
+        invoice_id = session_object["metadata"].get("invoice_id")
+        if invoice_id:
+            await InvoiceService(db=db).mark_paid_from_stripe(invoice_id)
+    else:
+        await service.handle_stripe_webhook(event)
+
     return {"status": "success"}
 
 
@@ -100,21 +107,14 @@ def _verify_resend_signature(
         ) from exc
 
 
-def _verify_stripe_signature(payload: bytes, signature_header: str | None) -> None:
+def _verify_stripe_signature(payload: bytes, signature_header: str | None) -> stripe.Event:
     if not signature_header:
         raise AppException(status_code=400, code="MISSING_STRIPE_SIGNATURE", message="Stripe signature is required.")
 
-    parts = dict(item.split("=", 1) for item in signature_header.split(",") if "=" in item)
-    timestamp = parts.get("t")
-    signature = parts.get("v1")
-    if not timestamp or not signature:
-        raise AppException(status_code=400, code="INVALID_STRIPE_SIGNATURE", message="Stripe signature is malformed.")
-
-    if abs(time.time() - int(timestamp)) > 300:
-        raise AppException(status_code=400, code="STALE_STRIPE_SIGNATURE", message="Stripe signature timestamp is stale.")
-
-    signed_payload = f"{timestamp}.{payload.decode('utf-8')}".encode("utf-8")
-    expected = hmac.new(settings.STRIPE_WEBHOOK_SECRET.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, signature):
-        raise AppException(status_code=400, code="INVALID_STRIPE_SIGNATURE", message="Stripe signature verification failed.")
+    try:
+        return stripe.Webhook.construct_event(payload, signature_header, settings.STRIPE_WEBHOOK_SECRET)
+    except ValueError as exc:
+        raise AppException(status_code=400, code="INVALID_WEBHOOK_PAYLOAD", message="Invalid JSON payload.") from exc
+    except stripe.SignatureVerificationError as exc:
+        raise AppException(status_code=400, code="INVALID_STRIPE_SIGNATURE", message="Stripe signature verification failed.") from exc
 

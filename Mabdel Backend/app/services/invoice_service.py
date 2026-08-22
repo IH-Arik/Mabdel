@@ -5,6 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
 import secrets
 
+import stripe
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
@@ -169,8 +170,8 @@ class InvoiceService:
             await self.email_service.send_invoice_email(
                 email=recipient,
                 subject=f"Invoice {invoice['invoice_number']} from GoCustify AI",
-                text=self._invoice_email_text(invoice, payload.message),
-                html=self._invoice_email_html(invoice, payload.message),
+                text=self._invoice_email_text(invoice, payload.message, payment_url=invoice.get("payment_url")),
+                html=self._invoice_email_html(invoice, payload.message, payment_url=invoice.get("payment_url")),
             )
         if not invoice.get("share_token"):
             invoice["share_token"] = secrets.token_urlsafe(18)
@@ -200,8 +201,8 @@ class InvoiceService:
             await self.email_service.send_invoice_email(
                 email=recipient,
                 subject=f"Shared invoice {invoice['invoice_number']}",
-                text=self._invoice_email_text(invoice, payload.message, share_url=share_url),
-                html=self._invoice_email_html(invoice, payload.message, share_url=share_url),
+                text=self._invoice_email_text(invoice, payload.message, share_url=share_url, payment_url=invoice.get("payment_url")),
+                html=self._invoice_email_html(invoice, payload.message, share_url=share_url, payment_url=invoice.get("payment_url")),
             )
         if invoice.get("sent_at") is None:
             invoice["sent_at"] = self._utc_now()
@@ -270,6 +271,66 @@ class InvoiceService:
     async def list_timeline(self, owner_user_id: str, invoice_id: str) -> list[InvoiceTimelineEventResponse]:
         invoice = await self._load_invoice(owner_user_id, invoice_id)
         return [self._serialize_event(event) for event in invoice.get("timeline", [])]
+
+    async def create_payment_link(self, owner_user_id: str, invoice_id: str) -> InvoiceResponse:
+        invoice = await self._load_invoice(owner_user_id, invoice_id)
+        organization_id = await self._resolve_organization_id(owner_user_id)
+        org = await self.db.organizations.find_one({"organization_id": organization_id})
+        stripe_account_id = (org or {}).get("stripe_account_id")
+        if not stripe_account_id or not (org or {}).get("stripe_charges_enabled"):
+            raise AppException(
+                status_code=409,
+                code="STRIPE_NOT_CONNECTED",
+                message="Connect Stripe for this organization before creating a payment link.",
+            )
+        if not settings.STRIPE_SECRET_KEY:
+            raise AppException(status_code=503, code="STRIPE_NOT_CONFIGURED", message="Stripe is not configured on this server.")
+
+        client = stripe.StripeClient(settings.STRIPE_SECRET_KEY)
+        unit_amount = round(invoice["total_amount"] * 100)
+        try:
+            price = client.prices.create(
+                params={
+                    "currency": invoice["currency"].lower(),
+                    "unit_amount": unit_amount,
+                    "product_data": {"name": f"Invoice {invoice['invoice_number']}"},
+                }
+            )
+            link_params: dict = {
+                "line_items": [{"price": price.id, "quantity": 1}],
+                "metadata": {"invoice_id": str(invoice["_id"]), "type": "invoice_payment"},
+                "transfer_data": {"destination": stripe_account_id},
+            }
+            fee_percent = settings.STRIPE_PLATFORM_FEE_PERCENT
+            if fee_percent:
+                link_params["application_fee_amount"] = round(unit_amount * fee_percent / 100)
+            payment_link = client.payment_links.create(params=link_params)
+        except stripe.StripeError as exc:
+            raise AppException(status_code=503, code="STRIPE_API_ERROR", message=f"Stripe error creating payment link: {exc.user_message or exc}") from exc
+
+        invoice["payment_url"] = payment_link.url
+        invoice["updated_at"] = self._utc_now()
+        await self.db.invoices.replace_one({"_id": invoice["_id"]}, invoice)
+        return self._serialize_invoice(invoice)
+
+    async def mark_paid_from_stripe(self, invoice_id: str) -> None:
+        if not ObjectId.is_valid(invoice_id):
+            return
+        invoice = await self.db.invoices.find_one({"_id": ObjectId(invoice_id)})
+        if not invoice or invoice.get("status") == "paid":
+            return
+        self._set_status(invoice, "paid", "Paid online via Stripe")
+        invoice["updated_at"] = self._utc_now()
+        await self.db.invoices.replace_one({"_id": invoice["_id"]}, invoice)
+
+    async def _resolve_organization_id(self, owner_user_id: str) -> str:
+        if not ObjectId.is_valid(owner_user_id):
+            raise AppException(status_code=422, code="NO_ORGANIZATION", message="Your account isn't part of an organization yet.")
+        user = await self.db.users.find_one({"_id": ObjectId(owner_user_id)}, {"organization_id": 1})
+        organization_id = (user or {}).get("organization_id")
+        if not organization_id:
+            raise AppException(status_code=422, code="NO_ORGANIZATION", message="Your account isn't part of an organization yet.")
+        return organization_id
 
     async def generate_pdf(self, owner_user_id: str, invoice_id: str) -> bytes:
         invoice = await self._load_invoice(owner_user_id, invoice_id)
@@ -365,6 +426,7 @@ class InvoiceService:
             viewed_at=invoice.get("viewed_at"),
             paid_at=invoice.get("paid_at"),
             share_url=self._share_url(invoice) if invoice.get("share_token") else None,
+            payment_url=invoice.get("payment_url"),
             total_items=len(invoice.get("items", [])),
             items=[self._serialize_item(item) for item in invoice.get("items", [])],
             timeline=[self._serialize_event(event) for event in invoice.get("timeline", [])],
@@ -536,7 +598,7 @@ class InvoiceService:
         return datetime.now(UTC)
 
     @staticmethod
-    def _invoice_email_text(invoice: dict, message: str | None, *, share_url: str | None = None) -> str:
+    def _invoice_email_text(invoice: dict, message: str | None, *, share_url: str | None = None, payment_url: str | None = None) -> str:
         lines = [
             f"Invoice {invoice['invoice_number']}",
             f"Client: {invoice['client_name']}",
@@ -545,13 +607,16 @@ class InvoiceService:
         ]
         if share_url:
             lines.append(f"View invoice: {share_url}")
+        if payment_url:
+            lines.append(f"Pay now: {payment_url}")
         if message:
             lines.extend(["", message.strip()])
         return "\n".join(lines)
 
     @staticmethod
-    def _invoice_email_html(invoice: dict, message: str | None, *, share_url: str | None = None) -> str:
+    def _invoice_email_html(invoice: dict, message: str | None, *, share_url: str | None = None, payment_url: str | None = None) -> str:
         share_link = f'<p><a href="{share_url}">View invoice</a></p>' if share_url else ""
+        pay_link = f'<p><a href="{payment_url}">Pay now</a></p>' if payment_url else ""
         note = f"<p>{message.strip()}</p>" if message else ""
         return f"""
         <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 16px;">
@@ -560,6 +625,7 @@ class InvoiceService:
           <p style="margin: 0 0 12px 0;">Due date: {invoice['due_date']}</p>
           <p style="margin: 0 0 12px 0;">Total due: {invoice['currency']} {invoice['total_amount']:.2f}</p>
           {share_link}
+          {pay_link}
           {note}
         </div>
         """
