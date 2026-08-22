@@ -1108,3 +1108,63 @@ def test_language_locks_in_after_first_turn_and_does_not_re_detect(mock_db):
     if not agent.language_locked:
         agent.language = call_phrases.resolve_call_language("german")
     assert agent.language == "fr"
+
+
+# ── Scheduling on an outbound ("Make AI Call") call ──────────────────────
+# Every test above hands the agent a caller_phone directly, so none of them cover
+# how it is actually resolved from the call log — which is where outbound calls
+# differ: the business is the from_number, not the person being called.
+
+
+def test_outbound_call_books_against_the_customers_number_not_the_business(mock_db):
+    """A meeting request created from an outbound AI call must carry the number the
+    AI dialled. Reading from_number (the inbound convention) stamped the business's
+    own number on the request, leaving the team calling themselves back."""
+
+    async def _run():
+        await mock_db.organizations.insert_one(
+            {
+                "organization_id": "org-outbound-1",
+                "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60},
+                "require_meeting_approval": True,
+            }
+        )
+        user = await mock_db.users.insert_one({"organization_id": "org-outbound-1"})
+        user_id = str(user.inserted_id)
+
+        # Exactly what create_outbound_call writes for a "Make AI Call".
+        await mock_db.call_logs.insert_one(
+            {
+                "user_id": user_id,
+                "twilio_call_sid": "call_outbound_sched",
+                "call_type": "outbound",
+                "ai_ready": True,
+                "from_number": "+15550000000",   # the business's shared Telnyx number
+                "phone_number": "+15551234567",  # the customer the AI is calling
+                "status": "in_progress",
+            }
+        )
+
+        flow_service = SmartFlowService(mock_db)
+        agent = AIPhoneAgent("call_outbound_sched", GoCustifyAIService(), flow_service)
+        agent.user_id = user_id
+        agent.is_outbound = True
+        # Deliberately left unset so the agent has to resolve it from the call log.
+        agent.caller_phone = None
+
+        await agent._advance_conversation("I'd like to schedule a meeting")
+        await agent._advance_conversation("Yes that works")
+        await agent._advance_conversation("John Smith")
+        await agent._advance_conversation("john at example dot com")
+        await agent._advance_conversation("Yes, send it")
+
+    asyncio.run(_run())
+
+    request = asyncio.run(mock_db.call_meeting_requests.find_one({"organization_id": "org-outbound-1"}))
+    assert request is not None, "outbound AI call produced no meeting request at all"
+    assert request["caller_phone"] == "+15551234567", (
+        f"meeting request stored the wrong callback number: {request['caller_phone']} "
+        "(+15550000000 is the business's own line)"
+    )
+    assert request["caller_name"] == "John Smith"
+    assert request["status"] == "pending"
