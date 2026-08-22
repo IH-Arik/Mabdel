@@ -105,6 +105,30 @@ def _friendly_slot(date_str: str, time_str: str, language: str = "en") -> str:
     return template.format(weekday=weekday, month=month, day=dt.day, time=time_text)
 
 
+def is_outbound_call(call_log: dict | None) -> bool:
+    """Did the business dial out, or did the caller ring in?
+
+    ``direction`` is only stamped by the webhook handlers; AI calls placed through
+    /smartflow/calls/outbound carry ``call_type`` instead, so both are checked.
+    """
+    log = call_log or {}
+    return log.get("direction") == "outbound" or log.get("call_type") in {"outbound", "outgoing_direct"}
+
+
+def other_party_number(call_log: dict | None) -> str | None:
+    """The number of the person on the far end — never the business's own.
+
+    On an inbound call that's ``from_number``; on an outbound one the business *is*
+    the from_number, so the customer is the number we dialled. Reading from_number
+    unconditionally stamped meeting requests with the business's own phone number,
+    leaving the team no way to call the person back.
+    """
+    log = call_log or {}
+    if is_outbound_call(log):
+        return log.get("phone_number") or log.get("to_number")
+    return log.get("from_number") or log.get("phone_number")
+
+
 class AIPhoneAgent:
     """
     Handles a single live phone call session.
@@ -138,6 +162,9 @@ class AIPhoneAgent:
         self.caller_name: str | None = None
         self.caller_email: str | None = None
         self.caller_phone: str | None = None
+        # True when the business dialled out to this person rather than them ringing in.
+        # Flips who the "other party" is on the call log, and which greeting makes sense.
+        self.is_outbound = False
         self.business_name: str | None = None
         self.business_info: dict | None = None
         # Locked in from the caller's first substantive utterance (see
@@ -155,11 +182,17 @@ class AIPhoneAgent:
             return
         self.greeted = True
         self.business_name = await self._get_business_name()
-        if self.business_name:
-            greeting_text = phrase("greeting_with_business", self.language, business=self.business_name)
+        if self.is_outbound:
+            # We rang them — "thanks for calling" would be backwards.
+            key = "outbound_greeting_with_business" if self.business_name else "outbound_greeting_no_business"
         else:
             # No business name on file yet — a generic greeting beats a wrong one.
-            greeting_text = phrase("greeting_no_business", self.language)
+            key = "greeting_with_business" if self.business_name else "greeting_no_business"
+        greeting_text = (
+            phrase(key, self.language, business=self.business_name)
+            if self.business_name
+            else phrase(key, self.language)
+        )
         greeting_text = f"{phrase('recording_disclosure', self.language)} {greeting_text}"
         await self._speak(greeting_text, send_callback)
 
@@ -477,7 +510,7 @@ class AIPhoneAgent:
         if not self.caller_phone:
             call_log = await self.flow_service.db.call_logs.find_one({"twilio_call_sid": self.call_id})
             if call_log:
-                self.caller_phone = call_log.get("from_number") or call_log.get("phone_number")
+                self.caller_phone = other_party_number(call_log)
 
         try:
             res = await self.flow_service.book_or_request_meeting_for_user(
