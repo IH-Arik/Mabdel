@@ -5,7 +5,12 @@ import base64
 import io
 import wave
 
-from app.services.ai_phone_agent import MAX_CONSECUTIVE_FAILURES, AIPhoneAgent
+from app.services.ai_phone_agent import (
+    MAX_CONSECUTIVE_FAILURES,
+    AIPhoneAgent,
+    is_outbound_call,
+    other_party_number,
+)
 from app.services.call_phrases import phrase
 from app.services.call_service import CallService
 from app.services.gocustify_ai_service import GoCustifyAIService
@@ -369,6 +374,51 @@ def test_start_streaming_survives_an_unsupported_argument(monkeypatch):
     monkeypatch.setattr(module.telnyx.Client().calls.actions, "start_streaming", exploding_start_streaming)
 
     assert asyncio.run(CallService().start_streaming("v2:boom", websocket_url="wss://example.test/s")) is False
+
+
+# ── Outbound calls ("Make AI Call") ──────────────────────────────────────
+# An outbound call inverts from_number/phone_number and the greeting. Reading them
+# the inbound way stamps meeting requests with the business's own number and makes
+# the AI thank the person for a call they never placed.
+
+
+def test_other_party_is_the_dialled_number_on_outbound_calls():
+    inbound = {"direction": "inbound", "from_number": "+15551110000", "phone_number": "+15559990000"}
+    assert other_party_number(inbound) == "+15551110000"
+
+    # Placed via /smartflow/calls/outbound: carries call_type, no direction field.
+    outbound = {"call_type": "outbound", "from_number": "+15559990000", "phone_number": "+15551110000"}
+    assert is_outbound_call(outbound) is True
+    assert other_party_number(outbound) == "+15551110000", "must not hand back the business's own number"
+
+    browser_outbound = {"call_type": "outgoing_direct", "from_number": "+15559990000", "phone_number": "+15551110000"}
+    assert other_party_number(browser_outbound) == "+15551110000"
+
+
+def test_outbound_greeting_does_not_thank_them_for_calling(mock_db, monkeypatch):
+    spoken: list[str] = []
+
+    async def fake_synthesize(self, text, voice_id=None):
+        spoken.append(text)
+        return {"audio_base64": _short_wav_base64()}
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+
+    async def _run(is_outbound: bool) -> str:
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = "MZ_test"
+        agent.is_outbound = is_outbound
+        await agent.greet(lambda _message: asyncio.sleep(0))
+        return spoken[-1]
+
+    inbound_greeting = asyncio.run(_run(False))
+    outbound_greeting = asyncio.run(_run(True))
+
+    assert "calling" in inbound_greeting.lower()
+    assert "thanks for calling" not in outbound_greeting.lower(), (
+        f"outbound AI call thanked the person for calling us: {outbound_greeting!r}"
+    )
+    assert outbound_greeting != inbound_greeting
 
 
 def test_media_stream_url_escapes_call_ids_containing_a_slash(monkeypatch):

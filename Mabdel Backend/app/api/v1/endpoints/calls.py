@@ -12,7 +12,7 @@ from app.services.smartflow_service import SmartFlowService
 from app.services.telnyx_web_voice_service import TelnyxWebVoiceService
 from app.utils.responses import success_response
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.services.ai_phone_agent import AIPhoneAgent
+from app.services.ai_phone_agent import AIPhoneAgent, is_outbound_call, other_party_number
 from app.services.gocustify_ai_service import GoCustifyAIService
 from app.core.exceptions import AppException
 from app.utils.audio import utc_now
@@ -405,7 +405,10 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
 
     agent = AIPhoneAgent(call_id, ai_service, flow_service)
     agent.user_id = user_id_val
-    agent.caller_phone = (call_log or {}).get("from_number")
+    # On an outbound call the business is the from_number — the person the AI is
+    # talking to is the number we dialled, so this has to follow the direction.
+    agent.is_outbound = is_outbound_call(call_log)
+    agent.caller_phone = other_party_number(call_log)
     active_sessions[call_id] = agent
 
     greeting_task = None
