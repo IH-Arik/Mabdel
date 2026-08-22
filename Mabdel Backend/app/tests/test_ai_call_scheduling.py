@@ -423,8 +423,16 @@ def _make_agent(user_id: str, flow_service: SmartFlowService) -> AIPhoneAgent:
 
 def test_scheduling_flow_end_to_end_creates_pending_request(mock_db, monkeypatch):
     async def _run():
+        # require_meeting_approval=True opts into the pending-request path this test
+        # is named for — by default, book_or_request_meeting_for_user now books the
+        # meeting directly when it has the caller's contact info (see
+        # test_scheduling_flow_end_to_end_books_directly_by_default for that path).
         await mock_db.organizations.insert_one(
-            {"organization_id": "org-agent-1", "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60}}
+            {
+                "organization_id": "org-agent-1",
+                "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60},
+                "require_meeting_approval": True,
+            }
         )
         user = await mock_db.users.insert_one({"organization_id": "org-agent-1"})
         user_id = str(user.inserted_id)
@@ -569,7 +577,7 @@ def test_greeting_uses_the_actual_business_name(mock_db):
         agent = _make_agent(user_id, flow_service)
         synthesized = {}
 
-        def fake_synthesize(text):
+        async def fake_synthesize(text, voice_id=None):
             synthesized["text"] = text
             return {"audio_base64": "x"}
 
@@ -595,7 +603,7 @@ def test_greeting_falls_back_gracefully_when_no_business_name_set(mock_db):
         agent = _make_agent(str(user.inserted_id), flow_service)
         synthesized = {}
 
-        def fake_synthesize(text):
+        async def fake_synthesize(text, voice_id=None):
             synthesized["text"] = text
             return {"audio_base64": "x"}
 
@@ -676,7 +684,8 @@ def test_plain_chat_prompt_includes_real_hours_and_address(mock_db, monkeypatch)
     assert "Springfield" in prompt
     assert "+15551234567" in prompt
     # ...and the AI is told to use only these facts, not invent anything.
-    assert "ONLY these" in prompt
+    assert "VERIFIED BUSINESS FACTS" in prompt
+    assert "DO NOT invent" in prompt
 
 
 def test_plain_chat_prompt_omits_unset_address_rather_than_guessing(mock_db, monkeypatch):
@@ -699,10 +708,10 @@ def test_plain_chat_prompt_omits_unset_address_rather_than_guessing(mock_db, mon
 
     asyncio.run(_run())
     prompt = captured_prompt["text"]
-    assert "- Address:" not in prompt
-    assert "- Phone:" not in prompt
-    assert "- Website:" not in prompt
-    assert "ONLY these" in prompt
+    assert "- Office Address / Location:" not in prompt
+    assert "- Contact Phone:" not in prompt
+    assert "- Official Website:" not in prompt
+    assert "DO NOT invent" in prompt
 
 
 def test_plain_chat_prompt_admits_unknown_when_hours_unconfigured(mock_db, monkeypatch):
@@ -727,7 +736,7 @@ def test_plain_chat_prompt_admits_unknown_when_hours_unconfigured(mock_db, monke
 
     asyncio.run(_run())
     prompt = captured_prompt["text"]
-    assert "Never guess or invent" in prompt
+    assert "DO NOT invent" in prompt
 
 
 def test_business_info_is_fetched_once_and_cached(mock_db, monkeypatch):
@@ -1005,8 +1014,15 @@ def test_friendly_slot_renders_in_requested_language():
 
 def test_scheduling_flow_end_to_end_in_spanish(mock_db):
     async def _run():
+        # require_meeting_approval=True — same reasoning as
+        # test_scheduling_flow_end_to_end_creates_pending_request; this test checks
+        # the "sent to team" phrase, which only fires on the approval-required path.
         await mock_db.organizations.insert_one(
-            {"organization_id": "org-agent-es", "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60}}
+            {
+                "organization_id": "org-agent-es",
+                "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60},
+                "require_meeting_approval": True,
+            }
         )
         user = await mock_db.users.insert_one({"organization_id": "org-agent-es"})
         user_id = str(user.inserted_id)

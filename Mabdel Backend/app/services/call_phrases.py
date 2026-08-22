@@ -250,6 +250,32 @@ PHRASES: dict[str, dict[str, str]] = {
         "zh": "抱歉，您能再说一遍吗？",
         "ja": "申し訳ございません、もう一度おっしゃっていただけますか？",
     },
+    "recording_disclosure": {
+        "en": "Quick note — this call may be recorded for quality and training purposes.",
+        "hi": "एक सूचना — गुणवत्ता और प्रशिक्षण उद्देश्यों के लिए यह कॉल रिकॉर्ड की जा सकती है।",
+        "ar": "ملاحظة سريعة — قد يتم تسجيل هذه المكالمة لأغراض الجودة والتدريب.",
+        "es": "Una nota — esta llamada puede ser grabada con fines de calidad y capacitación.",
+        "fr": "Petite précision — cet appel peut être enregistré à des fins de qualité et de formation.",
+        "pt": "Um aviso rápido — esta ligação pode ser gravada para fins de qualidade e treinamento.",
+        "ru": "Небольшое уточнение — этот звонок может быть записан в целях контроля качества и обучения.",
+        "ur": "ایک مختصر نوٹ — یہ کال کوالٹی اور تربیت کے مقاصد کے لیے ریکارڈ کی جا سکتی ہے۔",
+        "tr": "Kısa bir not — bu görüşme kalite ve eğitim amacıyla kaydedilebilir.",
+        "zh": "温馨提示——本次通话可能会被录音，用于质量与培训目的。",
+        "ja": "ご案内— この通話は品質向上およびトレーニングのために録音される場合があります。",
+    },
+    "technical_issue": {
+        "en": "I'm very sorry, we're having a technical issue on our end right now. Please try calling back in a few minutes. Goodbye.",
+        "hi": "मुझे बहुत खेद है, अभी हमारी ओर से एक तकनीकी समस्या आ रही है। कृपया कुछ मिनटों में फिर से कॉल करने का प्रयास करें। अलविदा।",
+        "ar": "أنا آسف جدًا، نواجه مشكلة تقنية من جانبنا الآن. يرجى المحاولة مرة أخرى بعد بضع دقائق. مع السلامة.",
+        "es": "Lo siento mucho, estamos teniendo un problema técnico en este momento. Por favor, intenta llamar de nuevo en unos minutos. Adiós.",
+        "fr": "Je suis vraiment désolé, nous rencontrons un problème technique en ce moment. Veuillez rappeler dans quelques minutes. Au revoir.",
+        "pt": "Sinto muito, estamos com um problema técnico no momento. Por favor, tente ligar novamente em alguns minutos. Até logo.",
+        "ru": "Мне очень жаль, сейчас у нас возникла техническая проблема. Пожалуйста, перезвоните через несколько минут. До свидания.",
+        "ur": "مجھے بہت افسوس ہے، ابھی ہماری طرف سے ایک تکنیکی مسئلہ ہو رہا ہے۔ براہ کرم چند منٹوں میں دوبارہ کال کریں۔ خدا حافظ۔",
+        "tr": "Çok özür dilerim, şu anda bizde teknik bir sorun yaşanıyor. Lütfen birkaç dakika sonra tekrar arayın. Hoşça kalın.",
+        "zh": "非常抱歉，我们这边目前遇到技术问题。请稍后几分钟再拨打。再见。",
+        "ja": "大変申し訳ございません、現在こちらで技術的な問題が発生しております。数分後に再度おかけ直しください。失礼いたします。",
+    },
 }
 
 

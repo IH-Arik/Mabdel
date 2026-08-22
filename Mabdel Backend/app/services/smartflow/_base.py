@@ -1967,6 +1967,16 @@ class SmartFlowBase:
                 "is_configured": bool(settings.ZOOM_CLIENT_ID and settings.ZOOM_CLIENT_SECRET),
             },
             {
+                "platform": "zoho",
+                "platform_label": "Zoho Mail",
+                "description": "Send bulk email from your own Zoho-hosted mailbox instead of a shared domain.",
+                "icon_key": "zoho",
+                "brand_color": "#E42527",
+                "auth_mode": "oauth",
+                "is_available": True,
+                "is_configured": bool(settings.ZOHO_CLIENT_ID and settings.ZOHO_CLIENT_SECRET),
+            },
+            {
                 "platform": "linkedin",
                 "platform_label": "LinkedIn",
                 "description": "B2B outreach and company updates.",
@@ -2048,6 +2058,20 @@ class SmartFlowBase:
                 # Zoom's token endpoint requires client credentials as an HTTP Basic
                 # Auth header, not body params — every other provider here uses body params.
                 "token_auth": "basic",
+            },
+            "zoho": {
+                "provider": "zoho",
+                "authorize_url": "https://accounts.zoho.com/oauth/v2/auth",
+                "token_url": "https://accounts.zoho.com/oauth/v2/token",
+                "client_id": settings.ZOHO_CLIENT_ID,
+                "client_secret": settings.ZOHO_CLIENT_SECRET,
+                "redirect_uri": settings.ZOHO_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/zoho/oauth/callback",
+                "scopes": ["ZohoMail.messages.CREATE", "ZohoMail.accounts.READ"],
+                "token_payload": {"grant_type": "authorization_code"},
+                # access_type=offline is required to get a refresh_token back at all;
+                # prompt=consent forces Zoho to reissue one even on a repeat connect
+                # (otherwise a second consent can come back with no refresh_token).
+                "extra_authorize_params": {"access_type": "offline", "prompt": "consent"},
             },
             "instagram": {
                 "provider": "meta",
@@ -2372,6 +2396,9 @@ class SmartFlowBase:
                         from_email=(sender or {}).get("email"),
                         from_name=(sender or {}).get("name"),
                         reply_to=(sender or {}).get("email"),
+                        sender_provider=(sender or {}).get("provider"),
+                        sender_user_id=document["user_id"],
+                        db=self.db,
                     )
                     status = "sent"
                     error = None
