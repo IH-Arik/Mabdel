@@ -71,6 +71,8 @@ export const smartflowApi = {
   performCallAction: (callSid, action) => client.post(`/api/v1/calls/${callSid}/action`, { action }),
   requestCallCallback: (id) => client.post(`/api/v1/smartflow/calls/${id}/callback`),
   getCallRecording: (id) => client.get(`/api/v1/smartflow/calls/${id}/recording`, { responseType: 'blob' }),
+  getAICallSettings: () => client.get('/api/v1/smartflow/ai-call-settings'),
+  updateAICallSettings: (data) => client.patch('/api/v1/smartflow/ai-call-settings', data),
 
   // Integrations
   getIntegrations: () => client.get('/api/v1/smartflow/integrations'),

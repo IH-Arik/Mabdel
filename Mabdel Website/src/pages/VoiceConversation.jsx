@@ -802,6 +802,8 @@ export default function VoiceConversation() {
           })}
         </div>
       </div>
+
+      <div>
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{t('vcon_lbl_prompt_buttons')}</p>
         <div className="space-y-2">
           {Array.isArray(promptButtons) && promptButtons.map((prompt, idx) => (

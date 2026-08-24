@@ -439,6 +439,50 @@ class BusinessHoursUpdateRequest(BaseModel):
         return value
 
 
+class AICallLanguageMenuOption(BaseModel):
+    digit: str = Field(pattern=r"^[1-9]$")
+    language: str = Field(min_length=2, max_length=5)
+
+
+class AICallSettingsResponse(BaseModel):
+    assistant_name: str | None = None
+    voice_id: str = "female_warm"
+    custom_instructions: str | None = None
+    greeting_inbound: str | None = None
+    greeting_outbound: str | None = None
+    language_menu_enabled: bool = False
+    language_menu: list[AICallLanguageMenuOption] = Field(default_factory=list)
+
+
+class AICallSettingsUpdateRequest(BaseModel):
+    """Every field is optional so the settings screen can PATCH one at a time.
+
+    ``None`` is meaningful for the free-text fields — it clears a custom greeting back
+    to the built-in translated one — so the service applies only the keys actually sent
+    rather than filtering None out.
+    """
+
+    assistant_name: str | None = Field(default=None, max_length=60)
+    voice_id: str | None = Field(default=None, max_length=40)
+    custom_instructions: str | None = Field(default=None, max_length=2000)
+    greeting_inbound: str | None = Field(default=None, max_length=500)
+    greeting_outbound: str | None = Field(default=None, max_length=500)
+    language_menu_enabled: bool | None = None
+    language_menu: list[AICallLanguageMenuOption] | None = None
+
+    @field_validator("assistant_name", "custom_instructions", "greeting_inbound", "greeting_outbound")
+    @classmethod
+    def _clean_free_text(cls, value: str | None) -> str | None:
+        """Strip control characters before this text is spoken aloud or pasted into a
+        model prompt: they render as noise in TTS and are a cheap way to smuggle
+        structure into the prompt's delimited owner-preferences block."""
+        if value is None:
+            return None
+        cleaned = "".join(char for char in value if char == "\n" or not (ord(char) < 32 or ord(char) == 127))
+        cleaned = cleaned.strip()
+        return cleaned or None
+
+
 class CalendarProviderSettingsUpdateRequest(BaseModel):
     provider: str | None = Field(default=None, max_length=32)
 
