@@ -68,6 +68,36 @@ PHRASES: dict[str, dict[str, str]] = {
         "zh": "感谢您的来电！我可以帮您和团队安排会议——请问有什么可以帮您？",
         "ja": "お電話ありがとうございます！チームとの打ち合わせの設定をお手伝いできます——本日はどのようなご用件でしょうか？",
     },
+    # Spoken once per configured language at the very start of an inbound call, each
+    # in its own language — a caller who does not speak the default one still has to
+    # understand which key is theirs.
+    "language_menu_option": {
+        "en": "For English, press {digit}.",
+        "hi": "हिंदी के लिए {digit} दबाएं।",
+        "ar": "للعربية، اضغط {digit}.",
+        "es": "Para español, marque {digit}.",
+        "fr": "Pour le français, appuyez sur {digit}.",
+        "pt": "Para português, pressione {digit}.",
+        "ru": "Для русского языка нажмите {digit}.",
+        "ur": "اردو کے لیے {digit} دبائیں۔",
+        "tr": "Türkçe için {digit} tuşlayın.",
+        "zh": "中文服务请按{digit}。",
+        "ja": "日本語をご希望の方は{digit}を押してください。",
+    },
+    # Prepended to the built-in greeting when the business has named its assistant.
+    "assistant_intro": {
+        "en": "This is {name}.",
+        "hi": "मैं {name} बोल रहा हूं।",
+        "ar": "معك {name}.",
+        "es": "Le habla {name}.",
+        "fr": "Ici {name}.",
+        "pt": "Aqui é {name}.",
+        "ru": "Это {name}.",
+        "ur": "میں {name} بول رہا ہوں۔",
+        "tr": "Ben {name}.",
+        "zh": "我是{name}。",
+        "ja": "{name}です。",
+    },
     # Outbound calls: the business rang the customer, so "thanks for calling" is
     # backwards — the AI has to say who is calling and why instead.
     "outbound_greeting_with_business": {

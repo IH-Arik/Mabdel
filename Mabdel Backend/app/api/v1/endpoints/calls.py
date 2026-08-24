@@ -29,6 +29,11 @@ ai_service = GoCustifyAIService()
 # Active AI sessions for calls
 active_sessions: dict[str, AIPhoneAgent] = {}
 
+# How long to wait for a keypad language choice before greeting in the default
+# language. Long enough to hear the menu and press a key, short enough that a caller
+# who ignores it isn't left listening to silence.
+LANGUAGE_MENU_TIMEOUT_SECONDS = 6.0
+
 
 def get_smartflow_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> SmartFlowService:
     return SmartFlowService(db)
@@ -135,6 +140,8 @@ async def handle_telnyx_call_webhook(
         background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
     elif event.event_type in {"call.answered", "call.bridged"}:
         background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
+    elif event.event_type == "call.dtmf.received":
+        _handle_keypad_digit(call_id, payload.digit)
     elif event.event_type == "call.recording.saved":
         recording_url = ((payload.recording_urls or {}).get("mp3")) or (payload.recording_urls or {}).get("wav")
         call_log = await service.db.call_logs.find_one({"twilio_call_sid": call_id})
@@ -144,6 +151,24 @@ async def handle_telnyx_call_webhook(
 
     # Telnyx expects a 200 with an empty body to acknowledge the event.
     return JSONResponse(content={}, status_code=200)
+
+
+def _handle_keypad_digit(call_id: str, digit: str | None) -> None:
+    """Applies a keypad language choice to the live AI session.
+
+    ``active_sessions`` is held in this module by the WebSocket handler, and the
+    single uvicorn worker means the webhook reaches the very same object. A digit for
+    a call with no live AI session (a human-answered call, or one that already hung
+    up) is simply ignored — as is a digit that isn't on the configured menu, so a
+    stray keypress never switches the caller to a language nobody offered.
+    """
+    if not digit:
+        return
+    agent = active_sessions.get(call_id)
+    if not agent:
+        return
+    if not agent.set_language_from_digit(digit):
+        logger.info("Call %s: keypad digit %s is not on the language menu, ignoring", call_id, digit)
 
 
 async def _handle_incoming_call(
@@ -440,6 +465,23 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                 send_failed = True
                 logger.warning("Call %s: failed sending audio frame to Telnyx", call_id, exc_info=True)
 
+    async def _open_call(agent):
+        """Language menu (when configured) before the greeting, so the greeting itself
+        is already in the caller's language.
+
+        If nobody presses a key within the window we greet in the default language and
+        leave language_locked False, so Whisper's existing auto-detection still runs on
+        their first sentence — the menu can only add signal, never strand a caller.
+        """
+        if await agent.offer_language_menu(send_to_telnyx):
+            waited = 0.0
+            while waited < LANGUAGE_MENU_TIMEOUT_SECONDS and not agent.language_menu_answered:
+                await asyncio.sleep(0.2)
+                waited += 0.2
+            if not agent.language_menu_answered:
+                logger.info("Call %s: no keypad selection, falling back to auto-detect", call_id)
+        await agent.greet(send_to_telnyx)
+
     async def run_turn_and_maybe_hangup(coro):
         """Runs a greet()/process_and_respond() call, then hangs up the call if the
         agent hit repeated OpenAI failures and gave up (see AIPhoneAgent._speak) —
@@ -472,7 +514,7 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                 agent.stream_sid = stream_message.stream_id
                 logger.info("Call %s: Telnyx stream started (stream_sid=%s)", call_id, agent.stream_sid)
                 # Greet the user in the background to avoid blocking the message loop
-                greeting_task = asyncio.create_task(run_turn_and_maybe_hangup(agent.greet(send_to_telnyx)))
+                greeting_task = asyncio.create_task(run_turn_and_maybe_hangup(_open_call(agent)))
 
             elif stream_message.event == "media":
                 if stream_message.media and "payload" in stream_message.media:

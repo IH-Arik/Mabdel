@@ -32,6 +32,10 @@ class TelnyxWebhookPayload(BaseModel):
     hangup_source: str | None = None
     call_duration_secs: int | None = None
     recording_urls: dict[str, Any] | None = None
+    # call.dtmf.received carries one keypad digit per event. DTMF is RFC 2833
+    # (out-of-band), so it never appears in the media stream — this webhook is the
+    # only way we learn the caller pressed a key.
+    digit: str | None = None
 
     model_config = {"populate_by_name": True}
 

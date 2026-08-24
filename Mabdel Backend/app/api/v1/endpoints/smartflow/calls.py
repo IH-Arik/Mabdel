@@ -4,6 +4,7 @@ from fastapi import Depends, Query, status
 
 from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
+    AICallSettingsUpdateRequest,
     CallAISummaryUpdateRequest,
     CallLogCreateRequest,
     CallLogUpdateRequest,
@@ -16,6 +17,31 @@ from app.utils.responses import success_response
 
 from ._deps import get_smartflow_service
 from ._router import router
+
+
+@router.get("/ai-call-settings")
+async def get_ai_call_settings(
+    current_user: dict = Depends(require_permission("calls", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """The business's AI phone persona — assistant name, voice, custom greetings,
+    extra instructions and the keypad language menu. Org-wide, like business hours."""
+    data = await service.get_ai_call_settings(str(current_user["_id"]))
+    return success_response(data=data, message="AI call settings fetched successfully.")
+
+
+@router.patch("/ai-call-settings")
+async def update_ai_call_settings(
+    payload: AICallSettingsUpdateRequest,
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    # exclude_unset so a PATCH of one field leaves the rest alone, while still letting
+    # an explicit null clear a custom greeting back to the built-in translated one.
+    data = await service.update_ai_call_settings(
+        str(current_user["_id"]), payload.model_dump(exclude_unset=True)
+    )
+    return success_response(data=data, message="AI call settings updated successfully.")
 
 
 @router.get("/calls")

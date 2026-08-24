@@ -4,7 +4,6 @@ import asyncio
 import secrets
 from datetime import date, datetime, timedelta, timezone
 
-from bson import ObjectId
 
 from app.core.exceptions import AppException
 from app.services.email_service import EmailService
@@ -299,12 +298,6 @@ class CalendarService(SmartFlowBase):
             if slots:
                 return {"date": candidate_day.isoformat(), "time": slots[0]}
         return None
-
-    async def _resolve_organization_id(self, user_id: str) -> str | None:
-        if not ObjectId.is_valid(user_id):
-            return None
-        user = await self.db.users.find_one({"_id": ObjectId(user_id)}, {"organization_id": 1})
-        return (user or {}).get("organization_id")
 
     async def get_calendar_event(self, user_id: str, event_id: str) -> dict:
         event = await self._get_owned_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")

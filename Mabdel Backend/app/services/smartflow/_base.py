@@ -610,6 +610,15 @@ class SmartFlowBase:
     # ------------------------------------------------------------------
     # Conversation / message helpers
     # ------------------------------------------------------------------
+    async def _resolve_organization_id(self, user_id: str) -> str | None:
+        """The business a user belongs to. Shared by every service that stores
+        org-level configuration on the ``organizations`` document (business hours,
+        AI call persona, Telnyx/Stripe wiring)."""
+        if not ObjectId.is_valid(user_id):
+            return None
+        user = await self.db.users.find_one({"_id": ObjectId(user_id)}, {"organization_id": 1})
+        return (user or {}).get("organization_id")
+
     @staticmethod
     def _is_shared_member_conversation(conversation: dict) -> bool:
         """Is this a thread between colleagues rather than an external-channel inbox?

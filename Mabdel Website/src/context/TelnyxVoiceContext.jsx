@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { TelnyxRTC } from '@telnyx/webrtc';
 import { smartflowApi } from '../api/services';
 import { useAuthStore } from '../store/useAuthStore';
+import { createRingtone, createTitleAlert } from '../utils/ringtone';
 
 const TelnyxVoiceContext = createContext(null);
 
@@ -86,6 +87,28 @@ export function TelnyxVoiceProvider({ children }) {
   const [transcriptSegments, setTranscriptSegments] = useState([]);
   const [callStatusText, setCallStatusText] = useState('Ready');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const ringtoneRef = useRef(null);
+  const titleAlertRef = useRef(null);
+
+  // Ring (and flash the tab) for as long as a call is waiting to be answered.
+  // This provider is mounted by MainLayout, so it covers every signed-in page —
+  // the overlay alone was silent and easy to miss from anywhere but the Calls page.
+  useEffect(() => {
+    const isRinging = Boolean(incomingCall && !currentCall);
+    if (!isRinging) return undefined;
+
+    if (!ringtoneRef.current) ringtoneRef.current = createRingtone();
+    if (!titleAlertRef.current) titleAlertRef.current = createTitleAlert();
+
+    const caller = incomingCall?.callerName || incomingCall?.callerNumber || '';
+    ringtoneRef.current.start();
+    titleAlertRef.current.start(caller ? `📞 ${caller}` : '📞 Incoming call');
+
+    return () => {
+      ringtoneRef.current?.stop();
+      titleAlertRef.current?.stop();
+    };
+  }, [incomingCall, currentCall]);
 
   const clearHeartbeat = () => {
     if (heartbeatRef.current) {
