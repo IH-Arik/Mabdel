@@ -210,32 +210,43 @@ class AIPhoneAgent:
         settings_doc = await self._get_call_settings()
 
         custom = settings_doc.get("greeting_outbound") if self.is_outbound else settings_doc.get("greeting_inbound")
+        assistant_name = settings_doc.get("assistant_name")
+        disclosure = phrase("recording_disclosure", self.language)
+
         if custom:
             # Written by the business in their own words — spoken verbatim rather than
-            # run through the phrase table, so it is used exactly as configured.
-            greeting_text = custom
+            # run through the phrase table. The disclosure still has to be mandatory,
+            # so it goes right after whatever the business used to name/introduce
+            # itself: we cannot parse their custom text for an "intro clause", but we
+            # can still name the business first ourselves when we know it, which is
+            # the compliance-relevant part — recorded before any pitch is spoken.
+            intro = f"This is {self.business_name}. " if self.business_name else ""
+            greeting_text = f"{intro}{disclosure} {custom}"
         else:
             if self.is_outbound:
                 # We rang them — "thanks for calling" would be backwards.
-                key = "outbound_greeting_with_business" if self.business_name else "outbound_greeting_no_business"
+                intro_key = "outbound_intro_with_business" if self.business_name else "outbound_intro_no_business"
+                pitch_key = "outbound_greeting_with_business" if self.business_name else "outbound_greeting_no_business"
             else:
                 # No business name on file yet — a generic greeting beats a wrong one.
-                key = "greeting_with_business" if self.business_name else "greeting_no_business"
-            greeting_text = (
-                phrase(key, self.language, business=self.business_name)
+                intro_key = "greeting_intro_with_business" if self.business_name else "greeting_intro_no_business"
+                pitch_key = "greeting_with_business" if self.business_name else "greeting_no_business"
+
+            intro_text = (
+                phrase(intro_key, self.language, business=self.business_name)
                 if self.business_name
-                else phrase(key, self.language)
+                else phrase(intro_key, self.language)
             )
+            if assistant_name:
+                intro_text = f"{intro_text} {phrase('assistant_intro', self.language, name=assistant_name)}"
+            pitch_text = phrase(pitch_key, self.language)
 
-        assistant_name = settings_doc.get("assistant_name")
-        if assistant_name and not custom:
-            # Only injected into the built-in greeting; a custom one is left untouched
-            # so the business's own wording is never rewritten.
-            greeting_text = phrase("assistant_intro", self.language, name=assistant_name) + " " + greeting_text
+            # Business (and assistant) named -> mandatory disclosure -> the pitch.
+            # Client requirement: the disclosure must be stated immediately after
+            # introducing the business, not before it and not tacked onto the end
+            # after the "how can I help you" question.
+            greeting_text = f"{intro_text} {disclosure} {pitch_text}"
 
-        # The recording disclosure is a compliance line, not a style choice, so it is
-        # prepended even when the greeting is fully custom.
-        greeting_text = f"{phrase('recording_disclosure', self.language)} {greeting_text}"
         await self._speak(greeting_text, send_callback)
 
     def build_language_menu_text(self, settings_doc: dict) -> str:
