@@ -66,6 +66,46 @@ def test_greeting_includes_recording_disclosure(mock_db, monkeypatch):
     assert sent, "greeting audio should have been streamed to Telnyx"
 
 
+def test_recording_disclosure_is_spoken_right_after_naming_the_business(mock_db, monkeypatch):
+    """Client requirement: the disclosure must land immediately after the business is
+    introduced — not before it (caller hears "will be recorded" before even knowing
+    who they've reached) and not after the whole pitch (reads like an afterthought
+    tacked onto the end, after the "how can I help you" question)."""
+    captured_texts: list[str] = []
+
+    async def fake_synthesize(self, text, voice_id=None):
+        captured_texts.append(text)
+        return {"audio_base64": _short_wav_base64()}
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+
+    async def fake_get_business_name(self):
+        return "Apex Dental"
+
+    monkeypatch.setattr(AIPhoneAgent, "_get_business_name", fake_get_business_name)
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(flow_service)
+        agent.stream_sid = "MZ_test"
+
+        async def send_callback(_message):
+            return None
+
+        await agent.greet(send_callback)
+
+    asyncio.run(_run())
+
+    greeting = captured_texts[0]
+    business_index = greeting.index("Apex Dental")
+    disclosure_index = greeting.index(phrase("recording_disclosure", "en"))
+    pitch_index = greeting.index("How can I help you today?")
+
+    assert business_index < disclosure_index < pitch_index, (
+        f"expected business name, then disclosure, then pitch — got: {greeting!r}"
+    )
+
+
 # ── Dead-air failsafe ────────────────────────────────────────────────────
 
 

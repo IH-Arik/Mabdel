@@ -989,7 +989,7 @@ def test_matches_any_falls_back_to_english_keywords():
 def test_phrase_looks_up_translation_and_falls_back_to_english():
     from app.services.call_phrases import phrase
 
-    assert phrase("ask_name", "fr") == "Parfait — puis-je avoir votre nom pour la demande de réunion ?"
+    assert phrase("ask_name", "fr") == "Parfait — puis-je avoir votre nom pour la demande de rendez-vous ?"
     # Unsupported/unknown language code falls back to English rather than crashing.
     assert phrase("ask_name", "bn") == phrase("ask_name", "en")
     assert phrase("ask_email", "es", name="Ana") == "Gracias, Ana. ¿Cuál es el mejor correo electrónico para enviarte la confirmación?"
@@ -1038,7 +1038,7 @@ def test_scheduling_flow_end_to_end_in_spanish(mock_db):
 
         reply2 = await agent._advance_conversation("Sí, claro")
         assert agent.phase == "collecting_name"
-        assert reply2 == "Genial — ¿me das tu nombre para la solicitud de reunión?"
+        assert reply2 == "Genial — ¿me das tu nombre para la solicitud de cita?"
 
         reply3 = await agent._advance_conversation("Ana García")
         assert agent.phase == "collecting_email"

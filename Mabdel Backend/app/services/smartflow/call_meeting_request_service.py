@@ -93,7 +93,7 @@ class CallMeetingRequestService(SmartFlowBase):
                 event = await self.calendar_service.create_calendar_event(
                     user_id,
                     {
-                        "title": f"Call meeting with {caller_name}",
+                        "title": f"Appointment with {caller_name}",
                         "description": f"Auto-booked by AI Phone Agent during live call. Caller: {caller_name}"
                         + (f" ({caller_phone})" if caller_phone else ""),
                         "starts_at": requested_start,
@@ -206,7 +206,7 @@ class CallMeetingRequestService(SmartFlowBase):
             event = await self.calendar_service.create_calendar_event(
                 user_id,
                 {
-                    "title": f"Call meeting with {doc['caller_name']}",
+                    "title": f"Appointment with {doc['caller_name']}",
                     "description": f"Booked from an AI phone call. Caller: {doc['caller_name']}"
                     + (f" ({doc['caller_phone']})" if doc.get("caller_phone") else ""),
                     "starts_at": doc["requested_start"],
@@ -290,8 +290,8 @@ class CallMeetingRequestService(SmartFlowBase):
                 await self.create_notification(
                     user_id=member_id,
                     notification_type="calendar",
-                    title="New meeting request from a call",
-                    body=f"{doc['caller_name']} wants to meet {when} — approve or decline.",
+                    title="New appointment request from a call",
+                    body=f"{doc['caller_name']} wants an appointment {when} — approve or decline.",
                     metadata={"call_meeting_request_id": str(doc["_id"]), "call_sid": doc.get("call_sid")},
                 )
             except Exception:
@@ -303,10 +303,10 @@ class CallMeetingRequestService(SmartFlowBase):
             link_line = f"<p>Join link: <a href=\"{doc['meeting_link']}\">{doc['meeting_link']}</a></p>" if doc.get("meeting_link") else ""
             await self.email_service.send_invoice_email(
                 email=doc["caller_email"],
-                subject="Your meeting is confirmed",
-                text=f"Your meeting request for {when} has been confirmed."
+                subject="Your appointment is confirmed",
+                text=f"Your appointment request for {when} has been confirmed."
                 + (f" Join link: {doc['meeting_link']}" if doc.get("meeting_link") else ""),
-                html=f"<p>Your meeting request for <strong>{when}</strong> has been confirmed.</p>{link_line}",
+                html=f"<p>Your appointment request for <strong>{when}</strong> has been confirmed.</p>{link_line}",
             )
         except Exception:
             # Confirmation already succeeded server-side; a failed courtesy email
@@ -318,10 +318,10 @@ class CallMeetingRequestService(SmartFlowBase):
             when = doc["requested_start"].strftime("%A, %B %d, %Y at %I:%M %p")
             await self.email_service.send_invoice_email(
                 email=doc["caller_email"],
-                subject="About your meeting request",
-                text=f"We're not able to meet at {when}. Please call back or reach out "
+                subject="About your appointment request",
+                text=f"We're not able to confirm an appointment at {when}. Please call back or reach out "
                 "to find another time that works.",
-                html=f"<p>We're not able to meet at <strong>{when}</strong>. "
+                html=f"<p>We're not able to confirm an appointment at <strong>{when}</strong>. "
                 "Please call back or reach out to find another time that works.</p>",
             )
         except Exception:
