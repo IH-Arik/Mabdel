@@ -2493,6 +2493,21 @@ class SmartFlowBase:
         org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
         return TelnyxProvisioningService.get_org_phone_number(org)
 
+    @staticmethod
+    def _delivery_error_text(exc: Exception) -> str:
+        """AppException.__str__ only yields the generic message we wrote (e.g. "Telnyx
+        could not send the SMS."), silently dropping the ``details`` payload that
+        carries the provider's *actual* reason. A failed broadcast then showed the
+        business nothing they could act on — the real cause (a rejected sender, a
+        capability the number doesn't have, a malformed recipient) was only ever
+        visible by reproducing the send by hand."""
+        message = str(exc)
+        details = getattr(exc, "details", None)
+        provider_error = details.get("error") if isinstance(details, dict) else None
+        if provider_error and str(provider_error) not in message:
+            return f"{message} {provider_error}"
+        return message
+
     async def _dispatch_bulk_message(self, document: dict) -> dict:
         now = utc_now()
         deliveries: list[dict] = []
@@ -2561,7 +2576,7 @@ class SmartFlowBase:
                     sent_count += 1
                 except Exception as exc:
                     status = "failed"
-                    error = str(exc)
+                    error = self._delivery_error_text(exc)
                     failed_count += 1
             elif document["channel"] == "sms":
                 try:
@@ -2575,7 +2590,7 @@ class SmartFlowBase:
                     sent_count += 1
                 except Exception as exc:
                     status = "failed"
-                    error = str(exc)
+                    error = self._delivery_error_text(exc)
                     failed_count += 1
             else:
                 status = "failed"

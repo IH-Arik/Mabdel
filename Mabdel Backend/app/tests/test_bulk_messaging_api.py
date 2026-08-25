@@ -250,6 +250,43 @@ def test_bulk_sms_uses_the_organizations_own_telnyx_number(client, mock_db, monk
     )
 
 
+def test_failed_sms_delivery_reports_the_providers_real_reason(client, mock_db, monkeypatch):
+    """A failed broadcast showed the business only our own generic wrapper message
+    ("Telnyx could not send the SMS."), because AppException.__str__ drops the
+    `details` payload carrying the provider's actual reason. Without that reason
+    (a rejected sender, a capability the number lacks, ...) a failure is
+    undiagnosable from the UI — the cause was only findable by reproducing the send
+    by hand."""
+    headers = _auth_headers(client, mock_db, email="bulk-sms-err@example.com")
+    alex_id = _create_contact(client, headers, name="Alex Johnson", email="alex@example.com", phone="+8801711111111")
+
+    from app.services.call_service import CallService
+
+    async def failing_send_sms(self, *, to_number: str, message: str, from_number: str | None = None) -> dict:
+        raise AppException(
+            status_code=502,
+            code="TELNYX_SMS_SEND_FAILED",
+            message="Telnyx could not send the SMS.",
+            details={"error": "Error code: 409 - Alpha sender not configured"},
+        )
+
+    monkeypatch.setattr(CallService, "send_sms", failing_send_sms)
+
+    response = client.post(
+        "/api/v1/smartflow/bulk-messages",
+        headers=headers,
+        json={"channel": "sms", "contact_ids": [alex_id], "content": "will fail", "send_now": True},
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()["data"]
+    assert payload["status"] == "failed"
+
+    delivery_error = payload["deliveries"][0]["error"]
+    assert "Alpha sender not configured" in delivery_error, (
+        f"the provider's real reason never reached the delivery record: {delivery_error!r}"
+    )
+
+
 def test_sms_config_validator_does_not_require_the_voice_application_id(monkeypatch):
     """SMS and voice calling are configured independently -- a business with SMS set
     up but no voice Call Control application (or vice versa) must not have one
