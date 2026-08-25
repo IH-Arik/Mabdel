@@ -88,10 +88,26 @@ def test_bulk_recipient_validation_flow(client, mock_db):
     assert "wrong-email@" in payload["invalid_entries"]
 
 
-def test_bulk_message_create_schedule_send_and_list_flow(client, mock_db):
+def test_bulk_message_create_schedule_send_and_list_flow(client, mock_db, monkeypatch):
     headers = _auth_headers(client, mock_db, email="bulk-send@example.com")
     alex_id = _create_contact(client, headers, name="Alex Johnson", email="alex@example.com")
     sarah_id = _create_contact(client, headers, name="Sarah Miller", email="sarah@example.com")
+
+    # Without this, the bulk-send path (_base.py's _dispatch_bulk_message) calls a
+    # bare EmailService() that falls through to a real Resend API call whenever
+    # RESEND_API_KEY happens to be set in the environment — Resend's sandbox key then
+    # rejects @example.com-style test addresses, non-deterministically turning some
+    # deliveries into failures depending on which domains it happens to reject that
+    # day. Faked here (via monkeypatch, so it's undone after this test — a bare class
+    # assignment leaked into test_zoho_mail.py's real-routing test the first time this
+    # was tried) since this codepath isn't behind the DI seam
+    # conftest.FakeEmailService/get_email_service override already covers.
+    from app.services.email_service import EmailService
+
+    async def fake_send_business_email(self, **kwargs) -> None:
+        return None
+
+    monkeypatch.setattr(EmailService, "send_business_email", fake_send_business_email)
 
     create_response = client.post(
         "/api/v1/smartflow/bulk-messages",

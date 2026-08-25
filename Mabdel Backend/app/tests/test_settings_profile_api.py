@@ -291,7 +291,7 @@ def test_subscription_report_and_support_endpoints_cover_settings_menu(client, m
 
     plans_response = client.get("/api/v1/smartflow/subscription/plans", headers=headers)
     assert plans_response.status_code == 200
-    assert {plan["code"] for plan in plans_response.json()["data"]["items"]} >= {"free", "pro", "business"}
+    assert {plan["code"] for plan in plans_response.json()["data"]["items"]} >= {"starter", "growth", "pro"}
 
     current_response = client.get("/api/v1/smartflow/subscription/current", headers=headers)
     assert current_response.status_code == 200
