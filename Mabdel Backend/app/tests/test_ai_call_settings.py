@@ -52,9 +52,30 @@ def test_settings_default_to_the_built_in_persona(client, mock_db):
     assert response.status_code == 200, response.text
     data = response.json()["data"]
     assert data["assistant_name"] is None
+    assert data["business_type"] is None
     assert data["greeting_inbound"] is None
     assert data["language_menu_enabled"] is False
     assert data["language_menu"] == []
+
+
+def test_business_type_persists_and_leaves_other_fields_alone(client, mock_db):
+    headers, organization_id = _owner_with_org(client, mock_db, "aiset-btype@example.com")
+
+    response = client.patch(
+        "/api/v1/smartflow/ai-call-settings", headers=headers, json={"business_type": "Dental Clinic"}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["business_type"] == "Dental Clinic"
+
+    org = asyncio.run(mock_db.organizations.find_one({"organization_id": organization_id}))
+    assert org["ai_call_settings"]["business_type"] == "Dental Clinic"
+
+    # A second, unrelated PATCH must not blank it back out.
+    second = client.patch(
+        "/api/v1/smartflow/ai-call-settings", headers=headers, json={"assistant_name": "Sarah"}
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["data"]["business_type"] == "Dental Clinic"
 
 
 def test_patch_persists_and_leaves_untouched_fields_alone(client, mock_db):
@@ -254,9 +275,10 @@ def test_control_characters_are_stripped_before_reaching_the_prompt(client, mock
     response = client.patch(
         "/api/v1/smartflow/ai-call-settings",
         headers=headers,
-        json={"assistant_name": "Sa\x07rah", "custom_instructions": "  be warm\x00  "},
+        json={"assistant_name": "Sa\x07rah", "custom_instructions": "  be warm\x00  ", "business_type": "  Dental\x00 Clinic  "},
     )
     assert response.status_code == 200, response.text
     data = response.json()["data"]
     assert data["assistant_name"] == "Sarah"
     assert data["custom_instructions"] == "be warm"
+    assert data["business_type"] == "Dental Clinic"

@@ -28,6 +28,15 @@ const PHONE_LANGUAGE_OPTIONS = [
 const MAX_MENU_OPTIONS = 4;
 const DIGIT_CHOICES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
+// A curated starting list, not an enum enforced server-side — the field stays a
+// free string so a business whose type isn't listed can still type it via "Other".
+const BUSINESS_TYPE_OPTIONS = [
+  'Dental Clinic', 'Medical Clinic', 'Law Firm', 'Real Estate Agency', 'Restaurant',
+  'Salon / Spa', 'Home Services (Plumbing, Electrical, HVAC)', 'Auto Repair Shop',
+  'Fitness Studio / Gym', 'Retail Store', 'Accounting / Bookkeeping Firm',
+  'Insurance Agency', 'Veterinary Clinic', 'Photography Studio', 'Consulting Firm',
+];
+
 function SectionCard({ icon: Icon, title, description, children }) {
   return (
     <div className="bg-[#0A1019] border border-[#243041] rounded-2xl p-5">
@@ -51,6 +60,7 @@ function AIConfigTab() {
   const [voices, setVoices] = useState([]);
   const [loadingVoices, setLoadingVoices] = useState(true);
   const [callSettings, setCallSettings] = useState(null);
+  const [businessTypeIsOther, setBusinessTypeIsOther] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -60,7 +70,9 @@ function AIConfigTab() {
     try {
       setLoadingSettings(true);
       const response = await smartflowApi.getAICallSettings();
-      setCallSettings(response.data?.data || null);
+      const data = response.data?.data || null;
+      setCallSettings(data);
+      setBusinessTypeIsOther(Boolean(data?.business_type) && !BUSINESS_TYPE_OPTIONS.includes(data.business_type));
     } catch {
       setError(t('aiprof_err_load_failed'));
     } finally {
@@ -116,6 +128,7 @@ function AIConfigTab() {
       const response = await smartflowApi.updateAICallSettings({
         assistant_name: callSettings.assistant_name || null,
         voice_id: callSettings.voice_id || null,
+        business_type: callSettings.business_type || null,
         custom_instructions: callSettings.custom_instructions || null,
         greeting_inbound: callSettings.greeting_inbound || null,
         greeting_outbound: callSettings.greeting_outbound || null,
@@ -166,6 +179,34 @@ function AIConfigTab() {
               onChange={(event) => updateField('assistant_name', event.target.value)}
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50"
             />
+
+            <label className={`${LABEL} mt-4`}>{t('aiprof_lbl_business_type')}</label>
+            <p className="text-[#A4B0B7] text-xs mb-2">{t('aiprof_business_type_desc')}</p>
+            <select
+              value={businessTypeIsOther ? 'Other' : callSettings?.business_type || ''}
+              onChange={(event) => {
+                const nextIsOther = event.target.value === 'Other';
+                setBusinessTypeIsOther(nextIsOther);
+                updateField('business_type', nextIsOther ? '' : event.target.value);
+              }}
+              className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50"
+            >
+              <option value="">{t('aiprof_ph_business_type')}</option>
+              {BUSINESS_TYPE_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+              <option value="Other">Other</option>
+            </select>
+            {businessTypeIsOther ? (
+              <input
+                type="text"
+                maxLength={80}
+                placeholder={t('aiprof_ph_business_type')}
+                value={callSettings?.business_type || ''}
+                onChange={(event) => updateField('business_type', event.target.value)}
+                className="w-full mt-2 bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50"
+              />
+            ) : null}
           </SectionCard>
 
           <SectionCard icon={Mic} title={t('aiprof_hdr_voices')}>
