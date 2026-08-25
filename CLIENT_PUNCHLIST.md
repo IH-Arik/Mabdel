@@ -51,21 +51,25 @@ Tracking sheet for the client meeting recap items, worked one at a time on
 
 ## Security fixes (found during testing, not in original client list)
 
-- [x] **Cross-organization direct messaging** — done, commit `48c7d60`.
+- [x] **Cross-organization direct messaging** — done, commits `48c7d60`, `a0b4d69`.
   Found while answering the user's question about whether unrelated users
   could message each other on the website. Confirmed live: any two signed-up
   users, regardless of business/organization, could open a "direct"
   conversation and exchange messages — `create_conversation` took
   `member_ids` straight from the request with no organization check, and
   `_get_accessible_conversation`'s teammate-inbox path only checked whether a
-  user id appeared in `member_ids`, not which business it belonged to. Fixed
-  at both the write side (`ConversationService._assert_members_share_organization`)
-  and read side (organization_id check in `_base.py`, defense in depth).
-  Scoped to `type == "direct"` only — group chats use a separate contact-based
+  user id appeared in `member_ids`, not which business it belonged to.
+  Final rule (per user clarification, `a0b4d69`): a same-organization
+  colleague is always reachable; a user on a *different* organization is
+  reachable only if the caller has saved them as a contact (matched by
+  email) — never a total stranger picked by raw user id. Fixed at both the
+  write side (`ConversationService._assert_members_share_organization`) and
+  read side (organization_id check in `_base.py`, defense in depth). Scoped
+  to `type == "direct"` only — group chats use a separate contact-based
   membership path that was already fine.
   Also fixed: two pre-existing unrelated test failures
   (`test_bulk_messaging_api.py`, `test_settings_profile_api.py`) — see commit
-  `796bcd7`. Suite is now 312/312 green in both fixed and randomized order.
+  `796bcd7`. Suite is now 313/313 green in both fixed and randomized order.
 
 ## Other client items (not yet scheduled)
 
