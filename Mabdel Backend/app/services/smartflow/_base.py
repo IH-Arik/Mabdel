@@ -343,6 +343,17 @@ class SmartFlowBase:
         # Path 3: non-global conversation member (teammate inbox)
         conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "member_ids": user_id})
         if conversation:
+            # Team conversations created after the cross-organization messaging fix
+            # carry an organization_id (see ConversationService._assert_members_share_
+            # organization); enforce it here too as defense in depth, in case some
+            # other write path ever populates member_ids without going through that
+            # check. Older conversations predate the field and fall back to the
+            # member_ids check above, unchanged.
+            conversation_org = conversation.get("organization_id")
+            if conversation_org:
+                user = await self._get_user_document(user_id)
+                if user.get("organization_id") != conversation_org:
+                    raise AppException(status_code=404, code=code, message="Requested resource was not found.")
             return conversation
 
         raise AppException(status_code=404, code=code, message="Requested resource was not found.")
