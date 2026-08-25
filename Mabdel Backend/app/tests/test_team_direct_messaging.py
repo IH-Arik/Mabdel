@@ -219,9 +219,10 @@ def test_reply_is_visible_to_the_conversation_owner(client, mock_db) -> None:
 
 def test_stranger_from_a_different_business_cannot_start_a_conversation(client, mock_db) -> None:
     """A and B are on two unrelated businesses (different organization_id, never
-    linked via _same_org). Team direct messaging is for colleagues on one business
-    account — A must not be able to open a conversation with B just by knowing B's
-    user id."""
+    linked via _same_org) and B is not saved in A's contacts. A must not be able to
+    open a conversation with B just by knowing B's user id — a total stranger picked
+    by id alone stays blocked even though a saved contact from another business
+    (next test) is allowed."""
     a_headers, _ = _signup(client, mock_db, "xorg-a@example.com", "Business A Owner")
     _, b_id = _signup(client, mock_db, "xorg-b@example.com", "Business B Owner")
 
@@ -231,7 +232,42 @@ def test_stranger_from_a_different_business_cannot_start_a_conversation(client, 
         json={"title": "Business B Owner", "type": "direct", "platform": "ai", "member_ids": [b_id]},
     )
     assert created.status_code == 403, created.text
-    assert created.json()["error"]["code"] == "CONVERSATION_MEMBER_NOT_IN_ORGANIZATION"
+    assert created.json()["error"]["code"] == "CONVERSATION_MEMBER_NOT_REACHABLE"
+
+
+def test_user_can_message_a_different_business_staff_member_saved_as_a_contact(client, mock_db) -> None:
+    """Arik's staff (A) should be able to message another company's staff member (B)
+    when B is saved in A's own contact list, even though they're on different
+    organization accounts — cross-business messaging is allowed specifically through
+    a saved contact, not blocked outright."""
+    a_headers, a_id = _signup(client, mock_db, "xorg-g@example.com", "Business G Owner")
+    _, b_id = _signup(client, mock_db, "xorg-h@example.com", "Business H Owner")
+
+    contact_response = client.post(
+        "/api/v1/smartflow/contacts",
+        headers=a_headers,
+        json={"name": "Business H Owner", "email": "xorg-h@example.com", "phone": "+8801700000000"},
+    )
+    assert contact_response.status_code == 201, contact_response.text
+
+    created = client.post(
+        "/api/v1/smartflow/conversations",
+        headers=a_headers,
+        json={"title": "Business H Owner", "type": "direct", "platform": "ai", "member_ids": [b_id]},
+    )
+    assert created.status_code == 201, created.text
+
+    sent = client.post(
+        "/api/v1/smartflow/messages",
+        headers=a_headers,
+        json={
+            "conversation_id": created.json()["data"]["id"],
+            "platform": "ai",
+            "direction": "outbound",
+            "content": "hi from another business",
+        },
+    )
+    assert sent.status_code == 201, sent.text
 
 
 def test_stranger_listed_in_member_ids_still_blocked_when_organization_id_is_stamped(client, mock_db) -> None:
