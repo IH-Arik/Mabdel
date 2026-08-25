@@ -212,3 +212,64 @@ def test_reply_is_visible_to_the_conversation_owner(client, mock_db) -> None:
     assert owner_view.status_code == 200, owner_view.text
     contents = [m["content"] for m in owner_view.json()["data"]["items"]]
     assert "hi back A" in contents, f"owner cannot see the colleague's reply; got {contents}"
+
+
+# ── Cross-organization isolation ────────────────────────────────────────
+
+
+def test_stranger_from_a_different_business_cannot_start_a_conversation(client, mock_db) -> None:
+    """A and B are on two unrelated businesses (different organization_id, never
+    linked via _same_org). Team direct messaging is for colleagues on one business
+    account — A must not be able to open a conversation with B just by knowing B's
+    user id."""
+    a_headers, _ = _signup(client, mock_db, "xorg-a@example.com", "Business A Owner")
+    _, b_id = _signup(client, mock_db, "xorg-b@example.com", "Business B Owner")
+
+    created = client.post(
+        "/api/v1/smartflow/conversations",
+        headers=a_headers,
+        json={"title": "Business B Owner", "type": "direct", "platform": "ai", "member_ids": [b_id]},
+    )
+    assert created.status_code == 403, created.text
+    assert created.json()["error"]["code"] == "CONVERSATION_MEMBER_NOT_IN_ORGANIZATION"
+
+
+def test_stranger_listed_in_member_ids_still_blocked_when_organization_id_is_stamped(client, mock_db) -> None:
+    """Defense in depth on the read/send side: even if member_ids somehow ends up
+    containing a stranger's id (a bug elsewhere, data corruption, a future write path
+    that forgets the organization check), a conversation that has an organization_id
+    stamped on it must still reject anyone outside that organization — the access
+    check does not simply trust member_ids the way it did before this fix."""
+    a_headers, a_id = _signup(client, mock_db, "xorg-e@example.com", "Business E Owner")
+    stranger_headers, stranger_id = _signup(client, mock_db, "xorg-f@example.com", "Business F Owner")
+    _same_org(mock_db, a_id)  # a solo business — just needs an organization_id of its own
+    a_org = a_id
+
+    async def _insert_conversation_with_org_stamped() -> str:
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        result = await mock_db.conversations.insert_one(
+            {
+                "user_id": a_id,
+                "title": "Stamped",
+                "contact_id": None,
+                "type": "direct",
+                "platform": "ai",
+                "member_ids": [a_id, stranger_id],  # stranger should never have landed here
+                "organization_id": a_org,
+                "archived": False,
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
+        return str(result.inserted_id)
+
+    conversation_id = asyncio.run(_insert_conversation_with_org_stamped())
+
+    response = client.get(f"/api/v1/smartflow/conversations/{conversation_id}", headers=stranger_headers)
+    assert response.status_code == 404, response.text
+
+    # The rightful owner (same org, correctly listed) is unaffected.
+    owner_response = client.get(f"/api/v1/smartflow/conversations/{conversation_id}", headers=a_headers)
+    assert owner_response.status_code == 200, owner_response.text

@@ -75,20 +75,65 @@ class ConversationService(SmartFlowBase):
     async def create_conversation(self, user_id: str, payload: dict) -> dict:
         now = utc_now()
         member_ids = list(dict.fromkeys([user_id, *payload.get("member_ids", [])]))
+        conversation_type = payload.get("type", "direct")
+        organization_id = None
+        if conversation_type == "direct":
+            # Only "direct" conversations use member_ids as real platform user ids —
+            # create_group (below) reuses this same method with member_ids resolved
+            # from _normalize_group_member_ids, which allows contact ids too, so this
+            # check would misfire there (a contact id is never a valid user id).
+            organization_id = await self._assert_members_share_organization(user_id, member_ids)
         document = {
             "user_id": user_id,
             "title": payload.get("title"),
             "contact_id": payload.get("contact_id"),
-            "type": payload.get("type", "direct"),
+            "type": conversation_type,
             "platform": payload.get("platform", "whatsapp"),
             "member_ids": member_ids,
             "archived": False,
             "created_at": now,
             "updated_at": now,
         }
+        # Only stamped when there are real teammates on the thread (a solo/customer
+        # conversation has no organization boundary to enforce) — lets
+        # _get_accessible_conversation's teammate-inbox path check it later.
+        if organization_id:
+            document["organization_id"] = organization_id
         result = await self.db.conversations.insert_one(document)
         document["_id"] = result.inserted_id
         return await self._serialize_conversation(document, viewer_user_id=user_id)
+
+    async def _assert_members_share_organization(self, user_id: str, member_ids: list[str]) -> str | None:
+        """Team direct messaging is meant for colleagues on one business account (see
+        test_team_direct_messaging.py's docstring) — without this, member_ids taken
+        straight from the request let any signed-up user message any other user on the
+        platform by user id alone, regardless of which business each one belongs to.
+        Returns the shared organization_id (or None for a solo/customer conversation
+        with no other platform-user members) so the caller can stamp it on the
+        conversation document."""
+        others = [member_id for member_id in member_ids if member_id != user_id]
+        if not others:
+            return None
+        organization_id = (await self._get_user_document(user_id)).get("organization_id")
+        if not organization_id:
+            raise AppException(
+                status_code=403,
+                code="CONVERSATION_MEMBER_NOT_IN_ORGANIZATION",
+                message="You can only message colleagues on your own business account.",
+            )
+        for member_id in others:
+            if not ObjectId.is_valid(member_id):
+                raise AppException(
+                    status_code=404, code="CONVERSATION_MEMBER_NOT_FOUND", message="One or more members were not found."
+                )
+            member = await self.db.users.find_one({"_id": ObjectId(member_id)})
+            if not member or member.get("organization_id") != organization_id:
+                raise AppException(
+                    status_code=403,
+                    code="CONVERSATION_MEMBER_NOT_IN_ORGANIZATION",
+                    message="You can only message colleagues on your own business account.",
+                )
+        return organization_id
 
     async def get_conversation(self, user_id: str, conversation_id: str) -> dict:
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
