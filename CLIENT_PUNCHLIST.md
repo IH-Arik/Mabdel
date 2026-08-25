@@ -49,6 +49,24 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   industry/hours/address facts). Frontend: curated dropdown in the AI Config
   tab (`AIConfigTab.jsx`) with an "Other" free-text fallback.
 
+## Security fixes (found during testing, not in original client list)
+
+- [x] **Cross-organization direct messaging** — done, commit `48c7d60`.
+  Found while answering the user's question about whether unrelated users
+  could message each other on the website. Confirmed live: any two signed-up
+  users, regardless of business/organization, could open a "direct"
+  conversation and exchange messages — `create_conversation` took
+  `member_ids` straight from the request with no organization check, and
+  `_get_accessible_conversation`'s teammate-inbox path only checked whether a
+  user id appeared in `member_ids`, not which business it belonged to. Fixed
+  at both the write side (`ConversationService._assert_members_share_organization`)
+  and read side (organization_id check in `_base.py`, defense in depth).
+  Scoped to `type == "direct"` only — group chats use a separate contact-based
+  membership path that was already fine.
+  Also fixed: two pre-existing unrelated test failures
+  (`test_bulk_messaging_api.py`, `test_settings_profile_api.py`) — see commit
+  `796bcd7`. Suite is now 312/312 green in both fixed and randomized order.
+
 ## Other client items (not yet scheduled)
 
 From the original meeting recap, not yet picked up:
