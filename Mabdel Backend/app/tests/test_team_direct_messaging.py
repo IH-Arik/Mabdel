@@ -124,6 +124,54 @@ def test_recipient_gets_a_realtime_inbox_push_with_the_preview(client, mock_db, 
     assert preview and "ping" in preview, f"recipient's realtime push carried no preview: {preview!r}"
 
 
+def _receive_until(websocket, event_name: str, max_messages: int = 6) -> dict:
+    """Real-time channels also carry `connected`/`presence.updated` chatter around
+    the event under test — drain those rather than hard-coding their exact order."""
+    for _ in range(max_messages):
+        payload = websocket.receive_json()
+        if payload.get("event") == event_name:
+            return payload
+    raise AssertionError(f"never received a {event_name!r} event within {max_messages} messages")
+
+
+def test_realtime_message_push_has_correct_sender_is_self_for_each_viewer(client, mock_db) -> None:
+    """The actual live-UI bug: both people's chat bubbles rendered on the same side.
+    The WebSocket push used to serialize a message ONCE, from the sender's own point
+    of view, and broadcast that identical payload to every connected socket — so the
+    recipient's live view saw sender_is_self=True for a message that wasn't theirs.
+    Each connected viewer must now get their own, correctly-computed copy."""
+    a_headers, a_id = _signup(client, mock_db, "rt-side-a@example.com", "RT Side A")
+    b_headers, b_id = _signup(client, mock_db, "rt-side-b@example.com", "RT Side B")
+    _same_org(mock_db, a_id, b_id)
+    a_token = a_headers["Authorization"].split(" ", 1)[1]
+    b_token = b_headers["Authorization"].split(" ", 1)[1]
+
+    conversation_id = client.post(
+        "/api/v1/smartflow/conversations",
+        headers=a_headers,
+        json={"title": "RT Side B", "type": "direct", "platform": "ai", "member_ids": [b_id]},
+    ).json()["data"]["id"]
+
+    with client.websocket_connect(f"/api/v1/smartflow/ws/conversations/{conversation_id}?token={a_token}") as a_ws:
+        assert a_ws.receive_json()["event"] == "connected"
+        with client.websocket_connect(f"/api/v1/smartflow/ws/conversations/{conversation_id}?token={b_token}") as b_ws:
+            assert b_ws.receive_json()["event"] == "connected"
+
+            assert client.post(
+                "/api/v1/smartflow/messages",
+                headers=a_headers,
+                json={"conversation_id": conversation_id, "platform": "ai", "direction": "outbound", "content": "from A live"},
+            ).status_code == 201
+
+            a_pushed = _receive_until(a_ws, "message.created")
+            b_pushed = _receive_until(b_ws, "message.created")
+
+    assert a_pushed["data"]["content"] == "from A live"
+    assert a_pushed["data"]["sender_is_self"] is True, "the sender's own live view must show their message as sent by them"
+    assert b_pushed["data"]["content"] == "from A live"
+    assert b_pushed["data"]["sender_is_self"] is False, "the recipient's live view must NOT show A's message as sent by them"
+
+
 def _unread_for(client, headers: dict[str, str], conversation_id: str) -> int:
     items = client.get(
         "/api/v1/smartflow/conversations", headers=headers, params={"page": 1, "page_size": 50}

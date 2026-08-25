@@ -673,7 +673,14 @@ def test_conversation_websocket_stream_connects_and_service_publishes_events(cli
     async def fake_publish(conversation_id_arg: str, event: str, data: dict) -> None:
         published_events.append((conversation_id_arg, event, data))
 
+    async def fake_publish_per_viewer(conversation_id_arg: str, event: str, build_data) -> None:
+        # message.created/updated go through publish_per_viewer now (re-serialized
+        # per connected viewer so sender_is_self is correct for everyone, not just
+        # the sender) — call build_data once to capture what a viewer would receive.
+        published_events.append((conversation_id_arg, event, await build_data(None)))
+
     monkeypatch.setattr(conversation_realtime_hub, "publish", fake_publish)
+    monkeypatch.setattr(conversation_realtime_hub, "publish_per_viewer", fake_publish_per_viewer)
 
     with client.websocket_connect(f"/api/v1/smartflow/ws/conversations/{conversation_id}?token={token}") as websocket:
         connected = websocket.receive_json()

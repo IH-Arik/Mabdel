@@ -48,7 +48,12 @@ const primaryNavItemDefs = [
 // Team Management dashboard is a separate app (madbel-dashboard) shared with
 // Owner/Manager only - Admin/Super Admin use their own dedicated dashboard login.
 const TEAM_DASHBOARD_ROLES = new Set(['owner', 'manager']);
-const TEAM_DASHBOARD_URL = import.meta.env.VITE_DASHBOARD_URL || 'http://localhost:5174';
+// VITE_DASHBOARD_URL was never actually configured in the production build (only
+// documented in .env.example, never set for the live deploy), so this always fell
+// through to the localhost dev fallback — the "Owner/Manager Dashboard" button opened
+// an unreachable localhost tab for every real visitor. Falls back to the real
+// production URL now instead. Strip any trailing slash so `${...}/sso` never doubles up.
+const TEAM_DASHBOARD_URL = (import.meta.env.VITE_DASHBOARD_URL || 'https://gocustify.com/onwer-dashboard').replace(/\/+$/, '');
 
 function CallOverlayHost() {
   const {

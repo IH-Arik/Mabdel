@@ -385,7 +385,14 @@ class ConversationService(SmartFlowBase):
         document["_id"] = insert_result.inserted_id
 
         serialized = await self._serialize_message(document, viewer_user_id=user_id)
-        await conversation_realtime_hub.publish(payload["conversation_id"], "message.created", serialized)
+        # Re-serialized per connected viewer (not broadcast as one shared payload) so
+        # sender_is_self is correct for everyone, not just the sender whose own
+        # viewpoint "serialized" above was built from.
+        await conversation_realtime_hub.publish_per_viewer(
+            payload["conversation_id"],
+            "message.created",
+            lambda viewer_id: self._serialize_message(document, viewer_user_id=viewer_id or user_id),
+        )
         if conversation.get("is_global_chat"):
             await self._publish_global_chat_inbox_updates(conversation)
         else:
@@ -460,7 +467,11 @@ class ConversationService(SmartFlowBase):
             self._serialize_message(updated, viewer_user_id=user_id),
             self.db.conversations.find_one({"_id": ObjectId(updated["conversation_id"])}),
         )
-        await conversation_realtime_hub.publish(updated["conversation_id"], "message.updated", serialized)
+        await conversation_realtime_hub.publish_per_viewer(
+            updated["conversation_id"],
+            "message.updated",
+            lambda viewer_id: self._serialize_message(updated, viewer_user_id=viewer_id or user_id),
+        )
         if conversation and conversation.get("is_global_chat"):
             await self._publish_global_chat_inbox_updates(conversation)
         else:
@@ -1180,8 +1191,11 @@ class ConversationService(SmartFlowBase):
         if not updated:
             return
 
-        serialized = await self._serialize_message(updated)
-        await conversation_realtime_hub.publish(conversation_id, "message.updated", serialized)
+        await conversation_realtime_hub.publish_per_viewer(
+            conversation_id,
+            "message.updated",
+            lambda viewer_id: self._serialize_message(updated, viewer_user_id=viewer_id or user_id),
+        )
         await self._publish_inbox_update(user_id, conversation_id)
 
     async def ensure_global_chat(self, organization_id: str, business_name: str, owner_id: str) -> dict:
