@@ -129,6 +129,28 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   business with its own provisioned number.
   Suite is 319/319 green in both fixed and randomized order.
 
+- [x] **Bulk SMS still showed "failed" after the above** — diagnosed, commit `2685ffe`.
+  **Root cause is a Telnyx account limit, not a code defect.** Reproduced the
+  real error by calling `send_sms` directly: Telnyx returns
+  **40306 "Alpha sender not configured"**. Queried the Telnyx API to confirm
+  why — the account's numbers are US longcodes with:
+  `sms features: domestic_two_way=True, international_outbound=False`.
+  The test recipient was `+880…` (Bangladesh), so the send is *international
+  outbound*, which those numbers can't do; Telnyx then falls back to looking for
+  an alphanumeric sender ID, finds none, and returns that confusing 40306.
+  Config itself is correct — both numbers ARE assigned to the configured
+  messaging profile `40019fbe-…`.
+  **To actually send to Bangladesh/international numbers, action is needed in
+  the Telnyx portal (not in this repo):** enable international outbound on the
+  number/messaging profile, which Telnyx gates behind approval, and note many
+  destination countries additionally require A2P sender pre-registration.
+  Sending to US numbers should work as-is.
+  Code fix shipped alongside: failed deliveries recorded only our generic
+  wrapper text because `AppException.__str__` drops the `details` payload — the
+  provider's real reason never reached the UI, which is why this showed as a
+  bare "failed". `_delivery_error_text` now appends it (email + SMS branches).
+  Suite is 320/320 green in both fixed and randomized order.
+
 ## Other client items (not yet scheduled)
 
 From the original meeting recap, not yet picked up:
