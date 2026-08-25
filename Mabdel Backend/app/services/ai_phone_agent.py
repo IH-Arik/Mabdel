@@ -69,6 +69,33 @@ def _looks_like_valid_email(text: str) -> bool:
     return bool(_EMAIL_PATTERN.match(text))
 
 
+_PHONE_WORD_TO_DIGIT = {
+    "zero": "0", "oh": "0", "o": "0",
+    "one": "1", "two": "2", "to": "2", "too": "2",
+    "three": "3", "four": "4", "for": "4",
+    "five": "5", "six": "6", "seven": "7",
+    "eight": "8", "ate": "8", "nine": "9",
+}
+
+
+def _clean_spoken_phone(text: str) -> str:
+    """Whisper usually transcribes spoken digits as numerals directly, but callers
+    sometimes read a number out word-by-word ("five five five...") and Whisper
+    occasionally renders it that way too — word-digits are normalized before
+    stripping everything that isn't a digit (spaces, dashes, parentheses, "dot")."""
+    cleaned = text.strip().lower()
+    words = re.split(r"[\s,]+", cleaned)
+    normalized = " ".join(_PHONE_WORD_TO_DIGIT.get(w, w) for w in words)
+    has_plus = normalized.strip().startswith("+")
+    digits = re.sub(r"[^\d]", "", normalized)
+    return ("+" if has_plus else "") + digits
+
+
+def _looks_like_valid_phone(text: str) -> bool:
+    digits = text.lstrip("+")
+    return digits.isdigit() and 7 <= len(digits) <= 15
+
+
 def _format_hour_only(hour) -> str:
     try:
         hour_int = int(hour) % 24
@@ -154,12 +181,19 @@ class AIPhoneAgent:
         self.user_id = None
         self.transcript_log: list[dict] = []
         # Scheduling micro-flow state.
-        self.phase = "idle"  # idle -> offering_slot -> collecting_name -> collecting_email -> confirming
+        # idle -> offering_slot -> collecting_first_name -> collecting_last_name ->
+        # [collecting_phone ->] confirming_phone -> collecting_email -> confirming_email
+        # -> confirming. Phone/email each get an explicit read-back + "is that
+        # correct?" loop (client requirement) before the final send confirmation.
+        self.phase = "idle"
         self.proposed_slot: dict | None = None
         self.declined_slots: set[str] = set()
         self.slot_offer_attempts = 0
-        self.email_attempts = 0
+        self.email_attempts = 0  # format-retry counter for a garbled/unspellable email
+        self.phone_attempts = 0  # format-retry counter for a garbled phone number
         self.caller_name: str | None = None
+        self.caller_first_name: str | None = None
+        self.caller_last_name: str | None = None
         self.caller_email: str | None = None
         self.caller_phone: str | None = None
         # True when the business dialled out to this person rather than them ringing in.
@@ -505,8 +539,8 @@ class AIPhoneAgent:
 
         if self.phase == "offering_slot":
             if _looks_affirmative(transcript, self.language):
-                self.phase = "collecting_name"
-                return phrase("ask_name", self.language)
+                self.phase = "collecting_first_name"
+                return phrase("ask_first_name", self.language)
             if _looks_negative(transcript, self.language):
                 # Don't just give up — try the next open slot instead, up to a few
                 # attempts, so one "no" doesn't end the whole conversation.
@@ -517,10 +551,44 @@ class AIPhoneAgent:
             when = _friendly_slot(self.proposed_slot["date"], self.proposed_slot["time"], self.language)
             return phrase("confirm_reask", self.language, when=when)
 
-        if self.phase == "collecting_name":
-            self.caller_name = transcript.strip()
-            self.phase = "collecting_email"
-            return phrase("ask_email", self.language, name=self.caller_name)
+        if self.phase == "collecting_first_name":
+            self.caller_first_name = transcript.strip()
+            self.phase = "collecting_last_name"
+            return phrase("ask_last_name", self.language, first_name=self.caller_first_name)
+
+        if self.phase == "collecting_last_name":
+            self.caller_last_name = transcript.strip()
+            self.caller_name = f"{self.caller_first_name} {self.caller_last_name}".strip()
+            if self.caller_phone:
+                # Already known (caller ID on an inbound call, or the number we
+                # dialled for an outbound one) — read it back rather than making
+                # the caller repeat a number we already have reliably.
+                self.phase = "confirming_phone"
+                return phrase("confirm_phone_readback", self.language, phone=self.caller_phone)
+            self.phase = "collecting_phone"
+            return phrase("ask_phone_number", self.language)
+
+        if self.phase == "collecting_phone":
+            candidate = _clean_spoken_phone(transcript)
+            if not _looks_like_valid_phone(candidate) and self.phone_attempts < 1:
+                self.phone_attempts += 1
+                return phrase("ask_phone_retry", self.language)
+            self.caller_phone = candidate or None
+            self.phase = "confirming_phone"
+            return phrase("confirm_phone_readback", self.language, phone=self.caller_phone or transcript.strip())
+
+        if self.phase == "confirming_phone":
+            if _looks_affirmative(transcript, self.language):
+                self.phase = "collecting_email"
+                return phrase("ask_email", self.language, name=self.caller_name)
+            if _looks_negative(transcript, self.language):
+                # Client requirement: keep asking until the caller confirms it's
+                # right — no cap here (unlike the format-retry counter above).
+                self.caller_phone = None
+                self.phone_attempts = 0
+                self.phase = "collecting_phone"
+                return phrase("ask_phone_number", self.language)
+            return phrase("please_confirm_yesno", self.language)
 
         if self.phase == "collecting_email":
             candidate = _clean_spoken_email(transcript)
@@ -528,10 +596,25 @@ class AIPhoneAgent:
                 self.email_attempts += 1
                 return phrase("ask_email_spell", self.language)
             self.caller_email = candidate
-            self.phase = "confirming"
-            when = _friendly_slot(self.proposed_slot["date"], self.proposed_slot["time"], self.language)
-            email_line = f" — {self.caller_email}" if self.caller_email else ""
-            return phrase("confirm_send", self.language, email_line=email_line, when=when, name=self.caller_name)
+            self.phase = "confirming_email"
+            return phrase("confirm_email_readback", self.language, email=self.caller_email)
+
+        if self.phase == "confirming_email":
+            if _looks_affirmative(transcript, self.language):
+                self.phase = "confirming"
+                when = _friendly_slot(self.proposed_slot["date"], self.proposed_slot["time"], self.language)
+                phone_line = f", {self.caller_phone}" if self.caller_phone else ""
+                email_line = f" — {self.caller_email}" if self.caller_email else ""
+                return phrase(
+                    "confirm_send", self.language,
+                    phone_line=phone_line, email_line=email_line, when=when, name=self.caller_name,
+                )
+            if _looks_negative(transcript, self.language):
+                self.caller_email = None
+                self.email_attempts = 0
+                self.phase = "collecting_email"
+                return phrase("ask_email", self.language, name=self.caller_name)
+            return phrase("please_confirm_yesno", self.language)
 
         if self.phase == "confirming":
             if _looks_affirmative(transcript, self.language):
