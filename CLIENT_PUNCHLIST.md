@@ -90,6 +90,25 @@ Tracking sheet for the client meeting recap items, worked one at a time on
      on deploy) — done, owner's permission count went 45 -> 46.
   Suite is 316/316 green in both fixed and randomized order.
 
+- [x] **Bubble side still wrong live + dead dashboard button** — done, commit `43eb0b7`.
+  1. The `aacc3f7` fix only corrected the GET /messages history fetch. Live/realtime
+     messages still rendered on the same side for both people because
+     `create_message`'s WebSocket push serialized the message ONCE (from the
+     sender's own point of view) and broadcast that identical payload to every
+     connected socket. Added `RealtimeHub.publish_per_viewer` (re-serializes once
+     per connected viewer, keyed by the user_id already tracked per socket) and
+     switched all `message.created`/`message.updated` publishes to use it.
+  2. "Owner/Manager Dashboard" sidebar button opened an unreachable localhost tab
+     for every real visitor — `VITE_DASHBOARD_URL` was documented in
+     `.env.example` but never actually configured for the production build.
+     Changed the code fallback to the real production URL (confirmed with user:
+     `https://gocustify.com/onwer-dashboard`). **Note: this is a frontend-only
+     fix — it needs the Website's Vercel deploy to pick up this commit; unlike
+     the backend, there's no GitHub Actions workflow for it in this repo, so
+     confirm it actually redeployed (Vercel usually auto-deploys on push to the
+     connected branch, but verify).**
+  Suite is 317/317 green in both fixed and randomized order.
+
 ## Other client items (not yet scheduled)
 
 From the original meeting recap, not yet picked up:
