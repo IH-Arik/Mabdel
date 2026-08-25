@@ -365,7 +365,10 @@ def test_email_retry_asks_to_spell_out_invalid_input(mock_db):
     assert "spell" in first_reply.lower()
     assert phase_after_bad == "collecting_email"  # stayed, didn't silently move on
     assert email == "john@example.com"
-    assert final_phase == "confirming"
+    # A validly-formatted email moves to the read-back confirmation, not straight
+    # to the final send confirmation — the caller still has to confirm it's correct.
+    assert final_phase == "confirming_email"
+    assert email in second_reply
 
 
 def test_looks_like_valid_email():
@@ -445,20 +448,32 @@ def test_scheduling_flow_end_to_end_creates_pending_request(mock_db, monkeypatch
         assert agent.phase == "offering_slot"
 
         reply2 = await agent._advance_conversation("Yes that works")
-        assert agent.phase == "collecting_name"
+        assert agent.phase == "collecting_first_name"
 
-        reply3 = await agent._advance_conversation("John Smith")
-        assert agent.phase == "collecting_email"
+        reply3 = await agent._advance_conversation("John")
+        assert agent.phase == "collecting_last_name"
+
+        reply4 = await agent._advance_conversation("Smith")
         assert agent.caller_name == "John Smith"
+        # _make_agent presets caller_phone (simulating known caller ID), so this
+        # goes straight to the read-back rather than asking for it from scratch.
+        assert agent.phase == "confirming_phone"
+        assert agent.caller_phone in reply4
 
-        reply4 = await agent._advance_conversation("john at example dot com")
-        assert agent.phase == "confirming"
+        reply5 = await agent._advance_conversation("Yes, that's right")
+        assert agent.phase == "collecting_email"
+
+        reply6 = await agent._advance_conversation("john at example dot com")
+        assert agent.phase == "confirming_email"
         assert agent.caller_email == "john@example.com"
 
-        reply5 = await agent._advance_conversation("Yes, send it")
+        reply7 = await agent._advance_conversation("Yes, that's correct")
+        assert agent.phase == "confirming"
+
+        reply8 = await agent._advance_conversation("Yes, send it")
         assert agent.phase == "idle"
 
-        return reply5
+        return reply8
 
     final_reply = asyncio.run(_run())
     assert "team" in final_reply.lower()
@@ -1037,20 +1052,29 @@ def test_scheduling_flow_end_to_end_in_spanish(mock_db):
         assert "libre" in reply1 or "equipo" in reply1
 
         reply2 = await agent._advance_conversation("Sí, claro")
-        assert agent.phase == "collecting_name"
-        assert reply2 == "Genial — ¿me das tu nombre para la solicitud de cita?"
+        assert agent.phase == "collecting_first_name"
+        assert reply2 == "Genial — ¿cuál es tu nombre?"
 
-        reply3 = await agent._advance_conversation("Ana García")
-        assert agent.phase == "collecting_email"
+        reply3 = await agent._advance_conversation("Ana")
+        assert agent.phase == "collecting_last_name"
+
+        reply4 = await agent._advance_conversation("García")
         assert agent.caller_name == "Ana García"
+        assert agent.phase == "confirming_phone"  # _make_agent presets caller_phone
 
-        reply4 = await agent._advance_conversation("ana at example dot com")
-        assert agent.phase == "confirming"
+        reply5 = await agent._advance_conversation("Sí")
+        assert agent.phase == "collecting_email"
+
+        reply6 = await agent._advance_conversation("ana at example dot com")
+        assert agent.phase == "confirming_email"
         assert agent.caller_email == "ana@example.com"
 
-        reply5 = await agent._advance_conversation("Sí, envíalo")
+        reply7 = await agent._advance_conversation("Sí")
+        assert agent.phase == "confirming"
+
+        reply8 = await agent._advance_conversation("Sí, envíalo")
         assert agent.phase == "idle"
-        return reply5
+        return reply8
 
     final_reply = asyncio.run(_run())
     assert "equipo" in final_reply
@@ -1149,13 +1173,19 @@ def test_outbound_call_books_against_the_customers_number_not_the_business(mock_
         agent = AIPhoneAgent("call_outbound_sched", GoCustifyAIService(), flow_service)
         agent.user_id = user_id
         agent.is_outbound = True
-        # Deliberately left unset so the agent has to resolve it from the call log.
-        agent.caller_phone = None
+        # As set by the real call_stream websocket handler for a normal outbound
+        # call: the number dialled, resolved via other_party_number at session start.
+        agent.caller_phone = "+15551234567"
 
         await agent._advance_conversation("I'd like to schedule a meeting")
         await agent._advance_conversation("Yes that works")
-        await agent._advance_conversation("John Smith")
+        await agent._advance_conversation("John")
+        await agent._advance_conversation("Smith")
+        # caller_phone already known -> agent reads it back rather than asking; the
+        # caller confirming it is what carries it through to the meeting request.
+        await agent._advance_conversation("yes")
         await agent._advance_conversation("john at example dot com")
+        await agent._advance_conversation("yes")
         await agent._advance_conversation("Yes, send it")
 
     asyncio.run(_run())
@@ -1168,3 +1198,215 @@ def test_outbound_call_books_against_the_customers_number_not_the_business(mock_
     )
     assert request["caller_name"] == "John Smith"
     assert request["status"] == "pending"
+
+
+def test_outbound_call_falls_back_to_the_call_log_number_if_caller_phone_was_never_set(mock_db):
+    """Defensive fallback in _submit_pending_request: if the session somehow reaches
+    booking with no caller_phone at all (should not happen once the AI has walked the
+    caller through the read-back loop, but must not silently stamp nothing), it still
+    resolves the dialled number from the call log rather than leaving it blank."""
+
+    async def _run():
+        await mock_db.organizations.insert_one(
+            {
+                "organization_id": "org-outbound-fallback",
+                "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60},
+                "require_meeting_approval": True,
+            }
+        )
+        user = await mock_db.users.insert_one({"organization_id": "org-outbound-fallback"})
+        user_id = str(user.inserted_id)
+
+        await mock_db.call_logs.insert_one(
+            {
+                "user_id": user_id,
+                "twilio_call_sid": "call_outbound_fallback",
+                "call_type": "outbound",
+                "ai_ready": True,
+                "from_number": "+15550000000",
+                "phone_number": "+15551234567",
+                "status": "in_progress",
+            }
+        )
+
+        flow_service = SmartFlowService(mock_db)
+        agent = AIPhoneAgent("call_outbound_fallback", GoCustifyAIService(), flow_service)
+        agent.user_id = user_id
+        agent.is_outbound = True
+        agent.caller_phone = None
+        agent.caller_name = "John Smith"
+        agent.caller_email = "john@example.com"
+        agent.proposed_slot = {"date": "2026-09-01", "time": "10:00"}
+
+        return await agent._submit_pending_request()
+
+    asyncio.run(_run())
+
+    request = asyncio.run(mock_db.call_meeting_requests.find_one({"organization_id": "org-outbound-fallback"}))
+    assert request is not None
+    assert request["caller_phone"] == "+15551234567"
+
+
+# ── Phone/email verification loop (read-back + "is this correct?") ───────
+# Client requirement: the AI must capture first name, last name, phone, and email,
+# read the phone and email back, and keep re-asking — no attempt cap — until the
+# caller actually confirms each one.
+
+
+def test_name_collection_is_split_into_first_and_last_turns(mock_db):
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent("guest", flow_service)
+        agent.phase = "offering_slot"
+        agent.proposed_slot = {"date": "2026-09-01", "time": "10:00"}
+
+        reply1 = await agent._advance_conversation("yes")
+        phase1 = agent.phase
+        reply2 = await agent._advance_conversation("Maria")
+        phase2 = agent.phase
+        reply3 = await agent._advance_conversation("Gonzalez")
+        return reply1, phase1, reply2, phase2, reply3, agent
+
+    reply1, phase1, reply2, phase2, reply3, agent = asyncio.run(_run())
+    assert phase1 == "collecting_first_name"
+    assert "first name" in reply1.lower()
+    assert phase2 == "collecting_last_name"
+    assert agent.caller_first_name == "Maria"
+    assert "Maria" in reply2  # confirms it heard the first name before asking for the last
+    assert agent.caller_last_name == "Gonzalez"
+    assert agent.caller_name == "Maria Gonzalez"
+
+
+def test_known_caller_phone_is_read_back_instead_of_asked_for(mock_db):
+    """caller_phone is already known (caller ID on inbound, dialled number on
+    outbound) — the AI must read it back for confirmation, not make the caller
+    repeat a number that is already reliably on file."""
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent("guest", flow_service)  # presets caller_phone
+        agent.phase = "collecting_last_name"
+        agent.caller_first_name = "Maria"
+        reply = await agent._advance_conversation("Gonzalez")
+        return reply, agent.phase
+
+    reply, phase = asyncio.run(_run())
+    assert phase == "confirming_phone"
+    assert "+15551234567" in reply
+
+
+def test_unknown_caller_phone_is_asked_for_then_read_back(mock_db):
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent("guest", flow_service)
+        agent.caller_phone = None  # e.g. a blocked/private caller ID
+        agent.phase = "collecting_last_name"
+        agent.caller_first_name = "Maria"
+
+        ask_reply = await agent._advance_conversation("Gonzalez")
+        ask_phase = agent.phase
+        confirm_reply = await agent._advance_conversation("five five five, one two three, four five six seven")
+        return ask_reply, ask_phase, confirm_reply, agent.phase, agent.caller_phone
+
+    ask_reply, ask_phase, confirm_reply, confirm_phase, phone = asyncio.run(_run())
+    assert ask_phase == "collecting_phone"
+    assert confirm_phase == "confirming_phone"
+    assert phone == "5551234567"
+    assert phone in confirm_reply
+
+
+def test_rejecting_the_phone_readback_asks_again_with_no_attempt_cap(mock_db):
+    """Client requirement: keep asking until the caller confirms it's correct."""
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent("guest", flow_service)
+        agent.phase = "confirming_phone"
+
+        phases = []
+        for _ in range(5):  # repeatedly reject — must never give up or move on
+            reply = await agent._advance_conversation("no, that's wrong")
+            phases.append(agent.phase)
+            assert agent.phase == "collecting_phone"
+            # re-supply a number so the loop can be exercised again
+            reply = await agent._advance_conversation("5559990000")
+            phases.append(agent.phase)
+            assert agent.phase == "confirming_phone"
+        return phases
+
+    phases = asyncio.run(_run())
+    assert all(p in {"collecting_phone", "confirming_phone"} for p in phases), (
+        "the loop must stay in the phone verification states, never silently advance"
+    )
+
+
+def test_rejecting_the_email_readback_asks_again_with_no_attempt_cap(mock_db):
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent("guest", flow_service)
+        agent.phase = "confirming_email"
+        agent.caller_email = "wrong@example.com"
+
+        phases = []
+        for _ in range(5):
+            await agent._advance_conversation("no")
+            phases.append(agent.phase)
+            assert agent.phase == "collecting_email"
+            await agent._advance_conversation("right at example dot com")
+            phases.append(agent.phase)
+            assert agent.phase == "confirming_email"
+        return phases, agent.caller_email
+
+    phases, email = asyncio.run(_run())
+    assert email == "right@example.com"
+    assert all(p in {"collecting_email", "confirming_email"} for p in phases)
+
+
+def test_unclear_yes_no_on_phone_confirm_reasks_without_advancing_or_resetting(mock_db):
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent("guest", flow_service)
+        agent.phase = "confirming_phone"
+        reply = await agent._advance_conversation("banana")  # neither yes nor no
+        return reply, agent.phase, agent.caller_phone
+
+    reply, phase, phone = asyncio.run(_run())
+    assert phase == "confirming_phone"  # did not silently move forward
+    assert phone == "+15551234567"  # did not get wiped by an unrelated utterance
+    assert "yes" in reply.lower() or "no" in reply.lower()
+
+
+def test_final_confirmation_summary_includes_the_phone_number(mock_db):
+    """The end-of-flow summary the client hears before it goes to the team must
+    mention the phone number, not just the email — the whole point of collecting it."""
+
+    async def _run():
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent("guest", flow_service)
+        agent.phase = "confirming_email"
+        agent.caller_name = "Maria Gonzalez"
+        agent.caller_phone = "+15559990000"
+        agent.caller_email = "maria@example.com"
+        agent.proposed_slot = {"date": "2026-09-01", "time": "10:00"}
+        return await agent._advance_conversation("yes")
+
+    reply = asyncio.run(_run())
+    assert "+15559990000" in reply
+    assert "maria@example.com" in reply
+
+
+def test_looks_like_valid_phone():
+    from app.services.ai_phone_agent import _looks_like_valid_phone
+
+    assert _looks_like_valid_phone("5551234567")
+    assert _looks_like_valid_phone("+15551234567")
+    assert not _looks_like_valid_phone("123")
+    assert not _looks_like_valid_phone("not a number")
+
+
+def test_clean_spoken_phone():
+    from app.services.ai_phone_agent import _clean_spoken_phone
+
+    assert _clean_spoken_phone("555-123-4567") == "5551234567"
+    assert _clean_spoken_phone("+1 (555) 123-4567") == "+15551234567"
+    assert _clean_spoken_phone("five five five one two three four five six seven") == "5551234567"
