@@ -96,13 +96,13 @@ class CallService:
             "from": request_from_number,
         }
 
-    async def send_sms(self, *, to_number: str, message: str) -> dict:
-        self._validate_telnyx_outbound_config()
+    async def send_sms(self, *, to_number: str, message: str, from_number: str | None = None) -> dict:
+        self._validate_telnyx_sms_config()
         client = self._client()
         try:
             response = client.messages.send(
                 to=to_number,
-                from_=settings.TELNYX_PHONE_NUMBER or "",
+                from_=from_number or settings.TELNYX_PHONE_NUMBER or "",
                 text=message,
                 messaging_profile_id=settings.TELNYX_MESSAGING_PROFILE_ID or telnyx.NOT_GIVEN,
             )
@@ -347,5 +347,24 @@ class CallService:
                 status_code=503,
                 code="TELNYX_NOT_CONFIGURED",
                 message="Telnyx outbound calling is not configured yet.",
+                details={"missing": missing},
+            )
+
+    @staticmethod
+    def _validate_telnyx_sms_config() -> None:
+        """Separate from _validate_telnyx_outbound_config: SMS needs an API key and a
+        from-number, never a voice Call Control application id — requiring it was
+        blocking SMS sends on any config where voice wasn't set up, for a setting SMS
+        never uses."""
+        missing = []
+        if not settings.TELNYX_API_KEY:
+            missing.append("TELNYX_API_KEY")
+        if not settings.TELNYX_PHONE_NUMBER:
+            missing.append("TELNYX_PHONE_NUMBER")
+        if missing:
+            raise AppException(
+                status_code=503,
+                code="TELNYX_NOT_CONFIGURED",
+                message="Telnyx SMS sending is not configured yet.",
                 details={"missing": missing},
             )
