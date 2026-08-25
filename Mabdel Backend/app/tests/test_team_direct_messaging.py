@@ -214,6 +214,98 @@ def test_reply_is_visible_to_the_conversation_owner(client, mock_db) -> None:
     assert "hi back A" in contents, f"owner cannot see the colleague's reply; got {contents}"
 
 
+# ── Per-viewer message direction and display name ─────────────────────────
+
+
+def test_sender_is_self_flips_correctly_for_each_viewer(client, mock_db) -> None:
+    """Both bubbles must not render on the same side. A's message must read as
+    sender_is_self=True for A and False for B, and B's reply the exact opposite —
+    from EACH viewer's own perspective, not fixed by which direction it was created
+    with."""
+    a_headers, a_id = _signup(client, mock_db, "sides-a@example.com", "Side A")
+    b_headers, b_id = _signup(client, mock_db, "sides-b@example.com", "Side B")
+    _same_org(mock_db, a_id, b_id)
+
+    conversation_id = client.post(
+        "/api/v1/smartflow/conversations",
+        headers=a_headers,
+        json={"title": "Side B", "type": "direct", "platform": "ai", "member_ids": [b_id]},
+    ).json()["data"]["id"]
+
+    client.post(
+        "/api/v1/smartflow/messages",
+        headers=a_headers,
+        json={"conversation_id": conversation_id, "platform": "ai", "direction": "outbound", "content": "from A"},
+    )
+    client.post(
+        "/api/v1/smartflow/messages",
+        headers=b_headers,
+        json={"conversation_id": conversation_id, "platform": "ai", "direction": "outbound", "content": "from B"},
+    )
+
+    def _messages_for(headers: dict[str, str]) -> dict[str, bool]:
+        response = client.get(
+            f"/api/v1/smartflow/conversations/{conversation_id}/messages", headers=headers, params={"page": 1, "page_size": 50}
+        )
+        assert response.status_code == 200, response.text
+        return {m["content"]: m["sender_is_self"] for m in response.json()["data"]["items"]}
+
+    from_a_view = _messages_for(a_headers)
+    assert from_a_view["from A"] is True
+    assert from_a_view["from B"] is False
+
+    from_b_view = _messages_for(b_headers)
+    assert from_b_view["from A"] is False
+    assert from_b_view["from B"] is True
+
+
+def test_conversation_list_shows_the_other_members_name_not_the_creators_stale_title(client, mock_db) -> None:
+    """The stored `title` is fixed once at creation time from the creator's point of
+    view ("Side D" — the other party, from A's perspective). B, reading the very same
+    conversation, must see A's name, not the stale title A picked, and not their own
+    name either."""
+    a_headers, a_id = _signup(client, mock_db, "sides-c@example.com", "Side C")
+    b_headers, b_id = _signup(client, mock_db, "sides-d@example.com", "Side D")
+    _same_org(mock_db, a_id, b_id)
+
+    client.post(
+        "/api/v1/smartflow/conversations",
+        headers=a_headers,
+        json={"title": "Side D", "type": "direct", "platform": "ai", "member_ids": [b_id]},
+    )
+
+    a_list = client.get("/api/v1/smartflow/conversations", headers=a_headers, params={"page": 1, "page_size": 50})
+    assert a_list.status_code == 200, a_list.text
+    a_names = {item["contact_name"] for item in a_list.json()["data"]["items"]}
+    assert "Side D" in a_names
+
+    b_list = client.get("/api/v1/smartflow/conversations", headers=b_headers, params={"page": 1, "page_size": 50})
+    assert b_list.status_code == 200, b_list.text
+    b_names = {item["contact_name"] for item in b_list.json()["data"]["items"]}
+    assert "Side C" in b_names, f"B should see A's name ('Side C'), got {b_names}"
+    assert "Side D" not in b_names, f"B must not see the stale creator-side title ('Side D'), got {b_names}"
+
+
+# ── Delete permission ───────────────────────────────────────────────────
+
+
+def test_owner_can_delete_a_conversation(client, mock_db) -> None:
+    """The delete-conversation endpoint requires messages:delete, which must actually
+    be granted to the owner role — an owner should never be told to "contact your
+    administrator" for an action only lower roles should be restricted from."""
+    headers, user_id = _signup(client, mock_db, "delete-owner@example.com", "Delete Owner")
+    _same_org(mock_db, user_id)
+
+    conversation_id = client.post(
+        "/api/v1/smartflow/conversations",
+        headers=headers,
+        json={"title": "Scratch", "type": "direct", "platform": "ai", "member_ids": []},
+    ).json()["data"]["id"]
+
+    response = client.delete(f"/api/v1/smartflow/conversations/{conversation_id}", headers=headers)
+    assert response.status_code == 200, response.text
+
+
 # ── Cross-organization isolation ────────────────────────────────────────
 
 

@@ -853,13 +853,34 @@ class SmartFlowBase:
             if latest_sender_name and safe["last_message_preview"]:
                 safe["last_message_preview"] = f"{latest_sender_name}: {safe['last_message_preview']}"
         else:
-            contact = await self._get_conversation_contact(safe.get("user_id", ""), safe, precomputed_contacts_by_key)
-            safe["contact_name"] = contact.get("name") if contact else safe.get("title")
-            safe["title"] = safe.get("title") or (contact.get("name") if contact else None)
-            safe["avatar_url"] = self._normalize_media_url(contact.get("avatar_url")) if contact else None
-            safe["presence"] = (contact or {}).get("presence", "offline")
-            safe["presence_label"] = self._presence_label(safe["presence"])
-            safe["participant_preview"] = []
+            other_member_id = next(
+                (member_id for member_id in safe.get("member_ids", []) if member_id != viewer_id), None
+            ) if not safe.get("contact_id") and len(safe.get("member_ids", [])) > 1 else None
+            if other_member_id:
+                # Team-direct conversation: the display name must be the OTHER
+                # member's name relative to whoever is viewing it — the stored
+                # `title` is fixed once at creation time from the creator's own
+                # point of view, so every other member of the same thread would
+                # otherwise see their own name (or the creator's) instead of who
+                # they're actually talking to.
+                other_name = (precomputed_member_names_by_id or {}).get(other_member_id)
+                other_user = None
+                if other_name is None and ObjectId.is_valid(other_member_id):
+                    other_user = await self.db.users.find_one({"_id": ObjectId(other_member_id)})
+                    other_name = (other_user or {}).get("full_name") or (other_user or {}).get("email")
+                safe["contact_name"] = other_name or safe.get("title")
+                safe["avatar_url"] = self._normalize_media_url((other_user or {}).get("avatar_url")) if other_user else None
+                safe["presence"] = "offline"
+                safe["presence_label"] = self._presence_label(safe["presence"])
+                safe["participant_preview"] = []
+            else:
+                contact = await self._get_conversation_contact(safe.get("user_id", ""), safe, precomputed_contacts_by_key)
+                safe["contact_name"] = contact.get("name") if contact else safe.get("title")
+                safe["title"] = safe.get("title") or (contact.get("name") if contact else None)
+                safe["avatar_url"] = self._normalize_media_url(contact.get("avatar_url")) if contact else None
+                safe["presence"] = (contact or {}).get("presence", "offline")
+                safe["presence_label"] = self._presence_label(safe["presence"])
+                safe["participant_preview"] = []
         safe.pop("user_id", None)
         safe.pop("viewer_user_id", None)
         return safe
@@ -1027,6 +1048,24 @@ class SmartFlowBase:
         contact_member_ids: set[str] = set()
         for conversation in conversations:
             is_group = conversation.get("type") == "group" or bool(conversation.get("is_global_chat"))
+            # A team-direct conversation (two real platform users, no contact_id) also
+            # needs its other member's name resolved per-viewer — the stored `title`
+            # is fixed at creation time from the creator's own point of view and is
+            # wrong for whichever member didn't create it. member_ids on a direct
+            # conversation are always real user ids (see
+            # ConversationService._assert_members_share_organization), so this reuses
+            # the same real-user lookup as global-chat members below, never contacts.
+            is_team_direct = (
+                conversation.get("type", "direct") == "direct"
+                and not conversation.get("contact_id")
+                and len(conversation.get("member_ids", [])) > 1
+            )
+            if is_team_direct:
+                for member_id in conversation.get("member_ids", []):
+                    if member_id == owner_user_id or not ObjectId.is_valid(member_id):
+                        continue
+                    global_member_ids.add(member_id)
+                continue
             if not is_group:
                 continue
             conversation_id = str(conversation.get("_id") or conversation.get("id"))
@@ -1346,6 +1385,26 @@ class SmartFlowBase:
                         "name": sender.get("full_name") or sender.get("email") or "Member",
                         "avatar_url": sender.get("avatar_url"),
                         "presence": "online" if self._user_has_global_chat_access(sender) else "offline",
+                        "is_self": False,
+                    }
+            return {"name": "Member", "avatar_url": None, "presence": "offline", "is_self": False}
+        sender_user_id = message.get("sender_user_id")
+        if sender_user_id and not message.get("contact_id"):
+            # No contact_id means this isn't a customer conversation (those always
+            # carry one — see email_domain/inbound_service.py) but a team-direct
+            # thread between real platform users. Resolve is_self against the
+            # *viewer*, not message["direction"], which is fixed at creation time
+            # from the original sender's perspective and would otherwise show every
+            # teammate's messages as "sent by me" to everyone who reads the thread.
+            if sender_user_id == user_id:
+                return {"name": "You", "avatar_url": None, "presence": "online", "is_self": True}
+            if ObjectId.is_valid(sender_user_id):
+                sender = await self.db.users.find_one({"_id": ObjectId(sender_user_id)})
+                if sender:
+                    return {
+                        "name": sender.get("full_name") or sender.get("email") or "Member",
+                        "avatar_url": sender.get("avatar_url"),
+                        "presence": "offline",
                         "is_self": False,
                     }
             return {"name": "Member", "avatar_url": None, "presence": "offline", "is_self": False}
