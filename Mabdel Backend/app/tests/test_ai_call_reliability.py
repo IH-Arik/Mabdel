@@ -7,6 +7,7 @@ import wave
 
 from app.services.ai_phone_agent import (
     MAX_CONSECUTIVE_FAILURES,
+    MU_LAW_SILENCE,
     AIPhoneAgent,
     is_outbound_call,
     other_party_number,
@@ -35,17 +36,43 @@ def _short_wav_base64(num_samples: int = 3000) -> str:
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
+def install_fake_streaming_tts(monkeypatch, *, on_call=None, num_samples: int = 3000) -> None:
+    """Patches GoCustifyAIService.synthesize_speech_stream, the path AIPhoneAgent._speak
+    actually uses now (greet/offer_language_menu/replies all stream audio instead of
+    calling the old blocking synthesize_speech, which only the rare apology/hangup
+    fallback still uses). Without this, those tests would fall through to the real
+    OpenAI streaming TTS call and hang/hit the network.
+
+    `on_call(text, voice_id)`, if given, runs on every invocation — for tests that
+    need to inspect what was spoken or which voice was requested.
+    """
+    pcm = b"\x00\x00" * num_samples  # raw 24kHz 16-bit silence, no WAV header
+
+    async def fake_stream(self, text, voice_id=None):
+        if on_call:
+            on_call(text, voice_id)
+        yield pcm
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech_stream", fake_stream)
+
+
+def install_failing_streaming_tts(monkeypatch) -> None:
+    """Patches synthesize_speech_stream to produce no audio at all — simulates the
+    same total-failure case the old code represented as audio_base64=None."""
+
+    async def fake_stream(self, text, voice_id=None):
+        return
+        yield  # pragma: no cover - makes this an async generator
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech_stream", fake_stream)
+
+
 # ── Recording disclosure ─────────────────────────────────────────────────
 
 
 def test_greeting_includes_recording_disclosure(mock_db, monkeypatch):
     captured_texts: list[str] = []
-
-    async def fake_synthesize(self, text, voice_id=None):
-        captured_texts.append(text)
-        return {"audio_base64": _short_wav_base64()}
-
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: captured_texts.append(text))
 
     async def _run():
         flow_service = SmartFlowService(mock_db)
@@ -72,12 +99,7 @@ def test_recording_disclosure_is_spoken_right_after_naming_the_business(mock_db,
     who they've reached) and not after the whole pitch (reads like an afterthought
     tacked onto the end, after the "how can I help you" question)."""
     captured_texts: list[str] = []
-
-    async def fake_synthesize(self, text, voice_id=None):
-        captured_texts.append(text)
-        return {"audio_base64": _short_wav_base64()}
-
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: captured_texts.append(text))
 
     async def fake_get_business_name(self):
         return "Apex Dental"
@@ -112,18 +134,19 @@ def test_recording_disclosure_is_spoken_right_after_naming_the_business(mock_db,
 def test_speak_retries_once_before_giving_up(mock_db, monkeypatch):
     call_count = 0
 
-    async def fake_synthesize(self, text, voice_id=None):
+    async def fake_stream(self, text, voice_id=None):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            return {"audio_base64": None, "status": "generation_failed"}
-        return {"audio_base64": _short_wav_base64()}
+            return  # first attempt: no audio at all
+        yield b"\x00\x00" * 3000  # retry succeeds
 
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech_stream", fake_stream)
 
     async def _run():
         flow_service = SmartFlowService(mock_db)
         agent = _make_agent(flow_service)
+        agent.stream_sid = "MZ_test"  # set by the "start" event before a real call reaches _speak
 
         async def send_callback(message):
             pass
@@ -139,7 +162,12 @@ def test_speak_retries_once_before_giving_up(mock_db, monkeypatch):
 
 
 def test_repeated_tts_failure_triggers_apology_and_hangup(mock_db, monkeypatch):
+    install_failing_streaming_tts(monkeypatch)  # the main _speak path always fails
+
     async def fake_synthesize(self, text, voice_id=None):
+        # The apology-on-hangup fallback still uses the old blocking synthesize_speech
+        # (rare enough that latency doesn't matter there) — also failing here confirms
+        # a broken TTS pipeline is handled gracefully rather than raising.
         return {"audio_base64": None, "status": "generation_failed"}
 
     monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
@@ -147,6 +175,7 @@ def test_repeated_tts_failure_triggers_apology_and_hangup(mock_db, monkeypatch):
     async def _run():
         flow_service = SmartFlowService(mock_db)
         agent = _make_agent(flow_service)
+        agent.stream_sid = "MZ_test"
 
         async def send_callback(message):
             pass
@@ -163,7 +192,7 @@ def test_repeated_tts_failure_triggers_apology_and_hangup(mock_db, monkeypatch):
 
 
 def test_repeated_transcription_failure_triggers_hangup(mock_db, monkeypatch):
-    def fake_transcribe(self, audio_base64, audio_mime_type, audio_filename):
+    async def fake_transcribe(self, audio_base64, audio_mime_type, audio_filename):
         return None, None, "connection to OpenAI failed"
 
     async def fake_synthesize(self, text, voice_id=None):
@@ -193,7 +222,7 @@ def test_transient_no_speech_does_not_count_as_failure(mock_db, monkeypatch):
     """A silent/empty transcript (nobody spoke) is not a pipeline failure and must
     not count toward the dead-air failsafe."""
 
-    def fake_transcribe(self, audio_base64, audio_mime_type, audio_filename):
+    async def fake_transcribe(self, audio_base64, audio_mime_type, audio_filename):
         return None, None, "OpenAI returned an empty transcript."
 
     monkeypatch.setattr(GoCustifyAIService, "_transcribe_with_language", fake_transcribe)
@@ -437,12 +466,7 @@ def test_other_party_is_the_dialled_number_on_outbound_calls():
 
 def test_outbound_greeting_does_not_thank_them_for_calling(mock_db, monkeypatch):
     spoken: list[str] = []
-
-    async def fake_synthesize(self, text, voice_id=None):
-        spoken.append(text)
-        return {"audio_base64": _short_wav_base64()}
-
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
 
     async def _run(is_outbound: bool) -> str:
         agent = _make_agent(SmartFlowService(mock_db))
@@ -473,3 +497,198 @@ def test_media_stream_url_escapes_call_ids_containing_a_slash(monkeypatch):
 
     assert url.startswith(prefix)
     assert "/" not in url[len(prefix):], "call id must occupy exactly one path segment"
+
+
+# ── Response latency ───────────────────────────────────────────────────────
+# ~5s of dead air per turn was reported. Two independent fixes: (1) Whisper
+# transcription was called without `await` -- a genuinely synchronous, blocking SDK
+# call sitting directly in the event loop, stalling every other concurrent call and
+# API request for its full duration; and (2) TTS waited for OpenAI's entire audio
+# clip before sending a single byte to the caller. These tests cover both.
+
+
+def test_transcribe_with_language_does_not_block_the_event_loop(mock_db, monkeypatch):
+    """The bug: _transcribe_with_language was called without await in
+    process_and_respond, even though the underlying OpenAI call is synchronous I/O.
+    Proven here the same way synthesize_speech's existing to_thread wrapping would
+    be proven: a slow "network" call inside the sync half must not block a
+    concurrently-running coroutine on the same event loop."""
+    import time
+
+    def slow_sync_call(*args, **kwargs):
+        time.sleep(0.3)
+        return "transcript", "english", None
+
+    monkeypatch.setattr(
+        GoCustifyAIService, "_transcribe_with_language_sync",
+        lambda self, *a, **kw: slow_sync_call(*a, **kw),
+    )
+
+    async def _run():
+        service = GoCustifyAIService()
+        other_ran_at = []
+
+        async def other_coroutine():
+            other_ran_at.append(asyncio.get_event_loop().time())
+
+        start = asyncio.get_event_loop().time()
+        await asyncio.gather(
+            service._transcribe_with_language("", "audio/wav", "x.wav"),
+            other_coroutine(),
+        )
+        return other_ran_at[0] - start
+
+    other_coroutine_delay = asyncio.run(_run())
+    assert other_coroutine_delay < 0.1, (
+        f"a concurrent coroutine was blocked for {other_coroutine_delay:.3f}s by the "
+        "transcription call -- it is not actually running off the event loop thread"
+    )
+
+
+def test_transcribe_with_language_still_returns_the_real_result(mock_db, monkeypatch):
+    monkeypatch.setattr(
+        GoCustifyAIService, "_transcribe_with_language_sync",
+        lambda self, *a, **kw: ("hello there", "english", None),
+    )
+    service = GoCustifyAIService()
+    result = asyncio.run(service._transcribe_with_language("", "audio/wav", "x.wav"))
+    assert result == ("hello there", "english", None)
+
+
+def _pcm_from_wav_base64(wav_b64: str) -> bytes:
+    audio_bytes = base64.b64decode(wav_b64)
+    with io.BytesIO(audio_bytes) as buf:
+        with wave.open(buf, "rb") as wav_file:
+            return wav_file.readframes(wav_file.getnframes())
+
+
+def test_streamed_audio_matches_the_old_blocking_path_byte_for_byte(mock_db):
+    """The streaming pipeline (24kHz PCM -> 8kHz downsample -> mu-law -> 20ms frames,
+    fed incrementally as network chunks arrive) has to produce identical audio to the
+    old all-at-once path -- it must only change *when* bytes reach Telnyx, not *what*
+    bytes. Chunks are deliberately irregular (not aligned to the 6-byte downsample
+    group or the 160-byte frame size) since that boundary-crossing is exactly where a
+    streaming rewrite tends to introduce off-by-one bugs. Samples are a non-silent
+    ramp (not all-zero) so a dropped tail byte is distinguishable from the trailing
+    silence padding -- silent PCM would let that bug pass undetected."""
+    from app.utils.audio import pcm_to_mulaw
+
+    num_samples = 6001  # deliberately not a multiple of 3
+    pcm_builder = bytearray()
+    for i in range(num_samples):
+        pcm_builder.extend(((i * 37) % 65536).to_bytes(2, "little", signed=False))
+    pcm = bytes(pcm_builder)
+
+    downsampled = bytearray()
+    for i in range(0, len(pcm), 6):
+        downsampled.extend(pcm[i:i + 2])
+    expected_mulaw = pcm_to_mulaw(bytes(downsampled))
+
+    chunks, i, sizes = [], 0, [7, 500, 1, 200, 6, 333]
+    while i < len(pcm):
+        size = sizes[len(chunks) % len(sizes)]
+        chunks.append(pcm[i:i + size])
+        i += size
+
+    async def fake_stream(self, text, voice_id=None):
+        for c in chunks:
+            yield c
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = "MZ_test"
+        agent.ai_service.synthesize_speech_stream = fake_stream.__get__(agent.ai_service)
+        sent = []
+
+        async def send_callback(message):
+            sent.append(base64.b64decode(message["media"]["payload"]))
+
+        sent_any = await agent._stream_pcm_to_telnyx("hello", None, send_callback)
+        return sent_any, sent
+
+    sent_any, sent_frames = asyncio.run(_run())
+    assert sent_any is True
+    assert all(len(f) == 160 for f in sent_frames), "every outbound frame must be exactly 20ms/160 bytes"
+
+    reconstructed = b"".join(sent_frames)
+    core = reconstructed[:len(expected_mulaw)]
+    assert core == expected_mulaw
+    assert all(b == MU_LAW_SILENCE for b in reconstructed[len(expected_mulaw):])
+
+
+def test_streaming_stops_immediately_on_barge_in(mock_db):
+    """A caller interruption must cut playback within roughly one frame, not after
+    the whole reply has already streamed out."""
+
+    async def fake_stream(self, text, voice_id=None):
+        yield b"\x00\x00" * 24000  # ~1 second of audio -> ~50 outbound frames
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = "MZ_test"
+        agent.ai_service.synthesize_speech_stream = fake_stream.__get__(agent.ai_service)
+        sent = []
+
+        async def send_callback(message):
+            sent.append(message)
+            if len(sent) == 3:
+                agent.barge_in_triggered = True
+
+        sent_any = await agent._stream_pcm_to_telnyx("hello", None, send_callback)
+        return sent_any, sent, agent.is_speaking, agent.barge_in_triggered
+
+    sent_any, sent, is_speaking, barge_in_after = asyncio.run(_run())
+    assert sent_any is True
+    assert len(sent) <= 4, f"expected playback to stop right after the interrupt, sent {len(sent)} frames"
+    assert is_speaking is False
+    assert barge_in_after is False
+
+
+def test_streaming_with_no_audio_produced_returns_false(mock_db):
+    """No OPENAI_API_KEY (or any other total failure) yields zero chunks -- _speak's
+    retry logic depends on this coming back False rather than raising."""
+
+    async def empty_stream(self, text, voice_id=None):
+        return
+        yield  # pragma: no cover - keeps this an async generator
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = "MZ_test"
+        agent.ai_service.synthesize_speech_stream = empty_stream.__get__(agent.ai_service)
+        sent = []
+
+        async def send_callback(message):
+            sent.append(message)
+
+        sent_any = await agent._stream_pcm_to_telnyx("hello", None, send_callback)
+        return sent_any, sent
+
+    sent_any, sent = asyncio.run(_run())
+    assert sent_any is False
+    assert sent == []
+
+
+def test_streaming_without_a_stream_sid_never_calls_tts_at_all(mock_db):
+    """If Telnyx's 'start' event hasn't arrived yet, there is nowhere to send audio --
+    must fail fast rather than pay for a TTS call whose output can't be delivered."""
+    tts_called = False
+
+    async def fake_stream(self, text, voice_id=None):
+        nonlocal tts_called
+        tts_called = True
+        yield b"\x00\x00"
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = None  # 'start' event never arrived
+        agent.ai_service.synthesize_speech_stream = fake_stream.__get__(agent.ai_service)
+
+        async def send_callback(message):
+            raise AssertionError("must never attempt to send without a stream_sid")
+
+        return await agent._stream_pcm_to_telnyx("hello", None, send_callback)
+
+    sent_any = asyncio.run(_run())
+    assert sent_any is False
+    assert tts_called is False

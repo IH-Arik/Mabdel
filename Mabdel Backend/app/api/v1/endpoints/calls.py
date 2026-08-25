@@ -346,7 +346,11 @@ async def _process_recording(
 
         audio_b64 = base64.b64encode(resp.content).decode("utf-8")
 
-        transcript, error = ai_service._transcribe_audio_with_openai(
+        # _transcribe_audio_with_openai is a blocking OpenAI SDK call; off the event
+        # loop thread so a post-call recording transcription can't stall a live call's
+        # own Whisper turn if both happen to land at the same moment.
+        transcript, error = await asyncio.to_thread(
+            ai_service._transcribe_audio_with_openai,
             audio_base64=audio_b64,
             audio_mime_type="audio/mpeg",
             audio_filename=f"recording_{call_id}.mp3",
@@ -568,8 +572,12 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                                 agent.audio_buffer.extend(audio_chunk)
                             silence_duration_ms += 20
 
-                            # Trigger response after 750ms of silence if caller spoke at least 300ms
-                            if silence_duration_ms >= 750 and speech_duration_ms >= 300:
+                            # Trigger response after 600ms of silence if caller spoke at least
+                            # 300ms. Was 750ms — every ms here is pure added latency before the
+                            # AI even starts processing, on top of the Whisper/GPT/TTS round
+                            # trip; 600ms is still enough of a gap that a caller's normal
+                            # mid-sentence breath doesn't get mistaken for them finishing.
+                            if silence_duration_ms >= 600 and speech_duration_ms >= 300:
                                 speech_duration_ms = 0
                                 silence_duration_ms = 0
                                 has_speech = False

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import logging
 from collections.abc import Iterable
 from io import BytesIO
 
@@ -10,6 +11,8 @@ from app.core.config import settings
 from app.core.exceptions import AppException
 from app.workflows.graph import run_assistant_workflow
 from app.workflows.intent_utils import ALLOWED_INTENTS, infer_intent_from_command
+
+logger = logging.getLogger(__name__)
 
 # Shared, lazily-created OpenAI clients — GoCustifyAIService itself is
 # re-instantiated per request (see SmartFlowBase.__init__), so a fresh
@@ -231,6 +234,40 @@ class GoCustifyAIService:
         # request (API calls, other live phone calls) for its full duration.
         return await asyncio.to_thread(self._synthesize_speech_sync, text, voice_id)
 
+    async def synthesize_speech_stream(self, text: str, voice_id: str | None = None):
+        """Yields raw 24kHz 16-bit mono PCM chunks as OpenAI generates them, instead
+        of waiting for the whole clip like synthesize_speech does.
+
+        Used only by the live phone call, where the wait for a *complete* clip before
+        any audio reaches the caller is a real chunk of the "AI feels slow" latency —
+        streaming lets AIPhoneAgent start forwarding audio to Telnyx the moment the
+        first bytes arrive. response_format="pcm" (raw samples, no container header)
+        is what makes this safe to forward chunk-by-chunk in the first place: a WAV
+        header declares the total data length up front, which a still-arriving stream
+        does not have yet.
+
+        Genuinely async (the OpenAI async client + httpx streaming), not a thread
+        wrapper around a blocking call — there is no full-response blocking call here
+        to hide behind asyncio.to_thread.
+        """
+        preset = self._resolve_voice_preset(voice_id)
+        if not settings.OPENAI_API_KEY:
+            return
+        try:
+            client = _get_async_openai_client()
+            async with client.audio.speech.with_streaming_response.create(
+                model="tts-1",
+                voice=preset["provider_voice"],
+                input=text,
+                response_format="pcm",
+            ) as response:
+                async for chunk in response.aiter_bytes(chunk_size=4096):
+                    if chunk:
+                        yield chunk
+        except Exception:
+            logger.warning("TTS streaming failed for voice=%s", preset["id"], exc_info=True)
+            return
+
     def _synthesize_speech_sync(self, text: str, voice_id: str | None = None) -> dict | None:
         preset = self._resolve_voice_preset(voice_id)
         if not settings.OPENAI_API_KEY:
@@ -352,7 +389,20 @@ class GoCustifyAIService:
         except Exception as exc:
             return None, str(exc)[:240]
 
-    def _transcribe_with_language(
+    async def _transcribe_with_language(
+        self, audio_base64: str, audio_mime_type: str, audio_filename: str
+    ) -> tuple[str | None, str | None, str | None]:
+        """Async wrapper — see _transcribe_with_language_sync. This is on the live
+        phone call's hot path, called once per caller turn; without to_thread it
+        blocks the single event loop for the full Whisper round-trip, stalling every
+        other concurrent call and API request for that duration (exactly the bug
+        synthesize_speech below was already wrapped to avoid — this call site was
+        just missed)."""
+        return await asyncio.to_thread(
+            self._transcribe_with_language_sync, audio_base64, audio_mime_type, audio_filename
+        )
+
+    def _transcribe_with_language_sync(
         self, audio_base64: str, audio_mime_type: str, audio_filename: str
     ) -> tuple[str | None, str | None, str | None]:
         """Like _transcribe_audio_with_openai, but also returns the language Whisper

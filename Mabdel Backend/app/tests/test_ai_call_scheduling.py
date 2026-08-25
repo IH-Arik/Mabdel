@@ -590,19 +590,15 @@ def test_greeting_uses_the_actual_business_name(mock_db):
 
         flow_service = SmartFlowService(mock_db)
         agent = _make_agent(user_id, flow_service)
+        agent.stream_sid = "MZ_test"
         synthesized = {}
 
-        async def fake_synthesize(text, voice_id=None):
+        async def fake_synthesize_stream(text, voice_id=None):
             synthesized["text"] = text
-            return {"audio_base64": "x"}
+            yield b"\x00\x00" * 100
 
-        agent.ai_service.synthesize_speech = fake_synthesize
-
-        async def noop_stream(audio_b64, cb):
-            pass
-
-        agent.stream_audio_to_telnyx = noop_stream
-        await agent.greet(lambda msg: None)
+        agent.ai_service.synthesize_speech_stream = fake_synthesize_stream
+        await agent.greet(lambda msg: asyncio.sleep(0))
         return synthesized.get("text", ""), agent.business_name
 
     greeting, business_name = asyncio.run(_run())
@@ -616,19 +612,15 @@ def test_greeting_falls_back_gracefully_when_no_business_name_set(mock_db):
         user = await mock_db.users.insert_one({"organization_id": "org-greet-2"})
         flow_service = SmartFlowService(mock_db)
         agent = _make_agent(str(user.inserted_id), flow_service)
+        agent.stream_sid = "MZ_test"
         synthesized = {}
 
-        async def fake_synthesize(text, voice_id=None):
+        async def fake_synthesize_stream(text, voice_id=None):
             synthesized["text"] = text
-            return {"audio_base64": "x"}
+            yield b"\x00\x00" * 100
 
-        agent.ai_service.synthesize_speech = fake_synthesize
-
-        async def noop_stream(audio_b64, cb):
-            pass
-
-        agent.stream_audio_to_telnyx = noop_stream
-        await agent.greet(lambda msg: None)
+        agent.ai_service.synthesize_speech_stream = fake_synthesize_stream
+        await agent.greet(lambda msg: asyncio.sleep(0))
         return synthesized.get("text", "")
 
     greeting = asyncio.run(_run())
