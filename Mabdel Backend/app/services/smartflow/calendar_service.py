@@ -250,8 +250,17 @@ class CalendarService(SmartFlowBase):
             )
 
         exclude_datetimes = exclude_datetimes or set()
+        # Only guard against offering an already-passed time *today* — a slot on any
+        # other queried day is never in the past relative to "now" in practice (callers
+        # are only ever scanned forward from today), and unconditionally comparing
+        # against wall-clock time here would also reject explicit past/future dates
+        # callers may legitimately query directly.
+        now_local = self._now(tz)
+        is_today = day == now_local.date()
         free: list[str] = []
         for slot_start in candidates:
+            if is_today and slot_start <= now_local:
+                continue
             label = slot_start.strftime("%H:%M")
             if f"{day.isoformat()} {label}" in exclude_datetimes:
                 continue
@@ -262,6 +271,10 @@ class CalendarService(SmartFlowBase):
                 continue
             free.append(label)
         return free
+
+    @staticmethod
+    def _now(tz) -> datetime:
+        return datetime.now(tz)
 
     @staticmethod
     def _resolve_zoneinfo(name: str | None):
@@ -291,7 +304,9 @@ class CalendarService(SmartFlowBase):
         agent so it always has something concrete to offer instead of asking the
         caller to pick a day blind. Pass previously-declined slots via
         ``exclude_datetimes`` so a caller who says no isn't offered the same time again."""
-        today = date.today()
+        hours = await self.get_business_hours(user_id)
+        tz = self._resolve_zoneinfo(hours.get("timezone"))
+        today = self._now(tz).date()
         for offset in range(days_ahead):
             candidate_day = today + timedelta(days=offset)
             slots = await self.find_free_slots(user_id, candidate_day, exclude_datetimes=exclude_datetimes)
