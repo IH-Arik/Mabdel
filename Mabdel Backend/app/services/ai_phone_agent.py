@@ -726,7 +726,7 @@ class AIPhoneAgent:
         self.phase = "idle"
         return await self._plain_chat_reply(transcript)
 
-    MAX_SLOT_OFFERS = 3
+    MAX_SLOT_OFFERS = 5
 
     async def _offer_next_slot(self) -> str:
         self.slot_offer_attempts += 1

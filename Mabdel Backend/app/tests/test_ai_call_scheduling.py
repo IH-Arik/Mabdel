@@ -149,7 +149,7 @@ def test_find_free_slots_returns_empty_outside_business_days(mock_db):
     assert asyncio.run(_run()) == []
 
 
-def test_find_next_available_slot_scans_forward(mock_db):
+def test_find_next_available_slot_scans_forward(mock_db, monkeypatch):
     service = CalendarService(mock_db)
 
     async def _run():
@@ -161,20 +161,11 @@ def test_find_next_available_slot_scans_forward(mock_db):
 
     user_id = asyncio.run(_run())
 
-    import app.services.smartflow.calendar_service as module
-
-    original_today = module.date
-
-    class FrozenDate(date):
-        @classmethod
-        def today(cls):
-            return date(2026, 8, 17)  # a Monday; only Tuesdays (weekday 1) are open
-
-    module.date = FrozenDate
-    try:
-        slot = asyncio.run(service.find_next_available_slot(user_id, days_ahead=7))
-    finally:
-        module.date = original_today
+    # a Monday morning, well before the 9am open on the next Tuesday (weekday 1)
+    monkeypatch.setattr(
+        CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 8, 17, 7, 0, tzinfo=tz))
+    )
+    slot = asyncio.run(service.find_next_available_slot(user_id, days_ahead=7))
 
     assert slot is not None
     assert slot["date"] == "2026-08-18"  # the next Tuesday
@@ -245,6 +236,125 @@ def test_find_free_slots_respects_slot_minutes_granularity(mock_db):
     user_id = asyncio.run(_run())
     slots = asyncio.run(service.find_free_slots(user_id, date(2026, 8, 17)))
     assert slots == ["09:00", "09:30"]
+
+
+def test_find_free_slots_excludes_already_passed_times_today(mock_db, monkeypatch):
+    """A caller ringing at 2:30pm business-local must not be offered 9am/10am/11am/
+    noon/1pm today — those times have already passed. The 3pm slot, still ahead of
+    "now", must remain offered."""
+    service = CalendarService(mock_db)
+
+    async def _run():
+        await mock_db.organizations.insert_one(
+            {
+                "organization_id": "org-past-1",
+                "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60},
+            }
+        )
+        user = await mock_db.users.insert_one({"organization_id": "org-past-1"})
+        return str(user.inserted_id)
+
+    user_id = asyncio.run(_run())
+    monkeypatch.setattr(
+        CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 8, 17, 14, 30, tzinfo=tz))
+    )
+    slots = asyncio.run(service.find_free_slots(user_id, date(2026, 8, 17)))
+    assert slots == ["15:00", "16:00"]
+
+
+def test_find_free_slots_does_not_filter_by_time_of_day_for_a_future_date(mock_db, monkeypatch):
+    """The past-time guard must only apply to *today* — querying a future date must
+    still return the full business-hours slot list even though "now" is later in
+    the day than some of those slots."""
+    service = CalendarService(mock_db)
+
+    async def _run():
+        await mock_db.organizations.insert_one(
+            {
+                "organization_id": "org-past-2",
+                "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 11, "slot_minutes": 60},
+            }
+        )
+        user = await mock_db.users.insert_one({"organization_id": "org-past-2"})
+        return str(user.inserted_id)
+
+    user_id = asyncio.run(_run())
+    monkeypatch.setattr(
+        CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 8, 17, 16, 0, tzinfo=tz))
+    )
+    slots = asyncio.run(service.find_free_slots(user_id, date(2026, 8, 18)))
+    assert slots == ["09:00", "10:00"]
+
+
+def test_find_next_available_slot_skips_todays_passed_hours(mock_db, monkeypatch):
+    """End-to-end through find_next_available_slot: calling mid-afternoon must roll
+    past today's already-passed morning slots and land on the next open time, not
+    hand back a time that's already gone by."""
+    service = CalendarService(mock_db)
+
+    async def _run():
+        await mock_db.organizations.insert_one(
+            {
+                "organization_id": "org-past-3",
+                "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 12, "slot_minutes": 60},
+            }
+        )
+        user = await mock_db.users.insert_one({"organization_id": "org-past-3"})
+        return str(user.inserted_id)
+
+    user_id = asyncio.run(_run())
+    # A Monday at 2pm business-local, business hours end at noon -- today is fully
+    # exhausted, so the next slot must be tomorrow morning, not today at all.
+    monkeypatch.setattr(
+        CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 8, 17, 14, 0, tzinfo=tz))
+    )
+    slot = asyncio.run(service.find_next_available_slot(user_id, days_ahead=7))
+
+    assert slot is not None
+    assert slot["date"] == "2026-08-18"
+    assert slot["time"] == "09:00"
+
+
+def test_find_next_available_slot_uses_business_timezone_not_server_clock(mock_db, monkeypatch):
+    """The "today" boundary has to be computed in the business's own timezone, not
+    the server's. The UTC/server clock reads Tuesday 01:00 — already the next
+    calendar day by UTC — while it's still 18:00 Monday evening in
+    America/Los_Angeles, and still within that business's (evening-inclusive)
+    hours. Using the server's date would skip straight to Tuesday and either miss
+    today's still-open slot entirely or misreport its date."""
+    service = CalendarService(mock_db)
+
+    async def _run():
+        await mock_db.organizations.insert_one(
+            {
+                "organization_id": "org-tz-today-1",
+                "business_hours": {
+                    "timezone": "America/Los_Angeles",
+                    "days": [0],  # Monday only
+                    "start_hour": 9,
+                    "end_hour": 20,
+                    "slot_minutes": 60,
+                },
+            }
+        )
+        user = await mock_db.users.insert_one({"organization_id": "org-tz-today-1"})
+        return str(user.inserted_id)
+
+    user_id = asyncio.run(_run())
+    from zoneinfo import ZoneInfo
+
+    def fake_now(tz):
+        # 2026-08-18 01:00 UTC == 2026-08-17 18:00 America/Los_Angeles (still Monday,
+        # still open — hours run until 20:00 local).
+        utc_instant = datetime(2026, 8, 18, 1, 0, tzinfo=ZoneInfo("UTC"))
+        return utc_instant.astimezone(tz)
+
+    monkeypatch.setattr(CalendarService, "_now", staticmethod(fake_now))
+    slot = asyncio.run(service.find_next_available_slot(user_id, days_ahead=7))
+
+    assert slot is not None
+    assert slot["date"] == "2026-08-17"  # still "today" in the business's own timezone
+    assert slot["time"] == "19:00"  # the only slot left after 18:00 local
 
 
 def test_pending_request_soft_holds_the_slot_from_other_callers(mock_db):
@@ -510,24 +620,25 @@ def test_declining_a_slot_offers_the_next_one_instead_of_giving_up(mock_db):
 
 
 def test_declining_repeatedly_eventually_gives_up_gracefully(mock_db):
-    """Business hours narrow enough for exactly 3 slots — decline all of them and the
-    agent must stop retrying rather than loop or crash."""
+    """Business hours wide open (plenty of supply) so MAX_SLOT_OFFERS, not slot
+    scarcity, is what stops the retries — decline 5 times in a row and the agent
+    must give up rather than loop or crash."""
     async def _run():
         await mock_db.organizations.insert_one(
-            {"organization_id": "org-agent-cap", "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 12, "slot_minutes": 60}}
+            {"organization_id": "org-agent-cap", "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60}}
         )
         user = await mock_db.users.insert_one({"organization_id": "org-agent-cap"})
         flow_service = SmartFlowService(mock_db)
         agent = _make_agent(str(user.inserted_id), flow_service)
 
         replies = [await agent._advance_conversation("I'd like to book a meeting")]
-        for _ in range(4):
+        for _ in range(6):
             replies.append(await agent._advance_conversation("No"))
-        # replies[3] is the reply to the 3rd decline, where MAX_SLOT_OFFERS is hit and
-        # the agent gives up. The 4th "No" (replies[4]) lands after phase has already
-        # reset to "idle", so it falls through to the plain-chat LLM reply instead —
-        # not deterministic content, so it's excluded from the assertion below.
-        return agent.phase, replies[3]
+        # replies[5] is the reply to the 5th decline, where MAX_SLOT_OFFERS (5) is hit
+        # and the agent gives up. The 6th "No" (replies[6]) lands after phase has
+        # already reset to "idle", so it falls through to the plain-chat LLM reply
+        # instead — not deterministic content, so it's excluded from the assertion below.
+        return agent.phase, replies[5]
 
     phase, gave_up_reply = asyncio.run(_run())
     assert phase == "idle"
