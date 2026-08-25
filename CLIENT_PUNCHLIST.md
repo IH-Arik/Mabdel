@@ -71,6 +71,25 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   (`test_bulk_messaging_api.py`, `test_settings_profile_api.py`) — see commit
   `796bcd7`. Suite is now 313/313 green in both fixed and randomized order.
 
+- [x] **Team messaging UI bugs (3, reported live from the Messages page)** — done,
+  commit `aacc3f7`, RBAC re-seeded against production DB.
+  1. Chat bubbles for both people in a "direct" conversation rendered on the same
+     side — `_resolve_message_sender` used the message's `direction` field (fixed
+     at creation time from the original sender's POV) instead of resolving
+     `is_self` against the current viewer. Now compares `sender_user_id` (always
+     the real sender) to the viewer directly for non-customer conversations.
+  2. Conversation sidebar showed the wrong person's name — `contact_name` fell
+     back to the conversation's stored `title`, set once at creation from the
+     creator's own POV and never recomputed per viewer. Now resolves the OTHER
+     member's real name relative to whoever is viewing it (batched to avoid N+1).
+  3. Owner got "contact your administrator" trying to delete a conversation —
+     `messages:delete` was never defined in `scripts/seed_rbac.py` at all, so no
+     role in the system had it. Added and granted to owner only (not
+     manager/staff/assistant). **Required a manual `python scripts/seed_rbac.py`
+     run against the production DB** (RBAC roles aren't re-seeded automatically
+     on deploy) — done, owner's permission count went 45 -> 46.
+  Suite is 316/316 green in both fixed and randomized order.
+
 ## Other client items (not yet scheduled)
 
 From the original meeting recap, not yet picked up:
