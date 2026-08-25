@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 from datetime import timedelta
 
+import pytest
 from bson import ObjectId
 
+from app.core.exceptions import AppException
 from app.utils.helpers import utc_now
 
 
@@ -183,7 +185,7 @@ def test_bulk_sms_send_uses_phone_recipients(client, mock_db):
 
     from app.services.call_service import CallService
 
-    async def fake_send_sms(self, *, to_number: str, message: str) -> dict:
+    async def fake_send_sms(self, *, to_number: str, message: str, from_number: str | None = None) -> dict:
         return {"sid": "SM_TEST", "to": to_number, "body": message}
 
     CallService.send_sms = fake_send_sms
@@ -203,6 +205,69 @@ def test_bulk_sms_send_uses_phone_recipients(client, mock_db):
     assert payload["status"] == "sent"
     assert payload["segment_count"] == 1
     assert payload["deliveries"][0]["target"] == "+8801711111111"
+
+
+def test_bulk_sms_uses_the_organizations_own_telnyx_number(client, mock_db, monkeypatch):
+    """Before this fix, send_sms always used the single global
+    settings.TELNYX_PHONE_NUMBER regardless of which business triggered the bulk
+    send. A business with its own provisioned number must send from THAT number,
+    not the platform default -- otherwise Telnyx rejects the send for any business
+    whose actual verified/messaging-enabled number differs from the global one."""
+    headers = _auth_headers(client, mock_db, email="bulk-sms-org@example.com")
+    alex_id = _create_contact(client, headers, name="Alex Johnson", email="alex@example.com", phone="+8801711111111")
+
+    async def _give_this_business_its_own_number() -> None:
+        user = await mock_db.users.find_one({"email": "bulk-sms-org@example.com"})
+        organization_id = str(user["_id"])
+        await mock_db.users.update_one({"_id": user["_id"]}, {"$set": {"organization_id": organization_id}})
+        await mock_db.organizations.update_one(
+            {"organization_id": organization_id},
+            {"$set": {"telnyx_phone_number": "+19995550100"}},
+            upsert=True,
+        )
+
+    asyncio.run(_give_this_business_its_own_number())
+
+    from app.services.call_service import CallService
+
+    captured: dict[str, str | None] = {}
+
+    async def fake_send_sms(self, *, to_number: str, message: str, from_number: str | None = None) -> dict:
+        captured["from_number"] = from_number
+        return {"sid": "SM_TEST", "to": to_number, "body": message}
+
+    monkeypatch.setattr(CallService, "send_sms", fake_send_sms)
+
+    response = client.post(
+        "/api/v1/smartflow/bulk-messages",
+        headers=headers,
+        json={"channel": "sms", "contact_ids": [alex_id], "content": "Org number test", "send_now": True},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["data"]["status"] == "sent"
+    assert captured["from_number"] == "+19995550100", (
+        f"expected the org's own provisioned number, got {captured.get('from_number')!r}"
+    )
+
+
+def test_sms_config_validator_does_not_require_the_voice_application_id(monkeypatch):
+    """SMS and voice calling are configured independently -- a business with SMS set
+    up but no voice Call Control application (or vice versa) must not have one
+    feature block the other. Before this fix, send_sms reused the voice validator and
+    was blocked by a missing TELNYX_VOICE_APPLICATION_ID it never actually uses."""
+    from app.core.config import settings
+    from app.services.call_service import CallService
+
+    monkeypatch.setattr(settings, "TELNYX_API_KEY", "test-key")
+    monkeypatch.setattr(settings, "TELNYX_PHONE_NUMBER", "+19995550100")
+    monkeypatch.setattr(settings, "TELNYX_VOICE_APPLICATION_ID", None)
+
+    CallService._validate_telnyx_sms_config()  # must not raise
+
+    monkeypatch.setattr(settings, "TELNYX_PHONE_NUMBER", None)
+    with pytest.raises(AppException) as exc_info:
+        CallService._validate_telnyx_sms_config()
+    assert exc_info.value.code == "TELNYX_NOT_CONFIGURED"
 
 
 def test_bulk_sms_validation_accepts_manual_phone_recipients(client, mock_db):
@@ -231,7 +296,7 @@ def test_bulk_scheduled_dispatcher_processes_due_campaign(client, mock_db):
     from app.services.call_service import CallService
     from app.services.smartflow.bulk_message_service import BulkMessageService
 
-    async def fake_send_sms(self, *, to_number: str, message: str) -> dict:
+    async def fake_send_sms(self, *, to_number: str, message: str, from_number: str | None = None) -> dict:
         return {"sid": "SM_SCHEDULED", "to": to_number, "body": message}
 
     CallService.send_sms = fake_send_sms

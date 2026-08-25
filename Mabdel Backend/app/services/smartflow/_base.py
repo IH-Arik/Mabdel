@@ -2481,6 +2481,18 @@ class SmartFlowBase:
 
         return await EmailDomainService(self.db).resolve_sender(user_id, payload.get("from_prefix"))
 
+    async def _resolve_org_sms_from_number(self, user_id: str) -> str | None:
+        """Without this, every business's bulk SMS sent from one single global
+        settings.TELNYX_PHONE_NUMBER regardless of which org's own number was actually
+        provisioned/messaging-enabled -- send_sms's own settings.TELNYX_PHONE_NUMBER
+        fallback only covers the platform default, not a business's own number (same
+        resolution the voice call path already does via TelnyxWebVoiceService)."""
+        from app.services.telnyx_provisioning_service import TelnyxProvisioningService
+
+        organization_id = await self._resolve_organization_id(user_id)
+        org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+        return TelnyxProvisioningService.get_org_phone_number(org)
+
     async def _dispatch_bulk_message(self, document: dict) -> dict:
         now = utc_now()
         deliveries: list[dict] = []
@@ -2489,6 +2501,7 @@ class SmartFlowBase:
         # Re-resolve at send time so scheduled blasts pick up a domain that
         # finished verifying after the message was drafted.
         sender = None
+        sms_from_number = None
         if document.get("channel") == "email":
             try:
                 sender = await self._resolve_bulk_sender(document["user_id"], document)
@@ -2496,6 +2509,11 @@ class SmartFlowBase:
                 logger.warning("Could not resolve business sender for bulk message", exc_info=True)
             if not sender and document.get("from_email"):
                 sender = {"email": document["from_email"], "name": document.get("from_name")}
+        elif document.get("channel") == "sms":
+            try:
+                sms_from_number = await self._resolve_org_sms_from_number(document["user_id"])
+            except Exception:
+                logger.warning("Could not resolve business SMS from-number for bulk message", exc_info=True)
         for recipient in document.get("recipients", []):
             target = recipient.get("email") if document["channel"] == "email" else recipient.get("phone")
             if not target:
@@ -2550,6 +2568,7 @@ class SmartFlowBase:
                     await self.call_service.send_sms(
                         to_number=target,
                         message=document["content"],
+                        from_number=sms_from_number,
                     )
                     status = "sent"
                     error = None
