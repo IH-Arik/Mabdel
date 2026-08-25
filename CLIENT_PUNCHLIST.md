@@ -109,6 +109,26 @@ Tracking sheet for the client meeting recap items, worked one at a time on
      connected branch, but verify).**
   Suite is 317/317 green in both fixed and randomized order.
 
+- [x] **Bulk SMS via Telnyx not working** — done, commit `b7e8114`.
+  Two bugs in `CallService.send_sms`, both real and independent:
+  1. Always sent from the single global `settings.TELNYX_PHONE_NUMBER` — no
+     per-org resolution at all, unlike voice calls which already resolve each
+     business's own provisioned number. Added `from_number` param + a
+     `_resolve_org_sms_from_number` helper (`_base.py`) reusing the same
+     `TelnyxProvisioningService.get_org_phone_number` voice already uses.
+  2. Reused the voice validator, which hard-required `TELNYX_VOICE_APPLICATION_ID`
+     — a setting SMS never touches. Split out `_validate_telnyx_sms_config`
+     (only checks `TELNYX_API_KEY`/`TELNYX_PHONE_NUMBER`).
+  The real Telnyx `client.messages.send()` call had **zero test coverage**
+  before this — every existing bulk SMS test mocked `send_sms` entirely.
+  **Known related issue, not fixed (out of scope for this pass):**
+  `app/services/calendar_service.py:75` (appointment SMS reminders, a
+  different/older calendar system than the smartflow one) has the exact same
+  "always uses the global number" bug — not reported by the client yet, but
+  will hit the same wall if/when appointment SMS reminders are used for a
+  business with its own provisioned number.
+  Suite is 319/319 green in both fixed and randomized order.
+
 ## Other client items (not yet scheduled)
 
 From the original meeting recap, not yet picked up:
