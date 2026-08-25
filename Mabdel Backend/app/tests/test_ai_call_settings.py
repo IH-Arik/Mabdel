@@ -8,7 +8,7 @@ from app.services.gocustify_ai_service import GoCustifyAIService
 from app.services.smartflow.ai_call_settings_service import AICallSettingsService
 from app.services.smartflow_service import SmartFlowService
 from app.tests.conftest import grant_role
-from app.tests.test_ai_call_reliability import _short_wav_base64
+from app.tests.test_ai_call_reliability import install_fake_streaming_tts
 
 
 def _get_latest_otp(db, email: str, purpose: str) -> dict:
@@ -138,12 +138,7 @@ def _agent_with_settings(mock_db, settings_doc: dict, *, is_outbound: bool = Fal
 
 def test_custom_greeting_is_spoken_instead_of_the_built_in_one(mock_db, monkeypatch):
     spoken: list[str] = []
-
-    async def fake_synthesize(self, text, voice_id=None):
-        spoken.append(text)
-        return {"audio_base64": _short_wav_base64()}
-
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
 
     agent = _agent_with_settings(mock_db, {"greeting_inbound": "Welcome to Apex Dental."})
     asyncio.run(agent.greet(lambda _m: asyncio.sleep(0)))
@@ -156,12 +151,7 @@ def test_custom_greeting_is_spoken_instead_of_the_built_in_one(mock_db, monkeypa
 
 def test_greeting_falls_back_to_the_translated_phrase_when_unset(mock_db, monkeypatch):
     spoken: list[str] = []
-
-    async def fake_synthesize(self, text, voice_id=None):
-        spoken.append(text)
-        return {"audio_base64": _short_wav_base64()}
-
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
 
     agent = _agent_with_settings(mock_db, {})
     asyncio.run(agent.greet(lambda _m: asyncio.sleep(0)))
@@ -171,12 +161,7 @@ def test_greeting_falls_back_to_the_translated_phrase_when_unset(mock_db, monkey
 
 def test_assistant_name_is_announced(mock_db, monkeypatch):
     spoken: list[str] = []
-
-    async def fake_synthesize(self, text, voice_id=None):
-        spoken.append(text)
-        return {"audio_base64": _short_wav_base64()}
-
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
 
     agent = _agent_with_settings(mock_db, {"assistant_name": "Sarah"})
     asyncio.run(agent.greet(lambda _m: asyncio.sleep(0)))
@@ -188,12 +173,7 @@ def test_configured_voice_reaches_the_speech_synthesiser(mock_db, monkeypatch):
     """Every business shared one default male voice because the agent never passed a
     voice id through to TTS."""
     used_voices: list[str | None] = []
-
-    async def fake_synthesize(self, text, voice_id=None):
-        used_voices.append(voice_id)
-        return {"audio_base64": _short_wav_base64()}
-
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: used_voices.append(voice_id))
 
     agent = _agent_with_settings(mock_db, {"voice_id": "female_exec"})
     asyncio.run(agent.greet(lambda _m: asyncio.sleep(0)))

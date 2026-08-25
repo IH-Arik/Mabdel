@@ -2,6 +2,7 @@ import base64
 import re
 import asyncio
 import logging
+import time
 from typing import Callable
 from datetime import datetime, timezone
 import wave
@@ -321,23 +322,23 @@ class AIPhoneAgent:
         return False
 
     async def _speak(self, text: str, send_callback: Callable) -> bool:
-        """Synthesizes and streams `text`, retrying once on failure. On repeated
-        failure across turns, apologizes (best-effort) and flags the call to hang
-        up rather than leaving the caller on dead air indefinitely."""
-        # The business's chosen voice; _resolve_voice_preset falls back safely if the
-        # stored id is unknown, so a bad value can never mute a call.
-        voice_id = (await self._get_call_settings()).get("voice_id")
-        audio_result = await self.ai_service.synthesize_speech(text, voice_id)
-        if not audio_result or not audio_result.get("audio_base64"):
-            logger.warning(
-                "Call %s: TTS returned no audio (status=%s), retrying once",
-                self.call_id, (audio_result or {}).get("status"),
-            )
-            audio_result = await self.ai_service.synthesize_speech(text, voice_id)  # one retry
+        """Synthesizes and streams `text` to the caller as audio arrives from OpenAI,
+        rather than waiting for the full clip — the caller starts hearing the AI
+        noticeably sooner, since TTS generation is the last of three sequential
+        network round trips (Whisper -> GPT -> TTS) every turn already pays.
 
-        if audio_result and audio_result.get("audio_base64"):
+        Retries once on a *total* failure (no audio produced at all). On repeated
+        failure across turns, apologizes (best-effort, via the old full-clip path —
+        that branch is rare enough that latency doesn't matter there) and flags the
+        call to hang up rather than leaving the caller on dead air indefinitely."""
+        voice_id = (await self._get_call_settings()).get("voice_id")
+        sent_any = await self._stream_pcm_to_telnyx(text, voice_id, send_callback)
+        if not sent_any:
+            logger.warning("Call %s: TTS streaming produced no audio, retrying once", self.call_id)
+            sent_any = await self._stream_pcm_to_telnyx(text, voice_id, send_callback)
+
+        if sent_any:
             self.consecutive_failures = 0
-            await self.stream_audio_to_telnyx(audio_result["audio_base64"], send_callback)
             return True
 
         self.consecutive_failures += 1
@@ -350,6 +351,91 @@ class AIPhoneAgent:
             if apology_audio and apology_audio.get("audio_base64"):
                 await self.stream_audio_to_telnyx(apology_audio["audio_base64"], send_callback)
         return False
+
+    async def _stream_pcm_to_telnyx(self, text: str, voice_id: str | None, send_callback: Callable) -> bool:
+        """Consumes GoCustifyAIService.synthesize_speech_stream's raw-PCM chunks and
+        forwards them to Telnyx incrementally, converting 24kHz PCM -> 8kHz mu-law ->
+        160-byte (20ms) frames on the fly instead of only after the entire clip has
+        arrived. Returns True iff at least one frame was actually sent.
+
+        Two small buffers carry partial data across network-chunk boundaries so the
+        downsample (needs 3-sample/6-byte groups) and the 20ms framing (needs 160
+        mu-law bytes) never split a sample or a frame across chunks:
+        - downsample_leftover: 0-5 leftover PCM bytes not yet a full 3-sample group.
+        - mulaw_leftover: <160 leftover mu-law bytes not yet a full frame.
+        """
+        if not self.stream_sid:
+            logger.error("Call %s: cannot play AI audio — no stream_sid (Telnyx 'start' event never arrived)", self.call_id)
+            return False
+
+        from app.utils.audio import pcm_to_mulaw
+
+        chunk_size = 160
+        downsample_leftover = b""
+        mulaw_leftover = bytearray()
+        chunk_index = 0
+        start_time: float | None = None
+        sent_any = False
+
+        self.is_speaking = True
+        try:
+            async for pcm_chunk in self.ai_service.synthesize_speech_stream(text, voice_id):
+                data = downsample_leftover + pcm_chunk
+                usable_len = len(data) - (len(data) % 6)
+                downsample_leftover = data[usable_len:]
+                if usable_len <= 0:
+                    continue
+
+                downsampled = bytearray()
+                for i in range(0, usable_len, 6):
+                    downsampled.extend(data[i:i + 2])
+                mulaw_leftover.extend(pcm_to_mulaw(bytes(downsampled)))
+
+                while len(mulaw_leftover) >= chunk_size:
+                    frame = bytes(mulaw_leftover[:chunk_size])
+                    del mulaw_leftover[:chunk_size]
+                    if start_time is None:
+                        start_time = time.perf_counter()
+                        self.speaking_started_at = time.monotonic()
+                    await send_callback({"event": "media", "media": {"payload": base64.b64encode(frame).decode("utf-8")}})
+                    sent_any = True
+                    chunk_index += 1
+                    if self.barge_in_triggered:
+                        logger.info("Call %s: barge-in after %d chunks, cutting AI speech short", self.call_id, chunk_index)
+                        return sent_any
+                    target_time = start_time + (chunk_index * 0.02)
+                    sleep_needed = target_time - time.perf_counter()
+                    if sleep_needed > 0:
+                        await asyncio.sleep(sleep_needed)
+
+            # Flush the last 1-5 PCM bytes that never reached a full 6-byte downsample
+            # group (pcm_to_mulaw itself drops a final odd single byte, matching the
+            # non-streaming path's behavior on the same tail).
+            if downsample_leftover and not self.barge_in_triggered:
+                mulaw_leftover.extend(pcm_to_mulaw(downsample_leftover[:2]))
+
+            # Trailing partial frame — pad with mu-law silence rather than drop the
+            # tail end of the last word (or send a truncated frame Telnyx has to guess
+            # how to handle).
+            if mulaw_leftover and not self.barge_in_triggered:
+                if start_time is None:
+                    start_time = time.perf_counter()
+                    self.speaking_started_at = time.monotonic()
+                frame = bytes(mulaw_leftover) + bytes([MU_LAW_SILENCE] * (chunk_size - len(mulaw_leftover)))
+                await send_callback({"event": "media", "media": {"payload": base64.b64encode(frame).decode("utf-8")}})
+                sent_any = True
+
+            logger.debug("Call %s: finished streaming %d audio chunks", self.call_id, chunk_index)
+            return sent_any
+        finally:
+            self.is_speaking = False
+            if self.barge_in_triggered:
+                # Caller interrupted — keep the speech captured during the interrupt as
+                # the start of their next utterance instead of wiping it.
+                self.barge_in_triggered = False
+            else:
+                # Clear any inbound echo or noise buffered while AI was speaking
+                self.audio_buffer.clear()
 
     async def _get_business_name(self) -> str | None:
         if not self.user_id or self.user_id == "guest":
@@ -458,7 +544,7 @@ class AIPhoneAgent:
             self.audio_buffer = bytearray()
 
             audio_b64 = base64.b64encode(wav_data).decode("utf-8")
-            transcript, detected_language, error = self.ai_service._transcribe_with_language(
+            transcript, detected_language, error = await self.ai_service._transcribe_with_language(
                 audio_base64=audio_b64,
                 audio_mime_type="audio/wav",
                 audio_filename=f"call_{self.call_id}.wav",

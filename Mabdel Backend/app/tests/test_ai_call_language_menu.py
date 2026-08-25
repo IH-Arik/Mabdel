@@ -10,7 +10,7 @@ from app.services.call_phrases import phrase
 from app.services.gocustify_ai_service import GoCustifyAIService
 from app.services.smartflow.ai_call_settings_service import AICallSettingsService
 from app.services.smartflow_service import SmartFlowService
-from app.tests.test_ai_call_reliability import _short_wav_base64
+from app.tests.test_ai_call_reliability import install_fake_streaming_tts
 
 
 def _webhook_envelope(event_type: str, payload: dict) -> bytes:
@@ -38,12 +38,7 @@ def _menu_agent(mock_db, *, is_outbound: bool = False) -> AIPhoneAgent:
 
 def test_menu_is_spoken_in_each_options_own_language(mock_db, monkeypatch):
     spoken: list[str] = []
-
-    async def fake_synthesize(self, text, voice_id=None):
-        spoken.append(text)
-        return {"audio_base64": _short_wav_base64()}
-
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
 
     agent = _menu_agent(mock_db)
     played = asyncio.run(agent.offer_language_menu(lambda _m: asyncio.sleep(0)))
@@ -57,12 +52,11 @@ def test_menu_is_skipped_on_outbound_calls(mock_db, monkeypatch):
     """We dialled them — a keypad menu on an outbound call makes no sense."""
     called = False
 
-    async def fake_synthesize(self, text, voice_id=None):
+    def on_call(text, voice_id):
         nonlocal called
         called = True
-        return {"audio_base64": _short_wav_base64()}
 
-    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech", fake_synthesize)
+    install_fake_streaming_tts(monkeypatch, on_call=on_call)
 
     agent = _menu_agent(mock_db, is_outbound=True)
     played = asyncio.run(agent.offer_language_menu(lambda _m: asyncio.sleep(0)))
