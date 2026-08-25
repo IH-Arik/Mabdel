@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
@@ -51,6 +52,36 @@ class RealtimeHub:
         )
         stale: list[WebSocket] = []
         for socket in sockets:
+            try:
+                await socket.send_json(payload)
+            except Exception:
+                stale.append(socket)
+        for socket in stale:
+            await self.disconnect(conversation_id, socket)
+
+    async def publish_per_viewer(
+        self, conversation_id: str, event: str, build_data: Callable[[str | None], Awaitable[dict]]
+    ) -> None:
+        """Like publish, but re-serializes the payload once per distinct connected
+        viewer instead of broadcasting one shared payload to everyone. Needed for
+        anything whose correctness depends on who's looking at it — e.g. a message's
+        sender_is_self flag, fixed at serialization time, was previously always
+        computed from the SENDER's own point of view (since publish() was only ever
+        called with a single, sender-serialized payload) and broadcast unchanged to
+        every other participant, making their own messages appear to be the
+        recipient's."""
+        async with self._lock:
+            sockets = list(self._connections.get(conversation_id, set()))
+        stale: list[WebSocket] = []
+        cache: dict[str | None, dict] = {}
+        for socket in sockets:
+            viewer_user_id = self._socket_users.get(socket)
+            if viewer_user_id not in cache:
+                cache[viewer_user_id] = await build_data(viewer_user_id)
+            payload = jsonable_encoder(
+                {"event": event, "channel": conversation_id, "data": cache[viewer_user_id]},
+                custom_encoder={ObjectId: str},
+            )
             try:
                 await socket.send_json(payload)
             except Exception:
