@@ -104,36 +104,50 @@ class ConversationService(SmartFlowBase):
         return await self._serialize_conversation(document, viewer_user_id=user_id)
 
     async def _assert_members_share_organization(self, user_id: str, member_ids: list[str]) -> str | None:
-        """Team direct messaging is meant for colleagues on one business account (see
-        test_team_direct_messaging.py's docstring) — without this, member_ids taken
-        straight from the request let any signed-up user message any other user on the
-        platform by user id alone, regardless of which business each one belongs to.
-        Returns the shared organization_id (or None for a solo/customer conversation
-        with no other platform-user members) so the caller can stamp it on the
-        conversation document."""
+        """Without this, member_ids taken straight from the request let any signed-up
+        user message any other user on the platform by user id alone. A colleague on
+        the same business account is always reachable; a user on a *different*
+        business is only reachable if the caller has actually saved them as a contact
+        (matched by email — the same "linked contact" convention
+        _resolve_group_member_user_id already uses for groups) — e.g. Arik's staff can
+        message another company's staff member only if that person is in Arik's own
+        contact list, never a total stranger picked by id alone.
+
+        Returns the shared organization_id when every other member is a same-org
+        colleague, so the caller can stamp it on the conversation document for the
+        _get_accessible_conversation fast path — left None when any member was reached
+        via the contact-link path instead, since there is then no single organization
+        boundary to enforce on later reads (the plain member_ids check already handles
+        that mixed case correctly)."""
         others = [member_id for member_id in member_ids if member_id != user_id]
         if not others:
             return None
         organization_id = (await self._get_user_document(user_id)).get("organization_id")
-        if not organization_id:
-            raise AppException(
-                status_code=403,
-                code="CONVERSATION_MEMBER_NOT_IN_ORGANIZATION",
-                message="You can only message colleagues on your own business account.",
-            )
+        all_same_org = True
         for member_id in others:
             if not ObjectId.is_valid(member_id):
                 raise AppException(
                     status_code=404, code="CONVERSATION_MEMBER_NOT_FOUND", message="One or more members were not found."
                 )
             member = await self.db.users.find_one({"_id": ObjectId(member_id)})
-            if not member or member.get("organization_id") != organization_id:
+            if not member:
+                raise AppException(
+                    status_code=404, code="CONVERSATION_MEMBER_NOT_FOUND", message="One or more members were not found."
+                )
+            if organization_id and member.get("organization_id") == organization_id:
+                continue
+            all_same_org = False
+            member_email = member.get("email")
+            is_saved_contact = bool(
+                member_email and await self.db.contacts.find_one({"user_id": user_id, "email": member_email})
+            )
+            if not is_saved_contact:
                 raise AppException(
                     status_code=403,
-                    code="CONVERSATION_MEMBER_NOT_IN_ORGANIZATION",
-                    message="You can only message colleagues on your own business account.",
+                    code="CONVERSATION_MEMBER_NOT_REACHABLE",
+                    message="You can only message colleagues on your own business account, or people saved in your contacts.",
                 )
-        return organization_id
+        return organization_id if all_same_org else None
 
     async def get_conversation(self, user_id: str, conversation_id: str) -> dict:
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
