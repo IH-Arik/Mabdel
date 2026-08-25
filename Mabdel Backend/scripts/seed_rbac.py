@@ -106,6 +106,7 @@ PERMISSIONS: list[tuple[str, str, str, str]] = [
 
     ("messages",      "view",    "View Messages",        "View conversations and inbox"),
     ("messages",      "send",    "Send Messages",        "Send, reply, and forward messages"),
+    ("messages",      "delete",  "Delete Messages",      "Delete/remove conversations"),
 
     ("calls",         "view",    "View Calls",           "View call logs and summaries"),
     ("calls",         "listen",  "Listen to Recordings", "Access call recordings and transcripts"),
@@ -215,6 +216,7 @@ ROLES: list[dict] = [
             ("contacts",     "export"),
             ("messages",     "view"),
             ("messages",     "send"),
+            ("messages",     "delete"),
             ("calls",        "view"),
             ("calls",        "listen"),
             ("calls",        "manage"),
