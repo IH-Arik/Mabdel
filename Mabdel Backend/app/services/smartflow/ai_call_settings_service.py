@@ -24,6 +24,7 @@ class AICallSettingsService(SmartFlowBase):
     DEFAULT_AI_CALL_SETTINGS = {
         "assistant_name": None,
         "voice_id": "female_warm",
+        "business_type": None,
         "custom_instructions": None,
         "greeting_inbound": None,
         "greeting_outbound": None,

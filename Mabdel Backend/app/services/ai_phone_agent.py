@@ -812,6 +812,7 @@ class AIPhoneAgent:
         info = await self._get_business_info()
         facts = [f"- {label}: {value}" for label, value in (
             ("Business Name", self.business_name),
+            ("Business Type", settings_doc.get("business_type")),
             ("Industry / Category", info.get("industry")),
             ("Services / About", info.get("services_text")),
             ("Operating Hours", info.get("hours_text")),

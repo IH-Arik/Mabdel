@@ -760,6 +760,50 @@ def test_plain_chat_prompt_includes_business_name(mock_db, monkeypatch):
     assert "Acme Plumbing" in captured_prompt["text"]
 
 
+def test_plain_chat_prompt_includes_business_type(mock_db, monkeypatch):
+    """The AI should know what kind of business it's answering for (e.g. "we're a
+    dental clinic") so it can tailor tone even without the owner spelling it out in
+    custom_instructions."""
+    captured_prompt = {}
+
+    async def fake_generate(self, prompt, history):
+        captured_prompt["text"] = prompt
+        return "A team member will follow up.", 5
+
+    monkeypatch.setattr(GoCustifyAIService, "_generate_with_openai", fake_generate)
+
+    async def _run():
+        await mock_db.organizations.insert_one(
+            {"organization_id": "org-btype-1", "ai_call_settings": {"business_type": "Dental Clinic"}}
+        )
+        user = await mock_db.users.insert_one({"organization_id": "org-btype-1"})
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(str(user.inserted_id), flow_service)
+        return await agent._advance_conversation("What are your hours?")
+
+    asyncio.run(_run())
+    assert "Business Type: Dental Clinic" in captured_prompt["text"]
+
+
+def test_plain_chat_prompt_omits_business_type_when_unset(mock_db, monkeypatch):
+    captured_prompt = {}
+
+    async def fake_generate(self, prompt, history):
+        captured_prompt["text"] = prompt
+        return "A team member will follow up.", 5
+
+    monkeypatch.setattr(GoCustifyAIService, "_generate_with_openai", fake_generate)
+
+    async def _run():
+        user = await mock_db.users.insert_one({"organization_id": "org-btype-2"})
+        flow_service = SmartFlowService(mock_db)
+        agent = _make_agent(str(user.inserted_id), flow_service)
+        return await agent._advance_conversation("What are your hours?")
+
+    asyncio.run(_run())
+    assert "Business Type" not in captured_prompt["text"]
+
+
 def test_plain_chat_prompt_includes_real_hours_and_address(mock_db, monkeypatch):
     captured_prompt = {}
 

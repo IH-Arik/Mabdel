@@ -447,6 +447,7 @@ class AICallLanguageMenuOption(BaseModel):
 class AICallSettingsResponse(BaseModel):
     assistant_name: str | None = None
     voice_id: str = "female_warm"
+    business_type: str | None = None
     custom_instructions: str | None = None
     greeting_inbound: str | None = None
     greeting_outbound: str | None = None
@@ -464,13 +465,14 @@ class AICallSettingsUpdateRequest(BaseModel):
 
     assistant_name: str | None = Field(default=None, max_length=60)
     voice_id: str | None = Field(default=None, max_length=40)
+    business_type: str | None = Field(default=None, max_length=80)
     custom_instructions: str | None = Field(default=None, max_length=2000)
     greeting_inbound: str | None = Field(default=None, max_length=500)
     greeting_outbound: str | None = Field(default=None, max_length=500)
     language_menu_enabled: bool | None = None
     language_menu: list[AICallLanguageMenuOption] | None = None
 
-    @field_validator("assistant_name", "custom_instructions", "greeting_inbound", "greeting_outbound")
+    @field_validator("assistant_name", "business_type", "custom_instructions", "greeting_inbound", "greeting_outbound")
     @classmethod
     def _clean_free_text(cls, value: str | None) -> str | None:
         """Strip control characters before this text is spoken aloud or pasted into a
