@@ -76,7 +76,7 @@ class CallService:
                 to=to_number,
                 from_=request_from_number,
                 timeout_secs=60,
-                client_state=self._encode_client_state({"user_id": user_id, "call_log_id": call_log_id}),
+                client_state=self.encode_client_state({"user_id": user_id, "call_log_id": call_log_id}),
             )
         except telnyx.TelnyxError as exc:
             raise AppException(
@@ -200,6 +200,48 @@ class CallService:
             logger.warning("Telnyx transfer failed for %s: %s", call_control_id, exc)
             return False
 
+    async def ring_browser(
+        self, *, sip_target: str, from_number: str | None, timeout_secs: int, client_state: str
+    ) -> str | None:
+        """Originates a fresh outbound leg to a team member's browser SIP identity —
+        this rings it (fires a real telnyx.notification the WebRTC SDK can show a
+        popup for) without touching the original inbound call at all, unlike
+        transfer_call: transfer's own timeout_secs hangs up the ORIGINAL call on
+        no-answer (confirmed against the Telnyx SDK's docstring), which would make a
+        no-answer fallback to AI impossible. Returns the new leg's call_control_id
+        (the caller is responsible for bridging it once answered, or falling back to
+        AI on its call.hangup — this call never blocks on either), or None if Telnyx
+        rejected the dial outright."""
+        self._validate_telnyx_outbound_config()
+        client = self._client()
+        try:
+            response = client.calls.dial(
+                connection_id=settings.TELNYX_VOICE_APPLICATION_ID or "",
+                to=sip_target,
+                from_=from_number or settings.TELNYX_PHONE_NUMBER or "",
+                timeout_secs=timeout_secs,
+                client_state=client_state,
+            )
+        except telnyx.TelnyxError as exc:
+            logger.warning("Telnyx ring-browser dial failed for %s: %s", sip_target, exc)
+            return None
+        data = response.model_dump() if hasattr(response, "model_dump") else dict(response)
+        nested_data = data.get("data") or {}
+        return nested_data.get("call_control_id") or nested_data.get("call_leg_id") or data.get("call_control_id")
+
+    async def bridge_calls(self, call_control_id: str, *, with_call_control_id: str) -> bool:
+        """Connects two independently-answered/ringing call legs — used to join a
+        team member's now-answered browser leg to the still-unanswered original
+        inbound call (Telnyx answers the target leg as part of the bridge; it does
+        not need to already be answered)."""
+        client = self._client()
+        try:
+            client.calls.actions.bridge(call_control_id, call_control_id_to_bridge_with=with_call_control_id)
+            return True
+        except telnyx.TelnyxError as exc:
+            logger.warning("Telnyx bridge failed for %s <-> %s: %s", call_control_id, with_call_control_id, exc)
+            return False
+
     async def start_streaming(self, call_control_id: str, *, websocket_url: str) -> bool:
         import asyncio
         client = self._client()
@@ -297,7 +339,7 @@ class CallService:
             return len(str(media_payload))
 
     @staticmethod
-    def _encode_client_state(data: dict) -> str:
+    def encode_client_state(data: dict) -> str:
         """Telnyx round-trips an opaque base64 string on every webhook for this call leg."""
         return base64.b64encode(json.dumps(data).encode("utf-8")).decode("utf-8")
 
