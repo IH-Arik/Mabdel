@@ -205,18 +205,12 @@ def _login_team_member(client, mock_db, organization_id: str, email: str, role_s
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_incoming_call_rings_whichever_team_member_is_active(client, mock_db, monkeypatch):
-    """Not just the owner — any team member live in the browser gets bridged."""
-    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
-
-    owner_headers, owner_id = _register_and_login(client, mock_db, "owner-bridge@example.com", "owner")
-    staff_id = _add_team_member_to_org(mock_db, owner_id, "staff-bridge@example.com", "staff")
+def _seed_active_staff_registration(mock_db, owner_id: str, staff_id: str, phone_number: str) -> None:
+    from datetime import datetime, timedelta, timezone
 
     async def _seed():
-        from datetime import datetime, timedelta, timezone
-
         await mock_db.organizations.insert_one(
-            {"organization_id": owner_id, "telnyx_phone_number": "+15559990000", "telnyx_setup_status": "active"}
+            {"organization_id": owner_id, "telnyx_phone_number": phone_number, "telnyx_setup_status": "active"}
         )
         # Staff (not the owner) is the one live in the browser.
         await mock_db.voice_device_registrations.insert_one(
@@ -230,18 +224,32 @@ def test_incoming_call_rings_whichever_team_member_is_active(client, mock_db, mo
 
     asyncio.run(_seed())
 
+
+def test_incoming_call_rings_the_active_team_members_browser_first(client, mock_db, monkeypatch):
+    """Not just the owner — any team member live in the browser gets rung. Rung, not
+    bridged immediately: a real, separate call leg is dialed to their SIP identity
+    (so the browser gets an actual telnyx.notification it can show the incoming-call
+    popup for) while the original inbound call is left unanswered/untouched."""
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    owner_headers, owner_id = _register_and_login(client, mock_db, "owner-ring@example.com", "owner")
+    staff_id = _add_team_member_to_org(mock_db, owner_id, "staff-ring@example.com", "staff")
+    _seed_active_staff_registration(mock_db, owner_id, staff_id, "+15559990000")
+
+    ring_calls: list[dict] = []
     answer_calls: list[dict] = []
-    transfer_calls: list[dict] = []
+
+    async def fake_ring_browser(self, *, sip_target, from_number, timeout_secs, client_state) -> str:
+        ring_calls.append(
+            {"sip_target": sip_target, "from_number": from_number, "timeout_secs": timeout_secs, "client_state": client_state}
+        )
+        return "v3:ring-leg-1"
 
     async def fake_answer(self, call_control_id: str, *, websocket_url: str | None = None) -> None:
-        answer_calls.append({"websocket_url": websocket_url})
+        answer_calls.append({"call_control_id": call_control_id, "websocket_url": websocket_url})
 
-    async def fake_transfer(self, call_control_id: str, *, to_number: str) -> bool:
-        transfer_calls.append({"to_number": to_number})
-        return True
-
+    monkeypatch.setattr(CallService, "ring_browser", fake_ring_browser)
     monkeypatch.setattr(CallService, "answer_call", fake_answer)
-    monkeypatch.setattr(CallService, "transfer_call", fake_transfer)
 
     body = _webhook_envelope(
         "call.initiated",
@@ -250,12 +258,137 @@ def test_incoming_call_rings_whichever_team_member_is_active(client, mock_db, mo
     response = client.post("/api/v1/calls/webhook", content=body)
     assert response.status_code == 200
 
-    assert transfer_calls == [{"to_number": "sip:sipstaffuser@sip.telnyx.com"}]
-    assert answer_calls[0]["websocket_url"] is None
+    assert len(ring_calls) == 1
+    assert ring_calls[0]["sip_target"] == "sip:sipstaffuser@sip.telnyx.com"
+    assert ring_calls[0]["timeout_secs"] > 0
+
+    # The AI must NOT be answered into the call at this point -- it's still ringing
+    # the browser, not falling back yet.
+    assert answer_calls == []
 
     call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:org-bridge"}))
     assert call_log is not None
     assert call_log["user_id"] == owner_id  # attributed to the org owner
+
+
+def test_browser_answering_the_ring_bridges_it_to_the_caller(client, mock_db, monkeypatch):
+    """The team member picks up in their browser -> the ring leg's call.answered
+    webhook must bridge it into the original (still-unanswered) inbound call."""
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    owner_id = _register_and_login(client, mock_db, "owner-answer@example.com", "owner")[1]
+    staff_id = _add_team_member_to_org(mock_db, owner_id, "staff-answer@example.com", "staff")
+    _seed_active_staff_registration(mock_db, owner_id, staff_id, "+15559991111")
+
+    async def fake_ring_browser(self, *, sip_target, from_number, timeout_secs, client_state) -> str:
+        return "v3:ring-leg-2"
+
+    bridge_calls: list[dict] = []
+
+    async def fake_bridge(self, call_control_id: str, *, with_call_control_id: str) -> bool:
+        bridge_calls.append({"call_control_id": call_control_id, "with_call_control_id": with_call_control_id})
+        return True
+
+    answer_calls: list[dict] = []
+
+    async def fake_answer(self, call_control_id: str, *, websocket_url: str | None = None) -> None:
+        answer_calls.append({"call_control_id": call_control_id})
+
+    monkeypatch.setattr(CallService, "ring_browser", fake_ring_browser)
+    monkeypatch.setattr(CallService, "bridge_calls", fake_bridge)
+    monkeypatch.setattr(CallService, "answer_call", fake_answer)
+
+    initiated = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:org-answer", "direction": "incoming", "from": "+1555", "to": "+15559991111"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=initiated).status_code == 200
+
+    answered = _webhook_envelope("call.answered", {"call_control_id": "v3:ring-leg-2"})
+    assert client.post("/api/v1/calls/webhook", content=answered).status_code == 200
+
+    assert bridge_calls == [{"call_control_id": "v3:ring-leg-2", "with_call_control_id": "v2:org-answer"}]
+    # The AI fallback path must never fire once the browser answered.
+    assert answer_calls == []
+
+
+def test_browser_ring_timeout_falls_back_to_ai_without_touching_the_original_call(client, mock_db, monkeypatch):
+    """Nobody picks up within BROWSER_RING_TIMEOUT_SECONDS -> Telnyx sends call.hangup
+    for the RING LEG (hangup_cause="timeout") -- the original inbound call, left
+    untouched this whole time, must then be answered into the AI."""
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    owner_id = _register_and_login(client, mock_db, "owner-timeout@example.com", "owner")[1]
+    staff_id = _add_team_member_to_org(mock_db, owner_id, "staff-timeout@example.com", "staff")
+    _seed_active_staff_registration(mock_db, owner_id, staff_id, "+15559992222")
+
+    async def fake_ring_browser(self, *, sip_target, from_number, timeout_secs, client_state) -> str:
+        return "v3:ring-leg-3"
+
+    answer_calls: list[dict] = []
+
+    async def fake_answer(self, call_control_id: str, *, websocket_url: str | None = None) -> None:
+        answer_calls.append({"call_control_id": call_control_id, "websocket_url": websocket_url})
+
+    monkeypatch.setattr(CallService, "ring_browser", fake_ring_browser)
+    monkeypatch.setattr(CallService, "answer_call", fake_answer)
+
+    initiated = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:org-timeout", "direction": "incoming", "from": "+1555", "to": "+15559992222"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=initiated).status_code == 200
+
+    ring_timed_out = _webhook_envelope(
+        "call.hangup", {"call_control_id": "v3:ring-leg-3", "hangup_cause": "timeout"}
+    )
+    assert client.post("/api/v1/calls/webhook", content=ring_timed_out).status_code == 200
+
+    from app.api.v1.endpoints.calls import call_service as endpoint_call_service
+
+    assert answer_calls == [
+        {"call_control_id": "v2:org-timeout", "websocket_url": endpoint_call_service.build_media_stream_url("v2:org-timeout")}
+    ]
+
+
+def test_caller_hangup_while_browser_is_ringing_stops_the_ring(client, mock_db, monkeypatch):
+    """The caller abandons the call while the team member's browser is still
+    ringing -- the ring leg must be hung up rather than left ringing pointlessly for
+    a call that's already gone, and the AI fallback must not fire either."""
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    owner_id = _register_and_login(client, mock_db, "owner-abandon@example.com", "owner")[1]
+    staff_id = _add_team_member_to_org(mock_db, owner_id, "staff-abandon@example.com", "staff")
+    _seed_active_staff_registration(mock_db, owner_id, staff_id, "+15559993333")
+
+    async def fake_ring_browser(self, *, sip_target, from_number, timeout_secs, client_state) -> str:
+        return "v3:ring-leg-4"
+
+    hangup_calls: list[str] = []
+    answer_calls: list[dict] = []
+
+    async def fake_hangup(self, call_control_id: str) -> bool:
+        hangup_calls.append(call_control_id)
+        return True
+
+    async def fake_answer(self, call_control_id: str, *, websocket_url: str | None = None) -> None:
+        answer_calls.append({"call_control_id": call_control_id})
+
+    monkeypatch.setattr(CallService, "ring_browser", fake_ring_browser)
+    monkeypatch.setattr(CallService, "hangup_call", fake_hangup)
+    monkeypatch.setattr(CallService, "answer_call", fake_answer)
+
+    initiated = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:org-abandon", "direction": "incoming", "from": "+1555", "to": "+15559993333"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=initiated).status_code == 200
+
+    caller_hung_up = _webhook_envelope("call.hangup", {"call_control_id": "v2:org-abandon", "hangup_cause": "originator_cancel"})
+    assert client.post("/api/v1/calls/webhook", content=caller_hung_up).status_code == 200
+
+    assert hangup_calls == ["v3:ring-leg-4"]
+    assert answer_calls == []
 
 
 def test_incoming_call_falls_back_to_ai_when_nobody_is_active(client, mock_db, monkeypatch):

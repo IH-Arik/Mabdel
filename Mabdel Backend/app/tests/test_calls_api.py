@@ -255,7 +255,7 @@ def test_browser_outbound_call_creates_log_from_client_state(client, mock_db, mo
     import asyncio
 
     monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
-    state = CallService._encode_client_state({"user_id": "user-abc-123", "display_name": "Jane Caller"})
+    state = CallService.encode_client_state({"user_id": "user-abc-123", "display_name": "Jane Caller"})
 
     body = _webhook_envelope(
         "call.initiated",
@@ -290,7 +290,7 @@ def test_browser_outbound_call_does_not_duplicate_existing_log(client, mock_db, 
 
     asyncio.run(_seed())
 
-    state = CallService._encode_client_state({"user_id": "someone-else"})
+    state = CallService.encode_client_state({"user_id": "someone-else"})
     body = _webhook_envelope(
         "call.initiated",
         {"call_control_id": "v2:already-tracked", "direction": "outgoing", "client_state": state},

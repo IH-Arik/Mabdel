@@ -34,6 +34,14 @@ active_sessions: dict[str, AIPhoneAgent] = {}
 # who ignores it isn't left listening to silence.
 LANGUAGE_MENU_TIMEOUT_SECONDS = 6.0
 
+# How long to ring a team member's browser (via a fresh outbound leg to their SIP
+# identity, see _handle_incoming_call) before giving up and answering into the AI —
+# roughly 3-4 rings. Keyed by the RING LEG's own call_control_id (not the original
+# inbound call's), so call.answered/call.hangup webhooks for that leg can look up
+# which inbound call to bridge into or fall back to AI for.
+BROWSER_RING_TIMEOUT_SECONDS = 18
+pending_browser_rings: dict[str, str] = {}
+
 
 def get_smartflow_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> SmartFlowService:
     return SmartFlowService(db)
@@ -137,9 +145,24 @@ async def handle_telnyx_call_webhook(
         elif payload.direction == "outgoing":
             await _handle_outgoing_call_initiated(call_id, payload, service)
     elif event.event_type == "call.hangup":
-        background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
+        if call_id in pending_browser_rings:
+            background_tasks.add_task(_handle_browser_ring_hangup, call_id, payload)
+        else:
+            # The caller may have abandoned the call while a browser ring was still
+            # outstanding for it — stop ringing the team member for a call that's
+            # already gone rather than leaving it to time out on its own.
+            orphaned_ring_leg = next(
+                (leg_id for leg_id, inbound_id in pending_browser_rings.items() if inbound_id == call_id), None
+            )
+            if orphaned_ring_leg:
+                pending_browser_rings.pop(orphaned_ring_leg, None)
+                background_tasks.add_task(call_service.hangup_call, orphaned_ring_leg)
+            background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
     elif event.event_type in {"call.answered", "call.bridged"}:
-        background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
+        if call_id in pending_browser_rings:
+            background_tasks.add_task(_handle_browser_ring_answered, call_id)
+        else:
+            background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
     elif event.event_type == "call.dtmf.received":
         _handle_keypad_digit(call_id, payload.digit)
     elif event.event_type == "call.recording.saved":
@@ -242,17 +265,59 @@ async def _handle_incoming_call(
             logger.warning("Push notification for incoming call failed", exc_info=True)
 
     if active_registration and active_registration.get("identity"):
-        # Someone on the team is live in the browser dialer — answer plainly (no AI
-        # stream) and bridge straight to their WebRTC session over SIP.
-        await call_service.answer_call(call_id)
+        # Someone on the team is live in the browser dialer — ring their WebRTC
+        # session with a real, separate call leg (so the browser gets an actual
+        # telnyx.notification it can show the Messenger-style incoming-call popup
+        # for) rather than answering the inbound call immediately. If they pick up
+        # within BROWSER_RING_TIMEOUT_SECONDS, _handle_browser_ring_answered bridges
+        # the two legs; if not, _handle_browser_ring_hangup falls back to the AI —
+        # the original inbound call is left untouched (unanswered, still "ringing"
+        # from the caller's side) until one of those resolves it.
         sip_target = f"sip:{active_registration['identity']}@sip.telnyx.com"
-        bridged = await call_service.transfer_call(call_id, to_number=sip_target)
-        if bridged:
+        ring_leg_id = await call_service.ring_browser(
+            sip_target=sip_target,
+            from_number=to_number,
+            timeout_secs=BROWSER_RING_TIMEOUT_SECONDS,
+            client_state=call_service.encode_client_state({"purpose": "browser_ring", "inbound_call_id": call_id}),
+        )
+        if ring_leg_id:
+            pending_browser_rings[ring_leg_id] = call_id
             return
-        logger.warning("Call %s: transfer to browser (%s) failed, falling back to AI.", call_id, sip_target)
+        logger.warning("Call %s: could not ring browser (%s), falling back to AI.", call_id, sip_target)
 
     # No one's live in the browser (or the bridge failed) — answer straight into the AI agent.
     await call_service.answer_call(call_id, websocket_url=call_service.build_media_stream_url(call_id))
+
+
+async def _handle_browser_ring_answered(ring_leg_id: str) -> None:
+    """The team member picked up in their browser — bridge that leg into the
+    original inbound call, which has been sitting unanswered (still "ringing" to
+    the caller) this whole time."""
+    inbound_call_id = pending_browser_rings.pop(ring_leg_id, None)
+    if not inbound_call_id:
+        return
+    bridged = await call_service.bridge_calls(ring_leg_id, with_call_control_id=inbound_call_id)
+    if not bridged:
+        logger.warning(
+            "Call %s: browser answered but bridging to inbound call %s failed, falling back to AI.",
+            ring_leg_id, inbound_call_id,
+        )
+        await call_service.answer_call(inbound_call_id, websocket_url=call_service.build_media_stream_url(inbound_call_id))
+
+
+async def _handle_browser_ring_hangup(ring_leg_id: str, payload) -> None:
+    """The browser ring leg ended before anyone answered it — either
+    BROWSER_RING_TIMEOUT_SECONDS was reached (hangup_cause "timeout") or the team
+    member explicitly declined. Either way, hand the still-unanswered original call
+    to the AI rather than leaving the caller listening to nothing."""
+    inbound_call_id = pending_browser_rings.pop(ring_leg_id, None)
+    if not inbound_call_id:
+        return
+    logger.info(
+        "Call %s: browser ring ended (%s) before answer, falling back to AI.",
+        inbound_call_id, getattr(payload, "hangup_cause", None),
+    )
+    await call_service.answer_call(inbound_call_id, websocket_url=call_service.build_media_stream_url(inbound_call_id))
 
 
 async def _handle_outgoing_call_initiated(call_id: str, payload, service: SmartFlowService) -> None:
