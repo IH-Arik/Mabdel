@@ -67,6 +67,14 @@ function setAudioVolume(volume) {
 export function TelnyxVoiceProvider({ children }) {
   const { isAuthenticated, user } = useAuthStore();
   const clientRef = useRef(null);
+  // Bumped every time initClient() builds a new TelnyxRTC client. A client's own
+  // event handlers close over the generation they were created with, so a stale
+  // client's telnyx.socket.close (fired by initClient's own disconnect() of the
+  // OLD client when replacing it) can tell it's no longer current and skip
+  // reacting -- without this, every reconnect made from any cause immediately
+  // re-triggered itself via that stale handler, producing a permanent connect ->
+  // disconnect -> reconnect loop even on an idle, foregrounded tab.
+  const clientGenerationRef = useRef(0);
   const identityRef = useRef('');
   const heartbeatRef = useRef(null);
   const refreshTimerRef = useRef(null);
@@ -281,6 +289,9 @@ export function TelnyxVoiceProvider({ children }) {
         }
       }
 
+      const myGeneration = ++clientGenerationRef.current;
+      const isCurrentGeneration = () => clientGenerationRef.current === myGeneration;
+
       const client = new TelnyxRTC({
         login_token: payload.token,
       });
@@ -291,6 +302,7 @@ export function TelnyxVoiceProvider({ children }) {
       }
 
       client.on('telnyx.ready', () => {
+        if (!isCurrentGeneration()) return;
         console.log('[TelnyxVoice] SDK ready — identity:', payload.identity);
         setStatus('ready');
         setCallStatusText('Ready');
@@ -299,12 +311,13 @@ export function TelnyxVoiceProvider({ children }) {
       });
 
       client.on('telnyx.socket.close', () => {
+        if (!isCurrentGeneration()) return; // this client was replaced, not really disconnected
         console.warn('[TelnyxVoice] Socket closed');
         setStatus('offline');
         pushRegistration(false, payload.identity || '');
         if (isAuthenticated) {
           window.setTimeout(() => {
-            if (!currentCallRef.current) {
+            if (!currentCallRef.current && isCurrentGeneration()) {
               console.log('[TelnyxVoice] Auto-reconnecting voice runtime...');
               initClient();
             }
@@ -313,6 +326,7 @@ export function TelnyxVoiceProvider({ children }) {
       });
 
       client.on('telnyx.error', (event) => {
+        if (!isCurrentGeneration()) return;
         console.error('[TelnyxVoice] SDK error:', event);
         setError(event?.error?.message || event?.message || 'Telnyx voice error.');
         setStatus('error');
@@ -343,6 +357,7 @@ export function TelnyxVoiceProvider({ children }) {
       clearHeartbeat();
       clearRefreshTimer();
       clearTranscriptPoll();
+      clientGenerationRef.current += 1; // this teardown is intentional -- no reconnect
       if (clientRef.current) {
         try {
           clientRef.current.disconnect();
@@ -368,6 +383,7 @@ export function TelnyxVoiceProvider({ children }) {
       clearHeartbeat();
       clearRefreshTimer();
       clearTranscriptPoll();
+      clientGenerationRef.current += 1; // this teardown is intentional -- no reconnect
       if (clientRef.current) {
         try {
           clientRef.current.disconnect();
