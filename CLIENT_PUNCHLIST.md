@@ -56,6 +56,22 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   the Telnyx SDK's own parameter docstrings for `dial`/`bridge`/`transfer`
   timeout semantics. **Recommend a real test call before relying on this in
   production.**
+  **Follow-up fix, commit `b94001c`:** user tested live and the popup still
+  didn't appear. Diagnosed via production DB: the browser's registration kept
+  flipping to `active:false` within minutes even with the tab confirmed
+  foregrounded the whole time — a genuine, self-inflicted WebRTC reconnect
+  loop in `TelnyxVoiceContext.jsx`, unrelated to this feature itself.
+  `initClient()` disconnects the client it's replacing (on the ~20h scheduled
+  token refresh, or any reconnect), but the OLD client's own
+  `telnyx.socket.close` handler didn't know it had been intentionally
+  superseded — every disconnect re-triggered itself via a stale handler,
+  producing a permanent connect→replace→stale-close→reconnect loop from the
+  very first scheduled refresh. Fixed with a generation counter so each
+  client's handlers only react if they're still the current one. No frontend
+  test suite exists in this repo, so this could only be verified via lint
+  (clean, confirmed pre-existing issues are unrelated via `git stash`) and a
+  clean build — **ask the user to confirm the popup now actually appears on
+  a real call** before considering this fully closed.
   **Mobile app side still not built** — same gap as before: no
   answer/accept/join mechanism exists on the app at all, it only receives an
   informational push notification, no SIP/VoIP registration
