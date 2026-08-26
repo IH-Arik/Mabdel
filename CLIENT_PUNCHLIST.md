@@ -22,22 +22,48 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   Declined-slot handling (re-offer avoidance, graceful give-up) was checked
   and already worked correctly — no change needed there.
 
-- [ ] **Inbound Call Routing — 3-ring-then-fallback-to-AI** — **SKIPPED for now**
-  (user decision, 2026-08-25).
-  Current behavior: no ring/wait concept exists at all — either an instant
-  SIP bridge to a browser-registered team member, or the AI answers
-  immediately. Investigated: the mobile app has **no mechanism to answer/join
-  a live call today** — it only receives an informational push notification;
-  no SIP/VoIP registration, no answer/accept/join endpoint
-  (`app/api/v1/endpoints/calls.py`, `telnyx_web_voice_service.py`).
-  Two ways to actually build this when picked back up:
-  1. **(Recommended)** Forward inbound calls to the staff member's real phone
-     number via Telnyx dial, ring ~15s (or client-specified), fall back to AI
-     if unanswered — no mobile app changes needed.
-  2. Build real in-app call answering — VoIP push + SIP registration + answer
-     UI in the mobile app. Native app work, out of scope for a backend-only
-     session; would take meaningfully longer.
-  Revisit and pick an approach before implementing.
+- [x] **Inbound Call Routing — 3-ring-then-fallback-to-AI (BROWSER side)** — done,
+  commit `d9d8464`. Originally skipped 2026-08-25 (see below for the mobile-app
+  side, still not done), revisited after diagnosing why the live Messenger-style
+  incoming-call popup never appeared for a browser-registered team member.
+  **Root cause:** `_handle_incoming_call` answered the inbound call and
+  immediately `transfer_call`'d it — audio bridged through instantly with no
+  ring window at all, so the WebRTC client's `telnyx.notification` event (what
+  `IncomingCallOverlay` listens for) never fired. The persisted notification
+  record (bell icon) was always created separately, which is why that showed
+  up while the live popup never did.
+  **Fix:** `transfer_call`'s own `timeout_secs` was ruled out — per the Telnyx
+  SDK docstring, an unanswered transfer hangs up the ORIGINAL call on timeout,
+  making an AI fallback impossible. Implemented via dial-then-bridge instead:
+  `CallService.ring_browser` dials a fresh, independent leg to the team
+  member's SIP identity (own `timeout_secs`, ~18s / 3-4 rings) while leaving
+  the original inbound call untouched/unanswered; on `call.answered` for that
+  leg, `CallService.bridge_calls` bridges it in; on timeout/decline
+  (`call.hangup`), the original call falls back to AI exactly like the
+  no-registration path already did; if the caller abandons the call while the
+  browser is still ringing, the ring leg is hung up too instead of left ringing.
+  **Operational precondition, confirmed live in production DB while
+  diagnosing this:** the browser only gets rung at all if it has an *active*
+  `voice_device_registrations` entry at the moment the call arrives (heartbeat
+  every 60s, 600s TTL) — every entry in the DB was expired when this was
+  checked, meaning the tab wasn't open/foregrounded with a live connection at
+  call time. This fix does nothing if that's the case; it only fixes the "no
+  ring window" bug, not "browser must actually be open and registered."
+  **Not tested against a real live Telnyx call** (backend session, no way to
+  place one) — verified via the full test suite (14 tests touching this path,
+  4 new + 1 rewritten covering ring/bridge/timeout-fallback/caller-abandons,
+  each confirmed to fail when the underlying fix is reverted) and by reading
+  the Telnyx SDK's own parameter docstrings for `dial`/`bridge`/`transfer`
+  timeout semantics. **Recommend a real test call before relying on this in
+  production.**
+  **Mobile app side still not built** — same gap as before: no
+  answer/accept/join mechanism exists on the app at all, it only receives an
+  informational push notification, no SIP/VoIP registration
+  (`app/api/v1/endpoints/calls.py`, `telnyx_web_voice_service.py`). Two ways
+  to build this when picked back up: (1) forward inbound calls to the staff
+  member's real phone number via Telnyx dial (no app changes needed,
+  recommended), or (2) real in-app VoIP push + SIP registration + answer UI
+  (native app work, meaningfully bigger).
 
 - [x] **Dynamic Customization — dedicated "Business Type" field** — done, commit `9174003`.
   Added `business_type` to `organizations.ai_call_settings` (alongside
