@@ -534,7 +534,11 @@ export function TelnyxVoiceProvider({ children }) {
     } catch (err) {
       console.error('[TelnyxVoice] Transfer to AI failed:', err);
     }
-    if (incomingCall?.isFallback) {
+    if (incomingCall) {
+      // Whether this was the polling fallback or a real WebRTC ring leg, the
+      // backend already ends it server-side (see call_action's transfer_to_ai
+      // branch) -- clear it locally too so the popup dismisses immediately
+      // instead of waiting on the SDK's own async hangup notification.
       setIncomingCall(null);
     }
   }, [currentCallSid, incomingCall]);
@@ -574,6 +578,7 @@ export function TelnyxVoiceProvider({ children }) {
       startOutboundCall,
       acceptIncomingCall,
       rejectIncomingCall,
+      transferToAi,
       endCurrentCall,
       toggleMute,
       toggleSpeaker,
@@ -594,6 +599,7 @@ export function TelnyxVoiceProvider({ children }) {
       startOutboundCall,
       acceptIncomingCall,
       rejectIncomingCall,
+      transferToAi,
       endCurrentCall,
       toggleMute,
       toggleSpeaker,

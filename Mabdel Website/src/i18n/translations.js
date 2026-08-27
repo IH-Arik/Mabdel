@@ -35,6 +35,7 @@ export const TRANSLATIONS = {
     call_incoming_call: "Incoming Call...",
     call_decline: "Decline",
     call_accept: "Accept",
+    call_transfer_to_ai: "Transfer to AI",
     sig_clear: "Clear",
     sig_placeholder: "Sign here",
     vff_listening_in: "Listening in {language}...",

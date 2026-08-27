@@ -63,6 +63,7 @@ function CallOverlayHost() {
     currentCallerNumber,
     acceptIncomingCall,
     rejectIncomingCall,
+    transferToAi,
     endCurrentCall,
     toggleMute,
     toggleSpeaker,
@@ -88,6 +89,7 @@ function CallOverlayHost() {
         isOpen={Boolean(incomingCall && !currentCall)}
         onAccept={acceptIncomingCall}
         onReject={rejectIncomingCall}
+        onTransferToAi={transferToAi}
       />
       <ActiveCallOverlay
         callerName={currentCallerName}
