@@ -193,6 +193,25 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   bare "failed". `_delivery_error_text` now appends it (email + SMS branches).
   Suite is 320/320 green in both fixed and randomized order.
 
+- [x] **Telnyx number provisioning UI shown to every role** — done, commit `8e1c58f`.
+  User's request: only the owner should provision the platform number (and only
+  once — no risk of a second number getting ordered), and non-owners should
+  only see/use it if the owner explicitly grants `calls:manage` via RBAC.
+  Investigated first (not assumed): backend was already fully safe —
+  `TelnyxProvisioningService.provision_organization` is idempotent (no-ops
+  once `telnyx_setup_status == "active"`, confirmed by reading the code) and
+  every mutating endpoint already required `calls:manage`. The gap was
+  frontend-only: `AccountSettingsTab.jsx` showed the "Re-run Provision Check"
+  button and Custom Telnyx (BYO API key/number) form to every role, relying
+  on a 403 after the click. Fixed by adding a `permissions` field to
+  `/auth/me` (previously only ever returned role/primary_role) and gating
+  those two UI blocks on `calls:manage` — read-only status text stays visible
+  to everyone, matching the backend's own `calls:view` gate on
+  `GET /telnyx/status`.
+  Suite is 324/324 green in both fixed and randomized order (one transient,
+  unrelated flake on a first fixed-order run, passed clean on both a
+  standalone re-run and a full re-run).
+
 ## Other client items (not yet scheduled)
 
 From the original meeting recap, not yet picked up:
