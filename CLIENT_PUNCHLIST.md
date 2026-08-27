@@ -283,8 +283,20 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   via `npx eslint` (clean) and `npm run build` (green) — no frontend test
   suite exists in this repo.
 
-- [ ] Agreement and lease public signing pages have no PDF download link —
-  not started.
+- [x] **Agreement and lease public signing had no real signing page** —
+  done, commit `a6c1e6e`. Turned out to be bigger than "add a PDF link":
+  the shared signature link pointed straight at the backend PDF endpoint,
+  so an external signer clicking it just got a PDF download with no way to
+  actually type a name and submit a signature — the only working sign flow
+  was inside the authenticated `Documents.jsx`, requiring the CRM user to
+  be logged in. Backend's `_agreement_signature_url`/`_lease_signature_url`
+  now build a frontend link instead of the raw PDF path; new public route
+  `/sign/:docType/:token` (`SignDocument.jsx`) shows the document, a PDF
+  download link, and a sign form wired to the existing public sign
+  endpoints. `test_agreements_api.py`/`test_leases_api.py` updated and
+  reverted to confirm they catch the regression. Full suite 328/328 green
+  in both fixed and randomized order; frontend lint clean, build green.
+
 - [ ] Document rename/edit endpoint exists with no UI — not started.
 - [ ] AI email-draft endpoint has no compose UI anywhere — not started.
 - [ ] `app/api/v1/endpoints/subscription.py` isn't even mounted in the
