@@ -345,6 +345,8 @@ export const publicApi = {
   submitMeetingRequest: (data) => client.post('/api/v1/public/meeting-requests', data),
   getAvailableMeetingTimes: (params) => client.get('/api/v1/public/meeting-requests/available-times', { params }),
   bookMeetingSlot: (data) => client.post('/api/v1/public/meeting-requests/book', data),
+  getProposedMeetingTime: (token) => client.get(`/api/v1/public/meeting-requests/confirm/${token}`),
+  confirmProposedMeetingTime: (token) => client.post(`/api/v1/public/meeting-requests/confirm/${token}`),
 };
 
 
