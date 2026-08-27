@@ -1,4 +1,4 @@
-import client from './client';
+import client, { API_BASE_URL } from './client';
 
 export const smartflowApi = {
   getHome: () => client.get('/api/v1/smartflow/home'),
@@ -348,6 +348,12 @@ export const publicApi = {
   bookMeetingSlot: (data) => client.post('/api/v1/public/meeting-requests/book', data),
   getProposedMeetingTime: (token) => client.get(`/api/v1/public/meeting-requests/confirm/${token}`),
   confirmProposedMeetingTime: (token) => client.post(`/api/v1/public/meeting-requests/confirm/${token}`),
+  getSigningAgreement: (token) => client.get(`/api/v1/smartflow/agreements/signing/${token}`),
+  signAgreement: (token, data) => client.post(`/api/v1/smartflow/agreements/signing/${token}`, data),
+  getSigningAgreementPdfUrl: (token) => `${API_BASE_URL}/api/v1/smartflow/agreements/signing/${token}/pdf`,
+  getSigningLease: (token) => client.get(`/api/v1/smartflow/leases/signing/${token}`),
+  signLease: (token, data) => client.post(`/api/v1/smartflow/leases/signing/${token}`, data),
+  getSigningLeasePdfUrl: (token) => `${API_BASE_URL}/api/v1/smartflow/leases/signing/${token}/pdf`,
 };
 
 

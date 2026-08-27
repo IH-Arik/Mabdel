@@ -3254,7 +3254,7 @@ class SmartFlowBase:
 
     @staticmethod
     def _lease_signature_url(token: str) -> str:
-        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}/api/v1/smartflow/leases/signing/{token}/pdf"
+        return f"{settings.PUBLIC_FRONTEND_URL.rstrip('/')}/sign/lease/{token}"
 
     @staticmethod
     def _infer_lease_title(details: dict) -> str:
@@ -3641,7 +3641,7 @@ class SmartFlowBase:
 
     @staticmethod
     def _agreement_signature_url(token: str) -> str:
-        return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}/api/v1/smartflow/agreements/signing/{token}/pdf"
+        return f"{settings.PUBLIC_FRONTEND_URL.rstrip('/')}/sign/agreement/{token}"
 
     @staticmethod
     def _infer_agreement_title(prompt: str, agreement_type: str) -> str:
