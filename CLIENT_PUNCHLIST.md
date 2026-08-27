@@ -318,9 +318,16 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   untested). Full suite 331/331 green in both fixed and randomized order;
   frontend lint clean, build green.
 
-- [ ] `app/api/v1/endpoints/subscription.py` isn't even mounted in the
-  router — fully unreachable dead code, worth a decision (delete vs wire up)
-  independent of anything client-facing — not started.
+- [~] `app/api/v1/endpoints/subscription.py` isn't even mounted in the
+  router — fully unreachable dead code (status/start-trial/complete-
+  onboarding/activate). Confirmed no frontend caller anywhere, and that a
+  separate, working, mounted flow (`auth_routes.py`'s
+  `/auth/subscription-signup`, used by `Subscription.jsx`) already handles
+  trial signup today, so this looks like superseded legacy code. Decision
+  (2026-08-27): leave it as-is for now, not part of this pass. Revisit if
+  it comes up again.
+
+**All items from the backend-vs-frontend audit are now worked through.**
 
 ## Other client items (not yet scheduled)
 

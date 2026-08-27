@@ -22,8 +22,6 @@ dist/
 *.tgz
 
 # Environment files
-.env
-.env.*
 !.env.example
 
 # OS
@@ -73,3 +71,4 @@ streamlit_app.py
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
+config.bat
