@@ -297,7 +297,18 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   reverted to confirm they catch the regression. Full suite 328/328 green
   in both fixed and randomized order; frontend lint clean, build green.
 
-- [ ] Document rename/edit endpoint exists with no UI — not started.
+- [x] **Document rename/edit endpoint had no UI** — done, commit `6df2c71`.
+  Turned out bigger than "add a rename button": the whole plain-document
+  feature (distinct from agreements/leases) had no UI at all —
+  `getDocuments()` was called and stored in state but there was no tab to
+  show it, so it was never rendered, and `createDocument`/`deleteDocument`
+  were dead code with zero callers. Added a "Documents" tab with a create
+  form, inline rename (using the existing PATCH endpoint), and delete.
+  New `test_documents_api.py` covers create/list/rename/delete against
+  the previously-untested-for-those-actions document endpoints. Full
+  suite 329/329 green in both fixed and randomized order; frontend lint
+  clean, build green.
+
 - [ ] AI email-draft endpoint has no compose UI anywhere — not started.
 - [ ] `app/api/v1/endpoints/subscription.py` isn't even mounted in the
   router — fully unreachable dead code, worth a decision (delete vs wire up)
