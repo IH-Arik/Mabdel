@@ -15,6 +15,7 @@ import {
   Mail,
   MapPin,
   Plus,
+  RefreshCw,
   Share2,
   Sparkles,
   Trash2,
@@ -755,8 +756,10 @@ function CalendarSyncPanel({
   appleConnected,
   appleUsername,
   appleLoading,
+  appleSyncing,
   onConnectApple,
   onDisconnectApple,
+  onSyncApple,
   zoomConnected,
   zoomNeedsReauth,
   onConnectZoom,
@@ -819,15 +822,27 @@ function CalendarSyncPanel({
             </button>
           ) : null}
           {appleConnected ? (
-            <button
-              type="button"
-              onClick={onDisconnectApple}
-              disabled={appleLoading}
-              className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
-            >
-              {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} className="text-emerald-400" />}
-              {t('cal_btn_apple_connected', { user: appleUsername ? ` (${appleUsername})` : '' })}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onDisconnectApple}
+                disabled={appleLoading}
+                className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {appleLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} className="text-emerald-400" />}
+                {t('cal_btn_apple_connected', { user: appleUsername ? ` (${appleUsername})` : '' })}
+              </button>
+              <button
+                type="button"
+                onClick={onSyncApple}
+                disabled={appleSyncing}
+                title={t('cal_btn_sync_apple')}
+                className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw size={15} className={appleSyncing ? 'animate-spin' : ''} />
+                {t('cal_btn_sync_apple')}
+              </button>
+            </>
           ) : !anyConnected ? (
             <button
               type="button"
@@ -984,6 +999,7 @@ export default function Calendar() {
   const [appleConnected, setAppleConnected] = useState(false);
   const [appleUsername, setAppleUsername] = useState('');
   const [appleLoading, setAppleLoading] = useState(false);
+  const [appleSyncing, setAppleSyncing] = useState(false);
   const [showAppleModal, setShowAppleModal] = useState(false);
   const [appleSubmitting, setAppleSubmitting] = useState(false);
   const [appleError, setAppleError] = useState('');
@@ -1122,6 +1138,20 @@ export default function Calendar() {
       window.alert(err.response?.data?.message || t('cal_err_apple_disconnect'));
     } finally {
       setAppleLoading(false);
+    }
+  }
+
+  async function handleAppleSync() {
+    try {
+      setAppleSyncing(true);
+      const response = await smartflowApi.syncCalDAV();
+      const synced = Number(response?.data?.data?.synced || 0);
+      await fetchAll();
+      window.alert(t('cal_msg_apple_synced', { count: synced }));
+    } catch (err) {
+      window.alert(err.response?.data?.message || t('cal_err_apple_sync'));
+    } finally {
+      setAppleSyncing(false);
     }
   }
 
@@ -1277,11 +1307,13 @@ export default function Calendar() {
         appleConnected={appleConnected}
         appleUsername={appleUsername}
         appleLoading={appleLoading}
+        appleSyncing={appleSyncing}
         onConnectApple={() => {
           setAppleError('');
           setShowAppleModal(true);
         }}
         onDisconnectApple={handleAppleDisconnect}
+        onSyncApple={handleAppleSync}
         zoomConnected={zoomConnected}
         zoomNeedsReauth={zoomNeedsReauth}
         onConnectZoom={handleZoomConnect}
