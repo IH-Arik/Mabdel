@@ -211,6 +211,14 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   Suite is 324/324 green in both fixed and randomized order (one transient,
   unrelated flake on a first fixed-order run, passed clean on both a
   standalone re-run and a full re-run).
+  **Follow-up, commit `277a9d0`:** user specifically re-confirmed the
+  "only ever one number per business" guarantee, so added a dedicated
+  regression test (`test_reprovisioning_an_already_active_number_never_orders_a_second_one`)
+  clicking provision 3x and asserting Telnyx's `number_orders.create` fires
+  exactly once. The underlying guard already existed and was correct
+  (`telnyx_setup_status == "active"` short-circuit) — this was previously
+  untested; confirmed the new test actually catches a regression by
+  reverting the guard first. Suite now 325/325.
 
 ## Other client items (not yet scheduled)
 
