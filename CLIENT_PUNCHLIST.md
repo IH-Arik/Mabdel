@@ -257,14 +257,31 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   backend already had test coverage (`test_invoice_api.py`), confirmed still
   passing. Verified via lint (clean) and build (green) — no frontend test
   suite exists in this repo.
-  **Other gaps found in the same audit, not yet acted on:** meeting-request
-  confirmation email link has no landing page (raw JSON instead of a styled
-  page); CalDAV has connect/disconnect but no manual "Sync now"; agreement
-  and lease public signing pages have no PDF download link; document
-  rename/edit endpoint exists with no UI; AI email-draft endpoint has no
-  compose UI anywhere. Also: `app/api/v1/endpoints/subscription.py` isn't
-  even mounted in the router — fully unreachable dead code, worth a decision
-  (delete vs wire up) independent of anything client-facing.
+  **Other gaps found in the same audit — working through them one at a
+  time:**
+
+- [x] **Meeting-request confirmation link had no landing page** — done,
+  commit `8e6c186`. The confirmation email's link pointed straight at the
+  backend API (raw JSON, no way to actually confirm from it). Added
+  `ConfirmMeeting.jsx` (new public route `/confirm-meeting/:token`, no login)
+  showing the proposed time/requester/note with a "Confirm This Time" button,
+  handling already-confirmed and expired/not-found states. Backend's email
+  now links to the frontend page (`PUBLIC_FRONTEND_URL`) instead of the raw
+  API (`PUBLIC_BACKEND_URL`). New regression test confirms the email body
+  contains the frontend URL and never the raw API path, reverted to confirm
+  it actually catches a regression. Full suite 328/328 green in both fixed
+  and randomized order; frontend lint clean, build green (no frontend test
+  suite exists in this repo).
+
+- [ ] CalDAV has connect/disconnect but no manual "Sync now" button — not
+  started.
+- [ ] Agreement and lease public signing pages have no PDF download link —
+  not started.
+- [ ] Document rename/edit endpoint exists with no UI — not started.
+- [ ] AI email-draft endpoint has no compose UI anywhere — not started.
+- [ ] `app/api/v1/endpoints/subscription.py` isn't even mounted in the
+  router — fully unreachable dead code, worth a decision (delete vs wire up)
+  independent of anything client-facing — not started.
 
 ## Other client items (not yet scheduled)
 
