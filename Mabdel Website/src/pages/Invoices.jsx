@@ -170,6 +170,7 @@ export default function Invoices() {
   const [stripeStatus, setStripeStatus] = useState(null);
   const [connectingStripe, setConnectingStripe] = useState(false);
   const [creatingPaymentLink, setCreatingPaymentLink] = useState(false);
+  const [sharingInvoice, setSharingInvoice] = useState(false);
 
   const fetchStripeStatus = useCallback(async () => {
     try {
@@ -228,6 +229,31 @@ export default function Invoices() {
       alert(err?.response?.data?.message || t('inv_err_payment_link_failed'));
     } finally {
       setCreatingPaymentLink(false);
+    }
+  };
+
+  // Public, login-free view/download link for this invoice -- distinct from
+  // "Send" (which emails the client directly): this generates a link the owner
+  // can paste anywhere (WhatsApp, SMS, forward to an accountant, ...).
+  const handleShareInvoiceLink = async () => {
+    if (!activeInvoice?.id || sharingInvoice) return;
+    try {
+      setSharingInvoice(true);
+      let shareUrl = activeInvoice.share_url;
+      if (!shareUrl) {
+        const response = await smartflowApi.shareInvoice(activeInvoice.id, { channel: 'link' });
+        shareUrl = response.data?.data?.share_url;
+        await fetchInvoiceDetails(activeInvoice.id);
+      }
+      if (shareUrl && navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        alert(t('inv_msg_share_link_copied'));
+      }
+    } catch (err) {
+      console.error('Share invoice link failed:', err);
+      alert(err?.response?.data?.message || t('inv_err_share_link_failed'));
+    } finally {
+      setSharingInvoice(false);
     }
   };
 
@@ -888,6 +914,16 @@ export default function Invoices() {
                         {activeInvoice.payment_url ? t('inv_btn_copy_payment_link') : t('inv_btn_create_payment_link')}
                       </button>
                     )}
+
+                    {/* Public, login-free share link */}
+                    <button
+                      onClick={handleShareInvoiceLink}
+                      disabled={sharingInvoice}
+                      className="w-full py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-[#A4B0B7] hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    >
+                      {sharingInvoice ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
+                      {activeInvoice.share_url ? t('inv_btn_copy_share_link') : t('inv_btn_create_share_link')}
+                    </button>
 
                     {/* AI Suggestions Box */}
                     {activeInvoice.status !== 'paid' && (
