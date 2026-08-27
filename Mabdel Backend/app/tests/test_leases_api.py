@@ -99,11 +99,12 @@ def test_lease_generator_preview_signature_and_pdf_flow(client, mock_db) -> None
     )
     assert send_response.status_code == 200
     signature_url = send_response.json()["data"]["signature_request_url"]
-    assert "/leases/signing/" in signature_url
-    # The shared link points straight at the PDF view; the JSON preview and
-    # sign endpoints live at the same path without the /pdf suffix.
-    assert signature_url.endswith("/pdf")
-    signature_path = signature_url.replace("http://127.0.0.1:8000", "")[: -len("/pdf")]
+    # The shared link points at the frontend signing page, not a raw backend
+    # PDF/API path, so an external signer lands on an actual sign form.
+    assert signature_url.startswith("https://gocustify.com/sign/lease/")
+    signature_token = signature_url.rsplit("/", 1)[-1]
+    signature_path = f"/api/v1/smartflow/leases/signing/{signature_token}"
+    pdf_path = f"{signature_path}/pdf"
 
     pending_response = client.get("/api/v1/smartflow/leases?status=pending_signature", headers=headers)
     assert pending_response.status_code == 200
@@ -112,6 +113,10 @@ def test_lease_generator_preview_signature_and_pdf_flow(client, mock_db) -> None
     public_preview_response = client.get(signature_path)
     assert public_preview_response.status_code == 200
     assert public_preview_response.json()["data"]["id"] == lease_id
+
+    public_pdf_response = client.get(pdf_path)
+    assert public_pdf_response.status_code == 200
+    assert public_pdf_response.headers["content-type"] == "application/pdf"
 
     public_sign_response = client.post(
         signature_path,
