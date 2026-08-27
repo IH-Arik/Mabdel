@@ -232,6 +232,7 @@ export const smartflowApi = {
   disconnectIntegration: (platform) => client.delete(`/api/v1/smartflow/integrations/${platform}`),
   getCalDAVStatus: () => client.get('/api/v1/smartflow/integrations/caldav/status'),
   connectCalDAV: (data) => client.post('/api/v1/smartflow/integrations/caldav/connect', data),
+  syncCalDAV: () => client.post('/api/v1/smartflow/integrations/caldav/sync'),
   disconnectCalDAV: () => client.delete('/api/v1/smartflow/integrations/caldav'),
 
   // ── Business email domain ─────────────────────────────────────────────────────
