@@ -273,8 +273,16 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   and randomized order; frontend lint clean, build green (no frontend test
   suite exists in this repo).
 
-- [ ] CalDAV has connect/disconnect but no manual "Sync now" button — not
-  started.
+- [x] **CalDAV "Sync now" button wired up** — done, commit `384b484`. The
+  backend endpoint (`POST /integrations/caldav/sync`, `require_permission
+  ("integrations", "manage")`) already existed and was already tested in
+  `test_calendar_provider_settings.py` — it just had zero frontend callers.
+  Added a "Sync Now" button next to the existing Apple-connected control in
+  `Calendar.jsx` that calls the endpoint, refreshes the calendar, and shows
+  how many changes synced. Backend unchanged. Frontend-only change: verified
+  via `npx eslint` (clean) and `npm run build` (green) — no frontend test
+  suite exists in this repo.
+
 - [ ] Agreement and lease public signing pages have no PDF download link —
   not started.
 - [ ] Document rename/edit endpoint exists with no UI — not started.
