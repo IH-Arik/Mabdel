@@ -74,6 +74,7 @@ class UserResponse(BaseModel):
     language_preference: str = "EN"
     role: str = "user"
     primary_role: str = "user"
+    permissions: list[str] = []
     created_at: datetime
 
 

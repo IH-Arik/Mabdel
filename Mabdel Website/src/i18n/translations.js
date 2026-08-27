@@ -1825,6 +1825,7 @@ export const TRANSLATIONS = {
     aprof_failed: "Provisioning previously failed.",
     aprof_inactive: "No platform-managed Telnyx number is active.",
     aprof_btn_provision: "Provision Platform Telnyx Number",
+    aprof_owner_only_hint: "Only the business owner (or a team member they've granted call management access to) can change this.",
     aprof_provisioning_btn: "Provisioning...",
     aprof_success_provision: "Telnyx provisioning request completed.",
     aprof_err_provision: "Telnyx provisioning failed.",
