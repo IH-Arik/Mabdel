@@ -341,7 +341,13 @@ class MeetingRequestService:
         name = doc.get("first_name", "")
         when = _fmt(proposal["proposed_start"])
         note = proposal.get("note")
-        confirm_url = f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}/api/v1/public/meeting-requests/confirm/{proposal['token']}"
+        # Points at the frontend confirmation page (ConfirmMeeting.jsx), not the raw
+        # API — clicking this used to land on an unstyled JSON response instead of a
+        # page the recipient could actually read and act on.
+        # Points at the frontend confirmation page (ConfirmMeeting.jsx), not the raw
+        # API — clicking this used to land on an unstyled JSON response instead of a
+        # page the recipient could actually read and act on.
+        confirm_url = f"{settings.PUBLIC_FRONTEND_URL.rstrip('/')}/confirm-meeting/{proposal['token']}"
         subject = "New time proposed for your GoCustify AI Demo"
         note_text = f"\n\nNote from {proposal['admin_name']}: {note}" if note else ""
         note_html = f"<p><em>{note}</em></p>" if note else ""

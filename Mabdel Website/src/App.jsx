@@ -28,6 +28,7 @@ const Onboarding = lazy(() => import('./pages/Onboarding'));
 const VoiceConversation = lazy(() => import('./pages/VoiceConversation'));
 const AiCall = lazy(() => import('./pages/AiCall'));
 const JoinEvent = lazy(() => import('./pages/JoinEvent'));
+const ConfirmMeeting = lazy(() => import('./pages/ConfirmMeeting'));
 const CreatePost = lazy(() => import('./pages/CreatePost'));
 const ContentPage = lazy(() => import('./pages/ContentPage'));
 
@@ -59,6 +60,7 @@ function App() {
           <Route path="/acceptable-use-policy" element={<ContentPage forcedSlug="acceptable-use-policy" />} />
           <Route path="/about-us" element={<ContentPage forcedSlug="about-us" />} />
           <Route path="/help-support" element={<ContentPage forcedSlug="help-support" />} />
+          <Route path="/confirm-meeting/:token" element={<ConfirmMeeting />} />
           <Route path="/begin" element={<Begin />} />
           <Route path="/onboarding" element={<Onboarding />} />
 
