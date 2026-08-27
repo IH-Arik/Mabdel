@@ -313,6 +313,10 @@ function ComposeSection({
   const [transcribing, setTranscribing] = useState(false);
   const [improving, setImproving] = useState(false);
   const [voiceError, setVoiceError] = useState('');
+  const [showDraftPanel, setShowDraftPanel] = useState(false);
+  const [draftInstruction, setDraftInstruction] = useState('');
+  const [drafting, setDrafting] = useState(false);
+  const [draftError, setDraftError] = useState('');
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -403,6 +407,28 @@ function ComposeSection({
     }
   }
 
+  async function draftWithAI() {
+    if (!draftInstruction.trim()) return;
+    setDraftError('');
+    setDrafting(true);
+    try {
+      const response = await smartflowApi.draftEmailWithAI({
+        recipient: recipients[0] || 'draft@example.com',
+        subject_hint: subject.trim() || 'Update',
+        instruction: draftInstruction.trim(),
+      });
+      const draft = response.data?.data || {};
+      if (draft.subject) setSubject(draft.subject);
+      if (draft.body) setMessage(draft.body.slice(0, MAX));
+      setShowDraftPanel(false);
+      setDraftInstruction('');
+    } catch (err) {
+      setDraftError(err.response?.data?.message || t('bulk_err_ai_draft_unavailable'));
+    } finally {
+      setDrafting(false);
+    }
+  }
+
   function addAttachment() {
     if (!attachUrl.trim()) return;
     const nextUrl = attachUrl.trim();
@@ -473,8 +499,37 @@ function ComposeSection({
 
       {channel === 'email' && (
         <div>
-          <label className={LABEL}>{t('bulk_lbl_subject')}</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className={LABEL}>{t('bulk_lbl_subject')}</label>
+            <button
+              type="button"
+              onClick={() => setShowDraftPanel((v) => !v)}
+              className="flex items-center gap-1.5 text-xs font-bold text-[#9333ea] hover:text-[#a855f7] transition-colors cursor-pointer"
+            >
+              <Sparkles size={13} /> {t('bulk_btn_ai_draft')}
+            </button>
+          </div>
           <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t('bulk_ph_subject')} className={INPUT} />
+          {showDraftPanel && (
+            <div className="mt-2 p-3 bg-[#0A1019] border border-[#9333ea]/20 rounded-xl space-y-2">
+              {draftError && <p className="text-rose-300 text-xs">{draftError}</p>}
+              <textarea
+                value={draftInstruction}
+                onChange={(e) => setDraftInstruction(e.target.value)}
+                placeholder={t('bulk_ph_ai_draft_instruction')}
+                className={`${INPUT} min-h-16 resize-none text-xs`}
+              />
+              <button
+                type="button"
+                onClick={draftWithAI}
+                disabled={drafting || !draftInstruction.trim()}
+                className="w-full py-2.5 bg-[#9333ea]/10 border border-[#9333ea]/30 text-[#9333ea] hover:bg-[#9333ea]/20 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                {drafting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                {t('bulk_btn_generate_draft')}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

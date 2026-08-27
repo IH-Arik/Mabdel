@@ -41,6 +41,7 @@ export const smartflowApi = {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   improveBulkMessageContent: (content) => client.post('/api/v1/smartflow/bulk-messages/improve-content', { content }),
+  draftEmailWithAI: (data) => client.post('/api/v1/email/draft', data),
   getBulkMessages: (params) => client.get('/api/v1/smartflow/bulk-messages', { params }),
 
   // Documents & Leases
