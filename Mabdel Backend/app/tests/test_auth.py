@@ -134,6 +134,39 @@ def test_refresh_token_and_me_endpoint(client, mock_db) -> None:
     assert refreshed_payload["refresh_token"]
 
 
+def test_me_endpoint_includes_effective_rbac_permissions(client, mock_db) -> None:
+    """The frontend has no other way to know a user's actual RBAC permissions (e.g.
+    calls:manage, grantable to a manager/staff beyond the owner default) to
+    conditionally show permission-gated UI like the Telnyx provisioning section — it
+    previously only ever saw role/primary_role. An owner must see calls:manage in
+    their permissions; a bare staff account (no explicit grant) must not."""
+    from app.tests.conftest import grant_role
+
+    owner_email = "perm-owner@example.com"
+    _register_user(client, email=owner_email)
+    _verify_signup_otp(client, mock_db, email=owner_email)
+    grant_role(mock_db, owner_email, "owner")
+    owner_login = client.post("/api/v1/auth/login", json={"email": owner_email, "password": "SecurePass2024!"})
+    assert owner_login.status_code == 200
+    owner_token = owner_login.json()["data"]["access_token"]
+
+    owner_me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {owner_token}"})
+    assert owner_me.status_code == 200
+    assert "calls:manage" in owner_me.json()["data"]["permissions"]
+
+    staff_email = "perm-staff@example.com"
+    _register_user(client, email=staff_email)
+    _verify_signup_otp(client, mock_db, email=staff_email)
+    grant_role(mock_db, staff_email, "staff")
+    staff_login = client.post("/api/v1/auth/login", json={"email": staff_email, "password": "SecurePass2024!"})
+    assert staff_login.status_code == 200
+    staff_token = staff_login.json()["data"]["access_token"]
+
+    staff_me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {staff_token}"})
+    assert staff_me.status_code == 200
+    assert "calls:manage" not in staff_me.json()["data"]["permissions"]
+
+
 def test_duplicate_email_registration_returns_409(client) -> None:
     _register_user(client, email="dupe@example.com")
     response = client.post(

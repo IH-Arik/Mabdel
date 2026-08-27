@@ -6,6 +6,7 @@ import BusinessHoursCard from '../../../components/Calls/BusinessHoursCard';
 import { Field, INPUT } from '../shared';
 import { formatCstDate } from '../../../utils/dateUtils';
 import { useLanguage } from '../../../context/LanguageContext';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 const CONTENT_SECTIONS = [
   { key: 'about', label: 'About', request: () => smartflowApi.getAboutUs() },
@@ -33,6 +34,14 @@ const getApiErrorMessage = (error, fallback) => {
 
 function AccountSettingsTab() {
   const { t } = useLanguage();
+  const { user } = useAuthStore();
+  // Everyone on the team can see the business number's status (matches the
+  // backend's own calls:view gate on GET /telnyx/status), but only an owner or
+  // someone the owner has explicitly granted calls:manage to (RBAC, via Owner
+  // Dashboard) may provision/reprovision the platform number or connect/remove a
+  // custom Telnyx account — those actions were previously shown to every role,
+  // relying entirely on the backend's 403 to stop non-owners after the fact.
+  const canManageTelnyx = (user?.permissions || []).includes('calls:manage');
   const [contentPages, setContentPages] = useState({});
   const [telnyxStatus, setTelnyxStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -181,65 +190,71 @@ function AccountSettingsTab() {
         <div className="rounded-xl border border-[#243041] bg-[#131A24] p-4">
           <p className="text-sm font-semibold text-white">{t('aprof_lbl_platform') || 'Platform-managed number'}</p>
           <p className="mt-1 text-sm text-[#A4B0B7]">{platformSummary}</p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <button
-              onClick={handleProvisionTelnyx}
-              disabled={provisioning || platformStatus === 'provisioning'}
-              className="rounded-xl bg-[#9333ea] px-4 py-2.5 text-sm font-bold text-[#02080B] disabled:opacity-60 cursor-pointer"
-            >
-              {provisioning ? t('aprof_provisioning_btn') : platformStatus === 'active' ? t('aprof_btn_reprovision') || 'Re-run Provision Check' : t('aprof_btn_provision')}
-            </button>
-          </div>
+          {canManageTelnyx ? (
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                onClick={handleProvisionTelnyx}
+                disabled={provisioning || platformStatus === 'provisioning'}
+                className="rounded-xl bg-[#9333ea] px-4 py-2.5 text-sm font-bold text-[#02080B] disabled:opacity-60 cursor-pointer"
+              >
+                {provisioning ? t('aprof_provisioning_btn') : platformStatus === 'active' ? t('aprof_btn_reprovision') || 'Re-run Provision Check' : t('aprof_btn_provision')}
+              </button>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-[#4A5568]">{t('aprof_owner_only_hint')}</p>
+          )}
         </div>
 
         <BusinessHoursCard />
 
-        <div className="rounded-xl border border-[#243041] bg-[#131A24] p-4">
-          <p className="text-sm font-semibold text-white">{t('aprof_hdr_custom')}</p>
-          <p className="text-xs text-[#A4B0B7] mt-1">{t('aprof_lbl_custom_desc')}</p>
-          {customMode && telnyxStatus?.telnyx_custom_phone_number ? (
-            <div className="mt-3 space-y-3">
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3 text-sm text-emerald-300">
-                {t('aprof_connected_num') || 'Connected number:'} {telnyxStatus.telnyx_custom_phone_number}
+        {canManageTelnyx ? (
+          <div className="rounded-xl border border-[#243041] bg-[#131A24] p-4">
+            <p className="text-sm font-semibold text-white">{t('aprof_hdr_custom')}</p>
+            <p className="text-xs text-[#A4B0B7] mt-1">{t('aprof_lbl_custom_desc')}</p>
+            {customMode && telnyxStatus?.telnyx_custom_phone_number ? (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3 text-sm text-emerald-300">
+                  {t('aprof_connected_num') || 'Connected number:'} {telnyxStatus.telnyx_custom_phone_number}
+                </div>
+                <button
+                  onClick={handleRemoveCustomTelnyx}
+                  disabled={removingCustom}
+                  className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-950/20 px-4 py-2.5 text-sm font-semibold text-rose-300 disabled:opacity-60 cursor-pointer"
+                >
+                  <Trash2 size={14} />
+                  {removingCustom ? t('aprof_removing_btn') : t('aprof_btn_remove')}
+                </button>
               </div>
-              <button
-                onClick={handleRemoveCustomTelnyx}
-                disabled={removingCustom}
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-950/20 px-4 py-2.5 text-sm font-semibold text-rose-300 disabled:opacity-60 cursor-pointer"
-              >
-                <Trash2 size={14} />
-                {removingCustom ? t('aprof_removing_btn') : t('aprof_btn_remove')}
-              </button>
-            </div>
-          ) : (
-            <div className="mt-3 space-y-4">
-              <Field label={t('aprof_lbl_api_key') || 'Telnyx API Key'}>
-                <input
-                  type="password"
-                  value={customForm.api_key}
-                  onChange={(event) => setCustomForm((current) => ({ ...current, api_key: event.target.value }))}
-                  className={INPUT}
-                  placeholder={t('aprof_ph_token') || 'Your Telnyx API key'}
-                />
-              </Field>
-              <Field label={t('aprof_lbl_phone')}>
-                <input
-                  value={customForm.phone_number}
-                  onChange={(event) => setCustomForm((current) => ({ ...current, phone_number: event.target.value }))}
-                  className={INPUT}
-                  placeholder="+12025551234"
-                />
-              </Field>
-              <button
-                onClick={handleSaveCustomTelnyx}
-                disabled={savingCustom}
-                className="rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-4 py-2.5 text-sm font-bold text-[#9333ea] disabled:opacity-60 cursor-pointer"
-              >
-                {savingCustom ? t('aprof_connecting_btn') : t('aprof_btn_connect')}
-              </button>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="mt-3 space-y-4">
+                <Field label={t('aprof_lbl_api_key') || 'Telnyx API Key'}>
+                  <input
+                    type="password"
+                    value={customForm.api_key}
+                    onChange={(event) => setCustomForm((current) => ({ ...current, api_key: event.target.value }))}
+                    className={INPUT}
+                    placeholder={t('aprof_ph_token') || 'Your Telnyx API key'}
+                  />
+                </Field>
+                <Field label={t('aprof_lbl_phone')}>
+                  <input
+                    value={customForm.phone_number}
+                    onChange={(event) => setCustomForm((current) => ({ ...current, phone_number: event.target.value }))}
+                    className={INPUT}
+                    placeholder="+12025551234"
+                  />
+                </Field>
+                <button
+                  onClick={handleSaveCustomTelnyx}
+                  disabled={savingCustom}
+                  className="rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-4 py-2.5 text-sm font-bold text-[#9333ea] disabled:opacity-60 cursor-pointer"
+                >
+                  {savingCustom ? t('aprof_connecting_btn') : t('aprof_btn_connect')}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-4 rounded-2xl border border-[#243041] bg-[#0A1019] p-5">

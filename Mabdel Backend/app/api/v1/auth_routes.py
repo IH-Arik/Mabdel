@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.database import get_database
+from app.dependencies import get_mongo_database, get_redis_client
 from app.repositories.auth_repository import AuthRepository
 from app.repositories.otp_repository import OTPRepository
 from app.repositories.token_repository import TokenRepository
@@ -27,6 +28,7 @@ from app.core.security import hash_password
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
 from app.services.otp_service import OTPService
+from app.services.rbac_service import RBACService
 from app.utils.responses import success_response
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -257,9 +259,19 @@ async def google_login(payload: GoogleLoginRequest, auth_service: AuthService = 
 async def me(
     token: str = Depends(oauth2_scheme),
     auth_service: AuthService = Depends(get_auth_service),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+    redis_client=Depends(get_redis_client),
 ) -> dict:
     user = await auth_service.get_current_user(token)
-    return success_response(data=user.model_dump(), message="Current user fetched successfully.")
+    # The frontend has no other way to know a user's effective RBAC permissions
+    # (e.g. calls:manage, grantable to a manager/staff beyond the owner default)
+    # to conditionally show permission-gated UI like the Telnyx provisioning
+    # section — it previously only ever checked role/primary_role.
+    rbac = RBACService(db, redis_client)
+    permissions = await rbac.get_user_permissions(user.id, user.role)
+    data = user.model_dump()
+    data["permissions"] = sorted(permissions)
+    return success_response(data=data, message="Current user fetched successfully.")
 
 
 @router.post(
