@@ -90,7 +90,21 @@ async def call_action(
             raise AppException(status_code=400, code="NO_FORWARDING_NUMBER", message="No forwarding number configured in profile")
         success = await call_service.transfer_call(call_sid, to_number=forward_to)
     elif request.action == "transfer_to_ai":
-        success = await call_service.start_streaming(call_sid, websocket_url=call_service.build_media_stream_url(call_sid))
+        if call_sid in pending_browser_rings:
+            # call_sid is a browser ring leg that's still ringing (unanswered) --
+            # start_streaming below only works on an already-answered call, so
+            # instead: stop ringing the browser and answer the ORIGINAL inbound
+            # call straight into the AI, same as the ring-timeout fallback but
+            # triggered immediately by the team member's explicit choice rather
+            # than waiting out BROWSER_RING_TIMEOUT_SECONDS.
+            inbound_call_id = pending_browser_rings.pop(call_sid)
+            await call_service.hangup_call(call_sid)
+            await call_service.answer_call(
+                inbound_call_id, websocket_url=call_service.build_media_stream_url(inbound_call_id)
+            )
+            success = True
+        else:
+            success = await call_service.start_streaming(call_sid, websocket_url=call_service.build_media_stream_url(call_sid))
     elif request.action == "cancel":
         success = await call_service.hangup_call(call_sid)
     else:
@@ -306,18 +320,27 @@ async def _handle_browser_ring_answered(ring_leg_id: str) -> None:
 
 
 async def _handle_browser_ring_hangup(ring_leg_id: str, payload) -> None:
-    """The browser ring leg ended before anyone answered it — either
-    BROWSER_RING_TIMEOUT_SECONDS was reached (hangup_cause "timeout") or the team
-    member explicitly declined. Either way, hand the still-unanswered original call
-    to the AI rather than leaving the caller listening to nothing."""
+    """The browser ring leg ended before anyone answered it. Two genuinely different
+    cases, both arriving as call.hangup on the ring leg:
+    - hangup_cause "timeout" — Telnyx's own timeout_secs on the dial fired because
+      nobody answered in time. Falls back to AI, same as always.
+    - anything else (e.g. "call_rejected") — the team member explicitly declined via
+      the Reject button. That must NOT hand the caller to AI (confirmed with the
+      user: reject means neither the human nor the AI picks up) — hang up the
+      original call too, a true decline. An explicit AI handoff is a separate,
+      deliberate action (see the "transfer_to_ai" branch of call_action below),
+      not something a decline should trigger as a side effect.
+    """
     inbound_call_id = pending_browser_rings.pop(ring_leg_id, None)
     if not inbound_call_id:
         return
-    logger.info(
-        "Call %s: browser ring ended (%s) before answer, falling back to AI.",
-        inbound_call_id, getattr(payload, "hangup_cause", None),
-    )
-    await call_service.answer_call(inbound_call_id, websocket_url=call_service.build_media_stream_url(inbound_call_id))
+    hangup_cause = (getattr(payload, "hangup_cause", None) or "").strip().lower()
+    if hangup_cause == "timeout":
+        logger.info("Call %s: browser ring timed out, falling back to AI.", inbound_call_id)
+        await call_service.answer_call(inbound_call_id, websocket_url=call_service.build_media_stream_url(inbound_call_id))
+    else:
+        logger.info("Call %s: browser explicitly declined (%s), ending the call.", inbound_call_id, hangup_cause)
+        await call_service.hangup_call(inbound_call_id)
 
 
 async def _handle_outgoing_call_initiated(call_id: str, payload, service: SmartFlowService) -> None:

@@ -397,6 +397,100 @@ def test_browser_ring_timeout_falls_back_to_ai_without_touching_the_original_cal
     ]
 
 
+def test_explicit_reject_ends_the_call_without_ai_taking_over(client, mock_db, monkeypatch):
+    """User-confirmed rule: Reject means neither the human nor the AI picks up --
+    only a genuine ring TIMEOUT should hand the caller to AI. A team member
+    explicitly declining (hangup_cause anything other than "timeout") must just end
+    the original call."""
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    owner_id = _register_and_login(client, mock_db, "owner-reject@example.com", "owner")[1]
+    staff_id = _add_team_member_to_org(mock_db, owner_id, "staff-reject@example.com", "staff")
+    _seed_active_staff_registration(mock_db, owner_id, staff_id, "+15559994444")
+
+    async def fake_ring_browser(self, *, sip_target, from_number, timeout_secs, client_state) -> str:
+        return "v3:ring-leg-5"
+
+    answer_calls: list[dict] = []
+    hangup_calls: list[str] = []
+
+    async def fake_answer(self, call_control_id: str, *, websocket_url: str | None = None) -> None:
+        answer_calls.append({"call_control_id": call_control_id, "websocket_url": websocket_url})
+
+    async def fake_hangup(self, call_control_id: str) -> bool:
+        hangup_calls.append(call_control_id)
+        return True
+
+    monkeypatch.setattr(CallService, "ring_browser", fake_ring_browser)
+    monkeypatch.setattr(CallService, "answer_call", fake_answer)
+    monkeypatch.setattr(CallService, "hangup_call", fake_hangup)
+
+    initiated = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:org-reject", "direction": "incoming", "from": "+1555", "to": "+15559994444"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=initiated).status_code == 200
+
+    # A rejected WebRTC call reports some hangup_cause other than "timeout" (the
+    # exact string Telnyx uses for a callee decline isn't asserted on here on
+    # purpose -- the point is that this branch treats anything-but-timeout as a
+    # decline, not that it matches one specific string).
+    rejected = _webhook_envelope("call.hangup", {"call_control_id": "v3:ring-leg-5", "hangup_cause": "call_rejected"})
+    assert client.post("/api/v1/calls/webhook", content=rejected).status_code == 200
+
+    assert hangup_calls == ["v2:org-reject"]
+    assert answer_calls == [], "a decline must never hand the caller to AI"
+
+
+def test_transfer_to_ai_button_immediately_hands_a_ringing_call_to_ai(client, mock_db, monkeypatch):
+    """The explicit "Transfer to AI" action on a still-ringing (unanswered) browser
+    call: stop ringing the browser and answer the original call into AI right away,
+    without waiting for BROWSER_RING_TIMEOUT_SECONDS."""
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    headers, owner_id = _register_and_login(client, mock_db, "owner-explicit-ai@example.com", "owner")
+    staff_id = _add_team_member_to_org(mock_db, owner_id, "staff-explicit-ai@example.com", "staff")
+    _seed_active_staff_registration(mock_db, owner_id, staff_id, "+15559995555")
+
+    async def fake_ring_browser(self, *, sip_target, from_number, timeout_secs, client_state) -> str:
+        return "v3:ring-leg-6"
+
+    answer_calls: list[dict] = []
+    hangup_calls: list[str] = []
+
+    async def fake_answer(self, call_control_id: str, *, websocket_url: str | None = None) -> None:
+        answer_calls.append({"call_control_id": call_control_id, "websocket_url": websocket_url})
+
+    async def fake_hangup(self, call_control_id: str) -> bool:
+        hangup_calls.append(call_control_id)
+        return True
+
+    monkeypatch.setattr(CallService, "ring_browser", fake_ring_browser)
+    monkeypatch.setattr(CallService, "answer_call", fake_answer)
+    monkeypatch.setattr(CallService, "hangup_call", fake_hangup)
+
+    initiated = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:org-explicit-ai", "direction": "incoming", "from": "+1555", "to": "+15559995555"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=initiated).status_code == 200
+
+    # The frontend's "Transfer to AI" button posts this against the RING LEG's
+    # call_sid (what the browser's WebRTC object actually knows), not the original
+    # inbound call's -- call_action must resolve the mapping itself.
+    response = client.post(
+        "/api/v1/calls/v3:ring-leg-6/action", headers=headers, json={"action": "transfer_to_ai"}
+    )
+    assert response.status_code == 200, response.text
+
+    from app.api.v1.endpoints.calls import call_service as endpoint_call_service
+
+    assert hangup_calls == ["v3:ring-leg-6"], "the ring leg itself must stop ringing the browser"
+    assert answer_calls == [
+        {"call_control_id": "v2:org-explicit-ai", "websocket_url": endpoint_call_service.build_media_stream_url("v2:org-explicit-ai")}
+    ]
+
+
 def test_caller_hangup_while_browser_is_ringing_stops_the_ring(client, mock_db, monkeypatch):
     """The caller abandons the call while the team member's browser is still
     ringing -- the ring leg must be hung up rather than left ringing pointlessly for

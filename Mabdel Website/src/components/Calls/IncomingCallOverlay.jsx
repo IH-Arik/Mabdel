@@ -1,8 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, PhoneOff } from 'lucide-react';
+import { Bot, Phone, PhoneOff } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 
-export default function IncomingCallOverlay({ callerName, callerNumber, isOpen, onAccept, onReject }) {
+export default function IncomingCallOverlay({ callerName, callerNumber, isOpen, onAccept, onReject, onTransferToAi }) {
   const { t } = useLanguage();
   if (!isOpen) return null;
 
@@ -32,14 +32,23 @@ export default function IncomingCallOverlay({ callerName, callerNumber, isOpen, 
           </div>
           
           <div className="flex items-center gap-2">
-             <button 
+             <button
                  onClick={onReject}
                  className="w-10 h-10 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-500 flex items-center justify-center transition-colors cursor-pointer"
                  title={t('call_decline')}
              >
                  <PhoneOff size={18} />
              </button>
-             <button 
+             {onTransferToAi ? (
+                 <button
+                     onClick={onTransferToAi}
+                     className="w-10 h-10 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-400 flex items-center justify-center transition-colors cursor-pointer"
+                     title={t('call_transfer_to_ai')}
+                 >
+                     <Bot size={18} />
+                 </button>
+             ) : null}
+             <button
                  onClick={onAccept}
                  className="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-400 text-[#070a13] flex items-center justify-center shadow-lg shadow-emerald-500/20 transition-colors animate-bounce cursor-pointer"
                  title={t('call_accept')}
