@@ -46,6 +46,7 @@ export const smartflowApi = {
   // Documents & Leases
   getDocuments: () => client.get('/api/v1/smartflow/documents'),
   createDocument: (data) => client.post('/api/v1/smartflow/documents', data),
+  updateDocument: (id, data) => client.patch(`/api/v1/smartflow/documents/${id}`, data),
   deleteDocument: (id) => client.delete(`/api/v1/smartflow/documents/${id}`),
   getLeases: (params) => client.get('/api/v1/smartflow/leases', { params }),
   createLease: (data) => client.post('/api/v1/smartflow/leases', data),

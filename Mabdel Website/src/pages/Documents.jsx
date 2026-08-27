@@ -17,7 +17,10 @@ import { useLanguage } from '../context/LanguageContext';
 const tabs = [
   { id: 'leases',     labelKey: 'docs_tab_leases',      icon: ScrollText },
   { id: 'agreements', labelKey: 'docs_tab_agreements',  icon: FileCheck2 },
+  { id: 'documents',  labelKey: 'docs_tab_documents',   icon: FileText },
 ];
+
+const DOCUMENT_TYPES = ['others', 'agreement', 'invoice', 'lease'];
 
 // ── Small helpers ──────────────────────────────────────────────────────────────
 const INPUT_CLS = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-sm placeholder:text-[#4A5568]';
@@ -612,59 +615,68 @@ function LeaseCreator({ onCreated, prefill }) {
   );
 }
 
-// ── Record row ────────────────────────────────────────────────────────────────
-// eslint-disable-next-line no-unused-vars
-function RecordRow({ item, type, onDelete, onRefresh }) {
+// ── Document row (plain uploaded/linked files, distinct from agreements/leases) ─
+function DocumentRecordRow({ item, onDelete, onRefresh }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(null);
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState(item.name || '');
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
-  async function action(label, fn) {
-    setBusy(label); setMsg('');
-    try { await fn(); setMsg(`${label} successful!`); onRefresh?.(); }
-    catch(err) { setMsg(err.response?.data?.message || `${label} failed.`); }
-    finally { setBusy(null); }
-  }
-
-  async function downloadPdf() {
-    setBusy('pdf');
+  async function saveRename() {
+    const trimmed = nameDraft.trim();
+    if (!trimmed || trimmed === item.name) { setRenaming(false); return; }
+    setBusy(true); setMsg('');
     try {
-      const fn = type === 'leases' ? smartflowApi.downloadLeasePdf : smartflowApi.downloadAgreementPdf;
-      const res = await fn(item.id);
-      const url = URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a'); a.href = url;
-      a.download = `${item.title || 'document'}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-    } catch { setMsg(t('docs_err_pdf_download_failed')); }
-    finally { setBusy(null); }
+      await smartflowApi.updateDocument(item.id, { name: trimmed });
+      setRenaming(false);
+      onRefresh?.();
+    } catch (err) {
+      setMsg(err.response?.data?.message || t('docs_err_rename_failed'));
+    } finally {
+      setBusy(false);
+    }
   }
-
-  const isLease = type === 'leases';
-  const isAgreement = type === 'agreements';
-  const showActions = isLease || isAgreement;
 
   return (
     <div className="border-b border-[#243041]/30 last:border-0">
       <div
         className="flex items-center justify-between p-5 hover:bg-[#1C2635]/10 transition-colors cursor-pointer"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => !renaming && setOpen(o => !o)}
       >
         <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-white truncate text-sm">{item.title || item.name || item.agreement_number || item.lease_number || item.id}</h3>
-          <p className="text-xs text-[#A4B0B7] mt-0.5 truncate">
-            {item.agreement_type || item.property_type || item.type || item.status || 'Document'} 
-            {item.client_name && ` · ${item.client_name}`}
-            {item.tenant_name && ` · Tenant: ${item.tenant_name}`}
-          </p>
+          {renaming ? (
+            <input
+              autoFocus
+              value={nameDraft}
+              onChange={e => setNameDraft(e.target.value)}
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') { setRenaming(false); setNameDraft(item.name || ''); } }}
+              className="w-full px-2 py-1 bg-[#0A1019] border border-[#9333ea]/50 text-white rounded-lg text-sm outline-none"
+            />
+          ) : (
+            <h3 className="font-bold text-white truncate text-sm">{item.name || item.id}</h3>
+          )}
+          <p className="text-xs text-[#A4B0B7] mt-0.5 truncate">{item.type || 'others'}</p>
         </div>
         <div className="flex items-center gap-2 ml-3">
-          {item.status && (
-            <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-              item.status === 'active' || item.status === 'signed'   ? 'bg-emerald-950/40 text-emerald-400' :
-              item.status === 'pending_signature' || item.status === 'pending' ? 'bg-amber-950/40 text-amber-400' :
-              'bg-[#243041] text-[#A4B0B7]'
-            }`}>{item.status.replace(/_/g, ' ')}</span>
+          {renaming ? (
+            <>
+              <button onClick={e => { e.stopPropagation(); saveRename(); }} disabled={busy}
+                className="p-2 text-emerald-400 hover:bg-emerald-950/20 rounded-lg transition-all cursor-pointer disabled:opacity-60">
+                {busy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+              </button>
+              <button onClick={e => { e.stopPropagation(); setRenaming(false); setNameDraft(item.name || ''); }}
+                className="p-2 text-[#A4B0B7] hover:bg-slate-900/40 rounded-lg transition-all cursor-pointer">
+                <X size={15} />
+              </button>
+            </>
+          ) : (
+            <button onClick={e => { e.stopPropagation(); setRenaming(true); }}
+              className="p-2 text-[#A4B0B7] hover:text-white hover:bg-slate-900/40 rounded-lg transition-all cursor-pointer">
+              <PenLine size={15} />
+            </button>
           )}
           {onDelete && (
             <button
@@ -683,43 +695,64 @@ function RecordRow({ item, type, onDelete, onRefresh }) {
             initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }} className="overflow-hidden"
           >
-            <div className="px-5 pb-4 text-sm text-[#A4B0B7] border-t border-[#243041]/30 pt-3 space-y-3">
-              {msg && <p className={msg.includes('failed') ? 'text-rose-400' : 'text-emerald-400'}>{msg}</p>}
-              {item.content && <p className="line-clamp-4 leading-relaxed">{item.content}</p>}
-              {item.property_address && <p>📍 {item.property_address}</p>}
-              {item.monthly_rent && <p>💰 ${item.monthly_rent}/month</p>}
-              {item.start_date && <p>📅 {item.start_date} → {item.end_date || '—'}</p>}
+            <div className="px-5 pb-4 text-sm text-[#A4B0B7] border-t border-[#243041]/30 pt-3 space-y-2">
+              {msg && <p className="text-rose-400">{msg}</p>}
               {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" className="text-[#9333ea] hover:underline">{t('docs_view_file')}</a>}
-
-              {/* Action buttons for lease/agreement */}
-              {showActions && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <button onClick={e=>{e.stopPropagation();downloadPdf();}} disabled={busy==='pdf'}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='pdf' ? <Loader2 size={12} className="animate-spin"/> : <Download size={12}/>} {t('docs_btn_pdf')}
-                  </button>
-                  <button onClick={e=>{e.stopPropagation(); action('Send Signature', ()=>(isLease ? smartflowApi.leaseSendSignature(item.id,{}) : smartflowApi.agreementSendSignature(item.id,{})));}} disabled={!!busy}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-[#A4B0B7] hover:text-[#9333ea] rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='Send Signature' ? <Loader2 size={12} className="animate-spin"/> : <Mail size={12}/>} {t('docs_btn_send_for_signature')}
-                  </button>
-                  <button onClick={e=>{e.stopPropagation(); action('Sign', ()=>(isLease ? smartflowApi.leaseSign(item.id,{signature:'web'}) : smartflowApi.agreementSign(item.id,{signature:'web'})));}} disabled={!!busy}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-950/50 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='Sign' ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle2 size={12}/>} {t('docs_btn_sign')}
-                  </button>
-                  <button onClick={e=>{e.stopPropagation(); action('Renew', ()=>(isLease ? smartflowApi.leaseRenew(item.id,{}) : smartflowApi.agreementRenew(item.id,{})));}} disabled={!!busy}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[#9333ea]/10 border border-[#9333ea]/20 text-[#9333ea] hover:bg-[#9333ea]/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='Renew' ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12}/>} {t('docs_btn_renew')}
-                  </button>
-                  <button onClick={e=>{e.stopPropagation(); action('Improve', ()=>(isLease ? smartflowApi.leaseEnhanceTerms(item.id,{}) : smartflowApi.agreementImprove(item.id,{})));}} disabled={!!busy}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[#0A1019] border border-[#243246] text-amber-400 hover:bg-amber-950/20 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60">
-                    {busy==='Improve' ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} {t('docs_btn_ai_improve')}
-                  </button>
-                </div>
-              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function DocumentCreator({ onCreated }) {
+  const { t } = useLanguage();
+  const [name, setName] = useState('');
+  const [type, setType] = useState('others');
+  const [fileUrl, setFileUrl] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleCreate() {
+    if (!name.trim() || !fileUrl.trim()) {
+      setError(t('docs_err_document_fields_required'));
+      return;
+    }
+    setCreating(true); setError('');
+    try {
+      await smartflowApi.createDocument({ name: name.trim(), type, file_url: fileUrl.trim() });
+      setName(''); setFileUrl(''); setType('others');
+      onCreated?.();
+    } catch (err) {
+      setError(err.response?.data?.message || t('docs_err_document_create_failed'));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <div className="bg-[#131A24] border border-[#243041] rounded-[22px] p-5 space-y-4">
+      <h3 className="font-bold text-white text-base">{t('docs_btn_new_document')}</h3>
+      {error && <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl text-rose-300 text-sm">{error}</div>}
+      <Field label={t('docs_lbl_document_name')}>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder={t('docs_ph_document_name')} className={INPUT_CLS} />
+      </Field>
+      <Field label={t('docs_lbl_document_type')}>
+        <select value={type} onChange={e => setType(e.target.value)} className={INPUT_CLS}>
+          {DOCUMENT_TYPES.map(dt => <option key={dt} value={dt}>{dt}</option>)}
+        </select>
+      </Field>
+      <Field label={t('docs_lbl_document_url')}>
+        <input value={fileUrl} onChange={e => setFileUrl(e.target.value)} placeholder={t('docs_ph_document_url')} className={INPUT_CLS} />
+      </Field>
+      <button
+        onClick={handleCreate} disabled={creating}
+        className="w-full py-4 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer text-base"
+      >
+        {creating ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}
+        {creating ? t('docs_creating') : t('docs_btn_save_document')}
+      </button>
     </div>
   );
 }
@@ -1889,7 +1922,13 @@ export default function Documents() {
     catch (err) { setError(err.response?.data?.message || t('docs_err_delete_failed')); }
   }
 
-  const showForm = active === 'leases' || active === 'agreements';
+  async function deleteDocumentItem(id) {
+    if (!window.confirm(t('docs_confirm_delete_document'))) return;
+    try { await smartflowApi.deleteDocument(id); fetchAll(); }
+    catch (err) { setError(err.response?.data?.message || t('docs_err_delete_failed')); }
+  }
+
+  const showForm = active === 'leases' || active === 'agreements' || active === 'documents';
 
   return (
     <div className="space-y-6">
@@ -1904,7 +1943,13 @@ export default function Documents() {
           className="px-5 py-3 bg-[#9333ea] text-[#02080B] hover:bg-[#a855f7] rounded-xl font-extrabold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shrink-0"
         >
           {showCreate ? <X size={18} /> : <Plus size={18} />}
-          {showCreate ? t('docs_btn_close_form') : active === 'leases' ? t('docs_btn_new_lease') : t('docs_btn_new_agreement')}
+          {showCreate
+            ? t('docs_btn_close_form')
+            : active === 'leases'
+              ? t('docs_btn_new_lease')
+              : active === 'documents'
+                ? t('docs_btn_new_document')
+                : t('docs_btn_new_agreement')}
         </button>
       </div>
 
@@ -1939,6 +1984,17 @@ export default function Documents() {
           {t('docs_tab_leases')}
           <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#243041] text-[#A4B0B7] text-xs">
             {leases.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => { setActive('documents'); setShowCreate(false); }}
+          className={`px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 border transition-all cursor-pointer ${active === 'documents' ? 'bg-[#9333ea]/10 text-white border-[#9333ea]/20' : 'text-[#A4B0B7] hover:bg-slate-900/40 hover:text-white border-transparent'}`}
+        >
+          <FileText size={16} className={active === 'documents' ? 'text-[#9333ea]' : ''} />
+          {t('docs_tab_documents')}
+          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#243041] text-[#A4B0B7] text-xs">
+            {documents.length}
           </span>
         </button>
 
@@ -1983,17 +2039,17 @@ export default function Documents() {
                   ? <AgreementRecordRow key={item.id || item._id} item={item} onDelete={deleteAgreement} onRefresh={fetchAll} />
                   : active === 'leases'
                     ? <LeaseRecordRow key={item.id || item._id} item={item} onDelete={deleteLease} onRefresh={fetchAll} />
-                    : null
+                    : <DocumentRecordRow key={item.id || item._id} item={item} onDelete={deleteDocumentItem} onRefresh={fetchAll} />
               ))}
             </div>
           ) : (
             <div className="p-16 text-center">
               <div className="w-14 h-14 rounded-2xl bg-[#9333ea]/10 flex items-center justify-center mx-auto mb-4">
-                {active === 'leases' ? <ScrollText size={24} className="text-[#9333ea]" /> : <FileCheck2 size={24} className="text-[#9333ea]" />}
+                {active === 'leases' ? <ScrollText size={24} className="text-[#9333ea]" /> : active === 'agreements' ? <FileCheck2 size={24} className="text-[#9333ea]" /> : <FileText size={24} className="text-[#9333ea]" />}
               </div>
-              <p className="text-white font-bold">{active === 'leases' ? t('docs_no_leases_yet') : t('docs_no_agreements_yet')}</p>
+              <p className="text-white font-bold">{active === 'leases' ? t('docs_no_leases_yet') : active === 'agreements' ? t('docs_no_agreements_yet') : t('docs_no_documents_yet')}</p>
               <p className="text-[#A4B0B7] text-sm mt-1">
-                {t('docs_click_new_to_create', { btn: active === 'leases' ? t('docs_btn_new_lease') : t('docs_btn_new_agreement') })}
+                {t('docs_click_new_to_create', { btn: active === 'leases' ? t('docs_btn_new_lease') : active === 'agreements' ? t('docs_btn_new_agreement') : t('docs_btn_new_document') })}
               </p>
             </div>
           )}
@@ -2009,6 +2065,7 @@ export default function Documents() {
             >
               {active === 'agreements' && <AgreementCreator onCreated={() => { fetchAll(); setShowCreate(false); }} prefill={prefillData} />}
               {active === 'leases' && <LeaseCreator onCreated={() => { fetchAll(); setShowCreate(false); }} prefill={prefillData} />}
+              {active === 'documents' && <DocumentCreator onCreated={() => { fetchAll(); setShowCreate(false); }} />}
             </motion.div>
           )}
         </AnimatePresence>
