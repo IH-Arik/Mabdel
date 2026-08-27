@@ -309,7 +309,15 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   suite 329/329 green in both fixed and randomized order; frontend lint
   clean, build green.
 
-- [ ] AI email-draft endpoint has no compose UI anywhere — not started.
+- [x] **AI email-draft endpoint had no compose UI** — done, commit
+  `b5dcb60`. `POST /api/v1/email/draft` worked but had zero frontend
+  callers. Added an "AI Draft" action next to the Subject field in the
+  bulk-messaging email composer — user types a short instruction, it
+  fills in subject/body via the existing endpoint. New
+  `test_email_draft_api.py` covers the endpoint directly (previously
+  untested). Full suite 331/331 green in both fixed and randomized order;
+  frontend lint clean, build green.
+
 - [ ] `app/api/v1/endpoints/subscription.py` isn't even mounted in the
   router — fully unreachable dead code, worth a decision (delete vs wire up)
   independent of anything client-facing — not started.
