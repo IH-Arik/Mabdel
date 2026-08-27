@@ -244,6 +244,28 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   fail when its underlying fix is reverted. Suite 327/327 green in both
   fixed and randomized order.
 
+- [x] **Invoice share-link feature wired up** — done, commit `e382aa1`.
+  Found during a backend-vs-frontend audit (user asked to check for backend
+  capabilities with no frontend caller). `POST /invoices/{id}/share` and
+  `GET /invoices/shared/{token}/pdf` were fully built and already tested
+  backend-side (a public, login-free view/download link — distinct from
+  "Send", which only emails the client) but `shareInvoice` in `services.js`
+  had zero callers anywhere and no UI could generate/show the link. Added a
+  "Create/Copy Share Link" button on the invoice detail panel, mirroring the
+  existing "Copy Payment Link" button's exact pattern (generate once, cache
+  via `share_url` on the invoice, copy to clipboard). Frontend-only change;
+  backend already had test coverage (`test_invoice_api.py`), confirmed still
+  passing. Verified via lint (clean) and build (green) — no frontend test
+  suite exists in this repo.
+  **Other gaps found in the same audit, not yet acted on:** meeting-request
+  confirmation email link has no landing page (raw JSON instead of a styled
+  page); CalDAV has connect/disconnect but no manual "Sync now"; agreement
+  and lease public signing pages have no PDF download link; document
+  rename/edit endpoint exists with no UI; AI email-draft endpoint has no
+  compose UI anywhere. Also: `app/api/v1/endpoints/subscription.py` isn't
+  even mounted in the router — fully unreachable dead code, worth a decision
+  (delete vs wire up) independent of anything client-facing.
+
 ## Other client items (not yet scheduled)
 
 From the original meeting recap, not yet picked up:
