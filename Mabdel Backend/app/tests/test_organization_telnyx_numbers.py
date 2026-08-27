@@ -133,6 +133,52 @@ def test_owner_can_provision_organization_number(client, mock_db, monkeypatch):
     assert status_response.json()["data"]["telnyx_phone_number"] == "+15550001234"
 
 
+def test_reprovisioning_an_already_active_number_never_orders_a_second_one(client, mock_db, monkeypatch):
+    """A business gets exactly one number, ever. Clicking "Re-run Provision Check"
+    again once telnyx_setup_status is already "active" must be a pure no-op read of
+    the existing number -- Telnyx's number_orders.create must never fire a second
+    time for the same org."""
+    monkeypatch.setattr(settings, "TELNYX_API_KEY", "test-key")
+    monkeypatch.setattr(settings, "TELNYX_NUMBER_COUNTRY", "US")
+
+    import app.services.telnyx_provisioning_service as module
+
+    order_calls: list[dict] = []
+
+    class TrackedTelephonyClient(FakeTelephonyClient):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            original_create = self.number_orders.create
+
+            def _tracked_create(**kwargs):
+                order_calls.append(kwargs)
+                return original_create(**kwargs)
+
+            self.number_orders.create = _tracked_create
+
+    monkeypatch.setattr(module, "telnyx", type("T", (), {"Client": TrackedTelephonyClient, "TelnyxError": Exception, "NOT_GIVEN": None}))
+
+    headers, owner_id = _register_and_login(client, mock_db, "owner-reprovision@example.com", "owner")
+
+    first = client.post("/api/v1/telnyx/provision", headers=headers)
+    assert first.status_code == 200, first.text
+    first_number = first.json()["data"]["telnyx_phone_number"]
+    assert first_number == "+15550001234"
+    assert len(order_calls) == 1
+
+    second = client.post("/api/v1/telnyx/provision", headers=headers)
+    assert second.status_code == 200, second.text
+    assert second.json()["data"]["telnyx_phone_number"] == first_number
+    assert len(order_calls) == 1, "re-running provision on an already-active org must not order a second number"
+
+    third = client.post("/api/v1/telnyx/provision", headers=headers)
+    assert third.status_code == 200, third.text
+    assert len(order_calls) == 1, "still just the one order after a third click"
+
+    org = asyncio.run(mock_db.organizations.find_one({"organization_id": owner_id}))
+    assert org["telnyx_phone_number"] == first_number
+
+
 def test_manager_without_explicit_grant_cannot_manage_number(client, mock_db, monkeypatch):
     """Only owner has calls:manage by default (confirmed against the RBAC seed data) —
     manager does NOT automatically get it. 'Owner + assigned member' means the owner
