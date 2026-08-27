@@ -220,6 +220,30 @@ Tracking sheet for the client meeting recap items, worked one at a time on
   untested; confirmed the new test actually catches a regression by
   reverting the guard first. Suite now 325/325.
 
+- [x] **Incoming-call popup missing Reject/Transfer-to-AI, and Reject went to AI
+  anyway** — done, commit `7d461fd`.
+  Popup only ever had Accept/Reject. A `transferToAi` function already existed
+  in `TelnyxVoiceContext.jsx` but was **completely dead code** — never exposed
+  through the context or wired to any button (its own lint warning flagged
+  this: "unused variable"). Added the third button + wired it end-to-end.
+  **User-confirmed behavior rule while fixing this:** Reject = neither the
+  human nor the AI picks up. Only a genuine ring TIMEOUT falls back to AI.
+  This required a real backend fix — `_handle_browser_ring_hangup` previously
+  answered the original call into AI on ANY hangup of the ring leg
+  (reject and timeout both funneled into the same fallback). Now checks
+  `hangup_cause == "timeout"` specifically; anything else (explicit decline)
+  just ends the original call, no AI.
+  Transfer-to-AI needed new backend support too: it fires against the RING
+  LEG's call_sid (unanswered, still ringing) — the pre-existing
+  `transfer_to_ai` action only worked via `start_streaming` on an
+  already-answered call. `call_action` now detects a tracked ring leg and
+  answers the ORIGINAL call into AI immediately instead, without waiting out
+  `BROWSER_RING_TIMEOUT_SECONDS`.
+  3 new regression tests (timeout still falls back, explicit reject does
+  NOT, explicit Transfer-to-AI hands off immediately), each confirmed to
+  fail when its underlying fix is reverted. Suite 327/327 green in both
+  fixed and randomized order.
+
 ## Other client items (not yet scheduled)
 
 From the original meeting recap, not yet picked up:
