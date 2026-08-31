@@ -7,12 +7,15 @@ import {
   Bot,
   CalendarClock,
   Check,
+  CheckCircle,
   CreditCard,
   Cpu,
   FileSignature,
   FileText,
   Inbox,
+  Loader2,
   Lock,
+  Mail,
   Megaphone,
   Menu,
   MessageSquare,
@@ -28,6 +31,7 @@ import {
 } from 'lucide-react';
 import heroImage from '../assets/hero-3d.png';
 import logoMark from '../assets/gocustify-mark.png';
+import { publicApi } from '../api/services';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
@@ -69,6 +73,42 @@ export default function Landing() {
   const { t } = useLanguage();
   const [videoOpen, setVideoOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [footerContactForm, setFooterContactForm] = useState({
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    email: '',
+    message: '',
+  });
+  const [footerContactSubmitting, setFooterContactSubmitting] = useState(false);
+  const [footerContactSubmitted, setFooterContactSubmitted] = useState(false);
+  const [footerContactError, setFooterContactError] = useState('');
+
+  const handleFooterContactSubmit = async (e) => {
+    e.preventDefault();
+    if (!footerContactForm.firstName || !footerContactForm.lastName || !footerContactForm.email || !footerContactForm.message) {
+      setFooterContactError(t('sub_err_demo_fill'));
+      return;
+    }
+    setFooterContactSubmitting(true);
+    setFooterContactError('');
+    try {
+      await publicApi.submitDemoRequest({
+        first_name: footerContactForm.firstName,
+        last_name: footerContactForm.lastName,
+        phone: footerContactForm.phoneNumber,
+        email: footerContactForm.email,
+        message: footerContactForm.message,
+      });
+      setFooterContactSubmitted(true);
+      setFooterContactForm({ firstName: '', lastName: '', phoneNumber: '', email: '', message: '' });
+    } catch (error) {
+      console.error(error);
+      setFooterContactError(error.response?.data?.message || t('sub_err_demo_failed'));
+    } finally {
+      setFooterContactSubmitting(false);
+    }
+  };
 
   const stats = [
     { value: t('landing_stat_1_value'), label: t('landing_stat_1_label') },
@@ -794,25 +834,149 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="border-t border-gray-950 bg-[#05070d] py-12 sm:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
-          <div className="flex items-center gap-2">
-            <img src={logoMark} alt="GoCustify logo" className="w-8 h-8 rounded-lg" />
-            <span className="text-lg font-bold text-white">GoCustify</span>
+          {/* Contact Us */}
+          <div className="mb-12 sm:mb-16 rounded-3xl border border-gray-800 bg-gradient-to-b from-gray-900/60 to-[#070a13] p-5 sm:p-8">
+            <div className="mx-auto max-w-xl text-center mb-6 sm:mb-8">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-300">
+                <Mail size={22} />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">{t('footer_contact_heading')}</h2>
+              <p className="mt-2 text-xs sm:text-sm text-gray-400">{t('footer_contact_subheading')}</p>
+            </div>
+
+            {footerContactSubmitted ? (
+              <div className="mx-auto max-w-md text-center py-6">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-purple-900/30">
+                  <CheckCircle className="text-purple-400" size={28} />
+                </div>
+                <h3 className="mb-2 text-base sm:text-lg font-bold text-white">{t('footer_contact_success_title')}</h3>
+                <p className="mb-6 text-xs sm:text-sm text-gray-400">{t('footer_contact_success_desc')}</p>
+                <button
+                  type="button"
+                  onClick={() => setFooterContactSubmitted(false)}
+                  className="rounded-xl border border-gray-700 bg-transparent px-5 py-2.5 text-xs sm:text-sm font-semibold text-gray-300 transition-colors hover:bg-gray-800 hover:text-white cursor-pointer"
+                >
+                  {t('footer_contact_btn_send_another')}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleFooterContactSubmit} className="mx-auto max-w-2xl space-y-3.5 sm:space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                      {t('footer_contact_lbl_first_name')}
+                    </label>
+                    <input
+                      type="text"
+                      value={footerContactForm.firstName}
+                      onChange={(e) => setFooterContactForm((current) => ({ ...current, firstName: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60"
+                      placeholder={t('footer_contact_ph_first_name')}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                      {t('footer_contact_lbl_last_name')}
+                    </label>
+                    <input
+                      type="text"
+                      value={footerContactForm.lastName}
+                      onChange={(e) => setFooterContactForm((current) => ({ ...current, lastName: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60"
+                      placeholder={t('footer_contact_ph_last_name')}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                      {t('footer_contact_lbl_phone')}
+                    </label>
+                    <input
+                      type="tel"
+                      value={footerContactForm.phoneNumber}
+                      onChange={(e) => setFooterContactForm((current) => ({ ...current, phoneNumber: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60"
+                      placeholder={t('footer_contact_ph_phone')}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                      {t('footer_contact_lbl_email')}
+                    </label>
+                    <input
+                      type="email"
+                      value={footerContactForm.email}
+                      onChange={(e) => setFooterContactForm((current) => ({ ...current, email: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60"
+                      placeholder={t('footer_contact_ph_email')}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs uppercase tracking-[0.18em] text-gray-500">
+                    {t('footer_contact_lbl_message')}
+                  </label>
+                  <textarea
+                    value={footerContactForm.message}
+                    onChange={(e) => setFooterContactForm((current) => ({ ...current, message: e.target.value }))}
+                    rows={4}
+                    className="w-full rounded-2xl border border-gray-800 bg-[#0c1525] px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-purple-500/60 resize-none"
+                    placeholder={t('footer_contact_ph_message')}
+                  />
+                </div>
+
+                {footerContactError ? (
+                  <p className="text-xs sm:text-sm text-rose-400">{footerContactError}</p>
+                ) : null}
+
+                <div className="flex justify-center pt-1 sm:pt-2">
+                  <button
+                    type="submit"
+                    disabled={footerContactSubmitting}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 px-10 py-3 text-sm font-bold tracking-wide text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-purple-500/20 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {footerContactSubmitting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        {t('footer_contact_sending')}
+                      </>
+                    ) : (
+                      t('footer_contact_btn_send')
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 md:gap-8 text-xs font-semibold text-gray-500">
-            <a href="#journey" className="hover:text-gray-300 transition-colors">{t('nav_how_it_works')}</a>
-            <a href="#features" className="hover:text-gray-300 transition-colors">{t('nav_features')}</a>
-            <a href="#pricing" className="hover:text-gray-300 transition-colors">{t('nav_pricing')}</a>
-            <button type="button" onClick={() => navigate('/privacy-policy')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_privacy')}</button>
-            <button type="button" onClick={() => navigate('/sms-messaging-policy')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_sms_policy')}</button>
-            <button type="button" onClick={() => navigate('/terms-and-conditions')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_terms')}</button>
-          </div>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
 
-          <p className="text-xs text-gray-600 text-center md:text-right">
-            {t('footer_copyright_long')}
-          </p>
+            <div className="flex items-center gap-2">
+              <img src={logoMark} alt="GoCustify logo" className="w-8 h-8 rounded-lg" />
+              <span className="text-lg font-bold text-white">GoCustify LLC</span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 md:gap-8 text-xs font-semibold text-gray-500">
+              <a href="#journey" className="hover:text-gray-300 transition-colors">{t('nav_how_it_works')}</a>
+              <a href="#features" className="hover:text-gray-300 transition-colors">{t('nav_features')}</a>
+              <a href="#pricing" className="hover:text-gray-300 transition-colors">{t('nav_pricing')}</a>
+              <button type="button" onClick={() => navigate('/privacy-policy')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_privacy')}</button>
+              <button type="button" onClick={() => navigate('/sms-messaging-policy')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_sms_policy')}</button>
+              <button type="button" onClick={() => navigate('/terms-and-conditions')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_terms')}</button>
+              <button type="button" onClick={() => navigate('/acceptable-use-policy')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_acceptable_use')}</button>
+              <button type="button" onClick={() => navigate('/refund-policy')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_refund_policy')}</button>
+              <button type="button" onClick={() => navigate('/protocols-for-law-enforcement')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_law_enforcement')}</button>
+            </div>
+
+            <p className="text-xs text-gray-600 text-center md:text-right">
+              {t('footer_copyright_long')}
+            </p>
+          </div>
         </div>
       </footer>
 

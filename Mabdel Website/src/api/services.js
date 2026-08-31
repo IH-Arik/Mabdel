@@ -123,6 +123,8 @@ export const smartflowApi = {
   getPrivacyPolicy: () => client.get('/api/v1/content/privacy-policy'),
   getSmsMessagingPolicy: () => client.get('/api/v1/content/sms-messaging-policy'),
   getAcceptableUsePolicy: () => client.get('/api/v1/content/acceptable-use-policy'),
+  getRefundPolicy: () => client.get('/api/v1/content/refund-policy'),
+  getProtocolsForLawEnforcement: () => client.get('/api/v1/content/protocols-for-law-enforcement'),
   getHelpSupportContent: () => client.get('/api/v1/content/help-support'),
 
   // Shop

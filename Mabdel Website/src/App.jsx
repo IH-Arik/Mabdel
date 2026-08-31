@@ -59,6 +59,8 @@ function App() {
           <Route path="/terms-and-conditions" element={<ContentPage forcedSlug="terms-and-conditions" />} />
           <Route path="/sms-messaging-policy" element={<ContentPage forcedSlug="sms-messaging-policy" />} />
           <Route path="/acceptable-use-policy" element={<ContentPage forcedSlug="acceptable-use-policy" />} />
+          <Route path="/refund-policy" element={<ContentPage forcedSlug="refund-policy" />} />
+          <Route path="/protocols-for-law-enforcement" element={<ContentPage forcedSlug="protocols-for-law-enforcement" />} />
           <Route path="/about-us" element={<ContentPage forcedSlug="about-us" />} />
           <Route path="/help-support" element={<ContentPage forcedSlug="help-support" />} />
           <Route path="/confirm-meeting/:token" element={<ConfirmMeeting />} />

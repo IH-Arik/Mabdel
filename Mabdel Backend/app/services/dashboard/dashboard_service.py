@@ -362,6 +362,10 @@ class DashboardService:
             "about-us": "about-us",
             "help_support": "help-support",
             "help-support": "help-support",
+            "refund_policy": "refund-policy",
+            "refund-policy": "refund-policy",
+            "protocols_for_law_enforcement": "protocols-for-law-enforcement",
+            "protocols-for-law-enforcement": "protocols-for-law-enforcement",
         }
         return aliases.get(normalized, normalized)
 

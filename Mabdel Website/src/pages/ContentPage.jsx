@@ -15,6 +15,8 @@ const PAGE_META = {
   },
   'sms-messaging-policy': { request: () => smartflowApi.getSmsMessagingPolicy(), eyebrow: 'Messaging' },
   'acceptable-use-policy': { request: () => smartflowApi.getAcceptableUsePolicy(), eyebrow: 'Usage' },
+  'refund-policy': { request: () => smartflowApi.getRefundPolicy(), eyebrow: 'Billing' },
+  'protocols-for-law-enforcement': { request: () => smartflowApi.getProtocolsForLawEnforcement(), eyebrow: 'Legal' },
   'about-us': { request: () => smartflowApi.getAboutUs(), eyebrow: 'Company' },
   'help-support': { request: () => smartflowApi.getHelpSupportContent(), eyebrow: 'Support' },
 };
@@ -85,7 +87,7 @@ export default function ContentPage({ forcedSlug = '' }) {
 
           <div className="flex items-center gap-2">
             <img src={logoMark} alt={t('content_alt_logo')} className="w-9 h-9 rounded-lg shadow-lg shadow-purple-500/20" />
-            <span className="text-lg font-bold tracking-tight text-white">GoCustify</span>
+            <span className="text-lg font-bold tracking-tight text-white">GoCustify LLC</span>
           </div>
         </div>
       </header>
