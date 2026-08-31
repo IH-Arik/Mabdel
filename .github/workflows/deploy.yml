@@ -22,5 +22,9 @@ jobs:
 
       - name: Verify health
         run: |
-          sleep 10
-          curl -sf https://api.gocustify.com/health
+          for i in $(seq 1 12); do
+            if curl -sf https://api.gocustify.com/health; then exit 0; fi
+            sleep 5
+          done
+          echo "Backend did not become healthy within 60s"
+          exit 1
