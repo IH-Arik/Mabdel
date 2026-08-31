@@ -11,7 +11,11 @@ jobs:
       - name: Pull and rebuild
         run: |
           set -e
+          echo "whoami: $(whoami)"
+          echo "pwd before cd: $(pwd)"
           cd /home/ubuntu/Mabdel
+          echo "pwd after cd: $(pwd)"
+          ls -la .git || echo ".git NOT FOUND HERE"
           git pull origin master
           cd "Mabdel Backend"
           sudo docker compose -f docker-compose.prod.yml up -d --build
