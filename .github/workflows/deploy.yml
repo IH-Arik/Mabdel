@@ -28,3 +28,16 @@ jobs:
           done
           echo "Backend did not become healthy within 60s"
           exit 1
+
+      - name: Sync legal/content pages into DB
+        run: |
+          set -e
+          sudo docker exec mabdel-backend-api python -m scripts.sync_legal_content
+
+      - name: Build and deploy website
+        run: |
+          set -e
+          cd /home/ubuntu/Mabdel/"Mabdel Website"
+          npm install
+          npm run build
+          rsync -a dist/ /var/www/gocustify/
