@@ -133,7 +133,15 @@ class ZohoMailService:
         it corresponds to, distinct from the OAuth-authenticating user's login email."""
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
-                self.ACCOUNTS_URL, headers={"Authorization": f"Zoho-oauthtoken {access_token}", "Accept": "application/json"}
+                self.ACCOUNTS_URL,
+                headers={
+                    "Authorization": f"Zoho-oauthtoken {access_token}",
+                    "Accept": "application/json",
+                    # Zoho's docs list both this and Accept as required for this
+                    # endpoint — missing it is a known way to get a generic 500
+                    # instead of a real error from Zoho's API.
+                    "Content-Type": "application/json",
+                },
             )
         if response.status_code >= 400:
             raise AppException(
