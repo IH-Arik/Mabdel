@@ -252,6 +252,7 @@ export const TRANSLATIONS = {
     footer_acceptable_use: 'Acceptable Use Policy',
     footer_refund_policy: 'Refund Policy',
     footer_law_enforcement: 'Protocols for Law Enforcement',
+    footer_contact_info_label: 'Contact Information',
     footer_copyright: '© 2026 GoCustify. All rights reserved.',
     footer_copyright_long: '© 2026 GoCustify. AI-powered business automation for modern teams.',
     footer_contact_heading: 'Talk to GoCustify AI Team',

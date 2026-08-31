@@ -954,6 +954,13 @@ export default function Landing() {
             )}
           </div>
 
+          <div className="flex flex-col items-center gap-2 pb-6 text-center border-b border-gray-900 mb-6">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-600">{t('footer_contact_info_label')}</p>
+            <p className="text-sm text-gray-400">
+              GoCustify LLC — <a href="mailto:support@gocustify.com" className="text-purple-400 hover:text-purple-300 transition-colors">support@gocustify.com</a>
+            </p>
+          </div>
+
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
 
             <div className="flex items-center gap-2">
