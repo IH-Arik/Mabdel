@@ -60,3 +60,15 @@ async def get_acceptable_use_policy(service: ContentService = Depends(get_conten
 async def get_help_support(service: ContentService = Depends(get_content_service)) -> dict:
     page = await service.get_page("help-support")
     return success_response(data=page.model_dump(), message="Help and support fetched successfully.")
+
+
+@router.get("/refund-policy", response_model=ApiResponse[ContentPageResponse])
+async def get_refund_policy(service: ContentService = Depends(get_content_service)) -> dict:
+    page = await service.get_page("refund-policy")
+    return success_response(data=page.model_dump(), message="Refund policy fetched successfully.")
+
+
+@router.get("/protocols-for-law-enforcement", response_model=ApiResponse[ContentPageResponse])
+async def get_protocols_for_law_enforcement(service: ContentService = Depends(get_content_service)) -> dict:
+    page = await service.get_page("protocols-for-law-enforcement")
+    return success_response(data=page.model_dump(), message="Protocols for law enforcement fetched successfully.")
