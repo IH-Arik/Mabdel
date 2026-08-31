@@ -140,7 +140,7 @@ class ZohoMailService:
                 status_code=502,
                 code="ZOHO_ACCOUNTS_FAILED",
                 message="Zoho Mail account could not be loaded.",
-                details={"provider_status": response.status_code},
+                details={"provider_status": response.status_code, "provider_body": response.text[:500]},
             )
         accounts = (response.json() or {}).get("data") or []
         if not accounts:
