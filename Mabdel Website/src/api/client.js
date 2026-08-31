@@ -1,10 +1,13 @@
 import axios from 'axios';
 
+// VITE_API_BASE_URL is only ever set in local dev via .env; the production build has
+// never had one (see MainLayout.jsx's TEAM_DASHBOARD_URL for the same class of bug),
+// so an unset var must fall back to the real API host, not a dev-only localhost port.
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const isLocalHost = typeof window !== 'undefined' && ['127.0.0.1', 'localhost'].includes(window.location.hostname);
 export const API_BASE_URL = isLocalHost && configuredBaseUrl?.includes(':18000')
   ? 'http://127.0.0.1:8001'
-  : (configuredBaseUrl || 'http://127.0.0.1:8001');
+  : (configuredBaseUrl || 'https://api.gocustify.com');
 
 export function buildWebSocketUrl(path, token) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
