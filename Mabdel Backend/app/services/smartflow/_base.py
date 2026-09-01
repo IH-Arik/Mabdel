@@ -2122,7 +2122,10 @@ class SmartFlowBase:
                 "brand_color": "#0078D4",
                 "auth_mode": "oauth",
                 "is_available": True,
-                "is_configured": bool(settings.MICROSOFT_CLIENT_ID and settings.MICROSOFT_CLIENT_SECRET and settings.MICROSOFT_TENANT_ID),
+                # No tenant ID needed here — the app is multi-tenant, so any
+                # customer's own Microsoft 365 org can connect (see
+                # _oauth_provider("microsoft") for why).
+                "is_configured": bool(settings.MICROSOFT_CLIENT_ID and settings.MICROSOFT_CLIENT_SECRET),
             },
             {
                 "platform": "linkedin",
@@ -2223,8 +2226,15 @@ class SmartFlowBase:
             },
             "microsoft": {
                 "provider": "microsoft",
-                "authorize_url": f"https://login.microsoftonline.com/{settings.MICROSOFT_TENANT_ID or 'common'}/oauth2/v2.0/authorize",
-                "token_url": f"https://login.microsoftonline.com/{settings.MICROSOFT_TENANT_ID or 'common'}/oauth2/v2.0/token",
+                # "organizations" (not a specific tenant ID) so ANY GoCustify customer
+                # can connect their own Microsoft 365 org — matches the multi-tenant
+                # SaaS pattern already used for Google/Zoom/Zoho. This requires the
+                # Azure AD app registration itself to be set to multi-tenant
+                # ("Accounts in any organizational directory") rather than the
+                # single-tenant default — a single-tenant app rejects every user who
+                # isn't a member of that one specific tenant (AADSTS50020).
+                "authorize_url": "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize",
+                "token_url": "https://login.microsoftonline.com/organizations/oauth2/v2.0/token",
                 "client_id": settings.MICROSOFT_CLIENT_ID,
                 "client_secret": settings.MICROSOFT_CLIENT_SECRET,
                 "redirect_uri": settings.MICROSOFT_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/microsoft/oauth/callback",
