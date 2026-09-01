@@ -37,8 +37,9 @@ class MicrosoftMailService:
 
     @staticmethod
     def token_url() -> str:
-        tenant = settings.MICROSOFT_TENANT_ID or "common"
-        return f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+        # "organizations", not a specific tenant — see _oauth_provider("microsoft")
+        # in _base.py for why (multi-tenant SaaS: any customer's own Microsoft 365).
+        return "https://login.microsoftonline.com/organizations/oauth2/v2.0/token"
 
     async def get_connected_integration(self, user_id: str) -> dict | None:
         """Prefer the user's own connected Microsoft 365 account; fall back to
