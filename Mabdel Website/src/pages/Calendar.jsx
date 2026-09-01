@@ -764,6 +764,10 @@ function CalendarSyncPanel({
   zoomNeedsReauth,
   onConnectZoom,
   onDisconnectZoom,
+  microsoftConnected,
+  microsoftNeedsReauth,
+  onConnectMicrosoft,
+  onDisconnectMicrosoft,
   primaryProvider,
   providerSettingsLoading,
   onChangePrimaryProvider,
@@ -771,17 +775,23 @@ function CalendarSyncPanel({
   const { t } = useLanguage();
   const label = googleNeedsReauth ? t('cal_btn_reconnect_google') : googleConnected ? t('cal_btn_google_connected') : t('cal_btn_connect_google');
   const zoomLabel = zoomNeedsReauth ? t('cal_btn_reconnect_zoom') : zoomConnected ? t('cal_btn_zoom_connected') : t('cal_btn_connect_zoom');
+  const microsoftLabel = microsoftNeedsReauth
+    ? t('cal_btn_reconnect_microsoft')
+    : microsoftConnected
+    ? t('cal_btn_microsoft_connected')
+    : t('cal_btn_connect_microsoft');
 
   const connectedOptions = [
     appleConnected ? { value: 'caldav', label: t('cal_provider_apple') } : null,
     googleConnected ? { value: 'google_business', label: t('cal_provider_google') } : null,
     zoomConnected ? { value: 'zoom', label: t('cal_provider_zoom') } : null,
+    microsoftConnected ? { value: 'microsoft', label: t('cal_provider_microsoft') } : null,
   ].filter(Boolean);
 
-  // Once any provider is connected, it's the primary calendar and the other two
-  // connect buttons hide — disconnecting brings all three back. (A provider already
+  // Once any provider is connected, it's the primary calendar and the other
+  // connect buttons hide — disconnecting brings them all back. (A provider already
   // connected stays visible with its own disconnect control regardless.)
-  const anyConnected = appleConnected || googleConnected || zoomConnected;
+  const anyConnected = appleConnected || googleConnected || zoomConnected || microsoftConnected;
 
   return (
     <div className={`${PANEL} p-5 flex flex-col gap-4 text-left`}>
@@ -873,6 +883,27 @@ function CalendarSyncPanel({
             >
               <Link2 size={15} />
               {zoomLabel}
+            </button>
+          ) : null}
+          {microsoftConnected ? (
+            <button
+              type="button"
+              onClick={microsoftNeedsReauth ? onConnectMicrosoft : onDisconnectMicrosoft}
+              disabled={integrationsLoading}
+              className={`px-4 py-3 rounded-xl bg-[#0A1019] border font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60 ${microsoftNeedsReauth ? 'border-amber-500/40 text-amber-300' : 'border-[#243246] text-white'}`}
+            >
+              {microsoftNeedsReauth ? <AlertTriangle size={15} className="text-amber-400" /> : <CheckCircle2 size={15} className="text-emerald-400" />}
+              {microsoftLabel}
+            </button>
+          ) : !anyConnected ? (
+            <button
+              type="button"
+              onClick={onConnectMicrosoft}
+              disabled={integrationsLoading}
+              className="px-4 py-3 rounded-xl bg-[#0A1019] border border-[#243246] text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              <Link2 size={15} />
+              {microsoftLabel}
             </button>
           ) : null}
         </div>
@@ -1005,6 +1036,8 @@ export default function Calendar() {
   const [appleError, setAppleError] = useState('');
   const [zoomConnected, setZoomConnected] = useState(false);
   const [zoomNeedsReauth, setZoomNeedsReauth] = useState(false);
+  const [microsoftConnected, setMicrosoftConnected] = useState(false);
+  const [microsoftNeedsReauth, setMicrosoftNeedsReauth] = useState(false);
   const [primaryProvider, setPrimaryProvider] = useState(null);
   const [providerSettingsLoading, setProviderSettingsLoading] = useState(false);
 
@@ -1057,11 +1090,16 @@ export default function Calendar() {
       const zoom = items.find((item) => item.platform === 'zoom');
       setZoomConnected(Boolean(zoom?.connected));
       setZoomNeedsReauth(zoom?.health_status === 'needs_reauth' || zoom?.sync_status === 'needs_reauth');
+      const microsoft = items.find((item) => item.platform === 'microsoft');
+      setMicrosoftConnected(Boolean(microsoft?.connected));
+      setMicrosoftNeedsReauth(microsoft?.health_status === 'needs_reauth' || microsoft?.sync_status === 'needs_reauth');
     } catch {
       setGoogleConnected(false);
       setGoogleNeedsReauth(false);
       setZoomConnected(false);
       setZoomNeedsReauth(false);
+      setMicrosoftConnected(false);
+      setMicrosoftNeedsReauth(false);
     } finally {
       setIntegrationsLoading(false);
     }
@@ -1223,6 +1261,44 @@ export default function Calendar() {
     }
   }
 
+  async function handleMicrosoftConnect() {
+    try {
+      // Mail and calendar both authorize against the same Azure AD app/client_id
+      // (a single "microsoft" integration record backs both), so this reuses the
+      // exact same OAuth start endpoint/platform as BusinessEmailDomain.jsx's
+      // "Connect Microsoft 365" button.
+      const response = await smartflowApi.startIntegrationOAuth('microsoft');
+      const authUrl = response?.data?.data?.auth_url || response?.data?.auth_url;
+      if (!authUrl) {
+        window.alert(t('cal_err_no_auth_url'));
+        return;
+      }
+      const popup = window.open(authUrl, 'mabdel-microsoft-calendar', 'width=640,height=820');
+      const startedAt = Date.now();
+      const timer = window.setInterval(async () => {
+        const closed = !popup || popup.closed;
+        const expired = Date.now() - startedAt > 10 * 60 * 1000;
+        if (!closed && !expired) return;
+        window.clearInterval(timer);
+        await fetchIntegrationState();
+        await fetchProviderSettings();
+        await fetchAll();
+      }, 1500);
+    } catch (err) {
+      window.alert(err.response?.data?.message || t('cal_err_microsoft_start'));
+    }
+  }
+
+  async function handleMicrosoftDisconnect() {
+    try {
+      await smartflowApi.disconnectIntegration('microsoft');
+      await fetchIntegrationState();
+      await fetchProviderSettings();
+    } catch (err) {
+      window.alert(err.response?.data?.message || t('cal_err_microsoft_disconnect'));
+    }
+  }
+
   useEffect(() => {
     const onFocus = () => {
       fetchIntegrationState();
@@ -1232,7 +1308,12 @@ export default function Calendar() {
     const onMessage = (event) => {
       if (
         event?.data?.type === 'mabdel-google-calendar-oauth' ||
-        event?.data?.type === 'mabdel-zoom-calendar-oauth'
+        event?.data?.type === 'mabdel-zoom-calendar-oauth' ||
+        // Backend keys its OAuth popup message type by platform ("microsoft"),
+        // not by feature — the same "mabdel-microsoft-oauth" message fires here
+        // and in BusinessEmailDomain.jsx's Microsoft 365 card, since both share
+        // one integration record from one Azure AD app registration.
+        event?.data?.type === 'mabdel-microsoft-oauth'
       ) {
         fetchIntegrationState();
         fetchProviderSettings();
@@ -1318,6 +1399,10 @@ export default function Calendar() {
         zoomNeedsReauth={zoomNeedsReauth}
         onConnectZoom={handleZoomConnect}
         onDisconnectZoom={handleZoomDisconnect}
+        microsoftConnected={microsoftConnected}
+        microsoftNeedsReauth={microsoftNeedsReauth}
+        onConnectMicrosoft={handleMicrosoftConnect}
+        onDisconnectMicrosoft={handleMicrosoftDisconnect}
         primaryProvider={primaryProvider}
         providerSettingsLoading={providerSettingsLoading}
         onChangePrimaryProvider={handleChangePrimaryProvider}

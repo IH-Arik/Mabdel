@@ -128,6 +128,7 @@ async def complete_integration_oauth(
         "google_business": ("Google Calendar", "mabdel-google-calendar-oauth"),
         "zoom": ("Zoom Calendar", "mabdel-zoom-calendar-oauth"),
         "zoho": ("Zoho Mail", "mabdel-zoho-mail-oauth"),
+        "microsoft": ("Microsoft 365", "mabdel-microsoft-oauth"),
     }
     if platform in popup_platforms:
         label, message_type = popup_platforms[platform]

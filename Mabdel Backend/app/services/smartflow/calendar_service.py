@@ -13,17 +13,19 @@ from pymongo import ReturnDocument
 from ._base import SmartFlowBase
 from .caldav_service import CalDAVService
 from .google_calendar_service import GoogleCalendarService
+from .microsoft_calendar_service import MicrosoftCalendarService
 from .zoom_calendar_service import ZoomCalendarService
 
 
 class CalendarService(SmartFlowBase):
-    CALENDAR_SYNC_PROVIDERS = ("caldav", "google_business", "zoom")
+    CALENDAR_SYNC_PROVIDERS = ("caldav", "google_business", "zoom", "microsoft")
 
     def __init__(self, db) -> None:
         super().__init__(db)
         self.google_calendar_service = GoogleCalendarService(db)
         self.caldav_service = CalDAVService(db)
         self.zoom_calendar_service = ZoomCalendarService(db)
+        self.microsoft_calendar_service = MicrosoftCalendarService(db)
 
     async def get_calendar_provider_settings(self, user_id: str) -> dict:
         """Which calendar provider is the primary two-way sync target, and which
@@ -57,7 +59,7 @@ class CalendarService(SmartFlowBase):
         caldav_connected = bool(caldav_connection) and caldav_connection.get("status") == "connected"
 
         connected_docs = await self.db.social_integrations.find(
-            {"user_id": {"$in": team_ids}, "platform": {"$in": ["google_business", "zoom"]}, "status": "connected"},
+            {"user_id": {"$in": team_ids}, "platform": {"$in": ["google_business", "zoom", "microsoft"]}, "status": "connected"},
             {"platform": 1},
         ).to_list(length=10)
         connected_platforms = {doc["platform"] for doc in connected_docs}
@@ -66,6 +68,7 @@ class CalendarService(SmartFlowBase):
             "caldav": caldav_connected,
             "google_business": "google_business" in connected_platforms,
             "zoom": "zoom" in connected_platforms,
+            "microsoft": "microsoft" in connected_platforms,
         }
         explicit_primary = (org or {}).get("primary_calendar_provider")
         if explicit_primary in self.CALENDAR_SYNC_PROVIDERS and connected.get(explicit_primary):
@@ -331,6 +334,7 @@ class CalendarService(SmartFlowBase):
         needs_meet_link = payload.get("meeting_mode") == "online" and not payload.get("meeting_link")
         google_event = None
         zoom_meeting = None
+        microsoft_event = None
 
         if primary == "google_business":
             try:
@@ -344,10 +348,17 @@ class CalendarService(SmartFlowBase):
             except AppException:
                 zoom_meeting = None
                 payload["sync_status"] = "error"
+        elif primary == "microsoft":
+            try:
+                microsoft_event = await self.microsoft_calendar_service.create_remote_event(user_id, payload)
+            except AppException:
+                microsoft_event = None
+                payload["sync_status"] = "error"
         elif needs_meet_link:
             # Not the primary synced calendar, but still connected purely to mint a
-            # real meeting link — Zoom preferred over Google if both are connected
-            # this way (arbitrary but stable tie-break; either produces a real link).
+            # real meeting link — Zoom preferred over Google/Microsoft if more than
+            # one is connected this way (arbitrary but stable tie-break; any of
+            # them produces a real link).
             if connected.get("zoom"):
                 try:
                     zoom_meeting = await self.zoom_calendar_service.create_remote_event(user_id, payload)
@@ -358,6 +369,11 @@ class CalendarService(SmartFlowBase):
                     google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
                 except AppException:
                     google_event = None
+            elif connected.get("microsoft"):
+                try:
+                    microsoft_event = await self.microsoft_calendar_service.create_remote_event(user_id, payload)
+                except AppException:
+                    microsoft_event = None
 
         if google_event:
             if needs_meet_link:
@@ -385,6 +401,18 @@ class CalendarService(SmartFlowBase):
                     "integration_platform": "zoom",
                     "zoom_join_url": zoom_meeting.get("join_url"),
                     "zoom_start_url": zoom_meeting.get("start_url"),
+                }
+        if microsoft_event:
+            if needs_meet_link:
+                payload["meeting_link"] = self.microsoft_calendar_service._extract_meeting_link(microsoft_event)
+            if primary == "microsoft":
+                payload["microsoft_event_id"] = microsoft_event.get("id")
+                payload["sync_status"] = "synced"
+                payload["calendar_source"] = "mabdel_microsoft_sync"
+                payload["provider_metadata"] = {
+                    "integration_platform": "microsoft",
+                    "microsoft_web_link": microsoft_event.get("webLink"),
+                    "microsoft_join_url": self.microsoft_calendar_service._extract_meeting_link(microsoft_event),
                 }
         if payload.get("meeting_mode") == "online" and not payload.get("meeting_link"):
             payload["meeting_link"] = self._generate_meeting_link()
@@ -428,8 +456,10 @@ class CalendarService(SmartFlowBase):
         connected = provider_settings["connected"]
         google_event = None
         zoom_meeting = None
+        microsoft_event = None
         google_event_id = event.get("google_event_id")
         zoom_meeting_id = event.get("zoom_meeting_id")
+        microsoft_event_id = event.get("microsoft_event_id")
         needs_meet_link = merged.get("meeting_mode") == "online" and not merged.get("meeting_link")
 
         if primary == "google_business":
@@ -456,6 +486,18 @@ class CalendarService(SmartFlowBase):
             except AppException:
                 zoom_meeting = None
                 clean_updates["sync_status"] = "error"
+        elif primary == "microsoft":
+            try:
+                if microsoft_event_id:
+                    microsoft_event = await self.microsoft_calendar_service.update_remote_event(user_id, microsoft_event_id, merged)
+                else:
+                    microsoft_event = await self.microsoft_calendar_service.create_remote_event(user_id, merged)
+                    if microsoft_event:
+                        clean_updates["microsoft_event_id"] = microsoft_event.get("id")
+                        microsoft_event_id = microsoft_event.get("id")
+            except AppException:
+                microsoft_event = None
+                clean_updates["sync_status"] = "error"
         elif needs_meet_link:
             if connected.get("zoom"):
                 try:
@@ -467,6 +509,11 @@ class CalendarService(SmartFlowBase):
                     google_event = await self.google_calendar_service.create_remote_event(user_id, merged)
                 except AppException:
                     google_event = None
+            elif connected.get("microsoft"):
+                try:
+                    microsoft_event = await self.microsoft_calendar_service.create_remote_event(user_id, merged)
+                except AppException:
+                    microsoft_event = None
         if google_event:
             if needs_meet_link:
                 real_link = self.google_calendar_service._extract_meeting_link(google_event)
@@ -498,6 +545,20 @@ class CalendarService(SmartFlowBase):
                     "zoom_join_url": zoom_meeting.get("join_url"),
                     "zoom_start_url": zoom_meeting.get("start_url"),
                 }
+        if microsoft_event:
+            if needs_meet_link:
+                real_link = self.microsoft_calendar_service._extract_meeting_link(microsoft_event)
+                if real_link:
+                    clean_updates["meeting_link"] = real_link
+                    merged["meeting_link"] = real_link
+            if primary == "microsoft":
+                clean_updates["sync_status"] = "synced"
+                clean_updates["calendar_source"] = "mabdel_microsoft_sync"
+                clean_updates["provider_metadata"] = {
+                    "integration_platform": "microsoft",
+                    "microsoft_web_link": microsoft_event.get("webLink"),
+                    "microsoft_join_url": self.microsoft_calendar_service._extract_meeting_link(microsoft_event),
+                }
         if merged.get("meeting_mode") == "online" and not merged.get("meeting_link"):
             clean_updates["meeting_link"] = self._generate_meeting_link()
             merged["meeting_link"] = clean_updates["meeting_link"]
@@ -505,6 +566,8 @@ class CalendarService(SmartFlowBase):
             clean_updates["sync_status"] = "synced" if clean_updates["google_event_id"] else "local"
         if "zoom_meeting_id" in clean_updates and primary == "zoom":
             clean_updates["sync_status"] = "synced" if clean_updates["zoom_meeting_id"] else "local"
+        if "microsoft_event_id" in clean_updates and primary == "microsoft":
+            clean_updates["sync_status"] = "synced" if clean_updates["microsoft_event_id"] else "local"
         if primary == "caldav":
             try:
                 caldav_uid = await self.caldav_service.push_event(
@@ -558,6 +621,8 @@ class CalendarService(SmartFlowBase):
             await self.google_calendar_service.delete_remote_event(user_id, event.get("google_event_id"))
         if event.get("zoom_meeting_id"):
             await self.zoom_calendar_service.delete_remote_event(user_id, event.get("zoom_meeting_id"))
+        if event.get("microsoft_event_id"):
+            await self.microsoft_calendar_service.delete_remote_event(user_id, event.get("microsoft_event_id"))
         if event.get("caldav_uid"):
             await self.caldav_service.delete_event(user_id, event.get("caldav_uid"))
         await self.db.calendar_events.delete_one({"_id": event["_id"]})

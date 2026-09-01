@@ -40,9 +40,11 @@ class EmailService:
 
         ``sender_provider``/``sender_user_id``/``db`` come from
         ``EmailDomainService.resolve_sender`` — when the sender resolved to a
-        connected Zoho Mail account (``sender_provider == "zoho"``), this routes
-        through Zoho's own send API instead of Resend/SMTP, since that mailbox
-        lives on Zoho's infrastructure, not ours.
+        connected Zoho Mail account (``sender_provider == "zoho"``) or a
+        connected Microsoft 365/Outlook account (``sender_provider ==
+        "microsoft"``), this routes through that provider's own send API
+        instead of Resend/SMTP, since that mailbox lives on the provider's own
+        infrastructure, not ours.
         """
         if sender_provider == "zoho" and sender_user_id and db is not None:
             from app.services.email_domain.zoho_mail_service import ZohoMailService
@@ -60,6 +62,21 @@ class EmailService:
             # Connection vanished between resolve and send (disconnected mid-flight,
             # token unrecoverable) — fall through to the platform default rather
             # than losing the message.
+
+        if sender_provider == "microsoft" and sender_user_id and db is not None:
+            from app.services.email_domain.microsoft_mail_service import MicrosoftMailService
+
+            sent = await MicrosoftMailService(db).send_email(
+                sender_user_id,
+                to=email,
+                subject=subject,
+                html=html,
+                text=text,
+                reply_to=reply_to,
+            )
+            if sent:
+                return
+            # Same fallback rationale as the Zoho branch above.
 
         await self._send_email(
             email=email,

@@ -19,6 +19,7 @@ from ._base import SmartFlowBase
 from .calendar_service import CalendarService
 from .conversation_service import ConversationService
 from .google_calendar_service import GoogleCalendarService
+from .microsoft_calendar_service import MicrosoftCalendarService
 from .zoom_calendar_service import ZoomCalendarService
 
 
@@ -31,12 +32,15 @@ class IntegrationService(SmartFlowBase):
         # smartflow_service -> smartflow). Same precedent as
         # SmartFlowBase._resolve_bulk_sender's local EmailDomainService import.
         from app.services.email_domain.zoho_mail_service import ZohoMailService
+        from app.services.email_domain.microsoft_mail_service import MicrosoftMailService
 
         self.conversation_service = conversation_service or ConversationService(db)
         self.google_calendar_service = GoogleCalendarService(db)
         self.zoom_calendar_service = ZoomCalendarService(db)
+        self.microsoft_calendar_service = MicrosoftCalendarService(db)
         self.calendar_service = CalendarService(db)
         self.zoho_mail_service = ZohoMailService(db)
+        self.microsoft_mail_service = MicrosoftMailService(db)
 
     async def list_integrations(self, user_id: str) -> list[dict]:
         team_ids = await self._resolve_team_user_ids(user_id)
@@ -132,7 +136,7 @@ class IntegrationService(SmartFlowBase):
         integration = await self.db.social_integrations.find_one({"user_id": user_id, "platform": platform, "status": "connected"})
         if not integration:
             raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
-        if platform in {"google_business", "zoom"}:
+        if platform in {"google_business", "zoom", "microsoft"}:
             provider_settings = await self.calendar_service.get_calendar_provider_settings(user_id)
             if provider_settings["primary_calendar_provider"] != platform:
                 # Another provider is the primary synced calendar for this user; this
@@ -145,6 +149,8 @@ class IntegrationService(SmartFlowBase):
             )
             if platform == "google_business":
                 return await self.google_calendar_service.sync_events(user_id, integration)
+            if platform == "microsoft":
+                return await self.microsoft_calendar_service.sync_events(user_id, integration)
             return await self.zoom_calendar_service.sync_events(user_id, integration)
         adapter = get_social_provider_adapter(platform)
         now = utc_now()
@@ -462,6 +468,24 @@ class IntegrationService(SmartFlowBase):
                 "email": zoho_account.get("email"),
                 "display_name": zoho_account.get("display_name"),
             }
+        elif platform == "microsoft":
+            # One Azure AD app registration/consent covers both bulk email sending
+            # and Outlook Calendar sync, so this single OAuth completion stores one
+            # provider_metadata shape read by both MicrosoftMailService (email,
+            # display_name) and MicrosoftCalendarService (calendar_provider,
+            # timezone) — mirroring Zoho's mail-only branch above plus Zoom/Google's
+            # calendar_provider marker below.
+            microsoft_account = await self.microsoft_mail_service.fetch_account_context(access_token)
+            account_metadata = {
+                "external_account_id": microsoft_account.get("email"),
+                "external_account_name": microsoft_account.get("email") or "Microsoft 365",
+            }
+            provider_metadata = {
+                "email": microsoft_account.get("email"),
+                "display_name": microsoft_account.get("display_name"),
+                "calendar_provider": "microsoft_calendar",
+                "timezone": "UTC",
+            }
         else:
             adapter = get_social_provider_adapter(platform)
             account_metadata = await adapter.fetch_account_metadata(access_token, token_data)
@@ -489,7 +513,7 @@ class IntegrationService(SmartFlowBase):
             },
         )
         await self.db.oauth_states.delete_one({"_id": state_doc["_id"]})
-        if platform in {"google_business", "zoom"}:
+        if platform in {"google_business", "zoom", "microsoft"}:
             # sync_integration itself now checks get_calendar_provider_settings to
             # decide full pull-sync vs. meet-link-only — no connect-time flag needed.
             await self.sync_integration(state_doc["user_id"], platform)

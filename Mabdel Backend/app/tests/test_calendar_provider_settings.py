@@ -83,7 +83,7 @@ def test_provider_settings_default_to_legacy_auto_priority(client, mock_db, monk
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["primary_calendar_provider"] == "google_business"
-    assert data["connected"] == {"caldav": False, "google_business": True, "zoom": True}
+    assert data["connected"] == {"caldav": False, "google_business": True, "zoom": True, "microsoft": False}
 
 
 def test_user_can_manually_override_primary_provider(client, mock_db, monkeypatch) -> None:

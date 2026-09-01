@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     ZOHO_CLIENT_ID: str | None = None
     ZOHO_CLIENT_SECRET: str | None = None
     ZOHO_REDIRECT_URI: str | None = None
+    MICROSOFT_CLIENT_ID: str | None = None
+    MICROSOFT_CLIENT_SECRET: str | None = None
+    MICROSOFT_TENANT_ID: str | None = None
+    MICROSOFT_REDIRECT_URI: str | None = None
     DOCUSIGN_CLIENT_ID: str | None = None
     DOCUSIGN_CLIENT_SECRET: str | None = None
     DOCUSIGN_ACCOUNT_ID: str | None = None

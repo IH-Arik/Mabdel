@@ -2115,6 +2115,16 @@ class SmartFlowBase:
                 "is_configured": bool(settings.ZOHO_CLIENT_ID and settings.ZOHO_CLIENT_SECRET),
             },
             {
+                "platform": "microsoft",
+                "platform_label": "Microsoft 365",
+                "description": "Send bulk email from your Outlook mailbox and sync your Outlook Calendar.",
+                "icon_key": "microsoft",
+                "brand_color": "#0078D4",
+                "auth_mode": "oauth",
+                "is_available": True,
+                "is_configured": bool(settings.MICROSOFT_CLIENT_ID and settings.MICROSOFT_CLIENT_SECRET and settings.MICROSOFT_TENANT_ID),
+            },
+            {
                 "platform": "linkedin",
                 "platform_label": "LinkedIn",
                 "description": "B2B outreach and company updates.",
@@ -2210,6 +2220,30 @@ class SmartFlowBase:
                 # prompt=consent forces Zoho to reissue one even on a repeat connect
                 # (otherwise a second consent can come back with no refresh_token).
                 "extra_authorize_params": {"access_type": "offline", "prompt": "consent"},
+            },
+            "microsoft": {
+                "provider": "microsoft",
+                "authorize_url": f"https://login.microsoftonline.com/{settings.MICROSOFT_TENANT_ID or 'common'}/oauth2/v2.0/authorize",
+                "token_url": f"https://login.microsoftonline.com/{settings.MICROSOFT_TENANT_ID or 'common'}/oauth2/v2.0/token",
+                "client_id": settings.MICROSOFT_CLIENT_ID,
+                "client_secret": settings.MICROSOFT_CLIENT_SECRET,
+                "redirect_uri": settings.MICROSOFT_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/microsoft/oauth/callback",
+                # One consent covers both bulk email sending (Mail.Send) and Outlook
+                # Calendar sync (Calendars.ReadWrite) — a single Azure AD app
+                # registration backs both features, so there is one stored
+                # integration record used by both MicrosoftMailService and
+                # MicrosoftCalendarService, not two separate OAuth connections.
+                "scopes": [
+                    "offline_access",
+                    "https://graph.microsoft.com/Mail.Send",
+                    "https://graph.microsoft.com/Calendars.ReadWrite",
+                    "https://graph.microsoft.com/User.Read",
+                ],
+                "token_payload": {"grant_type": "authorization_code"},
+                # offline_access is required to get a refresh_token back at all —
+                # Microsoft omits it otherwise, exactly like Zoho's
+                # access_type=offline behavior.
+                "extra_authorize_params": {},
             },
             "instagram": {
                 "provider": "meta",
