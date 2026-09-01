@@ -69,6 +69,13 @@ export default function BusinessEmailDomain() {
   const [zohoBusy, setZohoBusy] = useState(false);
   const zohoWindowRef = useRef(null);
 
+  const [microsoftConnected, setMicrosoftConnected] = useState(false);
+  const [microsoftEmail, setMicrosoftEmail] = useState('');
+  const [microsoftNeedsReauth, setMicrosoftNeedsReauth] = useState(false);
+  const [microsoftLoading, setMicrosoftLoading] = useState(true);
+  const [microsoftBusy, setMicrosoftBusy] = useState(false);
+  const microsoftWindowRef = useRef(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -98,10 +105,28 @@ export default function BusinessEmailDomain() {
     }
   }, []);
 
+  const loadMicrosoftStatus = useCallback(async () => {
+    setMicrosoftLoading(true);
+    try {
+      const response = await smartflowApi.getIntegrationStatus();
+      const items = unwrap(response)?.items || [];
+      const microsoft = items.find((item) => item.platform === 'microsoft');
+      setMicrosoftConnected(Boolean(microsoft?.connected));
+      setMicrosoftEmail(microsoft?.external_account_name || '');
+      setMicrosoftNeedsReauth(microsoft?.health_status === 'needs_reauth' || microsoft?.sync_status === 'needs_reauth');
+    } catch {
+      setMicrosoftConnected(false);
+      setMicrosoftEmail('');
+    } finally {
+      setMicrosoftLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     load();
     loadZohoStatus();
-  }, [load, loadZohoStatus]);
+    loadMicrosoftStatus();
+  }, [load, loadZohoStatus, loadMicrosoftStatus]);
 
   useEffect(() => {
     function handleFocus() {
@@ -109,10 +134,17 @@ export default function BusinessEmailDomain() {
         zohoWindowRef.current = null;
         loadZohoStatus();
       }
+      if (microsoftWindowRef.current && microsoftWindowRef.current.closed) {
+        microsoftWindowRef.current = null;
+        loadMicrosoftStatus();
+      }
     }
     function handleMessage(event) {
       if (event?.data?.type === 'mabdel-zoho-mail-oauth') {
         loadZohoStatus();
+      }
+      if (event?.data?.type === 'mabdel-microsoft-oauth') {
+        loadMicrosoftStatus();
       }
     }
     window.addEventListener('focus', handleFocus);
@@ -121,7 +153,7 @@ export default function BusinessEmailDomain() {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('message', handleMessage);
     };
-  }, [loadZohoStatus]);
+  }, [loadZohoStatus, loadMicrosoftStatus]);
 
   async function handleConnectZoho() {
     setZohoBusy(true);
@@ -150,6 +182,36 @@ export default function BusinessEmailDomain() {
       setError(err.response?.data?.message || t('bed_err_zoho_disconnect'));
     } finally {
       setZohoBusy(false);
+    }
+  }
+
+  async function handleConnectMicrosoft() {
+    setMicrosoftBusy(true);
+    try {
+      const res = await smartflowApi.startIntegrationOAuth('microsoft');
+      const url = res?.data?.data?.auth_url || res?.data?.auth_url;
+      if (!url) {
+        setError(t('bed_err_microsoft_no_auth_url'));
+        return;
+      }
+      microsoftWindowRef.current = window.open(url, '_blank');
+    } catch (err) {
+      setError(err.response?.data?.message || t('bed_err_microsoft_connect'));
+    } finally {
+      setMicrosoftBusy(false);
+    }
+  }
+
+  async function handleDisconnectMicrosoft() {
+    setMicrosoftBusy(true);
+    try {
+      await smartflowApi.disconnectIntegration('microsoft');
+      await loadMicrosoftStatus();
+      setNotice(t('bed_msg_microsoft_disconnected'));
+    } catch (err) {
+      setError(err.response?.data?.message || t('bed_err_microsoft_disconnect'));
+    } finally {
+      setMicrosoftBusy(false);
     }
   }
 
@@ -463,7 +525,7 @@ export default function BusinessEmailDomain() {
         ) : null}
       </div>
 
-      {domain?.status === 'verified' && zohoConnected ? (
+      {domain?.status === 'verified' && (zohoConnected || microsoftConnected) ? (
         <p className="text-amber-300 text-[13px] leading-relaxed bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
           {t('bed_zoho_overrides_domain_hint')}
         </p>
@@ -491,6 +553,65 @@ export default function BusinessEmailDomain() {
         >
           {zohoBusy || zohoLoading ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
           {t('bed_zoho_btn_connect')}
+        </button>
+      )}
+    </div>
+
+    <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 space-y-3 text-left">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0078D422' }}>
+          <Link2 size={20} className="text-[#0078D4]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[#F3F9FF] font-bold text-[16px]">{t('bed_microsoft_title')}</h3>
+          <p className="text-[#9BA7BB] text-[13px] mt-0.5">{t('bed_microsoft_subtitle')}</p>
+        </div>
+        {microsoftConnected ? (
+          <span
+            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold ${
+              microsoftNeedsReauth ? 'text-amber-300 bg-amber-500/10' : 'text-emerald-400 bg-emerald-500/10'
+            }`}
+          >
+            {microsoftNeedsReauth ? <AlertCircle size={13} /> : <CheckCircle2 size={13} />}
+            {microsoftNeedsReauth ? t('bed_microsoft_needs_reauth') : t('bed_microsoft_connected')}
+          </span>
+        ) : null}
+      </div>
+
+      {domain?.status === 'verified' && microsoftConnected ? (
+        <p className="text-amber-300 text-[13px] leading-relaxed bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+          {t('bed_microsoft_overrides_domain_hint')}
+        </p>
+      ) : null}
+
+      {microsoftConnected ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {microsoftEmail ? <span className="text-[#C6D2E2] text-[14px] break-all">{microsoftEmail}</span> : null}
+          <button
+            type="button"
+            onClick={microsoftNeedsReauth ? handleConnectMicrosoft : handleDisconnectMicrosoft}
+            disabled={microsoftBusy || microsoftLoading}
+            className="h-[38px] px-4 bg-[#0C0E12] border border-[#1E2530] text-rose-400 rounded-xl font-semibold hover:bg-rose-500/10 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2 text-[13px]"
+          >
+            {microsoftBusy ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : microsoftNeedsReauth ? (
+              <RefreshCw size={14} />
+            ) : (
+              <Trash2 size={14} />
+            )}
+            {microsoftNeedsReauth ? t('bed_microsoft_btn_reconnect') : t('bed_microsoft_btn_disconnect')}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleConnectMicrosoft}
+          disabled={microsoftBusy || microsoftLoading}
+          className="h-[42px] px-4 bg-[#0C0E12] border border-[#1E2530] text-[#F3F9FF] rounded-xl font-semibold hover:border-[#0078D4]/50 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2 text-[14px]"
+        >
+          {microsoftBusy || microsoftLoading ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
+          {t('bed_microsoft_btn_connect')}
         </button>
       )}
     </div>

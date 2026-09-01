@@ -78,15 +78,29 @@ class EmailDomainService:
     async def resolve_sender(self, user_id: str, prefix: str | None = None) -> dict | None:
         """Resolve the From identity for an owner, or None to use the platform default.
 
-        A connected Zoho Mail account (a business that already hosts its domain's
-        mail on Zoho) takes priority over the Resend-provisioned domain below: it's
-        an explicit, deliberate connection of a real existing mailbox, whereas the
-        Resend domain may just be an auto-provisioned subdomain nobody actively
-        chose. Only one sender is ever returned — never mix the two.
+        A connected Zoho Mail or Microsoft 365/Outlook account (a business that
+        already hosts its mail on one of these) takes priority over the
+        Resend-provisioned domain below: connecting either is an explicit,
+        deliberate choice of a real existing mailbox, whereas the Resend domain
+        may just be an auto-provisioned subdomain nobody actively chose.
+
+        Zoho and Microsoft are mutually exclusive alternatives to each other too
+        — a business would only ever connect one real mailbox provider, not
+        both. If, unusually, both ended up connected at once, the one connected
+        *more recently* wins (compared by ``connected_at``), so reconnecting
+        either provider always takes over sending. Only one sender is ever
+        returned — never mix providers.
         """
-        zoho_sender = await self._resolve_zoho_sender(user_id)
-        if zoho_sender:
-            return zoho_sender
+        zoho_integration = await self._resolve_zoho_integration(user_id)
+        microsoft_integration = await self._resolve_microsoft_integration(user_id)
+
+        candidates = [item for item in (zoho_integration, microsoft_integration) if item]
+        if candidates:
+            candidates.sort(key=lambda item: item.get("connected_at") or utc_now(), reverse=True)
+            winner = candidates[0]
+            sender = self._sender_from_integration(winner)
+            if sender:
+                return sender
 
         record = await self.get_domain_by_user_id(user_id)
         if not record or record.get("status") != "verified":
@@ -98,12 +112,24 @@ class EmailDomainService:
             "domain": record["domain"],
         }
 
-    async def _resolve_zoho_sender(self, user_id: str) -> dict | None:
+    async def _resolve_zoho_integration(self, user_id: str) -> dict | None:
         from .zoho_mail_service import ZohoMailService
 
         integration = await ZohoMailService(self.db).get_connected_integration(user_id)
         if not integration:
             return None
+        return {**integration, "_sender_provider": "zoho"}
+
+    async def _resolve_microsoft_integration(self, user_id: str) -> dict | None:
+        from .microsoft_mail_service import MicrosoftMailService
+
+        integration = await MicrosoftMailService(self.db).get_connected_integration(user_id)
+        if not integration:
+            return None
+        return {**integration, "_sender_provider": "microsoft"}
+
+    @staticmethod
+    def _sender_from_integration(integration: dict) -> dict | None:
         provider_metadata = integration.get("provider_metadata") or {}
         email = provider_metadata.get("email")
         if not email:
@@ -112,7 +138,7 @@ class EmailDomainService:
             "email": email,
             "name": provider_metadata.get("display_name") or None,
             "domain": email.split("@")[-1],
-            "provider": "zoho",
+            "provider": integration["_sender_provider"],
         }
 
     # ── provisioning ──────────────────────────────────────────────────────
