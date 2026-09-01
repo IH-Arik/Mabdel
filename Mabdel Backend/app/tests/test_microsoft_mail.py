@@ -50,7 +50,6 @@ def test_microsoft_oauth_callback_uses_body_auth_and_stores_account(client, mock
 
     monkeypatch.setattr(settings, "MICROSOFT_CLIENT_ID", "microsoft-client-id")
     monkeypatch.setattr(settings, "MICROSOFT_CLIENT_SECRET", "microsoft-secret")
-    monkeypatch.setattr(settings, "MICROSOFT_TENANT_ID", "test-tenant-id")
     monkeypatch.setattr(
         settings, "MICROSOFT_REDIRECT_URI", "http://127.0.0.1:8000/api/v1/smartflow/integrations/microsoft/oauth/callback"
     )
@@ -67,7 +66,9 @@ def test_microsoft_oauth_callback_uses_body_auth_and_stores_account(client, mock
             assert auth is None
             assert data.get("client_id") == "microsoft-client-id"
             assert data.get("client_secret") == "microsoft-secret"
-            assert "test-tenant-id" in str(url)
+            # "organizations", not a specific tenant — multi-tenant SaaS, any
+            # customer's own Microsoft 365 org can connect.
+            assert "/organizations/" in str(url)
             return httpx.Response(
                 200,
                 json={
