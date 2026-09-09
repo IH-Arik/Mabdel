@@ -11,6 +11,7 @@ from ._base import SmartFlowBase
 MAX_LANGUAGE_MENU_OPTIONS = 4
 MAX_CUSTOM_INSTRUCTIONS_CHARS = 2000
 MAX_GREETING_CHARS = 500
+MAX_CLOSING_MESSAGE_CHARS = 500
 
 
 class AICallSettingsService(SmartFlowBase):
@@ -28,6 +29,7 @@ class AICallSettingsService(SmartFlowBase):
         "custom_instructions": None,
         "greeting_inbound": None,
         "greeting_outbound": None,
+        "closing_message": None,
         "language_menu_enabled": False,
         "language_menu": [],
     }

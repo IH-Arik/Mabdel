@@ -75,6 +75,9 @@ export const smartflowApi = {
   getCallRecording: (id) => client.get(`/api/v1/smartflow/calls/${id}/recording`, { responseType: 'blob' }),
   getAICallSettings: () => client.get('/api/v1/smartflow/ai-call-settings'),
   updateAICallSettings: (data) => client.patch('/api/v1/smartflow/ai-call-settings', data),
+  startAICallTest: () => client.post('/api/v1/smartflow/ai-call-settings/test/start'),
+  sendAICallTestMessage: (sessionId, message) => client.post(`/api/v1/smartflow/ai-call-settings/test/${sessionId}/message`, { message }),
+  endAICallTest: (sessionId) => client.delete(`/api/v1/smartflow/ai-call-settings/test/${sessionId}`),
 
   // Integrations
   getIntegrations: () => client.get('/api/v1/smartflow/integrations'),
