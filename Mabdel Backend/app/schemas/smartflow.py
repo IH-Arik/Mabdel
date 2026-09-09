@@ -451,6 +451,7 @@ class AICallSettingsResponse(BaseModel):
     custom_instructions: str | None = None
     greeting_inbound: str | None = None
     greeting_outbound: str | None = None
+    closing_message: str | None = None
     language_menu_enabled: bool = False
     language_menu: list[AICallLanguageMenuOption] = Field(default_factory=list)
 
@@ -469,10 +470,14 @@ class AICallSettingsUpdateRequest(BaseModel):
     custom_instructions: str | None = Field(default=None, max_length=2000)
     greeting_inbound: str | None = Field(default=None, max_length=500)
     greeting_outbound: str | None = Field(default=None, max_length=500)
+    closing_message: str | None = Field(default=None, max_length=500)
     language_menu_enabled: bool | None = None
     language_menu: list[AICallLanguageMenuOption] | None = None
 
-    @field_validator("assistant_name", "business_type", "custom_instructions", "greeting_inbound", "greeting_outbound")
+    @field_validator(
+        "assistant_name", "business_type", "custom_instructions",
+        "greeting_inbound", "greeting_outbound", "closing_message",
+    )
     @classmethod
     def _clean_free_text(cls, value: str | None) -> str | None:
         """Strip control characters before this text is spoken aloud or pasted into a
@@ -483,6 +488,20 @@ class AICallSettingsUpdateRequest(BaseModel):
         cleaned = "".join(char for char in value if char == "\n" or not (ord(char) < 32 or ord(char) == 127))
         cleaned = cleaned.strip()
         return cleaned or None
+
+
+class AICallTestStartResponse(BaseModel):
+    session_id: str
+    greeting: str
+
+
+class AICallTestMessageRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=1000)
+
+
+class AICallTestMessageResponse(BaseModel):
+    reply: str
+    ended: bool
 
 
 class CalendarProviderSettingsUpdateRequest(BaseModel):

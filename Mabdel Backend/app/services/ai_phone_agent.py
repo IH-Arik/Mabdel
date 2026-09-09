@@ -166,10 +166,24 @@ class AIPhoneAgent:
     the business for approval. It does not create invoices, leases, agreements, or any
     other business record on a call; those all route through a human afterward.
     """
-    def __init__(self, call_id: str, ai_service: GoCustifyAIService, flow_service: SmartFlowService):
+    def __init__(
+        self,
+        call_id: str,
+        ai_service: GoCustifyAIService,
+        flow_service: SmartFlowService,
+        is_simulation: bool = False,
+    ):
         self.call_id = call_id
         self.ai_service = ai_service
         self.flow_service = flow_service
+        # When True, this agent drives the real _advance_conversation conversation
+        # logic (so a "Test AI" preview is representative) but must never leave a
+        # real trace: real-world writes it would otherwise trigger (calendar booking,
+        # pending meeting requests, notifications) are swapped for a synthetic result
+        # shaped the same as what a real call would have produced. See
+        # _submit_pending_request. All real-call code paths are unaffected since this
+        # defaults to False.
+        self.is_simulation = is_simulation
         self.audio_buffer = bytearray()
         self.is_processing = False
         self.is_speaking = False
@@ -241,6 +255,13 @@ class AIPhoneAgent:
         if self.greeted:
             return
         self.greeted = True
+        greeting_text = await self._compose_greeting_text()
+        await self._speak(greeting_text, send_callback)
+
+    async def _compose_greeting_text(self) -> str:
+        """Builds the greeting the caller would hear — split out from greet() so the
+        Test AI simulator can obtain just the text (to show the owner) without going
+        anywhere near the audio synthesis/streaming pipeline."""
         self.business_name = await self._get_business_name()
         settings_doc = await self._get_call_settings()
 
@@ -282,7 +303,7 @@ class AIPhoneAgent:
             # after the "how can I help you" question.
             greeting_text = f"{intro_text} {disclosure} {pitch_text}"
 
-        await self._speak(greeting_text, send_callback)
+        return greeting_text
 
     def build_language_menu_text(self, settings_doc: dict) -> str:
         """"For English press 1. Para español marque 2." — each option rendered in its
@@ -610,6 +631,20 @@ class AIPhoneAgent:
         finally:
             self.is_processing = False
 
+    async def _finish_with_closing(self, text: str) -> str:
+        """Called at every terminal point of the scheduling flow (booked, sent to the
+        team, declined, gave up after retries, no slots at all). If the business has
+        configured a closing_message, it is appended to the final phrase and the call
+        is flagged to hang up gracefully afterward — otherwise the caller was left on
+        dead air until they hung up themselves. Without a configured closing_message,
+        behavior is unchanged: the call stays open."""
+        settings_doc = await self._get_call_settings()
+        closing = settings_doc.get("closing_message")
+        if closing:
+            self.should_hangup = True
+            return f"{text} {closing}"
+        return text
+
     async def _advance_conversation(self, transcript: str) -> str:
         """Manages conversation flow. Drives multi-turn meeting scheduling when requested;
         otherwise delegates to _plain_chat_reply to answer business inquiries, capture
@@ -709,17 +744,17 @@ class AIPhoneAgent:
                 self.phase = "idle"
                 outcome = (res or {}).get("booking_outcome", "pending")
                 if outcome == "booked":
-                    return phrase("meeting_booked_direct", self.language, when=when)
+                    return await self._finish_with_closing(phrase("meeting_booked_direct", self.language, when=when))
                 elif outcome == "conflict":
                     if self.proposed_slot:
                         self.declined_slots.add(f"{self.proposed_slot['date']} {self.proposed_slot['time']}")
                     return await self._offer_next_slot()
                 else:
-                    return phrase("sent_to_team", self.language, when=when)
+                    return await self._finish_with_closing(phrase("sent_to_team", self.language, when=when))
             if _looks_negative(transcript, self.language):
                 self.phase = "idle"
                 self.proposed_slot = None
-                return phrase("declined_send", self.language)
+                return await self._finish_with_closing(phrase("declined_send", self.language))
             return phrase("confirm_reask_yesno", self.language)
 
         # Shouldn't happen, but never leave the caller stuck.
@@ -733,7 +768,7 @@ class AIPhoneAgent:
         if self.slot_offer_attempts > self.MAX_SLOT_OFFERS:
             self.phase = "idle"
             self.proposed_slot = None
-            return phrase("gave_up_after_retries", self.language)
+            return await self._finish_with_closing(phrase("gave_up_after_retries", self.language))
 
         slot = await self.flow_service.find_next_available_slot(
             self.user_id, exclude_datetimes=self.declined_slots
@@ -741,7 +776,7 @@ class AIPhoneAgent:
         if not slot:
             self.phase = "idle"
             self.proposed_slot = None
-            return phrase("no_slots_this_week", self.language)
+            return await self._finish_with_closing(phrase("no_slots_this_week", self.language))
 
         self.proposed_slot = slot
         self.phase = "offering_slot"
@@ -773,6 +808,32 @@ class AIPhoneAgent:
             call_log = await self.flow_service.db.call_logs.find_one({"twilio_call_sid": self.call_id})
             if call_log:
                 self.caller_phone = other_party_number(call_log)
+
+        if self.is_simulation:
+            # Test AI: never write a real calendar event, call_meeting_requests
+            # document, confirmation email or team notification. The synthetic result
+            # is shaped exactly like CallMeetingRequestService.book_or_request_meeting_for_user's
+            # "booked" outcome (see _serialize + booking_outcome="booked" there) so the
+            # conversational reply the owner sees ("You're booked for Tuesday at 2pm")
+            # is realistic.
+            from app.utils.audio import utc_now
+            now = utc_now()
+            return {
+                "id": "simulated",
+                "organization_id": None,
+                "call_sid": self.call_id,
+                "caller_name": (self.caller_name or "Phone caller").strip() or "Phone caller",
+                "caller_email": (self.caller_email or "").strip().lower() or None,
+                "caller_phone": self.caller_phone,
+                "requested_start": starts_at,
+                "requested_end": ends_at,
+                "status": "confirmed",
+                "meeting_link": "https://meet.example.com/simulated-test-call",
+                "confirmed_by_user_id": "ai_agent_simulation",
+                "created_at": now,
+                "updated_at": now,
+                "booking_outcome": "booked",
+            }
 
         try:
             res = await self.flow_service.book_or_request_meeting_for_user(

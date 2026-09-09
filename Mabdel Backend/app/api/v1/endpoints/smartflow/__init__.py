@@ -6,6 +6,7 @@ from . import (  # noqa: F401
     contacts,
     conversations,
     ai,
+    ai_call_test,
     bulk_messages,
     calendar,
     caldav,

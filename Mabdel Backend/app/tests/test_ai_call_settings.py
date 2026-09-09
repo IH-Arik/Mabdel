@@ -268,6 +268,97 @@ def test_prompt_without_custom_instructions_has_no_owner_block():
     assert "NON-NEGOTIABLE RULES" in prompt
 
 
+# ── Closing message / graceful hangup ────────────────────────────────────
+
+
+def test_closing_message_is_appended_and_ends_the_call_after_booking(mock_db):
+    """A configured closing_message must be spoken after the final scheduling outcome
+    and the call flagged to hang up gracefully — otherwise the caller is left on dead
+    air after the AI has nothing left to say."""
+
+    async def _run():
+        await mock_db.organizations.insert_one(
+            {
+                "organization_id": "org-closing-1",
+                "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60},
+                "require_meeting_approval": True,  # exercises the "sent_to_team" terminal phrase
+                "ai_call_settings": {"closing_message": "Thanks again, goodbye!"},
+            }
+        )
+        user = await mock_db.users.insert_one({"organization_id": "org-closing-1"})
+        flow_service = SmartFlowService(mock_db)
+        agent = AIPhoneAgent("call_closing_1", GoCustifyAIService(), flow_service)
+        agent.user_id = str(user.inserted_id)
+        agent.caller_phone = "+15551234567"
+
+        await agent._advance_conversation("I'd like to schedule a meeting")
+        await agent._advance_conversation("Yes that works")
+        await agent._advance_conversation("John")
+        await agent._advance_conversation("Smith")
+        await agent._advance_conversation("Yes, that's right")
+        await agent._advance_conversation("john at example dot com")
+        await agent._advance_conversation("Yes, that's correct")
+        final_reply = await agent._advance_conversation("Yes, send it")
+        return final_reply, agent.should_hangup, agent.phase
+
+    final_reply, should_hangup, phase = asyncio.run(_run())
+    assert "Thanks again, goodbye!" in final_reply
+    assert should_hangup is True
+    assert phase == "idle"
+
+
+def test_without_a_closing_message_the_call_stays_open_after_booking(mock_db):
+    """No behavior change when closing_message is unset: the caller can keep talking,
+    the call is not force-ended."""
+
+    async def _run():
+        await mock_db.organizations.insert_one(
+            {
+                "organization_id": "org-closing-2",
+                "business_hours": {"days": [0, 1, 2, 3, 4, 5, 6], "start_hour": 9, "end_hour": 17, "slot_minutes": 60},
+                "require_meeting_approval": True,
+            }
+        )
+        user = await mock_db.users.insert_one({"organization_id": "org-closing-2"})
+        flow_service = SmartFlowService(mock_db)
+        agent = AIPhoneAgent("call_closing_2", GoCustifyAIService(), flow_service)
+        agent.user_id = str(user.inserted_id)
+        agent.caller_phone = "+15551234567"
+
+        await agent._advance_conversation("I'd like to schedule a meeting")
+        await agent._advance_conversation("Yes that works")
+        await agent._advance_conversation("John")
+        await agent._advance_conversation("Smith")
+        await agent._advance_conversation("Yes, that's right")
+        await agent._advance_conversation("john at example dot com")
+        await agent._advance_conversation("Yes, that's correct")
+        final_reply = await agent._advance_conversation("Yes, send it")
+        return final_reply, agent.should_hangup
+
+    final_reply, should_hangup = asyncio.run(_run())
+    assert should_hangup is False
+
+
+def test_closing_message_is_appended_when_caller_declines_to_send(mock_db):
+    """Covers a second terminal point (declined_send), not just the booked/sent-to-team
+    ones — every terminal reply in the scheduling flow must honor closing_message."""
+
+    async def _run():
+        agent = AIPhoneAgent("call_closing_3", GoCustifyAIService(), SmartFlowService(mock_db))
+        agent.call_settings = AICallSettingsService.merge_settings({"closing_message": "Have a great day!"})
+        agent.phase = "confirming"
+        agent.proposed_slot = {"date": "2026-08-17", "time": "09:00"}
+        agent.caller_name = "Test Caller"
+
+        reply = await agent._advance_conversation("No, never mind")
+        return reply, agent.should_hangup, agent.phase
+
+    reply, should_hangup, phase = asyncio.run(_run())
+    assert "Have a great day!" in reply
+    assert should_hangup is True
+    assert phase == "idle"
+
+
 def test_control_characters_are_stripped_before_reaching_the_prompt(client, mock_db):
     """Control characters render as noise in TTS and are a cheap way to smuggle
     structure into the prompt."""
