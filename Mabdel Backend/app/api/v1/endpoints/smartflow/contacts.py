@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, File, Query, UploadFile, status
+from fastapi.responses import Response
 
 from app.dependencies import get_current_user, require_permission, require_subscription
 from app.schemas.smartflow import (
@@ -20,11 +21,30 @@ async def list_contacts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     search: str | None = None,
+    company: str | None = None,
     current_user: dict = Depends(require_permission("contacts", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
-    data = await service.list_contacts(str(current_user["_id"]), page, page_size, search)
+    data = await service.list_contacts(str(current_user["_id"]), page, page_size, search, company)
     return success_response(data=data, message="Contacts fetched successfully.")
+
+
+@router.get("/contacts/export")
+async def export_contacts(
+    search: str | None = None,
+    company: str | None = None,
+    membership: str | None = Query(default=None, pattern="^(on_mabdel|invite)$"),
+    current_user: dict = Depends(require_permission("contacts", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> Response:
+    csv_text = await service.export_contacts_csv(
+        str(current_user["_id"]), search=search, company=company, membership=membership
+    )
+    return Response(
+        content=csv_text,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="contacts.csv"'},
+    )
 
 
 @router.get("/team")

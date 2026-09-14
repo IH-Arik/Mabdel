@@ -121,8 +121,11 @@ class SmartFlowService(SmartFlowBase):
     # ==================================================================
     # Contacts (delegated)
     # ==================================================================
-    async def list_contacts(self, user_id, page, page_size, search):
-        return await self.contact_service.list_contacts(user_id, page, page_size, search)
+    async def list_contacts(self, user_id, page, page_size, search, company=None):
+        return await self.contact_service.list_contacts(user_id, page, page_size, search, company)
+
+    async def export_contacts_csv(self, user_id, search=None, company=None, membership=None):
+        return await self.contact_service.export_contacts_csv(user_id, search=search, company=company, membership=membership)
 
     async def list_team_members(self, user_id):
         return await self.contact_service.list_team_members(user_id)

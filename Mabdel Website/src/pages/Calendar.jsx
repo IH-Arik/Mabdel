@@ -520,6 +520,8 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
       setContacts(normalizeListPayload(contactsResponse));
     } catch (err) {
       setError(err.response?.data?.message || t('cal_err_load_details'));
+    } finally {
+      setLoading(false);
     }
   }, [eventId, t]);
 
