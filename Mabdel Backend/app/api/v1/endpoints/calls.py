@@ -382,6 +382,34 @@ async def _handle_call_status(service: SmartFlowService, call_id: str, event_typ
         return
     normalized = call_service.normalize_call_status(event_type, payload.hangup_cause)
     updates: dict = {"status": normalized}
+
+    # Telnyx's Call Control webhooks never actually populate call_duration_secs on
+    # any event we receive (that field only exists here as a schema leftover from an
+    # earlier Twilio-shaped payload) — so duration was never being computed for any
+    # call, AI-answered or otherwise. We track our own "answered" timestamp on
+    # call.answered/call.bridged and turn it into a real elapsed duration once the
+    # call.hangup event lands, rather than relying on a field the provider doesn't send.
+    now = utc_now()
+    if event_type in {"call.answered", "call.bridged"} and not call.get("answered_at"):
+        await service.db.call_logs.update_one({"_id": call["_id"]}, {"$set": {"answered_at": now}})
+    elif event_type == "call.hangup":
+        from datetime import timezone as _timezone
+
+        answered_at = call.get("answered_at")
+        if isinstance(answered_at, str):
+            from datetime import datetime
+            try:
+                answered_at = datetime.fromisoformat(answered_at)
+            except ValueError:
+                answered_at = None
+        if answered_at is not None:
+            # MongoDB round-trips datetimes as naive UTC even though we always write
+            # timezone-aware ones (utc_now()) — normalize both sides before subtracting.
+            if answered_at.tzinfo is None:
+                answered_at = answered_at.replace(tzinfo=_timezone.utc)
+            comparison_now = now if now.tzinfo is not None else now.replace(tzinfo=_timezone.utc)
+            elapsed = (comparison_now - answered_at).total_seconds()
+            updates["duration"] = max(0, int(elapsed))
     if payload.call_duration_secs is not None:
         updates["duration"] = max(0, int(payload.call_duration_secs))
     await service.update_call_log_from_provider_callback(
@@ -522,6 +550,7 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
 
     agent = AIPhoneAgent(call_id, ai_service, flow_service)
     agent.user_id = user_id_val
+    agent.session_started_at = utc_now()
     # On an outbound call the business is the from_number — the person the AI is
     # talking to is the number we dialled, so this has to follow the direction.
     agent.is_outbound = is_outbound_call(call_log)
