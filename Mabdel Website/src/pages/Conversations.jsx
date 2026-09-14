@@ -548,6 +548,8 @@ export default function Conversations() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const activeFilterRef = useRef('all');
+  activeFilterRef.current = activeFilter;
   const [archiving, setArchiving] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [forwardMessage, setForwardMessage] = useState(null);
@@ -801,11 +803,24 @@ export default function Conversations() {
     if (!selectedId) return;
     fetchMessages(selectedId);
     smartflowApi.markConversationRead(selectedId).catch(() => {});
-    setAllConversations((previous) => previous.map((item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item)));
-    setConversations((previous) => previous.map((item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item)));
+    const markRead = (item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item);
+    setAllConversations((previous) => previous.map(markRead));
+    setActiveList((previous) => previous.map(markRead));
+    setConversations((previous) => {
+      const updated = previous.map(markRead);
+      // On the "Unread" tab, a conversation that just got marked read must
+      // drop out of the visible list immediately — otherwise it lingers
+      // with its unread badge gone but still sitting in the Unread filter
+      // until the next full refetch, which reads as "Read not rendering".
+      return activeFilterRef.current === 'unread' ? updated.filter((item) => item.unread_count > 0) : updated;
+    });
     if (conversationsListCache) {
-      conversationsListCache.allConversations = conversationsListCache.allConversations.map((item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item));
-      conversationsListCache.conversations = conversationsListCache.conversations.map((item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item));
+      conversationsListCache.allConversations = conversationsListCache.allConversations.map(markRead);
+      conversationsListCache.activeList = (conversationsListCache.activeList || []).map(markRead);
+      conversationsListCache.conversations =
+        activeFilterRef.current === 'unread'
+          ? conversationsListCache.conversations.map(markRead).filter((item) => item.unread_count > 0)
+          : conversationsListCache.conversations.map(markRead);
     }
     fetchTypingState(selectedId);
 

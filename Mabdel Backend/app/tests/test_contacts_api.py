@@ -148,3 +148,57 @@ def test_contact_bulk_import_reports_imported_duplicates_and_invalid_rows(client
     assert payload["imported"][0]["phone"] == "+14155552000"
     assert {item["reason"] for item in payload["duplicates"]} == {"Duplicate email", "Duplicate phone"}
     assert payload["invalid"][0]["reason"] == "Invalid email"
+
+
+def test_contact_list_filters_by_company(client, mock_db) -> None:
+    headers = _auth_headers(client, mock_db, email="contacts-company-filter@example.com")
+
+    client.post(
+        "/api/v1/smartflow/contacts",
+        headers=headers,
+        json={"name": "Nova Ramirez", "email": "nova@acme.com", "company": "Acme Corp"},
+    )
+    client.post(
+        "/api/v1/smartflow/contacts",
+        headers=headers,
+        json={"name": "Priya Shah", "email": "priya@globex.com", "company": "Globex Inc"},
+    )
+
+    filtered = client.get("/api/v1/smartflow/contacts?company=Acme", headers=headers)
+    assert filtered.status_code == 200
+    items = filtered.json()["data"]["items"]
+    assert len(items) == 1
+    assert items[0]["company"] == "Acme Corp"
+
+    unfiltered = client.get("/api/v1/smartflow/contacts", headers=headers)
+    assert len(unfiltered.json()["data"]["items"]) == 2
+
+
+def test_contact_export_returns_csv_matching_filters(client, mock_db) -> None:
+    headers = _auth_headers(client, mock_db, email="contacts-export@example.com")
+
+    client.post(
+        "/api/v1/smartflow/contacts",
+        headers=headers,
+        json={"name": "Nova Ramirez", "email": "nova@acme.com", "company": "Acme Corp"},
+    )
+    client.post(
+        "/api/v1/smartflow/contacts",
+        headers=headers,
+        json={"name": "Priya Shah", "email": "priya@globex.com", "company": "Globex Inc"},
+    )
+
+    export_all = client.get("/api/v1/smartflow/contacts/export", headers=headers)
+    assert export_all.status_code == 200
+    assert export_all.headers["content-type"].startswith("text/csv")
+    assert 'attachment; filename="contacts.csv"' in export_all.headers["content-disposition"]
+    body = export_all.text
+    assert "Nova Ramirez" in body
+    assert "Priya Shah" in body
+    assert body.splitlines()[0].split(",")[0] == "Name"
+
+    export_filtered = client.get("/api/v1/smartflow/contacts/export?company=Acme", headers=headers)
+    assert export_filtered.status_code == 200
+    filtered_body = export_filtered.text
+    assert "Nova Ramirez" in filtered_body
+    assert "Priya Shah" not in filtered_body

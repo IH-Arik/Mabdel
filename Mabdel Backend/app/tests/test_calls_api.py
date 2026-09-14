@@ -137,6 +137,50 @@ def test_call_webhook_hangup_updates_status(client, mock_db, monkeypatch) -> Non
     assert call_log["duration"] == 42
 
 
+def test_call_webhook_hangup_computes_duration_when_provider_omits_it(client, mock_db, monkeypatch) -> None:
+    """Real Telnyx call.hangup webhooks never actually carry call_duration_secs (that
+    field is a schema leftover, not something Telnyx populates) — so duration used to
+    never get set at all. This is the fix: answered_at is recorded on call.answered,
+    and call.hangup turns the elapsed time since then into a real duration."""
+    import asyncio
+    from datetime import datetime, timezone
+
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+    monkeypatch.setattr(CallService, "answer_call", _noop_answer)
+
+    # call.initiated runs unpatched (it calls utc_now() itself for unrelated
+    # bookkeeping) — only the answered/hangup pair needs deterministic timing.
+    inbound_body = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:duration-test", "direction": "incoming", "from": "+1555", "to": "+1666"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=inbound_body).status_code == 200
+
+    times = iter(
+        [
+            datetime(2026, 1, 1, 0, 0, 1, tzinfo=timezone.utc),  # call.answered -> answered_at
+            datetime(2026, 1, 1, 0, 0, 31, tzinfo=timezone.utc),  # call.hangup -> +30s elapsed
+        ]
+    )
+    monkeypatch.setattr("app.api.v1.endpoints.calls.utc_now", lambda: next(times))
+
+    answered_body = _webhook_envelope(
+        "call.answered",
+        {"call_control_id": "v2:duration-test", "from": "+1555", "to": "+1666"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=answered_body).status_code == 200
+
+    hangup_body = _webhook_envelope(
+        "call.hangup",
+        {"call_control_id": "v2:duration-test", "hangup_cause": "normal_clearing", "from": "+1555", "to": "+1666"},
+    )
+    assert client.post("/api/v1/calls/webhook", content=hangup_body).status_code == 200
+
+    call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:duration-test"}))
+    assert call_log["status"] == "completed"
+    assert call_log["duration"] == 30
+
+
 def test_call_webhook_busy_hangup_maps_to_busy_status(client, mock_db, monkeypatch) -> None:
     monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
     monkeypatch.setattr(CallService, "answer_call", _noop_answer)

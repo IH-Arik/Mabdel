@@ -194,6 +194,10 @@ class AIPhoneAgent:
         self.stream_sid = None
         self.greeted = False
         self.user_id = None
+        # Fallback for computing call duration when finalize_session runs (websocket
+        # closed) — used only if the call.hangup webhook hasn't already written a
+        # duration onto the call_logs document (see finalize_session below).
+        self.session_started_at = None
         self.transcript_log: list[dict] = []
         # Scheduling micro-flow state.
         # idle -> offering_slot -> collecting_first_name -> collecting_last_name ->
@@ -1072,15 +1076,27 @@ class AIPhoneAgent:
 
         summary = self.ai_service.summarize_call(self.transcript_log)
 
+        update_fields: dict = {
+            "speaker_segments": self.transcript_log,
+            "ai_summary": summary,
+            "ended_at": utc_now(),
+        }
+
+        # The call.hangup webhook (see _handle_call_status in calls.py) is the
+        # authoritative source for duration and normally sets it first. This is only
+        # a fallback for AI-answered calls where the websocket closes (and this method
+        # runs) without that webhook having landed a duration yet — better an
+        # approximate duration than none at all.
+        existing = await self.flow_service.db.call_logs.find_one(
+            {"twilio_call_sid": self.call_id, "user_id": self.user_id}
+        )
+        if existing is not None and not existing.get("duration") and self.session_started_at:
+            elapsed = (utc_now() - self.session_started_at).total_seconds()
+            update_fields["duration"] = max(0, int(elapsed))
+
         await self.flow_service.db.call_logs.update_one(
             {"twilio_call_sid": self.call_id, "user_id": self.user_id},
-            {
-                "$set": {
-                    "speaker_segments": self.transcript_log,
-                    "ai_summary": summary,
-                    "ended_at": utc_now(),
-                }
-            },
+            {"$set": update_fields},
         )
         logger.info("Call %s: Summary saved — %s", self.call_id, summary.get("status"))
 

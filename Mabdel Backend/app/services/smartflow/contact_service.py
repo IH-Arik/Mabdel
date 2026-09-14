@@ -11,9 +11,46 @@ from ._base import SmartFlowBase
 
 
 class ContactService(SmartFlowBase):
-    async def list_contacts(self, user_id: str, page: int, page_size: int, search: str | None) -> dict:
+    async def list_contacts(
+        self,
+        user_id: str,
+        page: int,
+        page_size: int,
+        search: str | None,
+        company: str | None = None,
+    ) -> dict:
         team_ids = await self._resolve_team_user_ids(user_id)
-        filters = {"user_id": {"$in": team_ids}}
+        filters = self._build_contact_filters(team_ids, search=search, company=company)
+        page_result = await self._paginate(self.db.contacts, filters, page, page_size, "updated_at")
+        page_result["items"] = await self._attach_membership_flags([self._serialize_contact(item) for item in page_result["items"]])
+        page_result["summary"] = await self._contact_summary(team_ids)
+        return page_result
+
+    async def export_contacts_csv(
+        self,
+        user_id: str,
+        search: str | None = None,
+        company: str | None = None,
+        membership: str | None = None,
+    ) -> str:
+        """Builds a CSV of every contact matching the same search/company filters
+        used by list_contacts (not just the current page) — mirrors the client's
+        filtered directory view rather than only whatever page happens to be loaded."""
+        team_ids = await self._resolve_team_user_ids(user_id)
+        filters = self._build_contact_filters(team_ids, search=search, company=company)
+        raw_items = await self.db.contacts.find(filters).sort("updated_at", -1).to_list(length=5000)
+        items = await self._attach_membership_flags([self._serialize_contact(item) for item in raw_items])
+
+        if membership == "on_mabdel":
+            items = [item for item in items if item.get("is_app_user") is True]
+        elif membership == "invite":
+            items = [item for item in items if item.get("is_app_user") is not True]
+
+        return self._contacts_to_csv(items)
+
+    @staticmethod
+    def _build_contact_filters(team_ids: list[str], *, search: str | None, company: str | None) -> dict:
+        filters: dict = {"user_id": {"$in": team_ids}}
         if search:
             filters["$or"] = [
                 {"name": {"$regex": search, "$options": "i"}},
@@ -25,10 +62,43 @@ class ContactService(SmartFlowBase):
                 {"notes": {"$regex": search, "$options": "i"}},
                 {"identities.handle": {"$regex": search, "$options": "i"}},
             ]
-        page_result = await self._paginate(self.db.contacts, filters, page, page_size, "updated_at")
-        page_result["items"] = await self._attach_membership_flags([self._serialize_contact(item) for item in page_result["items"]])
-        page_result["summary"] = await self._contact_summary(team_ids)
-        return page_result
+        if company:
+            filters["company"] = {"$regex": re.escape(company), "$options": "i"}
+        return filters
+
+    @staticmethod
+    def _contacts_to_csv(items: list[dict]) -> str:
+        import csv
+        import io
+
+        columns = [
+            ("name", "Name"),
+            ("email", "Email"),
+            ("phone", "Phone"),
+            ("company", "Company"),
+            ("job_title", "Job Title"),
+            ("address", "Address"),
+            ("status", "Status"),
+            ("is_app_user", "On GoCustify"),
+            ("notes", "Notes"),
+        ]
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow([label for _, label in columns])
+        for item in items:
+            row = []
+            for key, _ in columns:
+                if key == "status":
+                    # Contacts have no stored status field — it's derived the same
+                    # way the directory UI derives it (app-user vs invited).
+                    value = "active" if item.get("is_app_user") else "pending"
+                elif key == "is_app_user":
+                    value = "Yes" if item.get(key) else "No"
+                else:
+                    value = item.get(key)
+                row.append("" if value is None else str(value))
+            writer.writerow(row)
+        return buffer.getvalue()
 
     async def list_team_members(self, user_id: str) -> dict:
         """Colleagues in the same organization — not CRM contacts, real GoCustify

@@ -66,6 +66,9 @@ export default function Contacts() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [importReport, setImportReport] = useState(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [exporting, setExporting] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -394,6 +397,31 @@ export default function Contacts() {
     }
   }, [activeTab, fetchContacts, t]);
 
+  const handleExportContacts = useCallback(async () => {
+    try {
+      setExporting(true);
+      setError('');
+      const params = {};
+      const trimmedSearch = searchTerm.trim();
+      if (trimmedSearch) params.search = trimmedSearch;
+      if (companyFilter) params.company = companyFilter;
+      if (activeTab === 'on_mabdel' || activeTab === 'invite') params.membership = activeTab;
+      const response = await smartflowApi.exportContacts(params);
+      const blob = response?.data instanceof Blob ? response.data : new Blob([response?.data], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'contacts.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Contacts export failed:', err);
+      setError(err?.response?.data?.message || t('contacts_err_export_failed'));
+    } finally {
+      setExporting(false);
+    }
+  }, [searchTerm, companyFilter, activeTab, t]);
+
   const handleImportFallbackClick = useCallback(() => {
     if (importInputRef.current) {
       importInputRef.current.click();
@@ -601,7 +629,12 @@ export default function Contacts() {
   const onMabdelContacts = useMemo(() => contacts.filter((c) => c.is_app_user === true), [contacts]);
   const inviteContacts = useMemo(() => contacts.filter((c) => c.is_app_user !== true), [contacts]);
   const tabFilteredContacts = activeTab === 'team' ? teamMembers : (activeTab === 'on_mabdel' ? onMabdelContacts : inviteContacts);
+  const companyOptions = useMemo(
+    () => Array.from(new Set(contacts.map((c) => (c.company || '').trim()).filter(Boolean))).sort(),
+    [contacts]
+  );
   const filteredContacts = tabFilteredContacts.filter(c => {
+    if (companyFilter && (c.company || '').trim() !== companyFilter) return false;
     if (!normalizedSearch) return true;
     return (
       (c.name || '').toLowerCase().includes(normalizedSearch) ||
@@ -663,11 +696,47 @@ export default function Contacts() {
             </div>
 
             <div className="flex items-center gap-3">
-              <button className="px-4 py-2.5 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer">
-                <Filter size={14} /> {t('contacts_filter')}
-              </button>
-              <button className="px-4 py-2.5 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer">
-                <Download size={14} /> {t('contacts_export')}
+              <div className="relative">
+                <button
+                  onClick={() => setFilterOpen((open) => !open)}
+                  className={`px-4 py-2.5 bg-slate-950 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    companyFilter ? 'border-purple-500/40 text-purple-400' : 'border-slate-900 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Filter size={14} /> {t('contacts_filter')}
+                </button>
+                {filterOpen ? (
+                  <div className="absolute right-0 mt-2 w-56 bg-[#0c101b] border border-slate-900 rounded-xl p-3 z-20 shadow-xl text-left">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
+                      {t('contacts_filter_company')}
+                    </label>
+                    <select
+                      value={companyFilter}
+                      onChange={(e) => setCompanyFilter(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-900 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-purple-500/40"
+                    >
+                      <option value="">{t('contacts_filter_all_companies')}</option>
+                      {companyOptions.map((company) => (
+                        <option key={company} value={company}>{company}</option>
+                      ))}
+                    </select>
+                    {companyFilter ? (
+                      <button
+                        onClick={() => setCompanyFilter('')}
+                        className="mt-2 text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
+                      >
+                        {t('contacts_filter_clear')}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <button
+                onClick={handleExportContacts}
+                disabled={exporting}
+                className="px-4 py-2.5 bg-slate-950 border border-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <Download size={14} /> {exporting ? t('contacts_exporting') : t('contacts_export')}
               </button>
               <button
                 onClick={handleImportContacts}
