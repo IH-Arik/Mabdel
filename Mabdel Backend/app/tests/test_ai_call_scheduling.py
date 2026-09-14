@@ -1065,6 +1065,82 @@ def test_decline_notifies_caller_by_email(client, mock_db, monkeypatch):
     assert sent_emails[0]["email"] == "caller@example.com"
 
 
+def test_accept_notifies_caller_by_sms(client, mock_db, monkeypatch):
+    """The caller's phone number is always known (they called from it) — an SMS
+    confirmation should go out regardless of whether they also gave an email."""
+    headers, owner_id = _owner_with_org(client, mock_db, "accept-sms@example.com")
+
+    sent_sms = []
+
+    async def fake_send_sms(self, *, to_number, message, from_number=None):
+        sent_sms.append({"to_number": to_number, "message": message})
+        return {"status": "queued"}
+
+    monkeypatch.setattr("app.services.call_service.CallService.send_sms", fake_send_sms)
+
+    async def fake_create_event(self, user_id, payload):
+        return {"meeting_link": "https://meet.example.com/test"}
+
+    monkeypatch.setattr(
+        "app.services.smartflow.calendar_service.CalendarService.create_calendar_event", fake_create_event
+    )
+
+    async def _seed():
+        result = await mock_db.call_meeting_requests.insert_one(
+            {
+                "organization_id": owner_id,
+                "caller_name": "Caller",
+                "caller_phone": "+15551234567",
+                "requested_start": datetime.now(timezone.utc) + timedelta(days=1),
+                "requested_end": datetime.now(timezone.utc) + timedelta(days=1, hours=1),
+                "status": "pending",
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            }
+        )
+        return str(result.inserted_id)
+
+    request_id = asyncio.run(_seed())
+    response = client.post(f"/api/v1/smartflow/calls/meeting-requests/{request_id}/accept", headers=headers)
+    assert response.status_code == 200
+    assert len(sent_sms) == 1
+    assert sent_sms[0]["to_number"] == "+15551234567"
+    assert "confirmed" in sent_sms[0]["message"].lower()
+
+
+def test_decline_notifies_caller_by_sms(client, mock_db, monkeypatch):
+    headers, owner_id = _owner_with_org(client, mock_db, "decline-sms@example.com")
+
+    sent_sms = []
+
+    async def fake_send_sms(self, *, to_number, message, from_number=None):
+        sent_sms.append({"to_number": to_number, "message": message})
+        return {"status": "queued"}
+
+    monkeypatch.setattr("app.services.call_service.CallService.send_sms", fake_send_sms)
+
+    async def _seed():
+        result = await mock_db.call_meeting_requests.insert_one(
+            {
+                "organization_id": owner_id,
+                "caller_name": "Caller",
+                "caller_phone": "+15551234567",
+                "requested_start": datetime.now(timezone.utc) + timedelta(days=1),
+                "requested_end": datetime.now(timezone.utc) + timedelta(days=1, hours=1),
+                "status": "pending",
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            }
+        )
+        return str(result.inserted_id)
+
+    request_id = asyncio.run(_seed())
+    response = client.post(f"/api/v1/smartflow/calls/meeting-requests/{request_id}/decline", headers=headers)
+    assert response.status_code == 200
+    assert len(sent_sms) == 1
+    assert sent_sms[0]["to_number"] == "+15551234567"
+
+
 def test_cannot_accept_already_handled_request(client, mock_db):
     headers, owner_id = _owner_with_org(client, mock_db, "double-accept@example.com")
 

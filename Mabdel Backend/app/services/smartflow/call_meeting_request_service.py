@@ -6,6 +6,7 @@ from bson import ObjectId
 from pymongo import ReturnDocument
 
 from app.core.exceptions import AppException
+from app.services.call_service import CallService
 from app.services.email_service import EmailService
 from app.utils.helpers import resolve_organization_user_ids, utc_now
 
@@ -41,6 +42,7 @@ class CallMeetingRequestService(SmartFlowBase):
         super().__init__(db)
         self.calendar_service = CalendarService(db)
         self.email_service = EmailService()
+        self.call_service = CallService()
 
     async def create_pending_request_for_user(
         self,
@@ -120,6 +122,7 @@ class CallMeetingRequestService(SmartFlowBase):
                 doc["_id"] = result.inserted_id
                 if doc.get("caller_email"):
                     await self._send_confirmation_email(doc)
+                await self._send_confirmation_sms(doc)
                 await self._notify_organization(doc)
                 serialized = _serialize(doc)
                 serialized["booking_outcome"] = "booked"
@@ -169,6 +172,7 @@ class CallMeetingRequestService(SmartFlowBase):
         }
         result = await self.db.call_meeting_requests.insert_one(document)
         document["_id"] = result.inserted_id
+        await self._send_pending_sms(document)
         await self._notify_organization(document)
         return _serialize(document)
 
@@ -241,6 +245,7 @@ class CallMeetingRequestService(SmartFlowBase):
         )
         if doc.get("caller_email"):
             await self._send_confirmation_email(updated)
+        await self._send_confirmation_sms(updated)
         return _serialize(updated)
 
     async def decline(self, user_id: str, request_id: str) -> dict:
@@ -258,6 +263,7 @@ class CallMeetingRequestService(SmartFlowBase):
         )
         if updated.get("caller_email"):
             await self._send_decline_email(updated)
+        await self._send_decline_sms(updated)
         return _serialize(updated)
 
     async def _get_org_request(self, user_id: str, request_id: str) -> dict:
@@ -324,5 +330,39 @@ class CallMeetingRequestService(SmartFlowBase):
                 html=f"<p>We're not able to confirm an appointment at <strong>{when}</strong>. "
                 "Please call back or reach out to find another time that works.</p>",
             )
+        except Exception:
+            pass
+
+    async def _send_confirmation_sms(self, doc: dict) -> None:
+        """Best-effort — a failed courtesy text shouldn't turn a successful booking
+        into an error for the caller or the team member approving it."""
+        if not doc.get("caller_phone"):
+            return
+        try:
+            when = doc["requested_start"].strftime("%a %b %d at %I:%M %p").replace(" 0", " ")
+            message = f"Your appointment is confirmed for {when}."
+            if doc.get("meeting_link"):
+                message += f" Join link: {doc['meeting_link']}"
+            await self.call_service.send_sms(to_number=doc["caller_phone"], message=message)
+        except Exception:
+            pass
+
+    async def _send_pending_sms(self, doc: dict) -> None:
+        if not doc.get("caller_phone"):
+            return
+        try:
+            when = doc["requested_start"].strftime("%a %b %d at %I:%M %p").replace(" 0", " ")
+            message = f"We received your appointment request for {when}. Our team will confirm shortly."
+            await self.call_service.send_sms(to_number=doc["caller_phone"], message=message)
+        except Exception:
+            pass
+
+    async def _send_decline_sms(self, doc: dict) -> None:
+        if not doc.get("caller_phone"):
+            return
+        try:
+            when = doc["requested_start"].strftime("%a %b %d at %I:%M %p").replace(" 0", " ")
+            message = f"We're not able to confirm an appointment at {when}. Please call back to find another time."
+            await self.call_service.send_sms(to_number=doc["caller_phone"], message=message)
         except Exception:
             pass
