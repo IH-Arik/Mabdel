@@ -5,6 +5,7 @@ export const smartflowApi = {
   
   // Contacts
   getContacts: (params) => client.get('/api/v1/smartflow/contacts', { params }),
+  exportContacts: (params) => client.get('/api/v1/smartflow/contacts/export', { params, responseType: 'blob' }),
   getTeamMembers: () => client.get('/api/v1/smartflow/team'),
   getContact: (id) => client.get(`/api/v1/smartflow/contacts/${id}`),
   createContact: (data) => client.post('/api/v1/smartflow/contacts', data),

@@ -6,6 +6,7 @@ import { buildWebSocketUrl } from '../api/client';
 import {
   AlertTriangle,
   Archive,
+  ArchiveRestore,
   CheckCheck,
   Info,
   Loader2,
@@ -894,8 +895,13 @@ export default function UnifiedConversations() {
   const handleArchive = async () => {
     if (!selectedId) return;
     setArchiving(true);
+    // archiveConversation defaults to archived=true, so calling it without
+    // the target state always (re-)archives — a conversation opened from the
+    // Archived filter could never be restored from here. Toggle explicitly,
+    // same as the /conversations page does.
+    const targetArchived = !selectedConversation?.archived;
     try {
-      await smartflowApi.archiveConversation(selectedId);
+      await smartflowApi.archiveConversation(selectedId, targetArchived);
       setSelectedId(null);
       setMessages([]);
       await fetchConversationCollections();
@@ -1064,12 +1070,18 @@ export default function UnifiedConversations() {
                   <Info size={16} />
                 </button>
                 <button
-                  title={t('conv_archive')}
+                  title={selectedConversation?.archived ? 'Unarchive Conversation' : t('conv_archive')}
                   disabled={archiving || isGlobalChat}
                   onClick={handleArchive}
                   className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea] disabled:opacity-60"
                 >
-                  {archiving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                  {archiving ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : selectedConversation?.archived ? (
+                    <ArchiveRestore size={16} className="text-purple-400" />
+                  ) : (
+                    <Archive size={16} />
+                  )}
                 </button>
                 <button
                   title="Delete Conversation"
