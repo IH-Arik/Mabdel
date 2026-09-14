@@ -31,7 +31,15 @@ def _auth_headers(client, mock_db, email: str = "agreements@example.com") -> dic
     return {"Authorization": f"Bearer {login_response.json()['data']['access_token']}"}
 
 
-def test_agreement_creator_preview_signature_and_pdf_flow(client, mock_db) -> None:
+def test_agreement_creator_preview_signature_and_pdf_flow(client, mock_db, monkeypatch) -> None:
+    # This flow exercises the deterministic template fallback, not the AI path (that
+    # is covered by test_agreement_generation_uses_real_business_context below) — force
+    # the fallback so the assertions below stay deterministic regardless of whether a
+    # real OPENAI_API_KEY happens to be configured in this environment.
+    from app.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "OPENAI_API_KEY", "")
+
     headers = _auth_headers(client, mock_db)
 
     metadata_response = client.get("/api/v1/smartflow/agreements/metadata", headers=headers)
@@ -125,6 +133,92 @@ def test_agreement_creator_preview_signature_and_pdf_flow(client, mock_db) -> No
     assert pdf_response.status_code == 200
     assert pdf_response.headers["content-type"] == "application/pdf"
     assert pdf_response.content.startswith(b"%PDF-1.4")
+
+
+def test_agreement_generation_uses_real_business_context(client, mock_db, monkeypatch) -> None:
+    """generate_agreement_draft should call the LLM with a VERIFIED BUSINESS FACTS
+    block built from the real, saved business profile (name/email/phone/website),
+    not a generic canned prompt — mirroring the pattern used for AI phone replies."""
+    headers = _auth_headers(client, mock_db, email="agreements-ai@example.com")
+
+    profile_response = client.patch(
+        "/api/v1/smartflow/business-profile",
+        headers=headers,
+        json={
+            "business_name": "Nexus Digital Systems LLC",
+            "email": "hello@nexusdigital.com",
+            "phone_number": "+15551234567",
+            "website": "https://nexusdigital.com",
+        },
+    )
+    assert profile_response.status_code == 200
+
+    from app.core.config import settings as app_settings
+    from app.services.smartflow import agreement_service as agreement_service_module
+
+    monkeypatch.setattr(app_settings, "OPENAI_API_KEY", "test-key")
+
+    captured: dict = {}
+
+    class FakeMessage:
+        content = "AI-DRAFTED AGREEMENT TEXT REFERENCING NEXUS DIGITAL SYSTEMS LLC"
+
+    class FakeChoice:
+        message = FakeMessage()
+
+    class FakeResponse:
+        choices = [FakeChoice()]
+
+    class FakeCompletions:
+        async def create(self, **kwargs):
+            captured["messages"] = kwargs["messages"]
+            return FakeResponse()
+
+    class FakeChat:
+        completions = FakeCompletions()
+
+    class FakeClient:
+        chat = FakeChat()
+
+    monkeypatch.setattr(agreement_service_module, "_get_async_openai_client", lambda: FakeClient())
+
+    generate_response = client.post(
+        "/api/v1/smartflow/agreements/generate",
+        headers=headers,
+        json={
+            "prompt": "Create a service agreement for a website redesign.",
+            "client_name": "Acme Co",
+            "agreement_type": "contract",
+        },
+    )
+    assert generate_response.status_code == 200
+    draft = generate_response.json()["data"]
+    assert draft["content"] == "AI-DRAFTED AGREEMENT TEXT REFERENCING NEXUS DIGITAL SYSTEMS LLC"
+
+    system_message = captured["messages"][0]["content"]
+    assert "VERIFIED BUSINESS FACTS" in system_message
+    assert "Nexus Digital Systems LLC" in system_message
+    assert "hello@nexusdigital.com" in system_message
+    assert "+15551234567" in system_message
+
+
+def test_agreement_generation_falls_back_to_template_without_api_key(client, mock_db, monkeypatch) -> None:
+    from app.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "OPENAI_API_KEY", "")
+    headers = _auth_headers(client, mock_db, email="agreements-no-ai@example.com")
+
+    generate_response = client.post(
+        "/api/v1/smartflow/agreements/generate",
+        headers=headers,
+        json={
+            "prompt": "Create a service agreement for website design worth $2000.",
+            "client_name": "Fallback Client",
+            "agreement_type": "contract",
+        },
+    )
+    assert generate_response.status_code == 200
+    assert "PAYMENT TERMS" in generate_response.json()["data"]["content"]
 
 
 def test_agreement_filters_renew_and_delete(client, mock_db) -> None:
