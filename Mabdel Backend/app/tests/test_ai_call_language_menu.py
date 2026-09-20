@@ -44,8 +44,8 @@ def test_menu_is_spoken_in_each_options_own_language(mock_db, monkeypatch):
     played = asyncio.run(agent.offer_language_menu(lambda _m: asyncio.sleep(0)))
 
     assert played is True
-    assert phrase("language_menu_option", "en", digit="1") in spoken[0]
-    assert phrase("language_menu_option", "es", digit="2") in spoken[0]
+    assert phrase("language_menu_option", "en", digit="1") in " ".join(spoken)
+    assert phrase("language_menu_option", "es", digit="2") in " ".join(spoken)
 
 
 def test_menu_is_skipped_on_outbound_calls(mock_db, monkeypatch):

@@ -24,6 +24,24 @@ SAMPLE_RATE = 8000
 MAX_CONSECUTIVE_FAILURES = 2
 
 
+def _split_for_tts(text: str, min_tail_len: int = 12) -> list[str]:
+    """Splits speech into sentences so each can be synthesized on its own.
+
+    The first sentence is deliberately allowed to be short: time-to-first-audio is
+    dominated by how much text TTS has to render before it emits its first bytes, so
+    a short opener is what gets sound onto the line quickly. Only a trailing scrap
+    (e.g. a stray "Ok.") is folded back into the previous sentence, so it isn't
+    sent to TTS on its own."""
+    pieces = [p.strip() for p in re.split(r"(?<=[.!?…।。！？؟])\s+", (text or "").strip()) if p.strip()]
+    merged: list[str] = []
+    for piece in pieces:
+        if merged and len(piece) < min_tail_len:
+            merged[-1] = f"{merged[-1]} {piece}"
+        else:
+            merged.append(piece)
+    return merged or [text]
+
+
 def _looks_like_scheduling_request(text: str, language: str = "en") -> bool:
     return matches_any(text, language, call_phrases.SCHEDULING_KEYWORDS)
 
@@ -234,6 +252,11 @@ class AIPhoneAgent:
         self.call_settings: dict | None = None
         self.language_menu_answered = False
         self.empty_transcript_streak = 0
+        # Only one utterance may be on the line at a time. Without this, a caller's
+        # early "Hello?" started a reply turn while the greeting was still being
+        # synthesized, and both streamed audio into the call at once.
+        self.speak_lock = asyncio.Lock()
+        self.greeting_in_progress = False
 
     async def _get_call_settings(self) -> dict:
         """The business's AI persona, fetched once and cached for the call — same
@@ -260,8 +283,14 @@ class AIPhoneAgent:
         if self.greeted:
             return
         self.greeted = True
-        greeting_text = await self._compose_greeting_text()
-        await self._speak(greeting_text, send_callback)
+        # calls.py drops caller audio while this is set (the caller's "Hello?" as they
+        # pick up is not a request), except a real barge-in once the greeting is audible.
+        self.greeting_in_progress = True
+        try:
+            greeting_text = await self._compose_greeting_text()
+            await self._speak(greeting_text, send_callback)
+        finally:
+            self.greeting_in_progress = False
 
     async def _compose_greeting_text(self) -> str:
         """Builds the greeting the caller would hear — split out from greet() so the
@@ -348,6 +377,40 @@ class AIPhoneAgent:
         return False
 
     async def _speak(self, text: str, send_callback: Callable) -> bool:
+        async with self.speak_lock:
+            return await self._speak_unlocked(text, send_callback)
+
+    async def _pipelined_pcm(self, text: str, voice_id: str | None):
+        """Yields raw PCM for `text`, synthesizing every sentence concurrently but
+        emitting them strictly in order. While sentence 1 is playing, sentences 2..n
+        are already rendered (or rendering), so a multi-sentence greeting or reply
+        starts after the latency of its *first* sentence, not of the whole text."""
+        sentences = _split_for_tts(text)
+        if len(sentences) == 1:
+            async for chunk in self.ai_service.synthesize_speech_stream(text, voice_id):
+                yield chunk
+            return
+
+        queues: list[asyncio.Queue] = [asyncio.Queue() for _ in sentences]
+
+        async def produce(sentence: str, queue: asyncio.Queue) -> None:
+            try:
+                async for chunk in self.ai_service.synthesize_speech_stream(sentence, voice_id):
+                    await queue.put(chunk)
+            finally:
+                await queue.put(None)
+
+        tasks = [asyncio.create_task(produce(s, q)) for s, q in zip(sentences, queues)]
+        try:
+            for queue in queues:
+                while (chunk := await queue.get()) is not None:
+                    yield chunk
+        finally:
+            # Barge-in / hangup: stop rendering sentences nobody will hear.
+            for task in tasks:
+                task.cancel()
+
+    async def _speak_unlocked(self, text: str, send_callback: Callable) -> bool:
         """Synthesizes and streams `text` to the caller as audio arrives from OpenAI,
         rather than waiting for the full clip — the caller starts hearing the AI
         noticeably sooner, since TTS generation is the last of three sequential
@@ -404,8 +467,9 @@ class AIPhoneAgent:
         sent_any = False
 
         self.is_speaking = True
+        pcm_stream = self._pipelined_pcm(text, voice_id)
         try:
-            async for pcm_chunk in self.ai_service.synthesize_speech_stream(text, voice_id):
+            async for pcm_chunk in pcm_stream:
                 data = downsample_leftover + pcm_chunk
                 usable_len = len(data) - (len(data) % 6)
                 downsample_leftover = data[usable_len:]
@@ -454,6 +518,7 @@ class AIPhoneAgent:
             logger.debug("Call %s: finished streaming %d audio chunks", self.call_id, chunk_index)
             return sent_any
         finally:
+            await pcm_stream.aclose()
             self.is_speaking = False
             if self.barge_in_triggered:
                 # Caller interrupted — keep the speech captured during the interrupt as
@@ -941,7 +1006,13 @@ class AIPhoneAgent:
         )
 
         try:
-            reply, _tokens = await self.ai_service._generate_with_openai(prompt, None)
+            # Recent turns, so the AI remembers what the caller already said/asked
+            # instead of treating every sentence as the start of a new call.
+            history = [
+                {"direction": "outbound" if entry["speaker"] == "ai" else "inbound", "content": entry["text"]}
+                for entry in self.transcript_log[-6:]
+            ]
+            reply, _tokens = await self.ai_service._generate_with_openai(prompt, history)
             if reply:
                 lowered_reply = reply.lower()
                 if any(w in lowered_reply for w in ["schedule", "meeting", "call", "appointment", "slot", "meet", "time"]):

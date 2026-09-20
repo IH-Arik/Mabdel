@@ -164,10 +164,10 @@ def test_custom_greeting_is_spoken_instead_of_the_built_in_one(mock_db, monkeypa
     agent = _agent_with_settings(mock_db, {"greeting_inbound": "Welcome to Apex Dental."})
     asyncio.run(agent.greet(lambda _m: asyncio.sleep(0)))
 
-    assert "Welcome to Apex Dental." in spoken[0]
-    assert "Thanks for calling" not in spoken[0]
+    assert "Welcome to Apex Dental." in " ".join(spoken)
+    assert "Thanks for calling" not in " ".join(spoken)
     # The recording disclosure is compliance, not styling — it survives a custom greeting.
-    assert phrase("recording_disclosure", "en") in spoken[0]
+    assert phrase("recording_disclosure", "en") in " ".join(spoken)
 
 
 def test_greeting_falls_back_to_the_translated_phrase_when_unset(mock_db, monkeypatch):
@@ -177,7 +177,7 @@ def test_greeting_falls_back_to_the_translated_phrase_when_unset(mock_db, monkey
     agent = _agent_with_settings(mock_db, {})
     asyncio.run(agent.greet(lambda _m: asyncio.sleep(0)))
 
-    assert "calling" in spoken[0].lower()
+    assert "calling" in " ".join(spoken).lower()
 
 
 def test_assistant_name_is_announced(mock_db, monkeypatch):
@@ -187,7 +187,7 @@ def test_assistant_name_is_announced(mock_db, monkeypatch):
     agent = _agent_with_settings(mock_db, {"assistant_name": "Sarah"})
     asyncio.run(agent.greet(lambda _m: asyncio.sleep(0)))
 
-    assert "Sarah" in spoken[0]
+    assert "Sarah" in " ".join(spoken)
 
 
 def test_configured_voice_reaches_the_speech_synthesiser(mock_db, monkeypatch):

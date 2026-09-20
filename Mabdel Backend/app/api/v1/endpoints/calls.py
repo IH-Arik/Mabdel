@@ -667,7 +667,10 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
 
                     # Echo suppression while the AI is transcribing/thinking — there's no
                     # audible AI speech yet for the caller to interrupt during this gap.
-                    if agent.is_processing:
+                    # Same for the greeting: the caller's "Hello?" while it is still being
+                    # synthesized is not a request, and answering it made two utterances
+                    # play into the call at once.
+                    if agent.is_processing or agent.greeting_in_progress:
                         agent.audio_buffer.clear()
                         speech_duration_ms = 0
                         silence_duration_ms = 0
