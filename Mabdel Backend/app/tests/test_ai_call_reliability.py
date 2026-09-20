@@ -797,3 +797,29 @@ def test_greeting_in_progress_flag_is_cleared_after_greeting(mock_db, monkeypatc
     seen, after = asyncio.run(_run())
     assert seen and all(seen), "flag must be set while the greeting audio is streaming"
     assert after is False
+
+
+# ── Whisper hallucinations on noise/silence ──────────────────────────────
+
+
+def test_hallucinated_transcripts_are_recognised():
+    from app.services.gocustify_ai_service import is_hallucinated_transcript
+
+    assert is_hallucinated_transcript("... ... ... ... ...")
+    assert is_hallucinated_transcript("I don't believe it. I don't believe it. I don't believe it.")
+    assert is_hallucinated_transcript("Thank you.", [{"no_speech_prob": 0.9, "avg_logprob": -1.4, "compression_ratio": 0.8}])
+    # Values measured from the real API for silence / white noise:
+    assert is_hallucinated_transcript("you", [{"no_speech_prob": 0.94, "avg_logprob": -0.51, "compression_ratio": 0.27}])
+    assert is_hallucinated_transcript("Thank you for watching.", [{"no_speech_prob": 0.87, "avg_logprob": -0.97, "compression_ratio": 0.74}])
+    assert is_hallucinated_transcript("blah blah", [{"no_speech_prob": 0.1, "avg_logprob": -0.3, "compression_ratio": 3.1}])
+
+
+def test_real_speech_is_not_treated_as_hallucination():
+    from app.services.gocustify_ai_service import is_hallucinated_transcript
+
+    assert not is_hallucinated_transcript("Hi, I would like to book an appointment for tomorrow.")
+    assert not is_hallucinated_transcript("Yes.")
+    assert not is_hallucinated_transcript("Yes. Yes.")  # two repeats is normal speech
+    assert not is_hallucinated_transcript(
+        "What are your hours?", [{"no_speech_prob": 0.02, "avg_logprob": -0.2, "compression_ratio": 1.1}]
+    )

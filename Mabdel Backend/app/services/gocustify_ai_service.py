@@ -38,6 +38,44 @@ def _get_async_openai_client():
     return _async_openai_client
 
 
+def _segment_value(segment, key: str):
+    return segment.get(key) if isinstance(segment, dict) else getattr(segment, key, None)
+
+
+def is_hallucinated_transcript(text: str, segments=None) -> bool:
+    """Whisper invents text for line noise, hiss and silence — "...", "Thank you.",
+    or one phrase repeated over and over. On a live call that fake text used to be
+    treated as the caller speaking, so the AI answered noise.
+
+    Uses Whisper's own confidence signals (the standard thresholds: high
+    no_speech_prob with low avg_logprob, or a compression_ratio that betrays
+    repetition), plus two text checks that need no metadata."""
+    import re
+
+    letters = re.sub(r"[\W_]+", "", text or "")
+    if len(letters) < 2:
+        return True  # only dots/punctuation
+
+    sentences = [re.sub(r"[\W_]+", " ", s).strip().lower() for s in re.split(r"(?<=[.!?…])\s+", text)]
+    sentences = [s for s in sentences if s]
+    if len(sentences) >= 3 and len(set(sentences)) == 1:
+        return True  # "I don't believe it. I don't believe it. I don't believe it."
+
+    if segments:
+        def is_bad(segment) -> bool:
+            no_speech = _segment_value(segment, "no_speech_prob") or 0
+            logprob = _segment_value(segment, "avg_logprob")
+            compression = _segment_value(segment, "compression_ratio") or 0
+            # Measured against the real API: hiss/silence come back as "you" or "Thank
+            # you for watching." with no_speech_prob 0.87-0.94 (real speech ~0.02),
+            # and NOT always with a low avg_logprob, so no_speech_prob alone decides.
+            return no_speech > 0.7 or (no_speech > 0.5 and logprob is not None and logprob < -1.0) or compression > 2.4
+
+        if all(is_bad(segment) for segment in segments):
+            return True
+    return False
+
+
 class GoCustifyAIService:
     system_prompt = (
         "You are GoCustify, a business operations assistant for SmartFlow. "
@@ -429,6 +467,9 @@ class GoCustifyAIService:
             )
             text = (getattr(transcription, "text", "") or "").strip()
             language = (getattr(transcription, "language", "") or "").strip().lower() or None
+            if text and is_hallucinated_transcript(text, getattr(transcription, "segments", None)):
+                logger.info("Whisper hallucination on noise/silence dropped: %r", text[:80])
+                text = ""
             return (text or None), language, None if text else "OpenAI returned an empty transcript."
         except Exception as exc:
             return None, None, str(exc)[:240]
