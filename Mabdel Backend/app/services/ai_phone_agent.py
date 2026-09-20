@@ -23,6 +23,10 @@ SAMPLE_RATE = 8000
 # retrying silently and apologize + hang up instead of leaving the caller on dead air.
 MAX_CONSECUTIVE_FAILURES = 2
 
+# Unusable (empty/garbled) transcripts in a row before we stop asking the caller to
+# repeat and close the call politely, rather than either looping or going silent.
+MAX_EMPTY_TRANSCRIPTS = 3
+
 
 def _split_for_tts(text: str, min_tail_len: int = 12) -> list[str]:
     """Splits speech into sentences so each can be synthesized on its own.
@@ -670,13 +674,19 @@ class AIPhoneAgent:
                 else:
                     # The caller made enough noise to trigger a turn (calls.py needs
                     # >=300ms of speech energy) but Whisper heard nothing usable — e.g.
-                    # a cut-off barge-in. Staying silent here is what left callers on
-                    # dead air after the AI stopped talking, so ask once to repeat.
-                    # Only once in a row so line noise can't make it loop.
+                    # a cut-off barge-in, or a line too noisy to transcribe.
+                    #
+                    # Every one of these has to produce *something*: answering only the
+                    # first left the AI permanently mute for the rest of the call once
+                    # two in a row happened, which is exactly the "says a line or two
+                    # then goes quiet forever" failure. After a few in a row we stop
+                    # asking and end the call properly instead of holding dead air.
                     self.empty_transcript_streak += 1
-                    if self.empty_transcript_streak == 1:
-                        voice_id = (await self._get_call_settings()).get("voice_id")
-                        await self._stream_pcm_to_telnyx(phrase("did_not_understand", self.language), voice_id, send_callback)
+                    if self.empty_transcript_streak >= MAX_EMPTY_TRANSCRIPTS:
+                        self.should_hangup = True
+                        await self._speak(phrase("technical_issue", self.language), send_callback)
+                    else:
+                        await self._speak(phrase("did_not_understand", self.language), send_callback)
                 self.is_processing = False
                 return
 
@@ -709,14 +719,18 @@ class AIPhoneAgent:
         except Exception:
             logger.exception("Call %s: Error in AI Phone Agent", self.call_id)
             self.consecutive_failures += 1
-            if self.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                self.should_hangup = True
-                try:
+            try:
+                if self.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                    self.should_hangup = True
                     apology_audio = await self.ai_service.synthesize_speech(phrase("technical_issue", self.language))
                     if apology_audio and apology_audio.get("audio_base64"):
                         await self.stream_audio_to_telnyx(apology_audio["audio_base64"], send_callback)
-                except Exception:
-                    logger.exception("Call %s: apology speech also failed", self.call_id)
+                else:
+                    # A single failed turn must not read as the AI having hung up on
+                    # the caller: say something and let them try again.
+                    await self._speak(phrase("did_not_understand", self.language), send_callback)
+            except Exception:
+                logger.exception("Call %s: recovery speech also failed", self.call_id)
         finally:
             self.is_processing = False
 
