@@ -89,7 +89,7 @@ def test_greeting_includes_recording_disclosure(mock_db, monkeypatch):
     sent = asyncio.run(_run())
     assert captured_texts, "synthesize_speech should have been called for the greeting"
     disclosure = phrase("recording_disclosure", "en")
-    assert disclosure in captured_texts[0]
+    assert disclosure in " ".join(captured_texts)
     assert sent, "greeting audio should have been streamed to Telnyx"
 
 
@@ -118,7 +118,7 @@ def test_recording_disclosure_is_spoken_right_after_naming_the_business(mock_db,
 
     asyncio.run(_run())
 
-    greeting = captured_texts[0]
+    greeting = " ".join(captured_texts)  # greeting is synthesized sentence by sentence
     business_index = greeting.index("Apex Dental")
     disclosure_index = greeting.index(phrase("recording_disclosure", "en"))
     pitch_index = greeting.index("How can I help you today?")
@@ -500,8 +500,9 @@ def test_outbound_greeting_does_not_thank_them_for_calling(mock_db, monkeypatch)
         agent = _make_agent(SmartFlowService(mock_db))
         agent.stream_sid = "MZ_test"
         agent.is_outbound = is_outbound
+        spoken.clear()
         await agent.greet(lambda _message: asyncio.sleep(0))
-        return spoken[-1]
+        return " ".join(spoken)
 
     inbound_greeting = asyncio.run(_run(False))
     outbound_greeting = asyncio.run(_run(True))
@@ -720,3 +721,79 @@ def test_streaming_without_a_stream_sid_never_calls_tts_at_all(mock_db):
     sent_any = asyncio.run(_run())
     assert sent_any is False
     assert tts_called is False
+
+
+# ── Sentence-pipelined TTS / no overlapping speech ───────────────────────
+
+
+def test_split_for_tts_keeps_short_opener_and_folds_tiny_tail():
+    from app.services.ai_phone_agent import _split_for_tts
+
+    assert _split_for_tts("Thanks for calling! How can I help? Ok.") == [
+        "Thanks for calling!",
+        "How can I help? Ok.",
+    ]
+    assert _split_for_tts("One sentence only") == ["One sentence only"]
+    assert _split_for_tts("It costs 9.30 dollars. Fine by you?") == ["It costs 9.30 dollars.", "Fine by you?"]
+
+
+def test_pipelined_tts_plays_sentences_in_order_even_if_a_later_one_finishes_first(mock_db, monkeypatch):
+    async def fake_stream(self, text, voice_id=None):
+        # The first sentence is the slowest to render; it must still be heard first.
+        await asyncio.sleep(0.15 if text.startswith("First") else 0)
+        yield text.encode()
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech_stream", fake_stream)
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        return [c async for c in agent._pipelined_pcm("First sentence here. Second sentence here.", None)]
+
+    assert asyncio.run(_run()) == [b"First sentence here.", b"Second sentence here."]
+
+
+def test_speak_serializes_concurrent_utterances(mock_db, monkeypatch):
+    """A caller turn must not start streaming while the greeting is still playing."""
+    active = 0
+    max_active = 0
+
+    async def fake_stream(self, text, voice_id=None):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0.05)
+        yield b"\x00\x00" * 3000
+        active -= 1
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech_stream", fake_stream)
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = "MZ_test"
+
+        async def send_callback(message):
+            pass
+
+        await asyncio.gather(agent._speak("Hello.", send_callback), agent._speak("Hi there.", send_callback))
+
+    asyncio.run(_run())
+    assert max_active == 1
+
+
+def test_greeting_in_progress_flag_is_cleared_after_greeting(mock_db, monkeypatch):
+    install_fake_streaming_tts(monkeypatch)
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = "MZ_test"
+        seen = []
+
+        async def send_callback(message):
+            seen.append(agent.greeting_in_progress)
+
+        await agent.greet(send_callback)
+        return seen, agent.greeting_in_progress
+
+    seen, after = asyncio.run(_run())
+    assert seen and all(seen), "flag must be set while the greeting audio is streaming"
+    assert after is False

@@ -705,7 +705,7 @@ def test_greeting_uses_the_actual_business_name(mock_db):
         synthesized = {}
 
         async def fake_synthesize_stream(text, voice_id=None):
-            synthesized["text"] = text
+            synthesized["text"] = (synthesized.get("text", "") + " " + text).strip()
             yield b"\x00\x00" * 100
 
         agent.ai_service.synthesize_speech_stream = fake_synthesize_stream
@@ -727,7 +727,7 @@ def test_greeting_falls_back_gracefully_when_no_business_name_set(mock_db):
         synthesized = {}
 
         async def fake_synthesize_stream(text, voice_id=None):
-            synthesized["text"] = text
+            synthesized["text"] = (synthesized.get("text", "") + " " + text).strip()
             yield b"\x00\x00" * 100
 
         agent.ai_service.synthesize_speech_stream = fake_synthesize_stream
@@ -1633,3 +1633,27 @@ def test_clean_spoken_phone():
     assert _clean_spoken_phone("555-123-4567") == "5551234567"
     assert _clean_spoken_phone("+1 (555) 123-4567") == "+15551234567"
     assert _clean_spoken_phone("five five five one two three four five six seven") == "5551234567"
+
+
+def test_plain_chat_passes_recent_turns_so_the_ai_remembers_the_conversation(mock_db, monkeypatch):
+    captured = {}
+
+    async def fake_generate(self, prompt, history):
+        captured["history"] = history
+        return "Sure.", 5
+
+    monkeypatch.setattr(GoCustifyAIService, "_generate_with_openai", fake_generate)
+
+    async def _run():
+        agent = _make_agent("guest", SmartFlowService(mock_db))
+        agent.transcript_log = [
+            {"speaker": "customer", "text": "My name is Dana."},
+            {"speaker": "ai", "text": "Nice to meet you, Dana."},
+        ]
+        return await agent._advance_conversation("What are your hours?")
+
+    asyncio.run(_run())
+    assert captured["history"] == [
+        {"direction": "inbound", "content": "My name is Dana."},
+        {"direction": "outbound", "content": "Nice to meet you, Dana."},
+    ]
