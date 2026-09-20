@@ -244,6 +244,34 @@ def test_transient_no_speech_does_not_count_as_failure(mock_db, monkeypatch):
     assert should_hangup is False
 
 
+def test_empty_transcript_after_speech_asks_to_repeat_once(mock_db, monkeypatch):
+    """Caller made noise, Whisper heard nothing: the AI asks once to repeat instead of
+    leaving dead air, but never loops on line noise."""
+    spoken = []
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
+
+    async def fake_transcribe(self, audio_base64, audio_mime_type, audio_filename):
+        return None, None, "OpenAI returned an empty transcript."
+
+    monkeypatch.setattr(GoCustifyAIService, "_transcribe_with_language", fake_transcribe)
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = "stream-1"
+
+        async def send_callback(message):
+            pass
+
+        for _ in range(3):
+            agent.audio_buffer.extend(b"\xff" * 8000)
+            await agent.process_and_respond(send_callback)
+        return agent.consecutive_failures
+
+    failures = asyncio.run(_run())
+    assert len(spoken) == 1
+    assert failures == 0
+
+
 # ── Barge-in ──────────────────────────────────────────────────────────────
 
 
