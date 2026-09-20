@@ -165,7 +165,16 @@ function CallAnalysisPanel({ call, onClose, onDirectCall, onRequestCallback, onD
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
+      const cached = analysisCache.get(call.id);
+      if (cached) {
+        // Show the last-seen analysis immediately and refresh it below.
+        setAiSummary(cached.aiSummary);
+        setTranscript(cached.transcript);
+        setRecordingUrl(cached.recordingUrl);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
       setError('');
       try {
         const [aiResponse, transcriptResponse, recordingResponse] = await Promise.all([
@@ -184,9 +193,12 @@ function CallAnalysisPanel({ call, onClose, onDirectCall, onRequestCallback, onD
           ? [{ speaker: 'caller', text: transcriptPayload.transcript }]
           : [];
 
+        const nextTranscript = segments.length ? segments : fallbackTranscript;
+        const nextRecordingUrl = recordingPayload.recording_url || recordingPayload.url || '';
+        analysisCache.set(call.id, { aiSummary: aiPayload, transcript: nextTranscript, recordingUrl: nextRecordingUrl });
         setAiSummary(aiPayload);
-        setTranscript(segments.length ? segments : fallbackTranscript);
-        setRecordingUrl(recordingPayload.recording_url || recordingPayload.url || '');
+        setTranscript(nextTranscript);
+        setRecordingUrl(nextRecordingUrl);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError?.response?.data?.message || t('calls_err_analysis_failed'));
@@ -559,6 +571,10 @@ function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
   );
 }
 
+// Module-level so they survive navigating away from /calls and back.
+let callsPageCache = null; // { payload, analytics } for page 1 of the call list
+const analysisCache = new Map(); // call id -> { aiSummary, transcript, recordingUrl }
+
 export default function Calls() {
   const { t } = useLanguage();
   const [calls, setCalls] = useState([]);
@@ -626,11 +642,26 @@ export default function Calls() {
     }
   };
 
+  const applyCallsPage = useCallback((payload, analytics, nextPage, append) => {
+    const items = toArray(payload.items).map((call) => normalizeCall(call, t));
+    let resolvedCalls = items;
+    setCalls((previous) => {
+      const mergedCalls = append ? [...previous, ...items] : items;
+      resolvedCalls = Array.from(new Map(mergedCalls.map((call) => [call.id, call])).values());
+      return resolvedCalls;
+    });
+    setPage(payload.pagination?.page || nextPage);
+    setTotalPages(payload.pagination?.pages || 1);
+    setSummary(buildSummary(resolvedCalls, payload.summary, analytics));
+  }, [t]);
+
   const fetchCalls = useCallback(async (nextPage = 1, append = false) => {
     try {
       if (append) {
         setLoadingMore(true);
-      } else {
+      } else if (!callsPageCache) {
+        // Stale-while-revalidate: with a cached first page on screen, refresh
+        // silently in the background instead of flashing the spinner on every visit.
         setLoading(true);
       }
 
@@ -640,16 +671,11 @@ export default function Calls() {
       ]);
 
       const payload = callRes?.data?.data || {};
-      const items = toArray(payload.items).map((call) => normalizeCall(call, t));
-      let resolvedCalls = items;
-      setCalls((previous) => {
-        const mergedCalls = append ? [...previous, ...items] : items;
-        resolvedCalls = Array.from(new Map(mergedCalls.map((call) => [call.id, call])).values());
-        return resolvedCalls;
-      });
-      setPage(payload.pagination?.page || nextPage);
-      setTotalPages(payload.pagination?.pages || 1);
-      setSummary(buildSummary(resolvedCalls, payload.summary, analyticsRes?.data?.data));
+      const analytics = analyticsRes?.data?.data;
+      if (!append && nextPage === 1) {
+        callsPageCache = { payload, analytics };
+      }
+      applyCallsPage(payload, analytics, nextPage, append);
       setError('');
     } catch (requestError) {
       setError(requestError?.response?.data?.message || t('calls_err_load_failed'));
@@ -657,11 +683,15 @@ export default function Calls() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [t]);
+  }, [t, applyCallsPage]);
 
   useEffect(() => {
+    if (callsPageCache) {
+      applyCallsPage(callsPageCache.payload, callsPageCache.analytics, 1, false);
+      setLoading(false);
+    }
     fetchCalls(1, false);
-  }, [fetchCalls]);
+  }, [fetchCalls, applyCallsPage]);
 
   useEffect(() => {
     if (location.state?.prefill) {
