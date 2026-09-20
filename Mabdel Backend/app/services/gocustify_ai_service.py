@@ -261,7 +261,7 @@ class GoCustifyAIService:
                 input=text,
                 response_format="pcm",
             ) as response:
-                async for chunk in response.aiter_bytes(chunk_size=4096):
+                async for chunk in response.iter_bytes(chunk_size=4096):
                     if chunk:
                         yield chunk
         except Exception:
