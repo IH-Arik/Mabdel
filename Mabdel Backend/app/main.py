@@ -17,10 +17,15 @@ from app.api.telnyx_webhook_alias import router as telnyx_webhook_alias_router
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import close_database_connection, mongo_manager
+from app.core.logging import configure_logging
 from app.core.exceptions import register_exception_handlers
 from app.core.http import AuthRateLimitMiddleware, MutationRateLimitMiddleware, RequestContextMiddleware
 from app.services.smartflow.bulk_message_service import BulkMessageService
 from app.utils.responses import success_response
+
+# Never called before: the root logger stayed at WARNING, so every logger.info in the
+# app (call stream start, TTS, barge-in...) was silently dropped in production.
+configure_logging()
 
 logger = logging.getLogger(__name__)
 _BULK_DISPATCH_POLL_SECONDS = 5
