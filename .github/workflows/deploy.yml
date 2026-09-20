@@ -16,7 +16,14 @@ jobs:
           cd /home/ubuntu/Mabdel
           echo "pwd after cd: $(pwd)"
           ls -la .git || echo ".git NOT FOUND HERE"
-          git pull origin master
+          # origin/master has been force-pushed over before, which makes a plain
+          # `git pull` fail with "divergent branches". This checkout only exists to be
+          # deployed, so make it match origin exactly (untracked files such as the
+          # production .env are left alone).
+          git status --short | head -20 || true
+          git fetch origin master
+          git reset --hard origin/master
+          git log --oneline -1
           cd "Mabdel Backend"
           sudo docker compose -f docker-compose.prod.yml up -d --build
 
