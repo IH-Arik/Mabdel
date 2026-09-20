@@ -201,3 +201,126 @@ def test_outbound_call_requires_telnyx_configuration(client, mock_db, monkeypatc
     )
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "TELNYX_NOT_CONFIGURED"
+
+
+def test_ai_call_still_streams_when_the_initiated_webhook_beats_the_sid_update(client, mock_db, monkeypatch):
+    """Telnyx fires call.initiated the moment it accepts the dial — routinely before
+    create_outbound_call has written the call_control_id onto the log it just made.
+    Matching only on twilio_call_sid then found nothing and inserted a *second*,
+    AI-less log ("outgoing_direct", no ai_ready); call.answered matched that one, so
+    the media stream never started and the caller heard silence for the whole call.
+
+    The un-stamped log is reproduced here by having the dial return no sid, which is
+    the same state the real race leaves behind while the update is still in flight.
+    """
+    headers = _auth_headers(client, mock_db, email="calls-ai-race@example.com")
+    contact_id = _create_contact(client, headers, name="Race Target", phone="+8801700000009")
+
+    monkeypatch.setattr(settings, "TELNYX_PHONE_NUMBER", "+15550000000")
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    call_control_id = "v2:outbound-ai-race"
+    dialed: dict = {}
+
+    async def fake_initiate(self, *, to_number: str, from_number: str | None, user_id: str, call_log_id: str) -> dict:
+        dialed["user_id"] = user_id
+        dialed["call_log_id"] = call_log_id
+        return {"sid": None, "status": "queued", "to": to_number, "from": from_number}
+
+    started_streams: list[str] = []
+
+    async def fake_start_streaming(self, call_control_id: str, *, websocket_url: str) -> bool:
+        started_streams.append(call_control_id)
+        return True
+
+    monkeypatch.setattr(CallService, "initiate_outbound_call", fake_initiate)
+    monkeypatch.setattr(CallService, "start_streaming", fake_start_streaming)
+
+    create_response = client.post(
+        "/api/v1/smartflow/calls/outbound",
+        headers=headers,
+        json={"contact_id": contact_id, "ai_ready": True},
+    )
+    assert create_response.status_code == 201
+
+    client_state = CallService.encode_client_state(
+        {"user_id": dialed["user_id"], "call_log_id": dialed["call_log_id"]}
+    )
+    initiated = client.post(
+        "/api/v1/calls/webhook",
+        content=_webhook_envelope(
+            "call.initiated",
+            {
+                "call_control_id": call_control_id,
+                "direction": "outgoing",
+                "from": "+15550000000",
+                "to": "+8801700000009",
+                "client_state": client_state,
+            },
+        ),
+    )
+    assert initiated.status_code == 200
+
+    logs = asyncio.run(mock_db.call_logs.find({}).to_list(length=10))
+    assert len(logs) == 1, f"the early webhook created a duplicate call log: {logs}"
+    assert logs[0]["twilio_call_sid"] == call_control_id
+    assert logs[0]["ai_ready"] is True
+
+    client.post(
+        "/api/v1/calls/webhook",
+        content=_webhook_envelope(
+            "call.answered",
+            {"call_control_id": call_control_id, "from": "+15550000000", "to": "+8801700000009"},
+        ),
+    )
+
+    assert started_streams == [call_control_id], "AI media stream never started, so the caller hears nothing"
+
+
+def test_ai_call_streams_even_if_answered_lands_before_the_log_has_its_sid(client, mock_db, monkeypatch):
+    """The other half of the same race: call.answered arriving first. Matching only on
+    twilio_call_sid dropped the event entirely, so start_streaming never ran."""
+    headers = _auth_headers(client, mock_db, email="calls-ai-race2@example.com")
+    contact_id = _create_contact(client, headers, name="Race Target 2", phone="+8801700000010")
+
+    monkeypatch.setattr(settings, "TELNYX_PHONE_NUMBER", "+15550000000")
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    dialed: dict = {}
+
+    async def fake_initiate(self, *, to_number: str, from_number: str | None, user_id: str, call_log_id: str) -> dict:
+        dialed["user_id"] = user_id
+        dialed["call_log_id"] = call_log_id
+        return {"sid": None, "status": "queued", "to": to_number, "from": from_number}
+
+    started_streams: list[str] = []
+
+    async def fake_start_streaming(self, call_control_id: str, *, websocket_url: str) -> bool:
+        started_streams.append(call_control_id)
+        return True
+
+    monkeypatch.setattr(CallService, "initiate_outbound_call", fake_initiate)
+    monkeypatch.setattr(CallService, "start_streaming", fake_start_streaming)
+
+    assert client.post(
+        "/api/v1/smartflow/calls/outbound",
+        headers=headers,
+        json={"contact_id": contact_id, "ai_ready": True},
+    ).status_code == 201
+
+    client.post(
+        "/api/v1/calls/webhook",
+        content=_webhook_envelope(
+            "call.answered",
+            {
+                "call_control_id": "v2:outbound-answered-first",
+                "from": "+15550000000",
+                "to": "+8801700000010",
+                "client_state": CallService.encode_client_state(
+                    {"user_id": dialed["user_id"], "call_log_id": dialed["call_log_id"]}
+                ),
+            },
+        ),
+    )
+
+    assert started_streams == ["v2:outbound-answered-first"]

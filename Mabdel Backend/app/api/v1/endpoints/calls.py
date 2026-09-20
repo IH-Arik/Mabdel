@@ -343,6 +343,20 @@ async def _handle_browser_ring_hangup(ring_leg_id: str, payload) -> None:
         await call_service.hangup_call(inbound_call_id)
 
 
+async def _find_call_log_by_client_state(service: SmartFlowService, payload) -> dict | None:
+    """The call log we ourselves referenced in client_state when placing the call."""
+    call_log_id = call_service.decode_client_state(payload.client_state).get("call_log_id")
+    if not call_log_id:
+        return None
+    from bson import ObjectId
+
+    try:
+        object_id = ObjectId(call_log_id)
+    except Exception:
+        return None
+    return await service.db.call_logs.find_one({"_id": object_id})
+
+
 async def _handle_outgoing_call_initiated(call_id: str, payload, service: SmartFlowService) -> None:
     """Browser-originated outbound calls dial Telnyx directly from the WebRTC SDK —
     there's no REST round-trip to our backend beforehand, so this webhook is the first
@@ -354,6 +368,23 @@ async def _handle_outgoing_call_initiated(call_id: str, payload, service: SmartF
         return
 
     state = call_service.decode_client_state(payload.client_state)
+
+    # Telnyx fires this the instant it accepts the dial — routinely before
+    # create_outbound_call has written the call_control_id onto the row it just
+    # created, so the lookup above misses it. Matching the log by the id we put in
+    # client_state ourselves is what stops a second, AI-less "outgoing_direct" row
+    # being inserted for the very same call: call.answered would then match *that*
+    # row (no ai_ready, wrong call_type), never start the media stream, and leave
+    # the person we rang listening to silence.
+    pending = await _find_call_log_by_client_state(service, payload)
+    if pending and not pending.get("twilio_call_sid"):
+        await service.db.call_logs.update_one(
+            {"_id": pending["_id"]},
+            {"$set": {"twilio_call_sid": call_id, "status": "initiated", "updated_at": utc_now()}},
+        )
+        logger.info("Call %s: stamped onto existing call log %s", call_id, pending["_id"])
+        return
+
     user_id = state.get("user_id")
     if not user_id:
         logger.warning("Call %s: outgoing call with no matching call_log and no client_state user_id.", call_id)
@@ -379,7 +410,17 @@ async def _handle_outgoing_call_initiated(call_id: str, payload, service: SmartF
 async def _handle_call_status(service: SmartFlowService, call_id: str, event_type: str, payload) -> None:
     call = await service.db.call_logs.find_one({"twilio_call_sid": call_id})
     if not call:
-        return
+        # Same race as _handle_outgoing_call_initiated: the log may not carry the
+        # call_control_id yet. Falling back to the id we set in client_state keeps an
+        # answered AI call from being dropped here (which would skip start_streaming
+        # and leave the callee on silence).
+        call = await _find_call_log_by_client_state(service, payload)
+        if not call:
+            return
+        await service.db.call_logs.update_one(
+            {"_id": call["_id"]}, {"$set": {"twilio_call_sid": call_id, "updated_at": utc_now()}}
+        )
+        call["twilio_call_sid"] = call_id
     normalized = call_service.normalize_call_status(event_type, payload.hangup_cause)
     updates: dict = {"status": normalized}
 
