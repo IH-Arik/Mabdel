@@ -7,6 +7,7 @@ import wave
 
 from app.services.ai_phone_agent import (
     MAX_CONSECUTIVE_FAILURES,
+    MAX_EMPTY_TRANSCRIPTS,
     MU_LAW_SILENCE,
     AIPhoneAgent,
     is_outbound_call,
@@ -221,6 +222,7 @@ def test_repeated_transcription_failure_triggers_hangup(mock_db, monkeypatch):
 def test_transient_no_speech_does_not_count_as_failure(mock_db, monkeypatch):
     """A silent/empty transcript (nobody spoke) is not a pipeline failure and must
     not count toward the dead-air failsafe."""
+    install_fake_streaming_tts(monkeypatch)
 
     async def fake_transcribe(self, audio_base64, audio_mime_type, audio_filename):
         return None, None, "OpenAI returned an empty transcript."
@@ -230,11 +232,12 @@ def test_transient_no_speech_does_not_count_as_failure(mock_db, monkeypatch):
     async def _run():
         flow_service = SmartFlowService(mock_db)
         agent = _make_agent(flow_service)
+        agent.stream_sid = "MZ_test"
 
         async def send_callback(message):
             pass
 
-        for _ in range(MAX_CONSECUTIVE_FAILURES + 2):
+        for _ in range(MAX_EMPTY_TRANSCRIPTS - 1):
             agent.audio_buffer.extend(b"\xff" * 8000)
             await agent.process_and_respond(send_callback)
         return agent.consecutive_failures, agent.should_hangup
@@ -244,9 +247,11 @@ def test_transient_no_speech_does_not_count_as_failure(mock_db, monkeypatch):
     assert should_hangup is False
 
 
-def test_empty_transcript_after_speech_asks_to_repeat_once(mock_db, monkeypatch):
-    """Caller made noise, Whisper heard nothing: the AI asks once to repeat instead of
-    leaving dead air, but never loops on line noise."""
+def test_empty_transcript_never_leaves_the_ai_permanently_mute(mock_db, monkeypatch):
+    """Caller made noise, Whisper heard nothing usable. Every such turn must produce
+    speech: answering only the first one left the AI silent for the rest of the call
+    (the "says a line or two then goes quiet" report). A run of them ends the call
+    politely rather than looping forever or holding dead air."""
     spoken = []
     install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
 
@@ -262,13 +267,16 @@ def test_empty_transcript_after_speech_asks_to_repeat_once(mock_db, monkeypatch)
         async def send_callback(message):
             pass
 
-        for _ in range(3):
+        for _ in range(MAX_EMPTY_TRANSCRIPTS + 1):
             agent.audio_buffer.extend(b"\xff" * 8000)
             await agent.process_and_respond(send_callback)
-        return agent.consecutive_failures
+        return agent.consecutive_failures, agent.should_hangup
 
-    failures = asyncio.run(_run())
-    assert len(spoken) == 1
+    failures, should_hangup = asyncio.run(_run())
+    repeat_prompts = [text for text in spoken if text == phrase("did_not_understand", "en")]
+    assert len(repeat_prompts) == MAX_EMPTY_TRANSCRIPTS - 1, f"AI went mute after the first prompt: {spoken}"
+    assert phrase("technical_issue", "en").startswith(spoken[-2]), spoken
+    assert should_hangup is True
     assert failures == 0
 
 
@@ -820,6 +828,12 @@ def test_real_speech_is_not_treated_as_hallucination():
     assert not is_hallucinated_transcript("Hi, I would like to book an appointment for tomorrow.")
     assert not is_hallucinated_transcript("Yes.")
     assert not is_hallucinated_transcript("Yes. Yes.")  # two repeats is normal speech
+    # A real request on a noisy phone line can score badly; its length is what saves it
+    # from being thrown away as a hallucination.
+    assert not is_hallucinated_transcript(
+        "I would like to book an appointment for tomorrow afternoon please",
+        [{"no_speech_prob": 0.92, "avg_logprob": -1.3, "compression_ratio": 1.2}],
+    )
     assert not is_hallucinated_transcript(
         "What are your hours?", [{"no_speech_prob": 0.02, "avg_logprob": -0.2, "compression_ratio": 1.1}]
     )

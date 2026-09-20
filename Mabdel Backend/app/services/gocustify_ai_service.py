@@ -61,7 +61,13 @@ def is_hallucinated_transcript(text: str, segments=None) -> bool:
     if len(sentences) >= 3 and len(set(sentences)) == 1:
         return True  # "I don't believe it. I don't believe it. I don't believe it."
 
-    if segments:
+    # Confidence alone is not enough to throw speech away: a real phone line is noisy
+    # (8kHz mu-law, background, echo) so a genuine sentence can come back with a
+    # middling no_speech_prob, and discarding it would leave the caller talking to an
+    # AI that never answers. Every hallucination Whisper actually produces here is a
+    # short stock phrase ("you", "Thank you for watching."), so anything longer is
+    # taken at face value.
+    if len(letters) <= 25 and segments:
         def is_bad(segment) -> bool:
             no_speech = _segment_value(segment, "no_speech_prob") or 0
             logprob = _segment_value(segment, "avg_logprob")
