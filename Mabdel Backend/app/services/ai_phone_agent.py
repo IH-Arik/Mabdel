@@ -465,6 +465,8 @@ class AIPhoneAgent:
         chunk_index = 0
         start_time: float | None = None
         sent_any = False
+        stream_began = time.perf_counter()
+        first_audio_delay: float | None = None
 
         self.is_speaking = True
         pcm_stream = self._pipelined_pcm(text, voice_id)
@@ -486,6 +488,7 @@ class AIPhoneAgent:
                     del mulaw_leftover[:chunk_size]
                     if start_time is None:
                         start_time = time.perf_counter()
+                        first_audio_delay = start_time - stream_began
                         self.speaking_started_at = time.monotonic()
                     await send_callback({"event": "media", "media": {"payload": base64.b64encode(frame).decode("utf-8")}})
                     sent_any = True
@@ -515,7 +518,12 @@ class AIPhoneAgent:
                 await send_callback({"event": "media", "media": {"payload": base64.b64encode(frame).decode("utf-8")}})
                 sent_any = True
 
-            logger.debug("Call %s: finished streaming %d audio chunks", self.call_id, chunk_index)
+            logger.info(
+                "Call %s: AI spoke %d frames (%.1fs audio), first audio after %s%s",
+                self.call_id, chunk_index, chunk_index * 0.02,
+                f"{first_audio_delay:.2f}s" if first_audio_delay is not None else "never",
+                " [cut by barge-in]" if self.barge_in_triggered else "",
+            )
             return sent_any
         finally:
             await pcm_stream.aclose()
