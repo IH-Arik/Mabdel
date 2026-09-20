@@ -233,6 +233,7 @@ class AIPhoneAgent:
         # call — see _get_call_settings.
         self.call_settings: dict | None = None
         self.language_menu_answered = False
+        self.empty_transcript_streak = 0
 
     async def _get_call_settings(self) -> dict:
         """The business's AI persona, fetched once and cached for the call — same
@@ -593,9 +594,20 @@ class AIPhoneAgent:
                         )
                         if apology_audio and apology_audio.get("audio_base64"):
                             await self.stream_audio_to_telnyx(apology_audio["audio_base64"], send_callback)
+                else:
+                    # The caller made enough noise to trigger a turn (calls.py needs
+                    # >=300ms of speech energy) but Whisper heard nothing usable — e.g.
+                    # a cut-off barge-in. Staying silent here is what left callers on
+                    # dead air after the AI stopped talking, so ask once to repeat.
+                    # Only once in a row so line noise can't make it loop.
+                    self.empty_transcript_streak += 1
+                    if self.empty_transcript_streak == 1:
+                        voice_id = (await self._get_call_settings()).get("voice_id")
+                        await self._stream_pcm_to_telnyx(phrase("did_not_understand", self.language), voice_id, send_callback)
                 self.is_processing = False
                 return
 
+            self.empty_transcript_streak = 0
             if not self.language_locked:
                 self.language = call_phrases.resolve_call_language(detected_language)
                 self.language_locked = True
