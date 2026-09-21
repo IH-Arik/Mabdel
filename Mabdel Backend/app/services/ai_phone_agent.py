@@ -255,6 +255,9 @@ class AIPhoneAgent:
         # call — see _get_call_settings.
         self.call_settings: dict | None = None
         self.language_menu_answered = False
+        # The live call's send function, so a keypad choice arriving on the webhook
+        # (outside the media loop) can still speak — see acknowledge_language_switch.
+        self.send_callback: Callable | None = None
         self.empty_transcript_streak = 0
         # Only one utterance may be on the line at a time. Without this, a caller's
         # early "Hello?" started a reply turn while the greeting was still being
@@ -316,14 +319,22 @@ class AIPhoneAgent:
         finally:
             self.greeting_in_progress = False
 
-    async def _compose_greeting_text(self) -> str:
+    async def _compose_greeting_text(self, *, use_custom: bool = True) -> str:
         """Builds the greeting the caller would hear — split out from greet() so the
         Test AI simulator can obtain just the text (to show the owner) without going
-        anywhere near the audio synthesis/streaming pipeline."""
+        anywhere near the audio synthesis/streaming pipeline.
+
+        `use_custom=False` forces the built-in, translated phrases: a business's own
+        greeting is in whatever language they typed it, so it cannot be replayed to a
+        caller who has just asked for a different one."""
         self.business_name = await self._get_business_name()
         settings_doc = await self._get_call_settings()
 
-        custom = settings_doc.get("greeting_outbound") if self.is_outbound else settings_doc.get("greeting_inbound")
+        custom = (
+            (settings_doc.get("greeting_outbound") if self.is_outbound else settings_doc.get("greeting_inbound"))
+            if use_custom
+            else None
+        )
         assistant_name = settings_doc.get("assistant_name")
         disclosure = phrase("recording_disclosure", self.language)
 
@@ -361,36 +372,44 @@ class AIPhoneAgent:
             # after the "how can I help you" question.
             greeting_text = f"{intro_text} {disclosure} {pitch_text}"
 
+        # The keypad language offer goes at the very end of the greeting, after the
+        # caller knows who is calling and why, and after the recording disclosure.
+        # It used to be a separate menu played *before* the greeting with a 6s wait
+        # for a key — dead air on every call where nobody pressed anything, and
+        # skipped entirely on outbound calls, so Make AI Call never offered it.
+        # Nothing waits on it now: a key pressed at any point switches the call.
+        menu_text = "" if self.language_menu_answered else self.build_language_menu_text(settings_doc)
+        if menu_text:
+            greeting_text = f"{greeting_text} {menu_text}"
+
         return greeting_text
+
+    async def acknowledge_language_switch(self) -> None:
+        """Re-greets in the language the caller just picked on the keypad, so the
+        choice is audibly confirmed and they know they can talk. Uses the built-in
+        phrases, which include the recording disclosure in that language too — the
+        caller who needed Spanish may not have understood it the first time."""
+        if self.send_callback is None:
+            return
+        self.greeting_in_progress = True
+        try:
+            text = await self._compose_greeting_text(use_custom=False)
+            await self._speak(text, self.send_callback)
+        finally:
+            self.greeting_in_progress = False
 
     def build_language_menu_text(self, settings_doc: dict) -> str:
         """"For English press 1. Para español marque 2." — each option rendered in its
         own language, since a caller who does not speak the default one still has to
         understand their own entry."""
-        options = settings_doc.get("language_menu") or []
+        if not settings_doc.get("language_menu_enabled"):
+            return ""
+        # "For English, press 1" in an English greeting offers nothing.
+        options = [o for o in (settings_doc.get("language_menu") or []) if o.get("language") != self.language]
         return " ".join(
             phrase("language_menu_option", option["language"], digit=option["digit"])
             for option in options
         )
-
-    async def offer_language_menu(self, send_callback: Callable) -> bool:
-        """Speaks the keypad menu. Returns False when no menu applies, so the caller
-        flow falls straight through to the normal greeting."""
-        if self.is_outbound:
-            logger.info("Call %s: keypad language menu skipped (outbound call)", self.call_id)
-            return False  # we dialled them; a menu makes no sense
-        settings_doc = await self._get_call_settings()
-        if not settings_doc.get("language_menu_enabled") or not settings_doc.get("language_menu"):
-            return False
-        logger.info(
-            "Call %s: offering keypad language menu %s", self.call_id,
-            {option.get("digit"): option.get("language") for option in settings_doc["language_menu"]},
-        )
-        menu_text = self.build_language_menu_text(settings_doc)
-        if not menu_text:
-            return False
-        await self._speak(menu_text, send_callback)
-        return True
 
     def set_language_from_digit(self, digit: str) -> bool:
         """Applies a keypad choice. Returns False for a digit that is not on the menu
@@ -401,6 +420,10 @@ class AIPhoneAgent:
                 self.language = option["language"]
                 self.language_locked = True  # explicit choice beats Whisper detection
                 self.language_menu_answered = True
+                if self.is_speaking:
+                    # Stop the greeting mid-sentence rather than make someone who just
+                    # asked for Spanish sit through the rest of it in English.
+                    self.barge_in_triggered = True
                 logger.info("Call %s: caller selected language %s via keypad", self.call_id, self.language)
                 return True
         return False
