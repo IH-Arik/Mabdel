@@ -57,6 +57,38 @@ BARGE_IN_GRACE_SECONDS = 0.6
 BARGE_IN_ENERGY_THRESHOLD = ENERGY_THRESHOLD * 1.8
 BARGE_IN_THRESHOLD_MS = 600  # sustained real speech while AI is talking counts as an interrupt
 
+# A fixed speech threshold assumes a quiet line. On a noisy one every chunk clears it,
+# the 600ms-of-silence check that ends a turn never fires, and the caller waits out the
+# backstop below for every single reply (measured at 17s in production on an outbound
+# mobile leg, while inbound on a clean line was fine). Tracking the quietest recent
+# audio instead lets the threshold sit above whatever the background actually is.
+NOISE_FLOOR_SPEECH_MULTIPLIER = 2.5
+# Lets the floor climb when the background genuinely gets louder, while still being far
+# slower than speech, so a long sentence cannot drag the floor up to its own level.
+NOISE_FLOOR_RISE_PER_CHUNK = 1.02
+
+
+def update_noise_floor(noise_floor: float | None, energy: float, *, allow_rise: bool = True) -> float:
+    """Running minimum of chunk energy, allowed to drift up only between utterances.
+
+    `allow_rise` must be False while the caller is mid-sentence: letting the floor
+    climb through a long utterance would drag it up to the level of speech itself, and
+    the AI would then stop hearing the caller entirely.
+    """
+    if noise_floor is None or energy <= noise_floor:
+        return energy
+    if not allow_rise:
+        return noise_floor
+    return min(energy, noise_floor * NOISE_FLOOR_RISE_PER_CHUNK + 1.0)
+
+
+def speech_threshold(noise_floor: float | None) -> float:
+    """Energy a chunk needs to count as speech rather than background."""
+    if noise_floor is None:
+        return ENERGY_THRESHOLD
+    return max(ENERGY_THRESHOLD, noise_floor * NOISE_FLOOR_SPEECH_MULTIPLIER)
+
+
 # Longest stretch of caller audio we will buffer before answering anyway. Silence
 # detection is what normally ends a turn, but a line noisy enough that every chunk
 # reads as speech never goes quiet — this is the backstop that still gets the caller
@@ -442,6 +474,29 @@ async def _handle_call_status(service: SmartFlowService, call_id: str, event_typ
             {"_id": call["_id"]}, {"$set": {"twilio_call_sid": call_id, "updated_at": utc_now()}}
         )
         call["twilio_call_sid"] = call_id
+    # Before any bookkeeping: every Atlas round-trip below is dead air for the person
+    # who just picked up, and in production they added up to ~2s of the 4-5s gap before
+    # the AI said anything. Some carriers surface the stable connected state as
+    # call.bridged rather than call.answered, so both start the stream.
+    if (
+        event_type in {"call.answered", "call.bridged"}
+        and call.get("call_type") == "outbound"
+        and call.get("ai_ready")
+        and not call.get("ai_stream_started")
+    ):
+        logger.info("Outbound call %s answered: starting streaming to AI", call_id)
+        try:
+            started = await call_service.start_streaming(
+                call_id, websocket_url=call_service.build_media_stream_url(call_id)
+            )
+            if started:
+                await service.db.call_logs.update_one(
+                    {"_id": call["_id"]},
+                    {"$set": {"ai_stream_started": True, "updated_at": utc_now()}},
+                )
+        except Exception as exc:
+            logger.error("Failed to start outbound streaming for call %s: %s", call_id, exc)
+
     normalized = call_service.normalize_call_status(event_type, payload.hangup_cause)
     updates: dict = {"status": normalized}
 
@@ -484,27 +539,6 @@ async def _handle_call_status(service: SmartFlowService, call_id: str, event_typ
         to_number=payload.to_number,
     )
     
-    # If this is an outbound automated AI call and the PSTN leg is now live, connect
-    # the AI stream once. Some carriers/Telnyx flows surface the stable connected state
-    # as `call.bridged` rather than only `call.answered`.
-    should_start_ai_stream = (
-        event_type in {"call.answered", "call.bridged"}
-        and call.get("call_type") == "outbound"
-        and call.get("ai_ready")
-        and not call.get("ai_stream_started")
-    )
-    if should_start_ai_stream:
-        logger.info("Outbound call %s answered: starting streaming to AI", call_id)
-        try:
-            started = await call_service.start_streaming(call_id, websocket_url=call_service.build_media_stream_url(call_id))
-            if started:
-                await service.db.call_logs.update_one(
-                    {"_id": call["_id"]},
-                    {"$set": {"ai_stream_started": True, "updated_at": utc_now()}},
-                )
-        except Exception as e:
-            logger.error("Failed to start outbound streaming for call %s: %s", call_id, e)
-
 
 async def _process_recording(
     db,
@@ -626,6 +660,7 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     silence_duration_ms = 0
     has_speech = False
     barge_in_speech_ms = 0
+    noise_floor: float | None = None
 
     async def send_to_telnyx(message: dict):
         try:
@@ -730,7 +765,9 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                             continue
                         started_at = agent.speaking_started_at
                         in_grace_period = started_at is None or (time.monotonic() - started_at) < BARGE_IN_GRACE_SECONDS
-                        if not in_grace_period and energy >= BARGE_IN_ENERGY_THRESHOLD:
+                        if not in_grace_period and energy >= max(
+                            BARGE_IN_ENERGY_THRESHOLD, speech_threshold(noise_floor) * 1.8
+                        ):
                             barge_in_speech_ms += 20
                             agent.audio_buffer.extend(audio_chunk)
                             if barge_in_speech_ms >= BARGE_IN_THRESHOLD_MS:
@@ -757,7 +794,8 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                         barge_in_speech_ms = 0
                         continue
 
-                    if energy >= ENERGY_THRESHOLD:
+                    noise_floor = update_noise_floor(noise_floor, energy, allow_rise=not has_speech)
+                    if energy >= speech_threshold(noise_floor):
                         # Speech detected!
                         speech_duration_ms += 20
                         silence_duration_ms = 0

@@ -6,6 +6,7 @@ import time
 
 from app.core.config import settings
 from app.services.call_service import CallService
+from app.services.smartflow_service import SmartFlowService
 
 
 def _make_ed25519_keypair() -> tuple[str, "object"]:
@@ -458,3 +459,86 @@ def test_greeting_is_not_cut_short_by_loud_audio_on_the_line(client, mock_db, mo
                 spoken += 1
 
     assert spoken == greeting_chunks
+
+
+def test_speech_threshold_rises_above_a_noisy_line_but_leaves_a_quiet_one_alone():
+    """A fixed threshold made every chunk of a noisy line look like speech, so the
+    600ms-of-silence check that ends a caller's turn never fired and each reply waited
+    out the backstop instead. The threshold now sits above the measured background."""
+    from app.api.v1.endpoints.calls import (
+        ENERGY_THRESHOLD,
+        speech_threshold,
+        update_noise_floor,
+    )
+
+    def floor_after(energies, *, mid_utterance=False):
+        noise_floor = None
+        for energy in energies:
+            noise_floor = update_noise_floor(noise_floor, energy, allow_rise=not mid_utterance)
+        return noise_floor
+
+    quiet = floor_after([5, 8, 3, 6, 1200, 4])  # 1200 is the caller actually speaking
+    assert speech_threshold(quiet) == ENERGY_THRESHOLD, "a clean line must behave exactly as before"
+
+    noisy = floor_after([500, 520, 480, 510, 2000, 2100, 495])
+    assert speech_threshold(noisy) > 1000
+    assert 500 < speech_threshold(noisy) <= 2000, "background reads as silence, real speech still doesn't"
+
+    # An unbroken stretch of speech must not drag the floor up to its own level —
+    # that would leave the AI deaf to the caller for the rest of the call.
+    assert speech_threshold(floor_after([5] + [3000] * 500, mid_utterance=True)) == ENERGY_THRESHOLD
+
+
+def test_outbound_ai_stream_starts_before_the_call_log_bookkeeping(client, mock_db, monkeypatch):
+    """Every Atlas round-trip before start_streaming is dead air for the person who
+    just picked up — ~2s of the 4-5s gap in production."""
+    import asyncio as _asyncio
+
+    from app.services.call_service import CallService
+
+    order: list[str] = []
+
+    async def fake_start_streaming(self, call_control_id: str, *, websocket_url: str) -> bool:
+        order.append("stream")
+        return True
+
+    monkeypatch.setattr(CallService, "start_streaming", fake_start_streaming)
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+
+    original_update = SmartFlowService.update_call_log_from_provider_callback
+
+    async def tracked_update(self, **kwargs):
+        order.append("bookkeeping")
+        return await original_update(self, **kwargs)
+
+    monkeypatch.setattr(SmartFlowService, "update_call_log_from_provider_callback", tracked_update)
+
+    call_id = "v2:stream-before-bookkeeping"
+    _asyncio.run(
+        mock_db.call_logs.insert_one(
+            {
+                "user_id": "guest",
+                "twilio_call_sid": call_id,
+                "call_type": "outbound",
+                "ai_ready": True,
+                "phone_number": "+8801700000013",
+                "status": "ringing",
+            }
+        )
+    )
+
+    response = client.post(
+        "/api/v1/calls/webhook",
+        content=json.dumps(
+            {
+                "data": {
+                    "event_type": "call.answered",
+                    "id": "evt_order",
+                    "occurred_at": "2026-01-01T00:00:00Z",
+                    "payload": {"call_control_id": call_id, "from": "+15550000000", "to": "+8801700000013"},
+                }
+            }
+        ).encode(),
+    )
+    assert response.status_code == 200
+    assert order[0] == "stream", f"bookkeeping ran before the AI stream: {order}"
