@@ -46,6 +46,23 @@ pending_browser_rings: dict[str, str] = {}
 # One 20ms frame of mu-law silence, ready to send (see keep_stream_alive).
 SILENCE_FRAME_PAYLOAD = _base64.b64encode(bytes([MU_LAW_SILENCE] * 160)).decode("utf-8")
 
+ENERGY_THRESHOLD = 350.0  # RMS threshold for mu-law speech detection
+# Real phone lines echo the AI's own voice back to us with no acoustic echo
+# cancellation on our side — a naive barge-in check reliably self-triggers within
+# ~100-200ms of every utterance, cutting the AI off almost immediately. A grace
+# period (skip detection right as speech starts, while echo is loudest/most
+# correlated) plus a stricter threshold and longer sustained-speech requirement
+# cuts false positives down to something that needs a real, deliberate interruption.
+BARGE_IN_GRACE_SECONDS = 0.6
+BARGE_IN_ENERGY_THRESHOLD = ENERGY_THRESHOLD * 1.8
+BARGE_IN_THRESHOLD_MS = 600  # sustained real speech while AI is talking counts as an interrupt
+
+# Longest stretch of caller audio we will buffer before answering anyway. Silence
+# detection is what normally ends a turn, but a line noisy enough that every chunk
+# reads as speech never goes quiet — this is the backstop that still gets the caller
+# an answer. At the old 10s it was long enough that people hung up first.
+MAX_TURN_AUDIO_SECONDS = 6
+
 
 def get_smartflow_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> SmartFlowService:
     return SmartFlowService(db)
@@ -609,16 +626,6 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     silence_duration_ms = 0
     has_speech = False
     barge_in_speech_ms = 0
-    ENERGY_THRESHOLD = 350.0  # RMS threshold for mu-law speech detection
-    # Real phone lines echo the AI's own voice back to us with no acoustic echo
-    # cancellation on our side — a naive barge-in check reliably self-triggers within
-    # ~100-200ms of every utterance, cutting the AI off almost immediately. A grace
-    # period (skip detection right as speech starts, while echo is loudest/most
-    # correlated) plus a stricter threshold and longer sustained-speech requirement
-    # cuts false positives down to something that needs a real, deliberate interruption.
-    BARGE_IN_GRACE_SECONDS = 0.6
-    BARGE_IN_ENERGY_THRESHOLD = ENERGY_THRESHOLD * 1.8
-    BARGE_IN_THRESHOLD_MS = 600  # sustained real speech while AI is talking counts as an interrupt
 
     async def send_to_telnyx(message: dict):
         try:
@@ -711,6 +718,16 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                         # the grace window right after speech starts — that's when line
                         # echo of the AI's own voice is loudest and most likely to false-
                         # trigger, since we have no acoustic echo cancellation here.
+                        if agent.greeting_in_progress:
+                            # The greeting carries the mandatory recording disclosure and
+                            # runs before the caller has asked anything, so there is
+                            # nothing there to interrupt. It is also the one utterance
+                            # where our own voice echoing back reliably tripped barge-in
+                            # (production: cut 1.7s into a 10s greeting), which left the
+                            # caller with half a greeting and the AI answering its own
+                            # echo. Never cut it short.
+                            agent.audio_buffer.clear()
+                            continue
                         started_at = agent.speaking_started_at
                         in_grace_period = started_at is None or (time.monotonic() - started_at) < BARGE_IN_GRACE_SECONDS
                         if not in_grace_period and energy >= BARGE_IN_ENERGY_THRESHOLD:
@@ -765,8 +782,9 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                                 has_speech = False
                                 asyncio.create_task(run_turn_and_maybe_hangup(agent.process_and_respond(send_to_telnyx)))
 
-                    # Hard cap: force-process if buffer grows over 10 seconds of active speech
-                    if len(agent.audio_buffer) >= 8000 * 10 and not agent.is_processing:
+                    # Backstop: answer anyway once we are holding a full turn's worth of
+                    # audio, for lines too noisy for the silence check above to ever fire.
+                    if len(agent.audio_buffer) >= 8000 * MAX_TURN_AUDIO_SECONDS and not agent.is_processing:
                         speech_duration_ms = 0
                         silence_duration_ms = 0
                         has_speech = False

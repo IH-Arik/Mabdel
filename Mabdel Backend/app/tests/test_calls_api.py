@@ -407,3 +407,54 @@ def test_outbound_ai_stream_keeps_sending_silence_while_the_ai_listens(client, m
         payloads = [websocket.receive_json()["media"]["payload"] for _ in range(60)]
 
     assert SILENCE_FRAME_PAYLOAD in payloads, "no idle silence was sent, the stream will be torn down"
+
+
+def test_greeting_is_not_cut_short_by_loud_audio_on_the_line(client, mock_db, monkeypatch):
+    """Production cut a 10s greeting 1.7s in: with no echo cancellation the AI's own
+    voice comes back on the line and reads as the caller interrupting. The greeting
+    carries the mandatory recording disclosure and answers nothing, so it is never
+    interruptible — barge-in only applies once the AI is actually replying."""
+    import asyncio as _asyncio
+
+    from app.api.v1.endpoints import calls as calls_module
+    from app.services.gocustify_ai_service import GoCustifyAIService
+
+    # Remove the timing cushions so a single loud frame would be enough to barge in.
+    monkeypatch.setattr(calls_module, "BARGE_IN_GRACE_SECONDS", 0.0)
+    monkeypatch.setattr(calls_module, "BARGE_IN_THRESHOLD_MS", 20)
+
+    greeting_chunks = 6
+
+    async def slow_tts(self, text, voice_id=None):
+        for _ in range(greeting_chunks):
+            await _asyncio.sleep(0.02)  # leaves room for the loud frames to be read mid-greeting
+            yield b"\x7f\x00" * 480     # 480 samples -> 160 mu-law bytes -> exactly one frame
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech_stream", slow_tts)
+
+    call_id = "v2:ws-greeting-bargein"
+    _asyncio.run(
+        mock_db.call_logs.insert_one(
+            {
+                "user_id": "guest",
+                "twilio_call_sid": call_id,
+                "call_type": "outbound",
+                "direction": "outbound",
+                "phone_number": "+8801700000012",
+                "status": "in_progress",
+            }
+        )
+    )
+
+    loud = base64.b64encode(bytes([0x00] * 160)).decode()  # full-scale mu-law, far above the threshold
+    with client.websocket_connect(f"/api/v1/calls/stream/{call_id}") as websocket:
+        websocket.send_json({"event": "start", "stream_id": "stream-greeting"})
+        for _ in range(40):
+            websocket.send_json({"event": "media", "media": {"payload": loud}})
+        spoken = 0
+        while spoken < greeting_chunks:
+            payload = websocket.receive_json()["media"]["payload"]
+            if payload != calls_module.SILENCE_FRAME_PAYLOAD:
+                spoken += 1
+
+    assert spoken == greeting_chunks
