@@ -370,3 +370,40 @@ def test_normalize_call_status_maps_events_and_hangup_causes() -> None:
     assert CallService.normalize_call_status("call.hangup", "originator_cancel") == "canceled"
     assert CallService.normalize_call_status("call.hangup", "normal_clearing") == "completed"
     assert CallService.normalize_call_status("call.hangup", None) == "completed"
+
+
+def test_outbound_ai_stream_keeps_sending_silence_while_the_ai_listens(client, mock_db, monkeypatch):
+    """Telnyx's send_silence_when_idle only exists on the answer action, so an outbound
+    call (joined with start_streaming, because the callee answered it) has nothing
+    holding the bidirectional stream open between utterances — Telnyx tears it down and
+    the AI is mute for the rest of the call, which is why outbound behaved worse than
+    inbound. We send the idle silence ourselves instead."""
+    import asyncio as _asyncio
+
+    from app.api.v1.endpoints.calls import SILENCE_FRAME_PAYLOAD
+    from app.services.gocustify_ai_service import GoCustifyAIService
+
+    async def tiny_tts(self, text, voice_id=None):
+        yield b"\x00\x00" * 240  # a very short utterance, so the greeting ends quickly
+
+    monkeypatch.setattr(GoCustifyAIService, "synthesize_speech_stream", tiny_tts)
+
+    call_id = "v2:ws-keepalive"
+    _asyncio.run(
+        mock_db.call_logs.insert_one(
+            {
+                "user_id": "guest",
+                "twilio_call_sid": call_id,
+                "call_type": "outbound",
+                "direction": "outbound",
+                "phone_number": "+8801700000011",
+                "status": "in_progress",
+            }
+        )
+    )
+
+    with client.websocket_connect(f"/api/v1/calls/stream/{call_id}") as websocket:
+        websocket.send_json({"event": "start", "stream_id": "stream-keepalive"})
+        payloads = [websocket.receive_json()["media"]["payload"] for _ in range(60)]
+
+    assert SILENCE_FRAME_PAYLOAD in payloads, "no idle silence was sent, the stream will be torn down"
