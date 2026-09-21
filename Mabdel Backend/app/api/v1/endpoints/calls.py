@@ -30,11 +30,6 @@ ai_service = GoCustifyAIService()
 # Active AI sessions for calls
 active_sessions: dict[str, AIPhoneAgent] = {}
 
-# How long to wait for a keypad language choice before greeting in the default
-# language. Long enough to hear the menu and press a key, short enough that a caller
-# who ignores it isn't left listening to silence.
-LANGUAGE_MENU_TIMEOUT_SECONDS = 6.0
-
 # How long to ring a team member's browser (via a fresh outbound leg to their SIP
 # identity, see _handle_incoming_call) before giving up and answering into the AI —
 # roughly 3-4 rings. Keyed by the RING LEG's own call_control_id (not the original
@@ -262,6 +257,8 @@ def _handle_keypad_digit(call_id: str, digit: str | None) -> None:
         return
     if not agent.set_language_from_digit(digit):
         logger.info("Call %s: keypad digit %s is not on the language menu, ignoring", call_id, digit)
+        return
+    asyncio.create_task(agent.acknowledge_language_switch())
 
 
 async def _handle_incoming_call(
@@ -693,20 +690,10 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                 logger.warning("Call %s: failed sending audio frame to Telnyx", call_id, exc_info=True)
 
     async def _open_call(agent):
-        """Language menu (when configured) before the greeting, so the greeting itself
-        is already in the caller's language.
-
-        If nobody presses a key within the window we greet in the default language and
-        leave language_locked False, so Whisper's existing auto-detection still runs on
-        their first sentence — the menu can only add signal, never strand a caller.
-        """
-        if await agent.offer_language_menu(send_to_telnyx):
-            waited = 0.0
-            while waited < LANGUAGE_MENU_TIMEOUT_SECONDS and not agent.language_menu_answered:
-                await asyncio.sleep(0.2)
-                waited += 0.2
-            if not agent.language_menu_answered:
-                logger.info("Call %s: no keypad selection, falling back to auto-detect", call_id)
+        """Greets straight away. The keypad language offer is part of the greeting
+        itself now (see AIPhoneAgent._compose_greeting_text) rather than a menu
+        played first with a wait for a key — so nobody sits in silence, and it works
+        on outbound calls too."""
         await agent.greet(send_to_telnyx)
 
     async def run_turn_and_maybe_hangup(coro):
@@ -753,6 +740,7 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
 
             elif stream_message.event == "start":
                 agent.stream_sid = stream_message.stream_id
+                agent.send_callback = send_to_telnyx
                 logger.info("Call %s: Telnyx stream started (stream_sid=%s)", call_id, agent.stream_sid)
                 # Greet the user in the background to avoid blocking the message loop
                 greeting_task = asyncio.create_task(run_turn_and_maybe_hangup(_open_call(agent)))

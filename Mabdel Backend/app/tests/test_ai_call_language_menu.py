@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from app.api.v1.endpoints.calls import LANGUAGE_MENU_TIMEOUT_SECONDS, active_sessions
+from app.api.v1.endpoints.calls import active_sessions
 from app.core.config import settings
 from app.services.ai_phone_agent import AIPhoneAgent
 from app.services.call_phrases import phrase
@@ -33,43 +33,100 @@ def _menu_agent(mock_db, *, is_outbound: bool = False) -> AIPhoneAgent:
     return agent
 
 
-# ── Agent-level menu logic (no webhook / no WebSocket involved) ───────────
+# ── The offer is part of the greeting ──────────────────────────────────
 
 
-def test_menu_is_spoken_in_each_options_own_language(mock_db, monkeypatch):
+def test_greeting_ends_by_offering_the_other_language(mock_db, monkeypatch):
+    """The caller hears who is calling and the recording disclosure first, then is
+    told which key gets them Spanish."""
+    spoken: list[str] = []
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
+
+    asyncio.run(_menu_agent(mock_db).greet(lambda _m: asyncio.sleep(0)))
+
+    greeting = " ".join(spoken)
+    offer = phrase("language_menu_option", "es", digit="2")
+    assert greeting.rstrip().endswith(offer), greeting
+    assert greeting.index(phrase("recording_disclosure", "en")) < greeting.index(offer)
+
+
+def test_greeting_does_not_offer_the_language_it_is_already_speaking(mock_db, monkeypatch):
+    spoken: list[str] = []
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
+
+    asyncio.run(_menu_agent(mock_db).greet(lambda _m: asyncio.sleep(0)))
+
+    assert phrase("language_menu_option", "en", digit="1") not in " ".join(spoken)
+
+
+def test_outbound_calls_offer_the_language_too(mock_db, monkeypatch):
+    """Make AI Call used to skip the menu entirely, so there was no way to switch."""
+    spoken: list[str] = []
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
+
+    asyncio.run(_menu_agent(mock_db, is_outbound=True).greet(lambda _m: asyncio.sleep(0)))
+
+    assert phrase("language_menu_option", "es", digit="2") in " ".join(spoken)
+
+
+def test_menu_disabled_is_not_offered(mock_db, monkeypatch):
     spoken: list[str] = []
     install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
 
     agent = _menu_agent(mock_db)
-    played = asyncio.run(agent.offer_language_menu(lambda _m: asyncio.sleep(0)))
+    agent.call_settings = AICallSettingsService.merge_settings(
+        {"language_menu_enabled": False, "language_menu": [{"digit": "2", "language": "es"}]}
+    )
+    asyncio.run(agent.greet(lambda _m: asyncio.sleep(0)))
 
-    assert played is True
-    assert phrase("language_menu_option", "en", digit="1") in " ".join(spoken)
-    assert phrase("language_menu_option", "es", digit="2") in " ".join(spoken)
-
-
-def test_menu_is_skipped_on_outbound_calls(mock_db, monkeypatch):
-    """We dialled them — a keypad menu on an outbound call makes no sense."""
-    called = False
-
-    def on_call(text, voice_id):
-        nonlocal called
-        called = True
-
-    install_fake_streaming_tts(monkeypatch, on_call=on_call)
-
-    agent = _menu_agent(mock_db, is_outbound=True)
-    played = asyncio.run(agent.offer_language_menu(lambda _m: asyncio.sleep(0)))
-
-    assert played is False
-    assert called is False
+    assert phrase("language_menu_option", "es", digit="2") not in " ".join(spoken)
 
 
-def test_menu_disabled_never_plays(mock_db):
-    agent = AIPhoneAgent("call_menu_2", GoCustifyAIService(), SmartFlowService(mock_db))
-    agent.call_settings = AICallSettingsService.merge_settings({"language_menu_enabled": False})
-    played = asyncio.run(agent.offer_language_menu(lambda _m: asyncio.sleep(0)))
-    assert played is False
+def test_choosing_a_language_re_greets_in_it_with_the_disclosure(mock_db, monkeypatch):
+    """The switch has to be audible, and the caller who needed Spanish may not have
+    understood the English recording disclosure the first time."""
+    spoken: list[str] = []
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
+
+    async def _run():
+        agent = _menu_agent(mock_db)
+        agent.send_callback = lambda _m: asyncio.sleep(0)
+        assert agent.set_language_from_digit("2") is True
+        await agent.acknowledge_language_switch()
+
+    asyncio.run(_run())
+
+    said = " ".join(spoken)
+    assert phrase("recording_disclosure", "es") in said
+    assert phrase("language_menu_option", "es", digit="2") not in said, "must not offer Spanish again"
+
+
+def test_business_custom_greeting_is_not_replayed_after_switching_language(mock_db, monkeypatch):
+    """A custom greeting is in whatever language the business typed it."""
+    spoken: list[str] = []
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: spoken.append(text))
+
+    async def _run():
+        agent = _menu_agent(mock_db)
+        agent.call_settings["greeting_inbound"] = "Welcome to Apex Dental, how may we help?"
+        agent.send_callback = lambda _m: asyncio.sleep(0)
+        agent.set_language_from_digit("2")
+        await agent.acknowledge_language_switch()
+
+    asyncio.run(_run())
+    assert "Welcome to Apex Dental" not in " ".join(spoken)
+
+
+def test_keypress_during_the_greeting_cuts_it_short():
+    agent = AIPhoneAgent("call_menu_cut", GoCustifyAIService(), None)
+    agent.call_settings = AICallSettingsService.merge_settings(
+        {"language_menu_enabled": True, "language_menu": [{"digit": "2", "language": "es"}]}
+    )
+    agent.is_speaking = True
+
+    agent.set_language_from_digit("2")
+
+    assert agent.barge_in_triggered is True
 
 
 def test_keypress_on_the_menu_locks_the_language():
@@ -148,13 +205,3 @@ def test_dtmf_webhook_ignores_an_unmapped_digit(client, monkeypatch, mock_db):
         assert agent.language_locked is False
     finally:
         active_sessions.pop("v2:dtmf-unmapped", None)
-
-
-# ── Timeout fallback ───────────────────────────────────────────────────────
-
-
-def test_menu_times_out_short_enough_for_a_call_not_to_feel_stuck():
-    """Not really a test of behaviour so much as a tripwire: if this constant is ever
-    bumped way up, a caller who doesn't answer the menu sits in silence that long
-    before the normal greeting (and Whisper auto-detect) kicks in."""
-    assert 0 < LANGUAGE_MENU_TIMEOUT_SECONDS <= 10
