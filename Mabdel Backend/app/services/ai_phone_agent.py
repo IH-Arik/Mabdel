@@ -377,10 +377,15 @@ class AIPhoneAgent:
         """Speaks the keypad menu. Returns False when no menu applies, so the caller
         flow falls straight through to the normal greeting."""
         if self.is_outbound:
+            logger.info("Call %s: keypad language menu skipped (outbound call)", self.call_id)
             return False  # we dialled them; a menu makes no sense
         settings_doc = await self._get_call_settings()
         if not settings_doc.get("language_menu_enabled") or not settings_doc.get("language_menu"):
             return False
+        logger.info(
+            "Call %s: offering keypad language menu %s", self.call_id,
+            {option.get("digit"): option.get("language") for option in settings_doc["language_menu"]},
+        )
         menu_text = self.build_language_menu_text(settings_doc)
         if not menu_text:
             return False
@@ -721,6 +726,13 @@ class AIPhoneAgent:
             if not self.language_locked:
                 self.language = call_phrases.resolve_call_language(detected_language)
                 self.language_locked = True
+                # INFO, not debug: "the AI didn't switch language" is otherwise invisible
+                # in production. Bengali in particular is heard fine but deliberately
+                # answered in English (OpenAI TTS doesn't support speaking it).
+                logger.info(
+                    "Call %s: caller language detected as %r, replying in %s",
+                    self.call_id, detected_language, self.language,
+                )
 
             logger.debug("Call %s: Transcript (%s): '%s'", self.call_id, self.language, transcript)
 
