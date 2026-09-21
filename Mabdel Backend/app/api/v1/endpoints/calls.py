@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, WebSocket
 from fastapi.responses import JSONResponse
 import asyncio
+import base64 as _base64
 import time
 
 from app.dependencies import get_current_user, get_mongo_database
@@ -12,7 +13,7 @@ from app.services.smartflow_service import SmartFlowService
 from app.services.telnyx_web_voice_service import TelnyxWebVoiceService
 from app.utils.responses import success_response
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.services.ai_phone_agent import AIPhoneAgent, is_outbound_call, other_party_number
+from app.services.ai_phone_agent import MU_LAW_SILENCE, AIPhoneAgent, is_outbound_call, other_party_number
 from app.services.gocustify_ai_service import GoCustifyAIService
 from app.core.exceptions import AppException
 from app.utils.audio import utc_now
@@ -41,6 +42,9 @@ LANGUAGE_MENU_TIMEOUT_SECONDS = 6.0
 # which inbound call to bridge into or fall back to AI for.
 BROWSER_RING_TIMEOUT_SECONDS = 18
 pending_browser_rings: dict[str, str] = {}
+
+# One 20ms frame of mu-law silence, ready to send (see keep_stream_alive).
+SILENCE_FRAME_PAYLOAD = _base64.b64encode(bytes([MU_LAW_SILENCE] * 160)).decode("utf-8")
 
 
 def get_smartflow_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> SmartFlowService:
@@ -599,6 +603,7 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     active_sessions[call_id] = agent
 
     greeting_task = None
+    keepalive_task = None
     send_failed = False
     speech_duration_ms = 0
     silence_duration_ms = 0
@@ -652,6 +657,20 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
         if agent.should_hangup:
             await call_service.hangup_call(call_id)
 
+    async def keep_stream_alive():
+        """Telnyx's own send_silence_when_idle is an *answer*-only parameter (verified
+        against the SDK), and an outbound AI call is one we join with start_streaming —
+        the callee answered it, not us — so nothing holds the bidirectional stream open
+        while the AI is listening. Telnyx then tears the idle stream down mid-call and
+        the AI goes mute for the rest of it, which is why outbound behaved worse than
+        inbound. Sending our own 20ms mu-law silence is the equivalent of the flag we
+        cannot pass; inbound already gets it from Telnyx, so it stays untouched.
+        """
+        while True:
+            await asyncio.sleep(0.02)
+            if not agent.is_speaking:
+                await send_to_telnyx({"event": "media", "media": {"payload": SILENCE_FRAME_PAYLOAD}})
+
     try:
         from app.utils.audio import mulaw_rms_energy
         import base64
@@ -677,6 +696,8 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                 logger.info("Call %s: Telnyx stream started (stream_sid=%s)", call_id, agent.stream_sid)
                 # Greet the user in the background to avoid blocking the message loop
                 greeting_task = asyncio.create_task(run_turn_and_maybe_hangup(_open_call(agent)))
+                if agent.is_outbound:
+                    keepalive_task = asyncio.create_task(keep_stream_alive())
 
             elif stream_message.event == "media":
                 if stream_message.media and "payload" in stream_message.media:
@@ -755,13 +776,17 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
                 # Telnyx reports stream problems (bad codec, malformed frames, rejected
                 # parameters) here. Dropping it silently is what made the "AI is mute"
                 # failure so hard to trace — the stream just ended with no explanation.
+                # Breaking on it was worse: it ended the AI session while the call itself
+                # stayed up, so the caller talked to nobody for the rest of the call. If
+                # the stream really is gone, receive() reports the disconnect anyway.
                 logger.error("Call %s: Telnyx stream error: %s", call_id, text_payload)
-                break
 
             elif stream_message.event == "stop":
                 break
 
     finally:
+        if keepalive_task:
+            keepalive_task.cancel()
         if greeting_task:
             greeting_task.cancel()
         agent = active_sessions.get(call_id)
