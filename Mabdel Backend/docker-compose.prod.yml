@@ -9,3 +9,19 @@ services:
     restart: unless-stopped
     volumes:
       - ./uploads:/app/uploads
+    depends_on:
+      - redis
+
+  # Rate limiting and the RBAC permission cache. Reached from the api container as
+  # redis://redis:6379/0 (set REDIS_URL to that in .env). Not published on any host
+  # port: nothing outside this compose network can connect to it.
+  redis:
+    image: redis:7-alpine
+    container_name: mabdel-redis
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
