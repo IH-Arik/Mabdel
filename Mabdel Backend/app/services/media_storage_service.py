@@ -68,9 +68,10 @@ class MediaStorageService:
         content_type: str | None,
         filename: str | None = None,
         label: str = "File",
+        max_bytes: int | None = None,
     ) -> StoredMedia:
         media_type = self._normalize_content_type(content_type) or "application/octet-stream"
-        self._validate_file(file_bytes=file_bytes, label=label)
+        self._validate_file(file_bytes=file_bytes, label=label, max_bytes=max_bytes)
 
         safe_owner_id = self._safe_path_part(owner_id, "owner_id")
         safe_folder = self._safe_path_part(folder, "folder")
@@ -111,15 +112,16 @@ class MediaStorageService:
                 details={"content_type": media_type or None},
             )
 
-    def _validate_file(self, *, file_bytes: bytes, label: str) -> None:
+    def _validate_file(self, *, file_bytes: bytes, label: str, max_bytes: int | None = None) -> None:
+        limit = max_bytes or settings.MEDIA_MAX_UPLOAD_BYTES
         if not file_bytes:
             raise AppException(status_code=400, code="FILE_EMPTY", message=f"{label} file is empty.")
-        if len(file_bytes) > settings.MEDIA_MAX_UPLOAD_BYTES:
+        if len(file_bytes) > limit:
             raise AppException(
                 status_code=413,
                 code="FILE_TOO_LARGE",
                 message=f"{label} file is too large.",
-                details={"max_bytes": settings.MEDIA_MAX_UPLOAD_BYTES},
+                details={"max_bytes": limit},
             )
         if not file_bytes:
             raise AppException(status_code=400, code="IMAGE_FILE_EMPTY", message=f"{label} file is empty.")

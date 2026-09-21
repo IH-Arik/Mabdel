@@ -204,7 +204,7 @@ def test_call_webhook_busy_hangup_maps_to_busy_status(client, mock_db, monkeypat
     assert call_log["status"] == "busy"
 
 
-def test_recording_saved_webhook_transcribes_and_summarizes(client, mock_db, monkeypatch) -> None:
+def test_recording_saved_webhook_transcribes_and_summarizes(client, mock_db, monkeypatch, tmp_path) -> None:
     """The call.recording.saved webhook is the real end of the recording -> transcript
     -> AI analysis pipeline: downloads the audio, transcribes it, summarizes it, and
     saves both onto the call log."""
@@ -215,6 +215,7 @@ def test_recording_saved_webhook_transcribes_and_summarizes(client, mock_db, mon
     from app.services.gocustify_ai_service import GoCustifyAIService
 
     monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+    monkeypatch.setattr(settings, "MEDIA_ROOT", str(tmp_path))
     monkeypatch.setattr(CallService, "answer_call", _noop_answer)
 
     inbound_body = _webhook_envelope(
@@ -253,7 +254,9 @@ def test_recording_saved_webhook_transcribes_and_summarizes(client, mock_db, mon
     assert response.status_code == 200
 
     call_log = asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": "v2:recording-test"}))
-    assert call_log["recording_url"] == "https://recordings.telnyx.test/rec-123.mp3"
+    # Our own copy is what gets served; the provider link expires within minutes.
+    assert "/media/call-recordings/" in call_log["recording_url"]
+    assert call_log["provider_recording_url"] == "https://recordings.telnyx.test/rec-123.mp3"
     assert call_log["recording_transcript"] == "Caller asked about pricing and office hours."
     assert call_log["ai_summary"]["summary"] == "Pricing and hours inquiry."
     assert call_log["ai_summary"]["status"] == "generated"
@@ -542,3 +545,75 @@ def test_outbound_ai_stream_starts_before_the_call_log_bookkeeping(client, mock_
     )
     assert response.status_code == 200
     assert order[0] == "stream", f"bookkeeping ran before the AI stream: {order}"
+
+
+def test_call_summary_counts_directions_over_every_call_not_one_page(client, mock_db):
+    """The Calls page counted inbound/outbound from the 20 rows it had loaded, so a run
+    of recent outbound test calls made inbound read 0 next to a server total of 106."""
+    import asyncio as _asyncio
+
+    from app.services.smartflow_service import SmartFlowService
+
+    calls = (
+        [{"call_type": "outbound", "duration": 30}] * 25
+        + [{"direction": "inbound", "duration": 60}] * 4
+        + [{"status": "missed"}] * 2
+        + [{"call_type": "outgoing_direct", "duration": "bad"}]
+    )
+    summary = SmartFlowService(mock_db)._call_history_summary(calls)
+
+    assert summary["total_calls"] == 32
+    assert summary["outbound_calls"] == 26
+    assert summary["inbound_calls"] == 4
+    assert summary["missed_calls"] == 2
+    assert summary["avg_duration"] == round((25 * 30 + 4 * 60) / 29)
+
+
+def test_recording_is_kept_on_our_side_not_as_the_expiring_telnyx_link(mock_db, monkeypatch, tmp_path):
+    """Telnyx's recording URL is pre-signed and expires within minutes, so storing it
+    made every recording error out in call history soon after the call."""
+    import asyncio as _asyncio
+    from pathlib import Path
+
+    import httpx
+
+    from app.api.v1.endpoints import calls as calls_module
+
+    monkeypatch.setattr(settings, "MEDIA_ROOT", str(tmp_path))
+    monkeypatch.setattr(settings, "PUBLIC_BACKEND_URL", "https://api.example.test")
+
+    audio = b"ID3" + b"\x00" * 2048
+
+    class FakeResponse:
+        status_code = 200
+        content = audio
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, url):
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(calls_module.ai_service, "_transcribe_audio_with_openai", lambda **_: ("hello", None))
+    monkeypatch.setattr(calls_module.ai_service, "summarize_call", lambda _t: {"status": "generated"})
+
+    telnyx_url = "https://s3.amazonaws.com/telnyx/rec.mp3?X-Amz-Expires=600&X-Amz-Signature=abc"
+    call_id = "v2:recording-keep"
+    _asyncio.run(mock_db.call_logs.insert_one({"twilio_call_sid": call_id, "user_id": "owner-1", "recording_url": telnyx_url}))
+
+    _asyncio.run(calls_module._process_recording(mock_db, call_id, "owner-1", telnyx_url))
+
+    log = _asyncio.run(mock_db.call_logs.find_one({"twilio_call_sid": call_id}))
+    assert log["recording_url"].startswith("https://api.example.test/media/call-recordings/owner-1/")
+    assert log["recording_url"].endswith(".mp3")
+    assert log["provider_recording_url"] == telnyx_url
+    stored = Path(tmp_path, "call-recordings", "owner-1", log["recording_url"].rsplit("/", 1)[1])
+    assert stored.read_bytes() == audio

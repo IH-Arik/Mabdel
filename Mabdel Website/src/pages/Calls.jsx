@@ -104,10 +104,11 @@ function buildSummary(calls, historySummary, analyticsSummary) {
 
   return {
     total_calls: historySummary?.total_calls ?? calls.length,
-    inbound_calls: inbound,
-    outbound_calls: outbound,
+    // Server values cover every call; the local counts only see the loaded page.
+    inbound_calls: historySummary?.inbound_calls ?? inbound,
+    outbound_calls: historySummary?.outbound_calls ?? outbound,
     missed_calls: historySummary?.missed_calls ?? missed,
-    avg_duration: avgDuration,
+    avg_duration: historySummary?.avg_duration ?? avgDuration,
     ai_analyzed: historySummary?.ai_summary_calls ?? aiAnalyzed,
     total_minutes_saved: analyticsSummary?.total_minutes_saved ?? 0,
     callback_queue: analyticsSummary?.callback_queue ?? [],

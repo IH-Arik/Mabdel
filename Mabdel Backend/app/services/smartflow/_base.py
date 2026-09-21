@@ -596,9 +596,36 @@ class SmartFlowBase:
             return "yesterday"
         return "older"
 
+    @staticmethod
+    def _call_direction(call: dict) -> str:
+        """missed / outbound / incoming — the same rule the Calls page uses per row."""
+        call_type = str(call.get("call_type") or "").lower()
+        if call.get("status") == "missed" or call_type == "missed":
+            return "missed"
+        if call_type in {"outbound", "outgoing_direct", "outgoing_automated"} or call.get("direction") == "outbound":
+            return "outbound"
+        return "incoming"
+
     def _call_history_summary(self, calls: list[dict]) -> dict:
+        # Direction counts and average duration are computed here over *every* call.
+        # The Calls page used to count them itself from the one page of rows it had
+        # loaded, so with 20 recent test calls to one number it showed "Inbound 0"
+        # next to a server-side "Total 106" — inbound calls looked like they were
+        # never recorded, when they were only on later pages.
+        directions = [self._call_direction(call) for call in calls]
+        durations = []
+        for call in calls:
+            try:
+                seconds = int(float(call.get("duration") or 0))
+            except (TypeError, ValueError):
+                continue
+            if seconds > 0:
+                durations.append(seconds)
         return {
             "total_calls": len(calls),
+            "inbound_calls": directions.count("incoming"),
+            "outbound_calls": directions.count("outbound"),
+            "avg_duration": round(sum(durations) / len(durations)) if durations else 0,
             "missed_calls": sum(1 for call in calls if call.get("status") == "missed" or call.get("call_type") == "missed"),
             "recorded_calls": sum(1 for call in calls if call.get("recording_url")),
             "transcribed_calls": sum(1 for call in calls if call.get("transcript")),
