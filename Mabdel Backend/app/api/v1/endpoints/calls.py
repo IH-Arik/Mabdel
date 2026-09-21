@@ -38,6 +38,10 @@ active_sessions: dict[str, AIPhoneAgent] = {}
 BROWSER_RING_TIMEOUT_SECONDS = 18
 pending_browser_rings: dict[str, str] = {}
 
+# Call recordings are far bigger than the images/documents MEDIA_MAX_UPLOAD_BYTES is
+# sized for (mp3 runs roughly 1MB a minute).
+MAX_RECORDING_BYTES = 200 * 1024 * 1024
+
 # One 20ms frame of mu-law silence, ready to send (see keep_stream_alive).
 SILENCE_FRAME_PAYLOAD = _base64.b64encode(bytes([MU_LAW_SILENCE] * 160)).decode("utf-8")
 
@@ -565,6 +569,31 @@ async def _process_recording(
         if resp.status_code >= 400:
             logger.error("Call %s: Failed to download recording (%s)", call_id, resp.status_code)
             return
+
+        # Keep our own copy before anything else. The URL Telnyx hands us is a
+        # pre-signed link that expires within minutes, so storing *it* meant every
+        # recording played fine right after the call and returned an access error
+        # from then on — the "Recording" and "Download recording" errors in call
+        # history. Done before transcription so a transcription failure can't cost us
+        # the recording itself.
+        try:
+            from app.services.media_storage_service import MediaStorageService
+
+            stored = MediaStorageService().store_file(
+                owner_id=str(user_id),
+                folder="call-recordings",
+                file_bytes=resp.content,
+                content_type="audio/mpeg",
+                filename=f"{call_id}.mp3",
+                label="Call recording",
+                max_bytes=MAX_RECORDING_BYTES,
+            )
+            await db.call_logs.update_one(
+                {"twilio_call_sid": call_id},
+                {"$set": {"recording_url": stored.url, "provider_recording_url": recording_url}},
+            )
+        except Exception:
+            logger.exception("Call %s: could not store the recording", call_id)
 
         audio_b64 = base64.b64encode(resp.content).decode("utf-8")
 
