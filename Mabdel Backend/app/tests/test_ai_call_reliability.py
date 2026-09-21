@@ -837,3 +837,46 @@ def test_real_speech_is_not_treated_as_hallucination():
     assert not is_hallucinated_transcript(
         "What are your hours?", [{"no_speech_prob": 0.02, "avg_logprob": -0.2, "compression_ratio": 1.1}]
     )
+
+
+def test_prewarmed_greeting_plays_without_a_second_tts_round_trip(mock_db, monkeypatch):
+    """On an outbound call the greeting is rendered while Telnyx brings the stream up,
+    so the callee hears the first word as the stream goes live instead of waiting out
+    a TTS round trip on top of it."""
+    tts_calls: list[str] = []
+    install_fake_streaming_tts(monkeypatch, on_call=lambda text, voice_id: tts_calls.append(text))
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = "MZ_test"
+        agent.is_outbound = True
+        await agent.prewarm_greeting()
+        rendered_ahead = len(tts_calls)
+
+        frames: list[dict] = []
+
+        async def send_callback(message):
+            frames.append(message)
+
+        await agent.greet(send_callback)
+        return rendered_ahead, len(tts_calls), frames
+
+    rendered_ahead, total, frames = asyncio.run(_run())
+    assert rendered_ahead > 0, "nothing was rendered ahead of the stream"
+    assert total == rendered_ahead, "the greeting was synthesized again instead of using the prewarmed audio"
+    assert frames, "the prewarmed greeting never reached Telnyx"
+
+
+def test_prewarmed_greeting_is_only_used_once(mock_db, monkeypatch):
+    """A retry after a failed send must re-synthesize rather than replay a consumed buffer."""
+    install_fake_streaming_tts(monkeypatch)
+
+    async def _run():
+        agent = _make_agent(SmartFlowService(mock_db))
+        agent.stream_sid = "MZ_test"
+        await agent.prewarm_greeting()
+        assert agent.prewarmed_greeting is not None
+        await agent.greet(lambda _message: asyncio.sleep(0))
+        return agent.prewarmed_greeting
+
+    assert asyncio.run(_run()) is None

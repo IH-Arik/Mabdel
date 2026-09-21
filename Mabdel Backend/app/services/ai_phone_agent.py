@@ -261,6 +261,8 @@ class AIPhoneAgent:
         # synthesized, and both streamed audio into the call at once.
         self.speak_lock = asyncio.Lock()
         self.greeting_in_progress = False
+        # (text, pcm chunks) rendered ahead of time — see prewarm_greeting.
+        self.prewarmed_greeting: tuple[str, list[bytes]] | None = None
 
     async def _get_call_settings(self) -> dict:
         """The business's AI persona, fetched once and cached for the call — same
@@ -282,6 +284,24 @@ class AIPhoneAgent:
             logger.warning("Call %s: could not load AI call settings", self.call_id, exc_info=True)
             self.call_settings = AICallSettingsService.merge_settings(None)
         return self.call_settings
+
+    async def prewarm_greeting(self) -> None:
+        """Renders the greeting audio before the media stream is ready.
+
+        On an outbound call Telnyx takes a second or two to bring the stream up after
+        the callee answers, and we were only *starting* to synthesize once it was
+        live — so the first word landed seconds into a call the person had already
+        picked up. This runs in that idle window instead, off the critical path;
+        failures are ignored because the normal path re-synthesizes anyway.
+        """
+        try:
+            text = await self._compose_greeting_text()
+            voice_id = (await self._get_call_settings()).get("voice_id")
+            chunks = [chunk async for chunk in self._pipelined_pcm(text, voice_id)]
+            if chunks:
+                self.prewarmed_greeting = (text, chunks)
+        except Exception:
+            logger.warning("Call %s: greeting prewarm failed", self.call_id, exc_info=True)
 
     async def greet(self, send_callback: Callable):
         if self.greeted:
@@ -389,6 +409,13 @@ class AIPhoneAgent:
         emitting them strictly in order. While sentence 1 is playing, sentences 2..n
         are already rendered (or rendering), so a multi-sentence greeting or reply
         starts after the latency of its *first* sentence, not of the whole text."""
+        prewarmed = self.prewarmed_greeting
+        if prewarmed and prewarmed[0] == text:
+            self.prewarmed_greeting = None  # one-shot: a retry must re-synthesize
+            for chunk in prewarmed[1]:
+                yield chunk
+            return
+
         sentences = _split_for_tts(text)
         if len(sentences) == 1:
             async for chunk in self.ai_service.synthesize_speech_stream(text, voice_id):

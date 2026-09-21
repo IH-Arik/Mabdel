@@ -212,6 +212,9 @@ async def handle_telnyx_call_webhook(
         elif payload.direction == "outgoing":
             await _handle_outgoing_call_initiated(call_id, payload, service)
     elif event.event_type == "call.hangup":
+        if call_id in active_sessions and active_sessions[call_id].stream_sid is None:
+            # Prewarmed at answer time but the media stream never opened.
+            active_sessions.pop(call_id, None)
         if call_id in pending_browser_rings:
             background_tasks.add_task(_handle_browser_ring_hangup, call_id, payload)
         else:
@@ -494,6 +497,16 @@ async def _handle_call_status(service: SmartFlowService, call_id: str, event_typ
                     {"_id": call["_id"]},
                     {"$set": {"ai_stream_started": True, "updated_at": utc_now()}},
                 )
+                # Telnyx needs a second or two to bring the stream up. Build the agent
+                # and render its greeting audio now, in that window, so the callee
+                # hears the first word as soon as the stream is live instead of waiting
+                # out a TTS round trip on top of it. call_stream picks this agent up.
+                agent = AIPhoneAgent(call_id, ai_service, service)
+                agent.user_id = call["user_id"]
+                agent.is_outbound = True
+                agent.caller_phone = other_party_number(call)
+                active_sessions[call_id] = agent
+                asyncio.create_task(agent.prewarm_greeting())
         except Exception as exc:
             logger.error("Failed to start outbound streaming for call %s: %s", call_id, exc)
 
@@ -644,13 +657,18 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
         fallback_user = await db.users.find_one({})
         user_id_val = str(fallback_user["_id"]) if fallback_user else "guest"
 
-    agent = AIPhoneAgent(call_id, ai_service, flow_service)
-    agent.user_id = user_id_val
+    # An outbound call already has an agent, created when the callee answered so its
+    # greeting could be rendered while Telnyx brought the stream up. Reuse it rather
+    # than throwing that work away.
+    agent = active_sessions.get(call_id)
+    if agent is None:
+        agent = AIPhoneAgent(call_id, ai_service, flow_service)
+        agent.user_id = user_id_val
+        # On an outbound call the business is the from_number — the person the AI is
+        # talking to is the number we dialled, so this has to follow the direction.
+        agent.is_outbound = is_outbound_call(call_log)
+        agent.caller_phone = other_party_number(call_log)
     agent.session_started_at = utc_now()
-    # On an outbound call the business is the from_number — the person the AI is
-    # talking to is the number we dialled, so this has to follow the direction.
-    agent.is_outbound = is_outbound_call(call_log)
-    agent.caller_phone = other_party_number(call_log)
     active_sessions[call_id] = agent
 
     greeting_task = None
