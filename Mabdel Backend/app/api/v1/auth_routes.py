@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -30,6 +32,8 @@ from app.services.email_service import EmailService
 from app.services.otp_service import OTPService
 from app.services.rbac_service import RBACService
 from app.utils.responses import success_response
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -212,14 +216,27 @@ async def subscription_signup(
         owner_id=new_user_id
     )
 
-    # Send credentials
-    from app.services.email_service import EmailService
-    await EmailService().send_subordinate_credentials_email(
-        email=payload.original_email,
-        login_email=generated_login_email,
-        password=generated_password,
-        role="owner"
-    )
+    # Send credentials. The account, role and global chat above are already committed
+    # by this point — a transient email failure (provider outage, a sandbox/testing
+    # restriction like Resend rejecting non-verified domains, ...) must not turn into
+    # a 500 that tells the person signup failed when it actually succeeded, leaving
+    # them unable to log in (their real error: they never got the password) while
+    # also not knowing to retry (retrying would just create a second business for
+    # the same person, since nothing here is idempotent on email/business name).
+    email_sent = True
+    try:
+        await EmailService().send_subordinate_credentials_email(
+            email=payload.original_email,
+            login_email=generated_login_email,
+            password=generated_password,
+            role="owner",
+        )
+    except Exception:
+        email_sent = False
+        logger.exception(
+            "subscription-signup: account %s created but credentials email to %s failed",
+            new_user_id, payload.original_email,
+        )
 
     # Print credentials to console for local development testing
     print(f"\n=== [LOCAL DEV] NEW OWNER CREDENTIALS ===")
@@ -228,7 +245,12 @@ async def subscription_signup(
     print(f"Password: {generated_password}")
     print(f"=========================================\n")
 
-    return success_response(data={"message": "Subscription request received. Credentials have been emailed."}, message="Success")
+    message = (
+        "Subscription request received. Credentials have been emailed."
+        if email_sent
+        else "Subscription request received, but we could not email your credentials — our team will follow up."
+    )
+    return success_response(data={"message": message}, message="Success")
 
 
 @router.post(

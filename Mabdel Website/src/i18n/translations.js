@@ -1558,6 +1558,7 @@ export const TRANSLATIONS = {
     sub_lbl_owner_dob: "Owner Date of Birth",
     sub_lbl_business_type: "Business Type / Industry",
     sub_btn_request_access: "Request Access",
+    sub_btn_submitting: "Submitting…",
     sub_err_request_failed: "Failed to request access. Please try again later.",
     sub_demo_tag: "Request a Demo",
     sub_demo_title: "Talk to GoCustify AI",
