@@ -14,6 +14,10 @@ import { publicApi } from "../api/services";
 import { formatCstDate, formatCstTime } from "../utils/dateUtils";
 import { useLanguage } from "../context/LanguageContext";
 
+// Same shape the backend's EmailStr validates against - catching an obviously bad
+// address here avoids a round trip that just comes back as a 422.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const BASE_PLANS = [
   {
     id: "starter",
@@ -240,8 +244,12 @@ export default function Subscription() {
   };
 
   const handleDemoSubmit = async () => {
-    if (!demoForm.firstName || !demoForm.lastName || !demoForm.email || !demoForm.message) {
+    if (!demoForm.firstName || !demoForm.lastName || !demoForm.phoneNumber || !demoForm.email || !demoForm.message) {
       setDemoError(t("sub_err_demo_fill"));
+      return;
+    }
+    if (!EMAIL_PATTERN.test(demoForm.email.trim())) {
+      setDemoError(t("sub_err_demo_email_invalid"));
       return;
     }
     setDemoSubmitting(true);

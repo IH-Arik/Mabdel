@@ -38,6 +38,10 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 // TODO: paste your YouTube/Vimeo embed URL here, e.g. 'https://www.youtube.com/embed/VIDEO_ID'
 const DEMO_VIDEO_EMBED_URL = '';
 
+// Same shape the backend's EmailStr validates against - catching an obviously bad
+// address here avoids a round trip that just comes back as a 422.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function StoreBadge({ icon: Icon, eyebrow, label, compact = false, t }) {
   return (
     <button
@@ -86,8 +90,12 @@ export default function Landing() {
 
   const handleFooterContactSubmit = async (e) => {
     e.preventDefault();
-    if (!footerContactForm.firstName || !footerContactForm.lastName || !footerContactForm.email || !footerContactForm.message) {
+    if (!footerContactForm.firstName || !footerContactForm.lastName || !footerContactForm.phoneNumber || !footerContactForm.email || !footerContactForm.message) {
       setFooterContactError(t('sub_err_demo_fill'));
+      return;
+    }
+    if (!EMAIL_PATTERN.test(footerContactForm.email.trim())) {
+      setFooterContactError(t('sub_err_demo_email_invalid'));
       return;
     }
     setFooterContactSubmitting(true);
