@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import Depends, File, Query, UploadFile, status
 
-from app.dependencies import get_current_user, require_permission, require_subscription
+from app.dependencies import get_current_user, require_permission, require_plan_feature
 from app.schemas.smartflow import (
     BulkMessageCreateRequest,
     BulkMessageImproveRequest,
@@ -46,7 +46,7 @@ async def upload_bulk_message_attachment(
 async def improve_bulk_message_content(
     payload: BulkMessageImproveRequest,
     current_user: dict = Depends(require_permission("bulk_messaging", "create")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.improve_bulk_message_content(str(current_user["_id"]), payload.content)
@@ -81,7 +81,7 @@ async def get_bulk_message(
 async def create_bulk_message(
     payload: BulkMessageCreateRequest,
     current_user: dict = Depends(require_permission("bulk_messaging", "create")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.create_bulk_message(str(current_user["_id"]), payload.model_dump())
@@ -93,7 +93,7 @@ async def update_bulk_message(
     bulk_message_id: str,
     payload: BulkMessageUpdateRequest,
     current_user: dict = Depends(require_permission("bulk_messaging", "create")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.update_bulk_message(str(current_user["_id"]), bulk_message_id, payload.model_dump(exclude_unset=True))
@@ -104,7 +104,7 @@ async def update_bulk_message(
 async def send_bulk_message(
     bulk_message_id: str,
     current_user: dict = Depends(require_permission("bulk_messaging", "send")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.send_bulk_message(str(current_user["_id"]), bulk_message_id)
@@ -115,7 +115,7 @@ async def send_bulk_message(
 async def cancel_bulk_message(
     bulk_message_id: str,
     current_user: dict = Depends(require_permission("bulk_messaging", "send")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.cancel_bulk_message(str(current_user["_id"]), bulk_message_id)

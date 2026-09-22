@@ -118,6 +118,7 @@ export default function Subscription() {
   const [isDemoOpen, setIsDemoOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [selectedTier, setSelectedTier] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -194,8 +195,9 @@ export default function Subscription() {
     return plan.features;
   };
 
-  const handleOpenModal = (planAction) => {
+  const handleOpenModal = (planAction, tierId) => {
     setSelectedPlan(planAction);
+    setSelectedTier(tierId ?? null);
     setIsSubmitted(false);
     setIsModalOpen(true);
   };
@@ -204,6 +206,7 @@ export default function Subscription() {
     setIsModalOpen(false);
     setTimeout(() => {
       setSelectedPlan(null);
+      setSelectedTier(null);
       setIsSubmitted(false);
       setSubmitError("");
       setFormData({
@@ -237,6 +240,7 @@ export default function Subscription() {
         phone_no: formData.phoneNo,
         business_type: formData.businessType,
         plan: selectedPlan,
+        tier: selectedTier,
       });
 
       setIsSubmitted(true);
@@ -447,14 +451,14 @@ export default function Subscription() {
               <div className="mt-6 xl:mt-auto flex flex-col gap-3">
                 <button
                   type="button"
-                  onClick={() => handleOpenModal("subscribe")}
+                  onClick={() => handleOpenModal("subscribe", plan.id)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-3.5 sm:py-4 text-sm font-bold text-[#070a13] transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-purple-500/20 cursor-pointer"
                 >
                   {t("sub_btn_subscribe_now")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleOpenModal("trial")}
+                  onClick={() => handleOpenModal("trial", plan.id)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-700 bg-transparent py-2.5 sm:py-3 text-sm font-bold text-gray-300 transition-all active:scale-[0.98] hover:bg-gray-800 hover:text-white cursor-pointer"
                 >
                   {t("sub_btn_start_free_trial")} <ArrowRight size={18} />

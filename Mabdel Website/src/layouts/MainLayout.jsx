@@ -24,6 +24,8 @@ import IncomingCallOverlay from '../components/Calls/IncomingCallOverlay';
 import ActiveCallOverlay from '../components/Calls/ActiveCallOverlay';
 import NotificationBellButton from '../components/NotificationBellButton';
 import { useNotificationStore } from '../store/useNotificationStore';
+import { useSubscriptionStore } from '../store/useSubscriptionStore';
+import { AlertTriangle, X as CloseIcon } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
@@ -115,6 +117,8 @@ export default function MainLayout() {
   const { t } = useLanguage();
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const syncUnreadCount = useNotificationStore((state) => state.syncUnreadCount);
+  const lockNotice = useSubscriptionStore((state) => state.lockNotice);
+  const clearLockNotice = useSubscriptionStore((state) => state.clearLockNotice);
   const showTeamDashboardLink = TEAM_DASHBOARD_ROLES.has(user?.role || user?.primary_role);
 
   const primaryNavItems = primaryNavItemDefs.map((item) => ({ ...item, name: t(item.key) }));
@@ -289,6 +293,37 @@ export default function MainLayout() {
             </div>
           </div>
         </header>
+
+        {lockNotice ? (
+          <div className="flex items-center justify-between gap-4 border-b border-amber-500/20 bg-amber-950/30 px-6 py-3 text-sm text-amber-200">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle size={16} className="shrink-0 text-amber-400" />
+              <span>
+                {lockNotice.message ||
+                  (lockNotice.code === 'PLAN_UPGRADE_REQUIRED'
+                    ? 'This feature needs a higher plan.'
+                    : 'Your subscription has expired.')}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/profile?tab=support')}
+                className="cursor-pointer rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 font-bold text-amber-100 transition-colors hover:bg-amber-500/20"
+              >
+                {lockNotice.code === 'PLAN_UPGRADE_REQUIRED' ? 'Upgrade' : 'Renew'}
+              </button>
+              <button
+                type="button"
+                onClick={clearLockNotice}
+                className="cursor-pointer text-amber-400/70 hover:text-amber-200"
+                aria-label="Dismiss"
+              >
+                <CloseIcon size={16} />
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {/* Scrollable outlet view */}
         <main className="flex-1 overflow-y-auto p-8 bg-[#02080B] no-scrollbar">

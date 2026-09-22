@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.dependencies import get_current_user, get_mongo_database, require_permission, require_subscription
+from app.dependencies import get_current_user, get_mongo_database, require_permission, require_plan_feature
 from app.schemas.invoice import (
     InvoiceCreateRequest,
     InvoiceReminderRequest,
@@ -40,7 +40,7 @@ async def list_invoices(
 async def create_invoice(
     payload: InvoiceCreateRequest,
     current_user: dict = Depends(require_permission("invoices", "create")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("pro")),
     service: InvoiceService = Depends(get_invoice_service),
 ) -> dict:
     result = await service.create_invoice(payload, owner_user_id=str(current_user["_id"]))
@@ -62,7 +62,7 @@ async def update_invoice(
     invoice_id: str,
     payload: InvoiceUpdateRequest,
     current_user: dict = Depends(require_permission("invoices", "edit")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("pro")),
     service: InvoiceService = Depends(get_invoice_service),
 ) -> dict:
     result = await service.update_invoice(str(current_user["_id"]), invoice_id, payload)
@@ -73,7 +73,7 @@ async def update_invoice(
 async def delete_invoice(
     invoice_id: str,
     current_user: dict = Depends(require_permission("invoices", "edit")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("pro")),
     service: InvoiceService = Depends(get_invoice_service),
 ) -> dict:
     result = await service.delete_invoice(str(current_user["_id"]), invoice_id)
@@ -85,7 +85,7 @@ async def send_invoice(
     invoice_id: str,
     payload: InvoiceSendRequest,
     current_user: dict = Depends(require_permission("invoices", "edit")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("pro")),
     service: InvoiceService = Depends(get_invoice_service),
 ) -> dict:
     result = await service.send_invoice(str(current_user["_id"]), invoice_id, payload)
@@ -108,7 +108,7 @@ async def send_invoice_reminder(
     invoice_id: str,
     payload: InvoiceReminderRequest,
     current_user: dict = Depends(require_permission("invoices", "edit")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("pro")),
     service: InvoiceService = Depends(get_invoice_service),
 ) -> dict:
     result = await service.send_reminder(str(current_user["_id"]), invoice_id, payload)
@@ -120,7 +120,7 @@ async def update_invoice_status(
     invoice_id: str,
     payload: InvoiceStatusUpdateRequest,
     current_user: dict = Depends(require_permission("invoices", "edit")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("pro")),
     service: InvoiceService = Depends(get_invoice_service),
 ) -> dict:
     result = await service.update_invoice_status(str(current_user["_id"]), invoice_id, payload)
@@ -131,7 +131,7 @@ async def update_invoice_status(
 async def create_invoice_payment_link(
     invoice_id: str,
     current_user: dict = Depends(require_permission("invoices", "edit")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("pro")),
     service: InvoiceService = Depends(get_invoice_service),
 ) -> dict:
     result = await service.create_payment_link(str(current_user["_id"]), invoice_id)

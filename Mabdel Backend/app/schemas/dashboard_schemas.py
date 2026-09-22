@@ -98,6 +98,10 @@ class OwnerCreateRequest(BaseModel):
     phone_no: str | None = None
     business_type: str | None = None
     plan: str | None = None
+    # Which pricing card (starter/growth/pro) was clicked. Left permissive (no
+    # enum) so an unrecognized or missing value from an old cached frontend
+    # bundle can never 422 a live signup — normalized in the route handler.
+    tier: str | None = None
 
 
 class EarningsSummary(BaseModel):
