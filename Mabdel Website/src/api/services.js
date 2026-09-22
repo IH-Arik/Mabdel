@@ -350,6 +350,7 @@ export const adminApi = {
 };
 
 export const publicApi = {
+  subscriptionSignup: (data) => client.post('/api/v1/auth/subscription-signup', data),
   submitDemoRequest: (data) => client.post('/api/v1/public/demo-requests', data),
   submitMeetingRequest: (data) => client.post('/api/v1/public/meeting-requests', data),
   getAvailableMeetingTimes: (params) => client.get('/api/v1/public/meeting-requests/available-times', { params }),

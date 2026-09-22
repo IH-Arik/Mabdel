@@ -251,3 +251,40 @@ def test_google_login_creates_verified_user_and_tokens(client, mock_db, monkeypa
     user = asyncio.run(mock_db.users.find_one({"email": "google.user@example.com"}))
     assert user["is_verified"] is True
     assert user["provider_user_id"] == "google-user-123"
+
+
+def test_subscription_signup_creates_account_even_if_credentials_email_fails(client, mock_db, monkeypatch):
+    """The account, role and global chat are already committed before the credentials
+    email goes out. A transient email failure (provider outage, a sandbox restriction
+    like Resend rejecting a non-verified domain, ...) must not turn into a 500 that
+    tells the person signup failed when it actually succeeded - that would leave them
+    unable to log in (they never received the password) with no signal to retry, and
+    retrying would just create a second business for the same person."""
+    from app.services.email_service import EmailService
+
+    async def fake_send(self, **kwargs):
+        raise RuntimeError("email provider rejected the address")
+
+    monkeypatch.setattr(EmailService, "send_subordinate_credentials_email", fake_send)
+
+    response = client.post(
+        "/api/v1/auth/subscription-signup",
+        json={
+            "full_name": "Signup Owner",
+            "original_email": "signup.owner@example.com",
+            "business_name": "Signup Test Biz",
+            "business_address": "1 Test St",
+            "owner_dob": "1990-01-01",
+            "phone_no": "+15551230000",
+            "business_type": "Testing",
+            "plan": "subscribe",
+        },
+    )
+
+    assert response.status_code == 201
+    assert "could not email your credentials" in response.json()["data"]["message"]
+
+    user = asyncio.run(mock_db.users.find_one({"original_email": "signup.owner@example.com"}))
+    assert user is not None
+    assert user["role"] == "owner"
+    assert user["subscription_plan"] == "Monthly"

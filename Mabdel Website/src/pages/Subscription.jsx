@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CheckCircle,
   ChevronRight,
+  Loader2,
   Mail,
   Sparkles,
   X,
@@ -118,6 +119,8 @@ export default function Subscription() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [appointmentSlots, setAppointmentSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -202,6 +205,7 @@ export default function Subscription() {
     setTimeout(() => {
       setSelectedPlan(null);
       setIsSubmitted(false);
+      setSubmitError("");
       setFormData({
         fullName: "",
         email: "",
@@ -216,30 +220,31 @@ export default function Subscription() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError("");
+    setIsSubmitting(true);
     try {
-      const response = await fetch("http://localhost:8000/api/v1/auth/subscription-signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          full_name: formData.fullName,
-          original_email: formData.email,
-          business_name: formData.businessName,
-          business_address: formData.businessAddress,
-          owner_dob: formData.ownerDob,
-          phone_no: formData.phoneNo,
-          business_type: formData.businessType,
-          plan: selectedPlan,
-        }),
+      // Was a raw fetch to a hardcoded http://localhost:8000 URL, so this always
+      // failed in production (as Mixed Content on the https:// site, or simply
+      // unresolvable) — routed through the same axios client every other public
+      // call on this page already uses, which resolves the right host per
+      // environment.
+      await publicApi.subscriptionSignup({
+        full_name: formData.fullName,
+        original_email: formData.email,
+        business_name: formData.businessName,
+        business_address: formData.businessAddress,
+        owner_dob: formData.ownerDob,
+        phone_no: formData.phoneNo,
+        business_type: formData.businessType,
+        plan: selectedPlan,
       });
-
-      if (!response.ok) {
-        throw new Error("Signup failed");
-      }
 
       setIsSubmitted(true);
     } catch (error) {
       console.error(error);
-      window.alert(t("sub_err_request_failed"));
+      setSubmitError(error.response?.data?.message || t("sub_err_request_failed"));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -639,11 +644,17 @@ export default function Subscription() {
                         />
                       </div>
 
+                      {submitError ? (
+                        <p className="mt-3 sm:mt-4 text-xs sm:text-sm text-rose-400">{submitError}</p>
+                      ) : null}
+
                       <button
                         type="submit"
-                        className="mt-3 sm:mt-4 w-full rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-3 sm:py-3.5 text-sm font-bold text-[#070a13] shadow-lg shadow-purple-500/10 transition-all active:scale-[0.98] hover:shadow-purple-500/25 cursor-pointer"
+                        disabled={isSubmitting}
+                        className="mt-3 sm:mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 py-3 sm:py-3.5 text-sm font-bold text-[#070a13] shadow-lg shadow-purple-500/10 transition-all active:scale-[0.98] hover:shadow-purple-500/25 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                       >
-                        {t("sub_btn_request_access")}
+                        {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
+                        {isSubmitting ? t("sub_btn_submitting") : t("sub_btn_request_access")}
                       </button>
                     </form>
                   </>
