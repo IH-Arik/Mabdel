@@ -158,11 +158,21 @@ async def subscription_signup(
     
     plan_name = "7-Day Trial"
     expiration = now + timedelta(days=7)
-    
+    subscription_status = "trial"
+
     if payload.plan == "subscribe":
         plan_name = "Monthly"
         expiration = now + timedelta(days=30)
-        
+        subscription_status = "active"
+
+    # Which pricing card (starter/growth/pro) they picked — normalized defensively
+    # so a bad/missing value from an old cached frontend bundle never breaks
+    # signup; it just leaves this account grandfathered/unrestricted (see
+    # _resolve_subscription_state in app/dependencies.py) instead of tier-limited.
+    normalized_tier = (payload.tier or "").strip().lower()
+    if normalized_tier not in ("starter", "growth", "pro"):
+        normalized_tier = None
+
     user_doc = {
         "email": generated_login_email,
         "original_email": payload.original_email,
@@ -182,6 +192,9 @@ async def subscription_signup(
         "is_active": True,
         "subscription_plan": plan_name,
         "subscription_expiration": expiration,
+        "subscription_tier": normalized_tier,
+        "subscription_status": subscription_status,
+        "trial_ends_at": expiration if subscription_status == "trial" else None,
         "created_at": now,
         "updated_at": now,
     }

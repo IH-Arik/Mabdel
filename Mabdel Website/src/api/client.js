@@ -1,4 +1,7 @@
 import axios from 'axios';
+import { useSubscriptionStore } from '../store/useSubscriptionStore';
+
+const PLAN_LOCK_CODES = new Set(['SUBSCRIPTION_EXPIRED', 'PLAN_UPGRADE_REQUIRED']);
 
 // VITE_API_BASE_URL is only ever set in local dev via .env; the production build has
 // never had one (see MainLayout.jsx's TEAM_DASHBOARD_URL for the same class of bug),
@@ -72,6 +75,19 @@ client.interceptors.response.use(
         return Promise.reject(error);
       }
     }
+
+    // Surface a plan-lock as a persistent dashboard banner (MainLayout reads
+    // this store) in addition to — not instead of — whatever the calling page
+    // already does with the rejected promise in its own catch block.
+    const errorCode = error.response?.data?.error?.code;
+    if (PLAN_LOCK_CODES.has(errorCode)) {
+      useSubscriptionStore.getState().setLockNotice({
+        code: errorCode,
+        message: error.response?.data?.message,
+        details: error.response?.data?.error?.details,
+      });
+    }
+
     return Promise.reject(error);
   }
 );

@@ -242,50 +242,143 @@ import datetime as _dt
 from bson import ObjectId as _OID
 
 
+_PLAN_TIER_LEVEL = {"starter": 1, "growth": 2, "pro": 3}
+
+
+class SubscriptionState:
+    __slots__ = ("is_active", "tier")
+
+    def __init__(self, is_active: bool, tier: str | None) -> None:
+        self.is_active = is_active
+        self.tier = tier
+
+
+def _resolve_subscription_state(user_doc: dict) -> SubscriptionState:
+    """The one place that turns a user document into (is_active, tier).
+
+    Three account shapes exist in the data today, in priority order:
+    1. New-style accounts (subscription_tier set, by the live /subscription
+       signup flow going forward): active iff status is "active", or "trial"
+       with trial_ends_at still in the future. tier = the recorded tier.
+    2. Accounts with subscription_status but no tier (e.g. /auth/register
+       self-signup, which has always set subscription_status="active"):
+       active per that status/trial_ends_at, tier=None.
+    3. Every account created by the live signup flow *before* this change —
+       only has subscription_plan (a display string, never a tier) and
+       subscription_expiration: active iff that expiration is missing or
+       still in the future.
+    tier=None means "grandfathered / unrestricted" — it always passes the
+    tier check in require_plan_feature. Nothing here writes to the DB and
+    nothing here changes what an existing account can already do; only new
+    signups (which populate subscription_tier) get real per-tier limits.
+    """
+    now = _dt.datetime.utcnow()
+    tier = user_doc.get("subscription_tier")
+    status = user_doc.get("subscription_status")
+
+    if tier:
+        if status == "active":
+            return SubscriptionState(True, tier)
+        if status == "trial":
+            ends = user_doc.get("trial_ends_at")
+            return SubscriptionState(bool(ends and now < ends), tier)
+        return SubscriptionState(False, tier)
+
+    if status:
+        if status == "active":
+            return SubscriptionState(True, None)
+        if status == "trial":
+            ends = user_doc.get("trial_ends_at")
+            return SubscriptionState(bool(ends and now < ends), None)
+        return SubscriptionState(False, None)
+
+    # Old-shape live-signup accounts: only subscription_plan (display string,
+    # never a tier) + subscription_expiration. No expiration recorded at all
+    # (predates even that field, or some other legacy shape) -> nothing to
+    # lock the account out on, so let it through rather than guessing.
+    expiration = user_doc.get("subscription_expiration")
+    if expiration is None:
+        return SubscriptionState(True, None)
+    return SubscriptionState(now < expiration, None)
+
+
 async def _check_subscription_active(user: dict, db: AsyncIOMotorDatabase) -> bool:
     """
     Returns True if the user has an active subscription or unexpired trial.
     Assigned members (manager/staff/assistant) inherit the owner's subscription.
     super_admin and admin are always allowed.
     """
+    return (await _resolve_effective_subscription_state(user, db)).is_active
+
+
+async def _resolve_effective_subscription_state(user: dict, db: AsyncIOMotorDatabase) -> SubscriptionState:
+    """Like _resolve_subscription_state, but follows manager/staff/assistant
+    up to their assigning owner first (they have no subscription of their
+    own), and always lets super_admin/admin through unrestricted."""
     role = user.get("role", "user")
 
-    # Platform admins always pass
     if role in ("super_admin", "admin"):
-        return True
+        return SubscriptionState(True, None)
 
-    # Assigned members check their owner's subscription
     if role in ("manager", "staff", "assistant"):
         uid = str(user.get("_id") or user.get("id") or "")
         assignment = await db.rbac_user_roles.find_one({"user_id": uid})
         if not assignment:
-            return False
+            return SubscriptionState(False, None)
         owner_doc = await db.users.find_one(
             {"_id": _OID(assignment["assigned_by"]) if _OID.is_valid(assignment["assigned_by"]) else assignment["assigned_by"]}
         )
         if not owner_doc:
-            return False
-        return _is_status_active(owner_doc)
+            return SubscriptionState(False, None)
+        return _resolve_subscription_state(owner_doc)
 
-    return _is_status_active(user)
-
-
-def _is_status_active(user_doc: dict) -> bool:
-    status = user_doc.get("subscription_status", "none")
-    if status == "active":
-        return True
-    if status == "trial":
-        ends = user_doc.get("trial_ends_at")
-        if ends and _dt.datetime.utcnow() < ends:
-            return True
-    return False
+    return _resolve_subscription_state(user)
 
 
 async def require_subscription(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ) -> dict:
+    if not await _check_subscription_active(current_user, db):
+        raise AppException(
+            status_code=402,
+            code="SUBSCRIPTION_EXPIRED",
+            message="Your subscription has expired. Please renew to continue using this feature.",
+            details={"reason": "expired_or_inactive"},
+        )
     return current_user
+
+
+def require_plan_feature(min_tier: str) -> Callable:
+    """Gate a route behind a minimum plan tier (on top of require_subscription's
+    baseline active-or-trialing check). A grandfathered account (tier=None,
+    see _resolve_subscription_state) always passes the tier check — this is
+    what keeps every account that exists today from losing access to
+    anything it can already do; only new signups, which record a real tier,
+    are actually limited by it."""
+
+    async def checker(
+        current_user: dict = Depends(get_current_user),
+        db: AsyncIOMotorDatabase = Depends(get_mongo_database),
+    ) -> dict:
+        state = await _resolve_effective_subscription_state(current_user, db)
+        if not state.is_active:
+            raise AppException(
+                status_code=402,
+                code="SUBSCRIPTION_EXPIRED",
+                message="Your subscription has expired. Please renew to continue using this feature.",
+                details={"reason": "expired_or_inactive"},
+            )
+        if state.tier is not None and _PLAN_TIER_LEVEL.get(state.tier, 0) < _PLAN_TIER_LEVEL[min_tier]:
+            raise AppException(
+                status_code=403,
+                code="PLAN_UPGRADE_REQUIRED",
+                message=f"This feature requires the {min_tier.title()} plan or higher.",
+                details={"current_tier": state.tier, "required_tier": min_tier, "lock_type": "upgrade"},
+            )
+        return current_user
+
+    return checker
 
 
 __all__ = [
@@ -294,6 +387,7 @@ __all__ = [
     "get_rbac_service",
     "get_dashboard_service",
     "require_role",
+    "require_plan_feature",
     "require_permission",
     "require_subscription",
     "require_org_scope",

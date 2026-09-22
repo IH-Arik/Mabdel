@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse
 
 from app.core.config import settings
 from app.core.exceptions import AppException
-from app.dependencies import get_current_user, require_permission, require_subscription
+from app.dependencies import get_current_user, require_permission, require_plan_feature
 from app.schemas.smartflow import (
     SocialIntegrationUpsertRequest,
     TelegramManualConnectRequest,
@@ -66,7 +66,7 @@ async def get_integration_status(
 async def connect_integration(
     payload: SocialIntegrationUpsertRequest,
     current_user: dict = Depends(require_permission("integrations", "manage")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.upsert_integration(str(current_user["_id"]), payload.model_dump())
@@ -77,7 +77,7 @@ async def connect_integration(
 async def sync_integration(
     platform: str,
     current_user: dict = Depends(require_permission("integrations", "manage")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.sync_integration(str(current_user["_id"]), platform)
@@ -88,7 +88,7 @@ async def sync_integration(
 async def connect_telegram_manual(
     payload: TelegramManualConnectRequest,
     current_user: dict = Depends(require_permission("integrations", "manage")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.connect_telegram_manual(str(current_user["_id"]), payload.model_dump())
@@ -99,7 +99,7 @@ async def connect_telegram_manual(
 async def connect_whatsapp_manual(
     payload: WhatsAppManualConnectRequest,
     current_user: dict = Depends(require_permission("integrations", "manage")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.connect_whatsapp_manual(str(current_user["_id"]), payload.model_dump())

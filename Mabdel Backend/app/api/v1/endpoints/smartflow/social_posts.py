@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import Depends, Query, status
 
-from app.dependencies import get_current_user, get_mongo_database, require_permission, require_subscription
+from app.dependencies import get_current_user, get_mongo_database, require_permission, require_plan_feature
 from app.schemas.social_post import SocialPostCreateRequest
 from app.services.social_posts_service import SocialPostsService
 from app.utils.responses import success_response
@@ -19,7 +19,7 @@ def _get_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) -> Soci
 async def create_social_post(
     payload: SocialPostCreateRequest,
     current_user: dict = Depends(require_permission("social_media", "post")),
-    _: dict = Depends(require_subscription),
+    _: dict = Depends(require_plan_feature("growth")),
     service: SocialPostsService = Depends(_get_service),
 ) -> dict:
     data = await service.create_post(str(current_user["_id"]), payload.model_dump())
