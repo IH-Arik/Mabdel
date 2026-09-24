@@ -271,6 +271,78 @@ def test_whatsapp_webhook_integration(client, mock_db, monkeypatch):
     assert res_data["message"]["platform"] == "whatsapp"
 
 
+def _meta_signed_whatsapp_request(client, body: dict, secret: str):
+    import hashlib
+    import hmac
+    import json
+
+    raw = json.dumps(body).encode()
+    signature = "sha256=" + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
+    return client.post(
+        "/api/v1/smartflow/integrations/whatsapp/webhook",
+        content=raw,
+        headers={"content-type": "application/json", "X-Hub-Signature-256": signature},
+    )
+
+
+def test_whatsapp_official_api_webhook_accepts_valid_meta_signature(client, mock_db, monkeypatch):
+    """The official Business API path coexists with the QR gateway: Meta-signed
+    requests authenticate by signature, not by the per-organization gateway secret."""
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", "meta-app-secret")
+    user_id = asyncio.run(_create_user(mock_db, email="whatsapp-official@example.com"))
+    asyncio.run(
+        mock_db.social_integrations.insert_one(
+            {"user_id": user_id, "platform": "whatsapp", "status": "connected", "external_account_id": "phone-id-1"}
+        )
+    )
+
+    response = _meta_signed_whatsapp_request(
+        client,
+        {
+            "event_id": "wamid-official-1",
+            "contact_external_id": "8801711111111",
+            "content": "Hello via Meta Cloud API",
+            "contact_name": "Bob",
+            "external_account_id": "phone-id-1",
+        },
+        "meta-app-secret",
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["message"]["content"] == "Hello via Meta Cloud API"
+
+
+def test_whatsapp_webhook_rejects_forged_meta_signature(client, mock_db, monkeypatch):
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", "meta-app-secret")
+    user_id = asyncio.run(_create_user(mock_db, email="whatsapp-forged@example.com"))
+    asyncio.run(
+        mock_db.social_integrations.insert_one(
+            {"user_id": user_id, "platform": "whatsapp", "status": "connected", "external_account_id": "phone-id-2"}
+        )
+    )
+    response = _meta_signed_whatsapp_request(
+        client,
+        {"event_id": "x", "contact_external_id": "1", "content": "spoof", "external_account_id": "phone-id-2"},
+        "not-the-real-secret",
+    )
+    assert response.status_code == 401
+
+
+def test_whatsapp_webhook_rejects_signature_header_when_meta_secret_unconfigured(client, mock_db, monkeypatch):
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
+    user_id = asyncio.run(_create_user(mock_db, email="whatsapp-nometa@example.com"))
+    asyncio.run(
+        mock_db.social_integrations.insert_one(
+            {"user_id": user_id, "platform": "whatsapp", "status": "connected", "external_account_id": "phone-id-3"}
+        )
+    )
+    response = _meta_signed_whatsapp_request(
+        client,
+        {"event_id": "y", "contact_external_id": "1", "content": "spoof", "external_account_id": "phone-id-3"},
+        "anything",
+    )
+    assert response.status_code == 401
+
+
 def test_whatsapp_webhook_rejects_wrong_secret(client, mock_db, monkeypatch):
     """The exact gap found during the WhatsApp gateway rebuild: whatsapp used to be
     bundled into META_PLATFORMS, which skipped webhook secret validation entirely

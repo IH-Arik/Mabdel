@@ -2309,10 +2309,20 @@ class SmartFlowBase:
                 "token_payload": {},
                 "extra_authorize_params": {},
             },
-            # whatsapp is deliberately absent here: it connects via the Baileys QR
-            # gateway (start_whatsapp_connect), not Meta OAuth - hitting
-            # /integrations/whatsapp/oauth/start now correctly 400s below instead
-            # of silently offering a dead Meta Business Verification flow.
+            # Official Meta WhatsApp Business Platform. The other way to connect
+            # WhatsApp is the unofficial Baileys QR gateway (start_whatsapp_connect);
+            # an organization uses one or the other, never both at once.
+            "whatsapp": {
+                "provider": "meta",
+                "authorize_url": "https://www.facebook.com/v20.0/dialog/oauth",
+                "token_url": "https://graph.facebook.com/v20.0/oauth/access_token",
+                "client_id": settings.META_CLIENT_ID,
+                "client_secret": settings.META_CLIENT_SECRET,
+                "redirect_uri": settings.META_WHATSAPP_REDIRECT_URI or settings.META_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/whatsapp/oauth/callback",
+                "scopes": ["whatsapp_business_messaging", "whatsapp_business_management"],
+                "token_payload": {},
+                "extra_authorize_params": {},
+            },
             "linkedin": {
                 "provider": "linkedin",
                 "authorize_url": "https://www.linkedin.com/oauth/v2/authorization",
