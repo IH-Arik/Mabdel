@@ -12,6 +12,7 @@ from app.repositories.auth_repository import AuthRepository
 from app.repositories.otp_repository import OTPRepository
 from app.repositories.token_repository import TokenRepository
 from app.schemas.auth_schema import (
+    CheckoutSessionResponse,
     ForgotPasswordRequest,
     GoogleLoginRequest,
     LoginRequest,
@@ -26,7 +27,6 @@ from app.schemas.auth_schema import (
 )
 from app.schemas.common import ApiErrorResponse, ApiResponse
 from app.schemas.dashboard_schemas import OwnerCreateRequest
-from app.core.security import hash_password
 from app.services.auth_service import AuthService
 from app.services.email_service import EmailService
 from app.services.otp_service import OTPService
@@ -135,135 +135,21 @@ async def reset_password(payload: ResetPasswordRequest, auth_service: AuthServic
 @router.post(
     "/subscription-signup",
     status_code=status.HTTP_201_CREATED,
-    response_model=ApiResponse[MessageResponse],
+    response_model=ApiResponse[CheckoutSessionResponse],
 )
 async def subscription_signup(
     payload: OwnerCreateRequest,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> dict:
-    from app.services.dashboard.credential_generator import generate_login_email, generate_secure_password
-    
-    while True:
-        generated_login_email = generate_login_email(payload.business_name, "owner")
-        existing = await db.users.find_one({"email": generated_login_email})
-        if not existing:
-            break
-            
-    generated_password = generate_secure_password()
-    hashed_pw = hash_password(generated_password)
-    
-    from app.utils.helpers import utc_now
-    from datetime import timedelta
-    now = utc_now()
-    
-    plan_name = "7-Day Trial"
-    expiration = now + timedelta(days=7)
-    subscription_status = "trial"
+    # This endpoint used to create the account synchronously, before any payment
+    # existed. It now only builds a Stripe Checkout Session and hands back its
+    # URL — the account itself is created by provision_owner_from_checkout_session
+    # (app/services/stripe_subscription_service.py), driven off the resulting
+    # checkout.session.completed webhook, once Stripe actually confirms payment.
+    from app.services.stripe_subscription_service import create_subscription_checkout_session
 
-    if payload.plan == "subscribe":
-        plan_name = "Monthly"
-        expiration = now + timedelta(days=30)
-        subscription_status = "active"
-
-    # Which pricing card (starter/growth/pro) they picked — normalized defensively
-    # so a bad/missing value from an old cached frontend bundle never breaks
-    # signup; it just leaves this account grandfathered/unrestricted (see
-    # _resolve_subscription_state in app/dependencies.py) instead of tier-limited.
-    normalized_tier = (payload.tier or "").strip().lower()
-    if normalized_tier not in ("starter", "growth", "pro"):
-        normalized_tier = None
-
-    user_doc = {
-        "email": generated_login_email,
-        "original_email": payload.original_email,
-        "password_hash": hashed_pw,
-        "full_name": payload.full_name,
-        "created_by": "system",
-        "is_subordinate_account": False,
-        "business_name": payload.business_name,
-        "business_address": payload.business_address,
-        "owner_dob": payload.owner_dob,
-        "phone_no": payload.phone_no,
-        "business_type": payload.business_type,
-        "role": "owner",
-        "primary_role": "owner",
-        "roles": ["owner"],
-        "is_verified": True,
-        "is_active": True,
-        "subscription_plan": plan_name,
-        "subscription_expiration": expiration,
-        "subscription_tier": normalized_tier,
-        "subscription_status": subscription_status,
-        "trial_ends_at": expiration if subscription_status == "trial" else None,
-        "created_at": now,
-        "updated_at": now,
-    }
-    
-    result = await db.users.insert_one(user_doc)
-    new_user_id = str(result.inserted_id)
-
-    # An owner is the root of their own organization — self-reference their own id
-    # so team-member creation and org-wide scoping work immediately, without
-    # relying on a later self-healing fallback.
-    await db.users.update_one({"_id": result.inserted_id}, {"$set": {"organization_id": new_user_id}})
-
-    # Assign role
-    from app.repositories.dashboard.rbac_repository import RBACRepository
-    repo = RBACRepository(db)
-    role_doc = await repo.get_role_by_slug("owner")
-    if role_doc:
-        await repo.assign_role(
-            user_id=new_user_id,
-            role_id=str(role_doc["_id"]),
-            role_slug="owner",
-            assigned_by="system",
-            organization_id=new_user_id,
-        )
-
-    # Create Global Chat for the new organization (the owner is the organization)
-    from app.services.smartflow.smartflow_orchestrator import SmartFlowService
-    smartflow = SmartFlowService(db)
-    await smartflow.ensure_global_chat(
-        organization_id=new_user_id,
-        business_name=payload.business_name,
-        owner_id=new_user_id
-    )
-
-    # Send credentials. The account, role and global chat above are already committed
-    # by this point — a transient email failure (provider outage, a sandbox/testing
-    # restriction like Resend rejecting non-verified domains, ...) must not turn into
-    # a 500 that tells the person signup failed when it actually succeeded, leaving
-    # them unable to log in (their real error: they never got the password) while
-    # also not knowing to retry (retrying would just create a second business for
-    # the same person, since nothing here is idempotent on email/business name).
-    email_sent = True
-    try:
-        await EmailService().send_subordinate_credentials_email(
-            email=payload.original_email,
-            login_email=generated_login_email,
-            password=generated_password,
-            role="owner",
-        )
-    except Exception:
-        email_sent = False
-        logger.exception(
-            "subscription-signup: account %s created but credentials email to %s failed",
-            new_user_id, payload.original_email,
-        )
-
-    # Print credentials to console for local development testing
-    print(f"\n=== [LOCAL DEV] NEW OWNER CREDENTIALS ===")
-    print(f"Original Email: {payload.original_email}")
-    print(f"Login Email: {generated_login_email}")
-    print(f"Password: {generated_password}")
-    print(f"=========================================\n")
-
-    message = (
-        "Subscription request received. Credentials have been emailed."
-        if email_sent
-        else "Subscription request received, but we could not email your credentials — our team will follow up."
-    )
-    return success_response(data={"message": message}, message="Success")
+    checkout_url = create_subscription_checkout_session(payload)
+    return success_response(data={"checkout_url": checkout_url}, message="Success")
 
 
 @router.post(

@@ -253,23 +253,28 @@ def test_google_login_creates_verified_user_and_tokens(client, mock_db, monkeypa
     assert user["provider_user_id"] == "google-user-123"
 
 
-def test_subscription_signup_creates_account_even_if_credentials_email_fails(client, mock_db, monkeypatch):
+def test_subscription_signup_provisions_account_even_if_credentials_email_fails(mock_db, monkeypatch):
     """The account, role and global chat are already committed before the credentials
     email goes out. A transient email failure (provider outage, a sandbox restriction
-    like Resend rejecting a non-verified domain, ...) must not turn into a 500 that
-    tells the person signup failed when it actually succeeded - that would leave them
-    unable to log in (they never received the password) with no signal to retry, and
-    retrying would just create a second business for the same person."""
+    like Resend rejecting a non-verified domain, ...) must not roll back an already-paid
+    signup - that would leave a paying customer with no account and no way to retry
+    (retrying checkout would just create a second Stripe subscription for the same
+    person). Account provisioning now happens from the checkout.session.completed
+    webhook (see app/services/stripe_subscription_service.py), not the signup route
+    itself - so this test calls that provisioning function directly."""
     from app.services.email_service import EmailService
+    from app.services.stripe_subscription_service import provision_owner_from_checkout_session
 
     async def fake_send(self, **kwargs):
         raise RuntimeError("email provider rejected the address")
 
     monkeypatch.setattr(EmailService, "send_subordinate_credentials_email", fake_send)
 
-    response = client.post(
-        "/api/v1/auth/subscription-signup",
-        json={
+    session = {
+        "customer": "cus_test_123",
+        "subscription": "sub_test_123",
+        "metadata": {
+            "type": "subscription_signup",
             "full_name": "Signup Owner",
             "original_email": "signup.owner@example.com",
             "business_name": "Signup Test Biz",
@@ -278,13 +283,24 @@ def test_subscription_signup_creates_account_even_if_credentials_email_fails(cli
             "phone_no": "+15551230000",
             "business_type": "Testing",
             "plan": "subscribe",
+            "tier": "growth",
         },
+    }
+
+    class FakeSubscription:
+        status = "active"
+        trial_end = None
+
+    monkeypatch.setattr(
+        "app.services.stripe_subscription_service._client",
+        lambda: type("C", (), {"subscriptions": type("S", (), {"retrieve": staticmethod(lambda _id: FakeSubscription())})()})(),
     )
 
-    assert response.status_code == 201
-    assert "could not email your credentials" in response.json()["data"]["message"]
+    asyncio.run(provision_owner_from_checkout_session(session, mock_db))
 
     user = asyncio.run(mock_db.users.find_one({"original_email": "signup.owner@example.com"}))
     assert user is not None
     assert user["role"] == "owner"
-    assert user["subscription_plan"] == "Monthly"
+    assert user["subscription_status"] == "active"
+    assert user["subscription_tier"] == "growth"
+    assert user["stripe_subscription_id"] == "sub_test_123"
