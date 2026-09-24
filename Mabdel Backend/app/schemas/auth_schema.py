@@ -88,3 +88,7 @@ class TokenResponse(BaseModel):
 class MessageResponse(BaseModel):
     message: str
     reset_token: str | None = None
+
+
+class CheckoutSessionResponse(BaseModel):
+    checkout_url: str

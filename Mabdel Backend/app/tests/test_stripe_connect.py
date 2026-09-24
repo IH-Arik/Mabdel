@@ -205,6 +205,74 @@ def test_payment_link_and_webhook_marks_invoice_paid(client, mock_db, monkeypatc
     assert invoice_response.json()["data"]["status"] == "paid"
 
 
+def test_payment_link_webhook_works_with_a_real_stripe_signature(client, mock_db, monkeypatch):
+    """Regression test for a real bug: stripe.Webhook.construct_event returns a
+    stripe.Event object, not a dict - .get() (used throughout stripe_webhook())
+    raises AttributeError on it. Every other webhook test in this file
+    monkeypatches STRIPE_WEBHOOK_SECRET to None to take the unverified json.loads
+    branch, which is exactly why this went uncaught: with a real webhook secret
+    configured (as production's .env already has), every genuine signed Stripe
+    webhook call was 500ing. This test takes the real signature-verified branch,
+    with a correctly HMAC-signed payload built the same way Stripe itself signs
+    webhook requests."""
+    import hashlib
+    import hmac
+    import json
+    import time
+
+    headers, organization_id = _auth_headers(client, mock_db, email="stripe-signed-webhook@example.com")
+    account_store = {"acct_connected": FakeAccount(id="acct_connected", charges_enabled=True, details_submitted=True, payouts_enabled=True)}
+    payment_link_calls: list[dict] = []
+    _install_fake_stripe(monkeypatch, account_store, payment_link_calls)
+
+    asyncio.run(
+        mock_db.organizations.update_one(
+            {"organization_id": organization_id},
+            {"$set": {"organization_id": organization_id, "stripe_account_id": "acct_connected", "stripe_charges_enabled": True}},
+            upsert=True,
+        )
+    )
+
+    create = client.post(
+        "/api/v1/invoices",
+        headers=headers,
+        json={"client_name": "Acme LLC", "items": [{"description": "Service", "quantity": 1, "unit_price": 75}]},
+    )
+    assert create.status_code == 201, create.text
+    invoice_id = create.json()["data"]["id"]
+
+    link_response = client.post(f"/api/v1/invoices/{invoice_id}/payment-link", headers=headers)
+    assert link_response.status_code == 200, link_response.text
+
+    import app.api.dashboard.webhooks as webhooks_module
+
+    # webhooks_module.stripe is never touched by _install_fake_stripe (only
+    # connect_module/invoice_module are) - it stays the real stripe module, so
+    # stripe.Webhook.construct_event performs genuine signature verification.
+    webhook_secret = "whsec_test_fake_secret"
+    monkeypatch.setattr(webhooks_module.settings, "STRIPE_WEBHOOK_SECRET", webhook_secret)
+
+    payload = json.dumps(
+        {
+            "type": "checkout.session.completed",
+            "data": {"object": {"metadata": {"invoice_id": invoice_id, "type": "invoice_payment"}}},
+        }
+    ).encode()
+    timestamp = int(time.time())
+    signed_payload = f"{timestamp}.".encode() + payload
+    signature = hmac.new(webhook_secret.encode(), signed_payload, hashlib.sha256).hexdigest()
+
+    webhook_response = client.post(
+        "/api/v1/dashboard/webhooks/stripe",
+        content=payload,
+        headers={"content-type": "application/json", "stripe-signature": f"t={timestamp},v1={signature}"},
+    )
+    assert webhook_response.status_code == 200, webhook_response.text
+
+    invoice_response = client.get(f"/api/v1/invoices/{invoice_id}", headers=headers)
+    assert invoice_response.json()["data"]["status"] == "paid"
+
+
 def test_webhook_ignores_non_invoice_payment_events(client, mock_db, monkeypatch):
     """An event type the subscription-billing branch (dashboard_service.handle_stripe_webhook)
     doesn't recognize should just no-op with a 200, not get routed to mark_paid_from_stripe."""

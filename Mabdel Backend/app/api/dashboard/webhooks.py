@@ -4,6 +4,10 @@ import stripe
 from app.services.dashboard.dashboard_service import DashboardService
 from app.services.email_domain import InboundEmailService
 from app.services.invoice_service import InvoiceService
+from app.services.stripe_subscription_service import (
+    provision_owner_from_checkout_session,
+    sync_subscription_status,
+)
 from app.dependencies import get_dashboard_service, get_mongo_database
 from app.core.config import settings
 from app.core.exceptions import AppException
@@ -23,18 +27,35 @@ async def stripe_webhook(
 ):
     payload = await request.body()
     if settings.STRIPE_WEBHOOK_SECRET:
-        event = _verify_stripe_signature(payload, stripe_signature)
+        # construct_event returns a stripe.Event object, not a dict - it doesn't
+        # support .get(), which every branch below relies on. Every test exercises
+        # this handler with STRIPE_WEBHOOK_SECRET unset (the json.loads branch),
+        # so this was never caught: with a real webhook secret configured (as
+        # production's .env already has), every genuine signed Stripe webhook
+        # call was crashing this endpoint with a 500.
+        event = _verify_stripe_signature(payload, stripe_signature).to_dict()
     else:
         try:
             event = json.loads(payload)
         except json.JSONDecodeError as exc:
             raise AppException(status_code=400, code="INVALID_WEBHOOK_PAYLOAD", message="Invalid JSON payload.") from exc
 
-    session_object = event.get("data", {}).get("object", {}) if event.get("type") == "checkout.session.completed" else {}
-    if session_object.get("metadata", {}).get("type") == "invoice_payment":
-        invoice_id = session_object["metadata"].get("invoice_id")
-        if invoice_id:
-            await InvoiceService(db=db).mark_paid_from_stripe(invoice_id)
+    event_type = event.get("type")
+
+    if event_type == "checkout.session.completed":
+        session_object = event.get("data", {}).get("object", {})
+        metadata_type = session_object.get("metadata", {}).get("type")
+        if metadata_type == "invoice_payment":
+            invoice_id = session_object["metadata"].get("invoice_id")
+            if invoice_id:
+                await InvoiceService(db=db).mark_paid_from_stripe(invoice_id)
+        elif metadata_type == "subscription_signup":
+            await provision_owner_from_checkout_session(session_object, db)
+        else:
+            await service.handle_stripe_webhook(event)
+    elif event_type in ("customer.subscription.updated", "customer.subscription.deleted"):
+        subscription_object = event.get("data", {}).get("object", {})
+        await sync_subscription_status(subscription_object, db)
     else:
         await service.handle_stripe_webhook(event)
 

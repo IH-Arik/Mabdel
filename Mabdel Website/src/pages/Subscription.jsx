@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  AlertTriangle,
   ArrowRight,
   CalendarDays,
   CheckCircle,
@@ -115,6 +116,7 @@ function formatSlotLabel(startIso) {
 export default function Subscription() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isDemoOpen, setIsDemoOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -122,6 +124,7 @@ export default function Subscription() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [checkoutCancelled, setCheckoutCancelled] = useState(false);
   const [appointmentSlots, setAppointmentSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -152,6 +155,26 @@ export default function Subscription() {
   const [demoSubmitting, setDemoSubmitting] = useState(false);
   const [demoSubmitted, setDemoSubmitted] = useState(false);
   const [demoError, setDemoError] = useState("");
+
+  // Stripe Checkout returns here via success_url/cancel_url. The actual account
+  // is provisioned asynchronously by the checkout.session.completed webhook, so
+  // "success" here just means the return trip happened, not that the webhook has
+  // landed yet — the credentials email arrives shortly after either way.
+  useEffect(() => {
+    const checkoutState = searchParams.get("checkout");
+    if (checkoutState === "success") {
+      setIsSubmitted(true);
+      setIsModalOpen(true);
+    } else if (checkoutState === "cancelled") {
+      setCheckoutCancelled(true);
+    } else {
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("checkout");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const plans = useMemo(() => {
     return BASE_PLANS.map((plan) => ({
@@ -231,7 +254,7 @@ export default function Subscription() {
       // unresolvable) — routed through the same axios client every other public
       // call on this page already uses, which resolves the right host per
       // environment.
-      await publicApi.subscriptionSignup({
+      const response = await publicApi.subscriptionSignup({
         full_name: formData.fullName,
         original_email: formData.email,
         business_name: formData.businessName,
@@ -243,11 +266,16 @@ export default function Subscription() {
         tier: selectedTier,
       });
 
-      setIsSubmitted(true);
+      const checkoutUrl = response.data?.data?.checkout_url;
+      if (!checkoutUrl) {
+        throw new Error("No checkout URL returned.");
+      }
+      // Leave isSubmitting true through the redirect so the button stays
+      // disabled/spinning instead of flashing back to its idle state.
+      window.location.href = checkoutUrl;
     } catch (error) {
       console.error(error);
       setSubmitError(error.response?.data?.message || t("sub_err_request_failed"));
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -348,6 +376,21 @@ export default function Subscription() {
         </h1>
         <p className="text-sm sm:text-lg text-gray-400 max-w-xl mx-auto leading-relaxed">{t("sub_hero_subtitle")}</p>
       </motion.div>
+
+      {checkoutCancelled ? (
+        <div className="relative z-10 mx-auto mb-6 sm:mb-8 flex w-full max-w-[1480px] items-center justify-between gap-3 rounded-2xl border border-amber-800/50 bg-amber-950/30 px-4 py-3 text-xs sm:text-sm text-amber-200">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="shrink-0" />
+            <span>{t("sub_checkout_cancelled_notice")}</span>
+          </div>
+          <button
+            onClick={() => setCheckoutCancelled(false)}
+            className="shrink-0 text-amber-300 underline underline-offset-2 hover:text-white cursor-pointer"
+          >
+            {t("sub_checkout_cancelled_dismiss")}
+          </button>
+        </div>
+      ) : null}
 
       <div className="relative z-10 mx-auto grid w-full max-w-[1480px] gap-6 sm:gap-8 xl:grid-cols-3">
         {plans.map((plan, index) => {

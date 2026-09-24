@@ -116,7 +116,8 @@ class Settings(BaseSettings):
     TELNYX_STREAM_TRACK: str = "inbound_track"
     TELNYX_NUMBER_COUNTRY: str = "US"
 
-    WHATSAPP_GATEWAY_URL: str | None = None
+    WHATSAPP_GATEWAY_URL: str = "http://whatsapp-gateway:3001"
+    WHATSAPP_GATEWAY_INTERNAL_SECRET: str | None = None
 
     RESEND_API_KEY: str | None = None
     MAILTRAP_API_TOKEN: str | None = None
@@ -149,6 +150,9 @@ class Settings(BaseSettings):
     STRIPE_RESTRICTED_KEY: str | None = None
     STRIPE_WEBHOOK_SECRET: str | None = None
     STRIPE_PLATFORM_FEE_PERCENT: float = 0.0
+    STRIPE_PRICE_STARTER: str | None = None
+    STRIPE_PRICE_GROWTH: str | None = None
+    STRIPE_PRICE_PRO: str | None = None
     PUBLIC_FRONTEND_URL: str = "https://gocustify.com"
 
     OTP_EXPIRE_MINUTES: int = 5
