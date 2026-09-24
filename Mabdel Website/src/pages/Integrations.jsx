@@ -37,6 +37,42 @@ const PLATFORM_META = {
 const INPUT =
   'w-full px-4 py-3 bg-[#0C0E12] border border-[#1E2530] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-[15px] placeholder:text-[#70829B]';
 
+function WhatsAppChoiceModal({ onClose, onChooseQr, onChooseApi }) {
+  const { t } = useLanguage();
+  const optionClass =
+    'w-full text-left bg-[#0C0E12] border border-[#1E2530] hover:border-[#25D366]/60 rounded-xl p-4 transition-colors cursor-pointer';
+
+  return (
+    <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4 text-left">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-[22px] w-full max-w-sm space-y-3"
+      >
+        <h3 className="font-bold text-[#F3F9FF] text-xl">{t('integ_wa_choice_title')}</h3>
+
+        <button onClick={onChooseQr} className={optionClass}>
+          <div className="text-[#F3F9FF] font-semibold text-[15px]">{t('integ_wa_choice_qr_title')}</div>
+          <div className="text-[#9BA7BB] text-[13px] mt-1 leading-relaxed">{t('integ_wa_choice_qr_desc')}</div>
+        </button>
+
+        <button onClick={onChooseApi} className={optionClass}>
+          <div className="text-[#F3F9FF] font-semibold text-[15px]">{t('integ_wa_choice_api_title')}</div>
+          <div className="text-[#9BA7BB] text-[13px] mt-1 leading-relaxed">{t('integ_wa_choice_api_desc')}</div>
+        </button>
+
+        <button
+          onClick={onClose}
+          className="w-full h-[46px] bg-[#1E2530] text-[#F8FAFC] rounded-xl font-semibold hover:bg-slate-800 transition-colors cursor-pointer text-[15px]"
+        >
+          {t('integ_btn_cancel')}
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
 const WHATSAPP_POLL_INTERVAL_MS = 3000;
 
 function WhatsAppModal({ onClose, onSuccess }) {
@@ -309,6 +345,7 @@ export default function Integrations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [whatsappModal, setWhatsappModal] = useState(false);
+  const [whatsappChoice, setWhatsappChoice] = useState(false);
   const [telegramModal, setTelegramModal] = useState(false);
   const oauthWindowRef = useRef(null);
 
@@ -392,7 +429,7 @@ export default function Integrations() {
 
   async function handleConnect(item) {
     if (item.platform === 'whatsapp') {
-      setWhatsappModal(true);
+      setWhatsappChoice(true);
       return;
     }
     if (item.platform === 'telegram') {
@@ -407,8 +444,12 @@ export default function Integrations() {
       const confirmed = window.confirm(t('integ_confirm_instagram'));
       if (!confirmed) return;
     }
+    await startOAuth(item.platform);
+  }
+
+  async function startOAuth(platform) {
     try {
-      const res = await smartflowApi.startIntegrationOAuth(item.platform);
+      const res = await smartflowApi.startIntegrationOAuth(platform);
       const url = res.data?.data?.auth_url || res.data?.auth_url;
       if (url) {
         oauthWindowRef.current = window.open(url, '_blank');
@@ -470,6 +511,19 @@ export default function Integrations() {
       </div>
 
       <AnimatePresence>
+        {whatsappChoice ? (
+          <WhatsAppChoiceModal
+            onClose={() => setWhatsappChoice(false)}
+            onChooseQr={() => {
+              setWhatsappChoice(false);
+              setWhatsappModal(true);
+            }}
+            onChooseApi={() => {
+              setWhatsappChoice(false);
+              startOAuth('whatsapp');
+            }}
+          />
+        ) : null}
         {whatsappModal ? (
           <WhatsAppModal
             onClose={() => setWhatsappModal(false)}

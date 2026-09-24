@@ -1120,6 +1120,23 @@ class ConversationService(SmartFlowBase):
         return resp.status_code < 400
 
     async def _deliver_whatsapp(self, integration: dict, access_token: str | None, recipient_id: str, content: str) -> bool:
+        # Official Meta WhatsApp Business API: integrations connected via Meta OAuth
+        # carry an access token; QR-gateway integrations never do.
+        phone_number_id = (integration.get("provider_metadata") or {}).get("phone_number_id") or integration.get("external_account_id")
+        if access_token and phone_number_id:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    f"https://graph.facebook.com/v20.0/{phone_number_id}/messages",
+                    json={
+                        "messaging_product": "whatsapp",
+                        "to": recipient_id,
+                        "type": "text",
+                        "text": {"body": content},
+                    },
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+            return resp.status_code < 400
+
         organization_id = integration.get("organization_id")
         if not organization_id:
             logger.warning("WhatsApp integration has no organization_id; cannot resolve a gateway session for %s", recipient_id)

@@ -52,7 +52,9 @@ class IntegrationService(SmartFlowBase):
         docs = await self.db.social_integrations.find({"user_id": {"$in": team_ids}}).to_list(length=50)
         # If multiple teammates connected the same platform, prefer the caller's own
         # connection in the catalog view, then fall back to the first teammate's.
-        docs.sort(key=lambda d: 0 if d.get("user_id") == user_id else 1)
+        # A live connection always wins over a stale disconnected doc (WhatsApp can
+        # leave one behind when an org switches between QR and the official API).
+        docs.sort(key=lambda d: (0 if d.get("status") == "connected" else 1, 0 if d.get("user_id") == user_id else 1))
         existing = {doc["platform"]: doc for doc in reversed(docs)}
         items: list[dict] = []
         for metadata in self._integration_catalog_metadata():
@@ -311,6 +313,15 @@ class IntegrationService(SmartFlowBase):
 
         gateway_state = response.json()
         now = utc_now()
+
+        # One WhatsApp connection per organization: switching to QR retires any
+        # official-API connection (those docs never carry an organization_id).
+        team_ids = await self._resolve_team_user_ids(user_id)
+        await self.db.social_integrations.update_many(
+            {"platform": "whatsapp", "user_id": {"$in": team_ids}, "organization_id": {"$exists": False}},
+            {"$set": {"status": "disconnected", "access_token_encrypted": None, "refresh_token_encrypted": None, "updated_at": now}},
+        )
+
         stored = await self.db.social_integrations.find_one_and_update(
             {"organization_id": organization_id, "platform": "whatsapp"},
             {
@@ -370,8 +381,12 @@ class IntegrationService(SmartFlowBase):
             "linked_number": gateway_state.get("linked_number"),
         }
 
-    async def disconnect_whatsapp(self, user_id: str) -> dict:
-        organization_id = await self._require_organization_id(user_id)
+    async def _disconnect_whatsapp_qr(self, organization_id: str) -> dict | None:
+        """Tears down the QR gateway session and marks its integration record
+        disconnected. Returns None when this org never had a QR connection."""
+        existing = await self.db.social_integrations.find_one({"organization_id": organization_id, "platform": "whatsapp"})
+        if not existing:
+            return None
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
@@ -382,7 +397,7 @@ class IntegrationService(SmartFlowBase):
             except httpx.HTTPError:
                 pass  # best-effort - the integration record is marked disconnected regardless
 
-        updated = await self.db.social_integrations.find_one_and_update(
+        return await self.db.social_integrations.find_one_and_update(
             {"organization_id": organization_id, "platform": "whatsapp"},
             {
                 "$set": {
@@ -395,9 +410,24 @@ class IntegrationService(SmartFlowBase):
             },
             return_document=ReturnDocument.AFTER,
         )
-        if not updated:
+
+    async def disconnect_whatsapp(self, user_id: str) -> dict:
+        """Disconnects whichever WhatsApp connection the organization has: the QR
+        gateway session and/or an official Meta Business API integration."""
+        organization_id = await self._require_organization_id(user_id)
+        qr_result = await self._disconnect_whatsapp_qr(organization_id)
+
+        api_result = None
+        try:
+            api_result = await self.disconnect_integration(user_id, "whatsapp")
+        except AppException as exc:
+            if exc.code != "INTEGRATION_NOT_FOUND":
+                raise
+
+        result = api_result or (self._sanitize_integration(qr_result) if qr_result else None)
+        if result is None:
             raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
-        return self._sanitize_integration(updated)
+        return result
 
     async def disconnect_integration(self, user_id: str, platform: str) -> dict:
         updated = await self.db.social_integrations.find_one_and_update(
@@ -603,6 +633,12 @@ class IntegrationService(SmartFlowBase):
             },
         )
         await self.db.oauth_states.delete_one({"_id": state_doc["_id"]})
+        if platform == "whatsapp":
+            # One WhatsApp connection per organization: going official retires any
+            # QR gateway session.
+            organization_id = await self._resolve_organization_id(state_doc["user_id"])
+            if organization_id:
+                await self._disconnect_whatsapp_qr(organization_id)
         if platform in {"google_business", "zoom", "microsoft"}:
             # sync_integration itself now checks get_calendar_provider_settings to
             # decide full pull-sync vs. meet-link-only — no connect-time flag needed.

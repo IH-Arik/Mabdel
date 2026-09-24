@@ -197,7 +197,7 @@ async def verify_platform_webhook(
     hub_challenge: str | None = Query(default=None, alias="hub.challenge"),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
-    if platform in {"instagram", "facebook_messenger"}:
+    if platform in {"instagram", "facebook_messenger", "whatsapp"}:
         service.validate_meta_webhook_challenge(hub_mode, hub_verify_token)
         return success_response(data={"challenge": hub_challenge}, message="Webhook verified successfully.")
     return success_response(data={"verified": True}, message="Webhook verification not required for this platform.")
@@ -218,6 +218,16 @@ async def receive_platform_webhook(
     if platform in META_PLATFORMS:
         _verify_meta_signature(raw_body, x_hub_signature_256)
 
+    # whatsapp has two senders: Meta itself (official API, signed with
+    # X-Hub-Signature-256) and our own QR gateway (per-organization secret). A
+    # Meta-signed request must be verified for real - never let a forged signature
+    # header slip through just because META_CLIENT_SECRET isn't configured.
+    whatsapp_meta_signed = platform == "whatsapp" and bool(x_hub_signature_256)
+    if whatsapp_meta_signed:
+        if not settings.META_CLIENT_SECRET:
+            raise AppException(status_code=401, code="WEBHOOK_SIGNATURE_INVALID", message="Meta webhook signature cannot be verified.")
+        _verify_meta_signature(raw_body, x_hub_signature_256)
+
     try:
         raw_payload = json.loads(raw_body)
     except Exception:
@@ -225,12 +235,14 @@ async def receive_platform_webhook(
     if not isinstance(raw_payload, dict):
         raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Webhook payload must be a JSON object.")
 
-    resolved_user_id = user_id or await service.resolve_webhook_user_id(
+    resolved_user_id = (None if whatsapp_meta_signed else user_id) or await service.resolve_webhook_user_id(
         platform,
         raw_payload,
         x_telegram_bot_api_secret_token or x_webhook_secret,
     )
-    if platform in ("telegram", "whatsapp"):
+    if whatsapp_meta_signed:
+        pass  # authenticated by Meta's signature above
+    elif platform in ("telegram", "whatsapp"):
         await service.validate_platform_webhook_secret(resolved_user_id, platform, x_telegram_bot_api_secret_token or x_webhook_secret)
     elif platform not in META_PLATFORMS:
         service.validate_webhook_secret(x_webhook_secret)
