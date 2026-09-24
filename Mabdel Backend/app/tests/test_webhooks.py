@@ -396,6 +396,47 @@ def test_whatsapp_webhook_repairs_legacy_record_owned_by_organization_uuid(clien
     assert conversation["user_id"] == owner_id
 
 
+def test_catalog_restarts_a_connected_whatsapp_session_the_gateway_lost(client, mock_db, monkeypatch):
+    """After a gateway restart, a session paired before boot-restore existed has no
+    live session. Loading the catalog must start it again using the stored secret."""
+    import httpx
+    from bson import ObjectId
+
+    org_id = "617a2b64-4045-4e10-921b-a305a922b579"
+    user_id = asyncio.run(_create_user(mock_db, email="wa-restore@example.com"))
+    asyncio.run(mock_db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"organization_id": org_id}}))
+    grant_owner_role(mock_db, "wa-restore@example.com")
+    asyncio.run(
+        mock_db.social_integrations.insert_one(
+            {
+                "user_id": user_id,
+                "organization_id": org_id,
+                "platform": "whatsapp",
+                "status": "connected",
+                "whatsapp_secret_token": "kept-secret",
+            }
+        )
+    )
+    started: dict = {}
+
+    async def fake_get(self, url, headers=None, **kwargs):
+        return httpx.Response(200, json={"status": "disconnected"}, request=httpx.Request("GET", str(url)))
+
+    async def fake_post(self, url, json=None, headers=None, **kwargs):
+        started["url"] = url
+        started["json"] = json
+        return httpx.Response(200, json={"status": "connected"}, request=httpx.Request("POST", str(url)))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    token = create_access_token(user_id, "wa-restore@example.com")
+    response = client.get("/api/v1/smartflow/integrations/catalog", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    assert started["url"].endswith(f"/sessions/{org_id}/start")
+    assert started["json"] == {"webhook_secret": "kept-secret"}
+
+
 def test_whatsapp_webhook_rejects_wrong_secret(client, mock_db, monkeypatch):
     """The exact gap found during the WhatsApp gateway rebuild: whatsapp used to be
     bundled into META_PLATFORMS, which skipped webhook secret validation entirely
