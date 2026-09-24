@@ -1202,15 +1202,10 @@ class CalDAVConnectRequest(BaseModel):
     server_url: str | None = Field(default=None, max_length=255)
 
 
-class WhatsAppManualConnectRequest(BaseModel):
-    phone_number: str = Field(min_length=8, max_length=50)
-    whatsapp_gateway_url: str | None = Field(default=None, max_length=255)
-
-
-class WhatsAppManualConnectResponse(BaseModel):
-    connected: bool = True
-    platform: Literal["whatsapp"] = "whatsapp"
-    integration: SocialIntegrationResponse
+class WhatsAppConnectStatusResponse(BaseModel):
+    status: Literal["pending_qr", "connected", "disconnected"]
+    qr_data_url: str | None = None
+    linked_number: str | None = None
 
 
 

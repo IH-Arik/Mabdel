@@ -229,7 +229,8 @@ export const smartflowApi = {
   editMessage: (id, data) => client.patch(`/api/v1/smartflow/messages/${id}`, data),
 
   // ── Integrations extras ───────────────────────────────────────────────────────
-  connectWhatsAppManual: (data) => client.post('/api/v1/smartflow/integrations/whatsapp/manual-connect', data),
+  connectWhatsApp: () => client.post('/api/v1/smartflow/integrations/whatsapp/connect'),
+  getWhatsAppQr: () => client.get('/api/v1/smartflow/integrations/whatsapp/qr'),
   connectTelegramManual: (data) => client.post('/api/v1/smartflow/integrations/telegram/manual-connect', data),
   getIntegrationStatus: () => client.get('/api/v1/smartflow/integrations/status'),
   getIntegrationCatalog: () => client.get('/api/v1/smartflow/integrations/catalog'),

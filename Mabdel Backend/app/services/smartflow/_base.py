@@ -2018,6 +2018,11 @@ class SmartFlowBase:
         safe.pop("access_token_encrypted", None)
         safe.pop("refresh_token_encrypted", None)
         safe.pop("user_id", None)
+        # Webhook secrets authenticate the *gateway/bot* back to us - they must
+        # never reach the frontend (this response is what list/catalog/connect
+        # endpoints all return to the browser).
+        safe.pop("whatsapp_secret_token", None)
+        safe.pop("telegram_secret_token", None)
         return safe
 
     @staticmethod
@@ -2304,17 +2309,10 @@ class SmartFlowBase:
                 "token_payload": {},
                 "extra_authorize_params": {},
             },
-            "whatsapp": {
-                "provider": "meta",
-                "authorize_url": "https://www.facebook.com/v20.0/dialog/oauth",
-                "token_url": "https://graph.facebook.com/v20.0/oauth/access_token",
-                "client_id": settings.META_CLIENT_ID,
-                "client_secret": settings.META_CLIENT_SECRET,
-                "redirect_uri": settings.META_WHATSAPP_REDIRECT_URI or settings.META_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/whatsapp/oauth/callback",
-                "scopes": ["whatsapp_business_messaging", "whatsapp_business_management"],
-                "token_payload": {},
-                "extra_authorize_params": {},
-            },
+            # whatsapp is deliberately absent here: it connects via the Baileys QR
+            # gateway (start_whatsapp_connect), not Meta OAuth - hitting
+            # /integrations/whatsapp/oauth/start now correctly 400s below instead
+            # of silently offering a dead Meta Business Verification flow.
             "linkedin": {
                 "provider": "linkedin",
                 "authorize_url": "https://www.linkedin.com/oauth/v2/authorization",

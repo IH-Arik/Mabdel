@@ -13,7 +13,6 @@ from app.dependencies import get_current_user, require_permission, require_plan_
 from app.schemas.smartflow import (
     SocialIntegrationUpsertRequest,
     TelegramManualConnectRequest,
-    WhatsAppManualConnectRequest,
 )
 from app.services.smartflow_service import SmartFlowService
 from app.utils.responses import success_response
@@ -21,7 +20,11 @@ from app.utils.responses import success_response
 from ._deps import get_smartflow_service
 from ._router import router
 
-META_PLATFORMS = {"facebook_messenger", "instagram", "whatsapp"}
+# whatsapp is deliberately NOT a Meta platform here: it's served by our own
+# Baileys-based QR gateway (see whatsapp-gateway/), not Meta's Cloud API, so
+# Meta signature verification doesn't apply and its webhook auth is handled
+# entirely via the per-integration whatsapp_secret_token (see below).
+META_PLATFORMS = {"facebook_messenger", "instagram"}
 
 
 def _verify_meta_signature(raw_body: bytes, signature_header: str | None) -> None:
@@ -95,15 +98,24 @@ async def connect_telegram_manual(
     return success_response(data=data, message="Telegram connected successfully.")
 
 
-@router.post("/integrations/whatsapp/manual-connect", status_code=status.HTTP_201_CREATED)
-async def connect_whatsapp_manual(
-    payload: WhatsAppManualConnectRequest,
+@router.post("/integrations/whatsapp/connect", status_code=status.HTTP_201_CREATED)
+async def connect_whatsapp(
     current_user: dict = Depends(require_permission("integrations", "manage")),
     _: dict = Depends(require_plan_feature("growth")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
-    data = await service.connect_whatsapp_manual(str(current_user["_id"]), payload.model_dump())
-    return success_response(data=data, message="WhatsApp connected successfully.")
+    data = await service.start_whatsapp_connect(str(current_user["_id"]))
+    return success_response(data=data, message="WhatsApp session started - scan the QR code to finish connecting.")
+
+
+@router.get("/integrations/whatsapp/qr")
+async def get_whatsapp_qr(
+    current_user: dict = Depends(require_permission("integrations", "manage")),
+    _: dict = Depends(require_plan_feature("growth")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.get_whatsapp_connect_status(str(current_user["_id"]))
+    return success_response(data=data, message="WhatsApp connection status fetched successfully.")
 
 
 @router.get("/integrations/{platform}/oauth/start")
@@ -185,7 +197,7 @@ async def verify_platform_webhook(
     hub_challenge: str | None = Query(default=None, alias="hub.challenge"),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
-    if platform in {"instagram", "facebook_messenger", "whatsapp"}:
+    if platform in {"instagram", "facebook_messenger"}:
         service.validate_meta_webhook_challenge(hub_mode, hub_verify_token)
         return success_response(data={"challenge": hub_challenge}, message="Webhook verified successfully.")
     return success_response(data={"verified": True}, message="Webhook verification not required for this platform.")
@@ -218,7 +230,7 @@ async def receive_platform_webhook(
         raw_payload,
         x_telegram_bot_api_secret_token or x_webhook_secret,
     )
-    if platform == "telegram":
+    if platform in ("telegram", "whatsapp"):
         await service.validate_platform_webhook_secret(resolved_user_id, platform, x_telegram_bot_api_secret_token or x_webhook_secret)
     elif platform not in META_PLATFORMS:
         service.validate_webhook_secret(x_webhook_secret)
