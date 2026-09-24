@@ -37,33 +37,64 @@ const PLATFORM_META = {
 const INPUT =
   'w-full px-4 py-3 bg-[#0C0E12] border border-[#1E2530] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-[15px] placeholder:text-[#70829B]';
 
+const WHATSAPP_POLL_INTERVAL_MS = 3000;
+
 function WhatsAppModal({ onClose, onSuccess }) {
   const { t } = useLanguage();
-  const [phone, setPhone] = useState('');
-  const [gatewayUrl, setGatewayUrl] = useState('http://localhost:3001');
-  const [loading, setLoading] = useState(false);
+  // 'starting' | 'pending_qr' | 'connected' | 'error'
+  const [phase, setPhase] = useState('starting');
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [linkedNumber, setLinkedNumber] = useState(null);
   const [error, setError] = useState('');
+  const pollRef = useRef(null);
 
-  async function connect() {
-    if (!phone.trim()) {
-      setError(t('integ_err_invalid_phone'));
-      return;
+  const applyStatus = useCallback(
+    (data) => {
+      if (data.status === 'connected') {
+        setPhase('connected');
+        setLinkedNumber(data.linked_number);
+        setQrDataUrl(null);
+        if (pollRef.current) clearInterval(pollRef.current);
+        onSuccess(t('integ_msg_wa_linked', { number: data.linked_number || '' }));
+        setTimeout(onClose, 1800);
+      } else {
+        setPhase('pending_qr');
+        if (data.qr_data_url) setQrDataUrl(data.qr_data_url);
+      }
+    },
+    [onClose, onSuccess, t],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function start() {
+      try {
+        const response = await smartflowApi.connectWhatsApp();
+        if (cancelled) return;
+        applyStatus(response.data.data);
+        pollRef.current = setInterval(async () => {
+          try {
+            const poll = await smartflowApi.getWhatsAppQr();
+            if (!cancelled) applyStatus(poll.data.data);
+          } catch {
+            // transient poll failure - keep trying on the next tick
+          }
+        }, WHATSAPP_POLL_INTERVAL_MS);
+      } catch (err) {
+        if (!cancelled) {
+          setPhase('error');
+          setError(err.response?.data?.message || t('integ_err_wa_link_failed'));
+        }
+      }
     }
-    setError('');
-    setLoading(true);
-    try {
-      await smartflowApi.connectWhatsAppManual({
-        phone_number: phone.trim(),
-        whatsapp_gateway_url: gatewayUrl.trim() || 'http://localhost:3001',
-      });
-      onSuccess(t('integ_msg_wa_linked'));
-      onClose();
-    } catch (err) {
-      setError(err.response?.data?.message || t('integ_err_wa_link_failed'));
-    } finally {
-      setLoading(false);
-    }
-  }
+
+    start();
+    return () => {
+      cancelled = true;
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [applyStatus, t]);
 
   return (
     <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4 text-left">
@@ -71,42 +102,45 @@ function WhatsAppModal({ onClose, onSuccess }) {
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-[22px] w-full max-w-sm space-y-3.5"
+        className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-[22px] w-full max-w-sm space-y-3.5 text-center"
       >
         <h3 className="font-bold text-[#F3F9FF] text-xl">{t('integ_title_connect_wa')}</h3>
 
-        {error && <div className="text-rose-400 text-sm">{error}</div>}
+        {phase === 'starting' && (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <Loader2 size={28} className="animate-spin text-[#25D366]" />
+            <p className="text-[#9BA7BB] text-sm">{t('integ_wa_starting')}</p>
+          </div>
+        )}
 
-        <div>
-          <label className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">{t('integ_lbl_wa_number')}</label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="e.g. 8801700000000"
-            className={INPUT}
-          />
-        </div>
-        <div>
-          <label className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">{t('integ_lbl_gateway_url')}</label>
-          <input value={gatewayUrl} onChange={(e) => setGatewayUrl(e.target.value)} className={INPUT} />
-        </div>
+        {phase === 'pending_qr' && (
+          <div className="flex flex-col items-center gap-3">
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="WhatsApp QR code" className="w-56 h-56 rounded-xl bg-white p-2" />
+            ) : (
+              <div className="w-56 h-56 rounded-xl bg-[#0C0E12] border border-[#1E2530] flex items-center justify-center">
+                <Loader2 size={24} className="animate-spin text-[#25D366]" />
+              </div>
+            )}
+            <p className="text-[#9BA7BB] text-[13px] leading-relaxed">{t('integ_wa_qr_instructions')}</p>
+          </div>
+        )}
 
-        <div className="flex gap-2.5 pt-1.5">
-          <button
-            onClick={onClose}
-            className="flex-1 h-[50px] bg-[#1E2530] text-[#F8FAFC] rounded-xl font-semibold hover:bg-slate-800 transition-colors cursor-pointer text-[15px]"
-          >
-            {t('integ_btn_cancel')}
-          </button>
-          <button
-            onClick={connect}
-            disabled={loading}
-            className="flex-1 h-[50px] bg-[#c084fc] text-[#03141E] rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#7e22ce] transition-colors cursor-pointer disabled:opacity-60 text-[15px]"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-            {t('integ_btn_connect')}
-          </button>
-        </div>
+        {phase === 'connected' && (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <CheckCircle2 size={40} className="text-[#25D366]" />
+            <p className="text-[#F3F9FF] font-semibold">{t('integ_wa_connected', { number: linkedNumber || '' })}</p>
+          </div>
+        )}
+
+        {phase === 'error' && <div className="text-rose-400 text-sm">{error}</div>}
+
+        <button
+          onClick={onClose}
+          className="w-full h-[50px] bg-[#1E2530] text-[#F8FAFC] rounded-xl font-semibold hover:bg-slate-800 transition-colors cursor-pointer text-[15px]"
+        >
+          {t('integ_btn_cancel')}
+        </button>
       </motion.div>
     </div>
   );

@@ -11,6 +11,7 @@ services:
       - ./uploads:/app/uploads
     depends_on:
       - redis
+      - whatsapp-gateway
 
   # Rate limiting and the RBAC permission cache. Reached from the api container as
   # redis://redis:6379/0 (set REDIS_URL to that in .env). Not published on any host
@@ -23,5 +24,21 @@ services:
     volumes:
       - redis-data:/data
 
+  # Multi-tenant WhatsApp gateway (Baileys, QR-based) - one persisted session per
+  # organization, multiplexed in-process. Reached from the api container as
+  # http://whatsapp-gateway:3001 (WHATSAPP_GATEWAY_URL in .env). Not published on
+  # any host port: only the api container talks to it, over the compose network.
+  whatsapp-gateway:
+    build: ./whatsapp-gateway
+    container_name: mabdel-whatsapp-gateway
+    env_file:
+      - .env
+    environment:
+      - FASTAPI_URL=http://api:8000
+    restart: unless-stopped
+    volumes:
+      - whatsapp-sessions:/app/sessions
+
 volumes:
   redis-data:
+  whatsapp-sessions:

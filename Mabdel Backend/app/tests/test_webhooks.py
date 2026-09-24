@@ -189,47 +189,117 @@ def test_meta_webhook_resolves_user_from_external_account_id(client, mock_db, mo
     assert response.json()["data"]["status"] == "processed"
 
 
+def _fake_gateway(monkeypatch, *, start_status="pending_qr", start_qr="data:image/png;base64,AAA", poll_status="connected", linked_number="8801700000000"):
+    """Mocks the Node/Baileys gateway's HTTP surface (POST .../start, GET .../qr)
+    the same way test_oauth_integrations.py mocks Telegram's setWebhook call."""
+    import httpx
+
+    calls: dict[str, object] = {}
+
+    async def fake_post(self, url, json=None, headers=None, **kwargs):
+        calls["post_url"] = url
+        calls["post_json"] = json
+        calls["post_headers"] = headers
+        request = httpx.Request("POST", str(url))
+        if url.endswith("/start"):
+            return httpx.Response(200, json={"status": start_status, "qr_data_url": start_qr, "linked_number": None}, request=request)
+        return httpx.Response(200, json={"status": "disconnected"}, request=request)
+
+    async def fake_get(self, url, headers=None, **kwargs):
+        calls["get_url"] = url
+        request = httpx.Request("GET", str(url))
+        return httpx.Response(200, json={"status": poll_status, "qr_data_url": None, "linked_number": linked_number}, request=request)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    return calls
+
+
 def test_whatsapp_webhook_integration(client, mock_db, monkeypatch):
     monkeypatch.setattr(settings, "WEBHOOK_SHARED_SECRET", "super-secret")
     monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
+    from bson import ObjectId
+
     user_id = asyncio.run(_create_user(mock_db, email="whatsapp-user@example.com"))
+    asyncio.run(mock_db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"organization_id": user_id}}))
     grant_owner_role(mock_db, "whatsapp-user@example.com")
 
-    # 1. Connect WhatsApp manual integration
-    connect_payload = {
-        "phone_number": "8801700000000",
-        "whatsapp_gateway_url": "http://localhost:3001"
-    }
-
-    # Authenticate by generating token for user_id
     access_token = create_access_token(user_id, "whatsapp-user@example.com")
     headers = {"Authorization": f"Bearer {access_token}"}
 
-    connect_response = client.post(
-        "/api/v1/smartflow/integrations/whatsapp/manual-connect",
-        json=connect_payload,
-        headers=headers
-    )
-    assert connect_response.status_code == 201
-    assert connect_response.json()["data"]["connected"] is True
+    _fake_gateway(monkeypatch)
 
-    # 2. Simulate incoming message via webhook
+    # 1. Start the WhatsApp session (real flow: this returns a QR to scan, no phone
+    # number or gateway URL is asked of the user anymore).
+    connect_response = client.post("/api/v1/smartflow/integrations/whatsapp/connect", headers=headers)
+    assert connect_response.status_code == 201, connect_response.text
+    assert connect_response.json()["data"]["status"] == "pending_qr"
+    assert connect_response.json()["data"]["qr_data_url"] == "data:image/png;base64,AAA"
+
+    integration = asyncio.run(mock_db.social_integrations.find_one({"organization_id": user_id, "platform": "whatsapp"}))
+    webhook_secret = integration["whatsapp_secret_token"]
+    assert webhook_secret
+
+    # 2. Frontend polls the QR endpoint; the gateway now reports "connected" (phone
+    # scanned) - this flips the stored integration to connected.
+    qr_response = client.get("/api/v1/smartflow/integrations/whatsapp/qr", headers=headers)
+    assert qr_response.status_code == 200
+    assert qr_response.json()["data"]["status"] == "connected"
+    integration = asyncio.run(mock_db.social_integrations.find_one({"organization_id": user_id, "platform": "whatsapp"}))
+    assert integration["status"] == "connected"
+    assert integration["external_account_id"] == "8801700000000"
+
+    # 3. Simulate a real inbound message from the gateway, authenticated with the
+    # per-organization secret issued at connect time (not the global shared secret,
+    # and not a bare guessable user_id query param).
     webhook_payload = {
         "event_id": "wa-msg-123",
-        "contact_external_id": "8801711111111",
-        "content": "Hello via OpenWA",
+        "contact_external_id": "8801711111111@s.whatsapp.net",
+        "content": "Hello via Baileys",
         "contact_name": "Alice Developer",
-        "external_account_id": "8801700000000"
+        "external_account_id": "8801700000000",
     }
-
     webhook_response = client.post(
-        "/api/v1/smartflow/integrations/whatsapp/webhook?user_id=" + user_id,
+        "/api/v1/smartflow/integrations/whatsapp/webhook",
         json=webhook_payload,
-        headers={"X-Webhook-Secret": "super-secret"}
+        headers={"X-Webhook-Secret": webhook_secret},
     )
-    assert webhook_response.status_code == 200
+    assert webhook_response.status_code == 200, webhook_response.text
     res_data = webhook_response.json()["data"]
     assert res_data["status"] == "processed"
-    assert res_data["message"]["content"] == "Hello via OpenWA"
+    assert res_data["message"]["content"] == "Hello via Baileys"
     assert res_data["message"]["platform"] == "whatsapp"
+
+
+def test_whatsapp_webhook_rejects_wrong_secret(client, mock_db, monkeypatch):
+    """The exact gap found during the WhatsApp gateway rebuild: whatsapp used to be
+    bundled into META_PLATFORMS, which skipped webhook secret validation entirely
+    and trusted a bare ?user_id= query param. Now whatsapp must always be rejected
+    without the correct per-organization secret, mirroring telegram."""
+    from bson import ObjectId
+
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
+    user_id = asyncio.run(_create_user(mock_db, email="whatsapp-secure@example.com"))
+    asyncio.run(mock_db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"organization_id": user_id}}))
+    grant_owner_role(mock_db, "whatsapp-secure@example.com")
+
+    access_token = create_access_token(user_id, "whatsapp-secure@example.com")
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    _fake_gateway(monkeypatch)
+    client.post("/api/v1/smartflow/integrations/whatsapp/connect", headers=headers)
+    client.get("/api/v1/smartflow/integrations/whatsapp/qr", headers=headers)
+
+    response = client.post(
+        "/api/v1/smartflow/integrations/whatsapp/webhook",
+        json={
+            "event_id": "wa-msg-fake",
+            "contact_external_id": "8801711111111@s.whatsapp.net",
+            "content": "Spoofed message",
+            "contact_name": "Attacker",
+            "external_account_id": "8801700000000",
+        },
+        headers={"X-Webhook-Secret": "totally-wrong-secret"},
+    )
+    assert response.status_code in (400, 401)
 

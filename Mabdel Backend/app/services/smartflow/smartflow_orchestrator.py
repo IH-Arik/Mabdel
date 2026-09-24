@@ -624,10 +624,18 @@ class SmartFlowService(SmartFlowBase):
     async def connect_telegram_manual(self, user_id, payload):
         return await self.integration_service.connect_telegram_manual(user_id, payload)
 
-    async def connect_whatsapp_manual(self, user_id, payload):
-        return await self.integration_service.connect_whatsapp_manual(user_id, payload)
+    async def start_whatsapp_connect(self, user_id):
+        return await self.integration_service.start_whatsapp_connect(user_id)
+
+    async def get_whatsapp_connect_status(self, user_id):
+        return await self.integration_service.get_whatsapp_connect_status(user_id)
+
+    async def disconnect_whatsapp(self, user_id):
+        return await self.integration_service.disconnect_whatsapp(user_id)
 
     async def disconnect_integration(self, user_id, platform):
+        if platform == "whatsapp":
+            return await self.integration_service.disconnect_whatsapp(user_id)
         return await self.integration_service.disconnect_integration(user_id, platform)
 
     async def start_integration_oauth(self, user_id, platform):

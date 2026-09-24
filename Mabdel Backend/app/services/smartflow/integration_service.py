@@ -273,41 +273,131 @@ class IntegrationService(SmartFlowBase):
             "integration": self._serialize_integration(stored),
         }
 
-    async def connect_whatsapp_manual(self, user_id: str, payload: dict) -> dict:
-        phone_number = payload["phone_number"].strip()
-        gateway_url = (payload.get("whatsapp_gateway_url") or settings.WHATSAPP_GATEWAY_URL or "").strip()
-        if not gateway_url:
-            raise AppException(status_code=400, code="MISSING_GATEWAY_URL", message="whatsapp_gateway_url is required")
+    @staticmethod
+    def _whatsapp_gateway_headers() -> dict:
+        headers = {}
+        if settings.WHATSAPP_GATEWAY_INTERNAL_SECRET:
+            headers["X-Gateway-Secret"] = settings.WHATSAPP_GATEWAY_INTERNAL_SECRET
+        return headers
 
-        await self.upsert_integration(
-            user_id,
-            {
-                "platform": "whatsapp",
-                "access_token": "openwa_manual_bypass",
-                "refresh_token": None,
-                "external_account_id": phone_number,
-            },
-        )
+    async def _require_organization_id(self, user_id: str) -> str:
+        organization_id = await self._resolve_organization_id(user_id)
+        if not organization_id:
+            raise AppException(status_code=422, code="NO_ORGANIZATION", message="Your account isn't part of an organization yet.")
+        return organization_id
+
+    async def start_whatsapp_connect(self, user_id: str) -> dict:
+        """One WhatsApp session per organization (same pattern as one Stripe Connect
+        account / one Telnyx number per organization) - keyed and stored by
+        organization_id so any teammate can (re)connect or poll the same session,
+        not just whoever happened to click first."""
+        organization_id = await self._require_organization_id(user_id)
+
+        existing = await self.db.social_integrations.find_one({"organization_id": organization_id, "platform": "whatsapp"})
+        webhook_secret = (existing or {}).get("whatsapp_secret_token") or secrets.token_urlsafe(18)
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            try:
+                response = await client.post(
+                    f"{settings.WHATSAPP_GATEWAY_URL.rstrip('/')}/sessions/{organization_id}/start",
+                    json={"webhook_secret": webhook_secret},
+                    headers=self._whatsapp_gateway_headers(),
+                )
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise AppException(
+                    status_code=503, code="WHATSAPP_GATEWAY_UNREACHABLE", message=f"Could not reach the WhatsApp gateway: {exc}"
+                ) from exc
+
+        gateway_state = response.json()
         now = utc_now()
         stored = await self.db.social_integrations.find_one_and_update(
-            {"user_id": user_id, "platform": "whatsapp"},
+            {"organization_id": organization_id, "platform": "whatsapp"},
             {
                 "$set": {
-                    "whatsapp_gateway_url": gateway_url,
+                    "user_id": organization_id,
+                    "platform": "whatsapp",
+                    "organization_id": organization_id,
+                    "whatsapp_secret_token": webhook_secret,
+                    "status": "connected" if gateway_state.get("status") == "connected" else "pending_qr",
+                    "external_account_id": gateway_state.get("linked_number"),
                     "webhook_status": "configured",
                     "updated_at": now,
+                },
+                "$setOnInsert": {"created_at": now},
+            },
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        return {
+            "status": gateway_state.get("status", "pending_qr"),
+            "qr_data_url": gateway_state.get("qr_data_url"),
+            "linked_number": gateway_state.get("linked_number"),
+            "integration": self._serialize_integration(stored),
+        }
+
+    async def get_whatsapp_connect_status(self, user_id: str) -> dict:
+        organization_id = await self._require_organization_id(user_id)
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                response = await client.get(
+                    f"{settings.WHATSAPP_GATEWAY_URL.rstrip('/')}/sessions/{organization_id}/qr",
+                    headers=self._whatsapp_gateway_headers(),
+                )
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise AppException(
+                    status_code=503, code="WHATSAPP_GATEWAY_UNREACHABLE", message=f"Could not reach the WhatsApp gateway: {exc}"
+                ) from exc
+
+        gateway_state = response.json()
+        if gateway_state.get("status") == "connected":
+            await self.db.social_integrations.update_one(
+                {"organization_id": organization_id, "platform": "whatsapp"},
+                {
+                    "$set": {
+                        "status": "connected",
+                        "external_account_id": gateway_state.get("linked_number"),
+                        "connected_at": utc_now(),
+                        "updated_at": utc_now(),
+                    }
+                },
+            )
+        return {
+            "status": gateway_state.get("status", "disconnected"),
+            "qr_data_url": gateway_state.get("qr_data_url"),
+            "linked_number": gateway_state.get("linked_number"),
+        }
+
+    async def disconnect_whatsapp(self, user_id: str) -> dict:
+        organization_id = await self._require_organization_id(user_id)
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                await client.post(
+                    f"{settings.WHATSAPP_GATEWAY_URL.rstrip('/')}/sessions/{organization_id}/disconnect",
+                    headers=self._whatsapp_gateway_headers(),
+                )
+            except httpx.HTTPError:
+                pass  # best-effort - the integration record is marked disconnected regardless
+
+        updated = await self.db.social_integrations.find_one_and_update(
+            {"organization_id": organization_id, "platform": "whatsapp"},
+            {
+                "$set": {
+                    "status": "disconnected",
+                    "external_account_id": None,
+                    "sync_status": "idle",
+                    "last_error": None,
+                    "updated_at": utc_now(),
                 }
             },
             return_document=ReturnDocument.AFTER,
         )
-        if not stored:
-            raise AppException(status_code=500, code="INTEGRATION_PERSISTENCE_FAILED", message="WhatsApp integration could not be stored.")
-
-        return {
-            "connected": True,
-            "platform": "whatsapp",
-            "integration": self._serialize_integration(stored),
-        }
+        if not updated:
+            raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
+        return self._sanitize_integration(updated)
 
     async def disconnect_integration(self, user_id: str, platform: str) -> dict:
         updated = await self.db.social_integrations.find_one_and_update(
@@ -639,19 +729,31 @@ class IntegrationService(SmartFlowBase):
             raise AppException(status_code=401, code="WEBHOOK_UNAUTHORIZED", message="Webhook secret is invalid.")
 
     async def validate_platform_webhook_secret(self, user_id: str, platform: str, secret: str | None) -> None:
-        if platform != "telegram":
+        secret_field = {"telegram": "telegram_secret_token", "whatsapp": "whatsapp_secret_token"}.get(platform)
+        if not secret_field:
             self.validate_webhook_secret(secret)
             return
 
-        integration = await self.db.social_integrations.find_one({"user_id": user_id, "platform": "telegram"})
-        expected = (integration or {}).get("telegram_secret_token") or settings.WEBHOOK_SHARED_SECRET
+        integration = await self.db.social_integrations.find_one({"user_id": user_id, "platform": platform})
+        expected = (integration or {}).get(secret_field)
+        # Unlike telegram (which always has a secret once connected), a whatsapp
+        # integration with no stored secret at all means it was never really
+        # connected via start_whatsapp_connect - never silently fall through to
+        # the global WEBHOOK_SHARED_SECRET for whatsapp specifically, since that
+        # would resurrect the same guessable-user_id gap this replaced.
+        if platform == "whatsapp":
+            if not expected or secret != expected:
+                raise AppException(status_code=401, code="WEBHOOK_UNAUTHORIZED", message="Webhook secret is invalid.")
+            return
+        expected = expected or settings.WEBHOOK_SHARED_SECRET
         if expected and secret != expected:
             raise AppException(status_code=401, code="WEBHOOK_UNAUTHORIZED", message="Webhook secret is invalid.")
 
     async def resolve_webhook_user_id(self, platform: str, payload: dict, secret: str | None = None) -> str:
-        if platform == "telegram" and secret:
+        secret_field = {"telegram": "telegram_secret_token", "whatsapp": "whatsapp_secret_token"}.get(platform)
+        if secret_field and secret:
             integration = await self.db.social_integrations.find_one(
-                {"platform": "telegram", "status": "connected", "telegram_secret_token": secret}
+                {"platform": platform, "status": "connected", secret_field: secret}
             )
             if integration:
                 return integration["user_id"]
