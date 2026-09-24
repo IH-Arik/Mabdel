@@ -63,8 +63,26 @@ class IntegrationService(SmartFlowBase):
                 await self.db.social_integrations.update_one({"_id": doc["_id"]}, {"$set": {"user_id": user_id}})
             if doc.get("status") == "pending_qr":
                 await self.get_whatsapp_connect_status(user_id)
+            elif doc.get("status") == "connected" and doc.get("whatsapp_secret_token"):
+                await self._restore_whatsapp_session_if_lost(organization_id, doc["whatsapp_secret_token"])
         except Exception:
             pass  # best-effort; the catalog must load even if the gateway is down
+
+    async def _restore_whatsapp_session_if_lost(self, organization_id: str, webhook_secret: str) -> None:
+        """The gateway keeps sessions in memory and re-opens paired ones on boot, but
+        a session paired before boot-restore existed has no saved webhook secret and
+        stays dark after a deploy restart. We still hold the secret, so if the gateway
+        reports no live session for a connected integration, start it again - the
+        paired credentials are on the gateway's volume, so no new QR is needed."""
+        base = settings.WHATSAPP_GATEWAY_URL.rstrip("/")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            state = (await client.get(f"{base}/sessions/{organization_id}/qr", headers=self._whatsapp_gateway_headers())).json()
+            if state.get("status") == "disconnected":
+                await client.post(
+                    f"{base}/sessions/{organization_id}/start",
+                    json={"webhook_secret": webhook_secret},
+                    headers=self._whatsapp_gateway_headers(),
+                )
 
     async def get_integration_catalog(self, user_id: str) -> list[dict]:
         await self._sync_pending_whatsapp(user_id)
