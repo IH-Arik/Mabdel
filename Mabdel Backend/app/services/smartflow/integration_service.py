@@ -47,7 +47,25 @@ class IntegrationService(SmartFlowBase):
         docs = await self.db.social_integrations.find({"user_id": {"$in": team_ids}}).sort("platform", 1).to_list(length=20)
         return [self._serialize_integration(doc) for doc in docs]
 
+    async def _sync_pending_whatsapp(self, user_id: str) -> None:
+        """A QR pairing is only recorded as connected when something asks the gateway
+        (the connect modal's poll). If that modal was closed or the poll missed the
+        moment, the card would stay on "Connect" although the phone is linked, so
+        refresh a pending session whenever the catalog is loaded."""
+        try:
+            organization_id = await self._resolve_organization_id(user_id)
+            if not organization_id:
+                return
+            pending = await self.db.social_integrations.find_one(
+                {"organization_id": organization_id, "platform": "whatsapp", "status": "pending_qr"}
+            )
+            if pending:
+                await self.get_whatsapp_connect_status(user_id)
+        except Exception:
+            pass  # best-effort; the catalog must load even if the gateway is down
+
     async def get_integration_catalog(self, user_id: str) -> list[dict]:
+        await self._sync_pending_whatsapp(user_id)
         team_ids = await self._resolve_team_user_ids(user_id)
         docs = await self.db.social_integrations.find({"user_id": {"$in": team_ids}}).to_list(length=50)
         # If multiple teammates connected the same platform, prefer the caller's own

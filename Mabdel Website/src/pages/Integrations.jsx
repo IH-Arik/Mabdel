@@ -83,26 +83,31 @@ function WhatsAppModal({ onClose, onSuccess }) {
   const [linkedNumber, setLinkedNumber] = useState(null);
   const [error, setError] = useState('');
   const pollRef = useRef(null);
+  // The parent passes fresh inline callbacks on every render; keeping them in a ref
+  // stops the effect below from restarting the WhatsApp session each time the page
+  // re-renders (e.g. when fetchAll toggles its loading state).
+  const callbacksRef = useRef({ onClose, onSuccess, t });
+  useEffect(() => {
+    callbacksRef.current = { onClose, onSuccess, t };
+  });
 
-  const applyStatus = useCallback(
-    (data) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    function applyStatus(data) {
+      const { onClose: close, onSuccess: success, t: translate } = callbacksRef.current;
       if (data.status === 'connected') {
         setPhase('connected');
         setLinkedNumber(data.linked_number);
         setQrDataUrl(null);
         if (pollRef.current) clearInterval(pollRef.current);
-        onSuccess(t('integ_msg_wa_linked', { number: data.linked_number || '' }));
-        setTimeout(onClose, 1800);
+        success(translate('integ_msg_wa_linked', { number: data.linked_number || '' }));
+        setTimeout(close, 1800);
       } else {
         setPhase('pending_qr');
         if (data.qr_data_url) setQrDataUrl(data.qr_data_url);
       }
-    },
-    [onClose, onSuccess, t],
-  );
-
-  useEffect(() => {
-    let cancelled = false;
+    }
 
     async function start() {
       try {
@@ -120,7 +125,7 @@ function WhatsAppModal({ onClose, onSuccess }) {
       } catch (err) {
         if (!cancelled) {
           setPhase('error');
-          setError(err.response?.data?.message || t('integ_err_wa_link_failed'));
+          setError(err.response?.data?.message || callbacksRef.current.t('integ_err_wa_link_failed'));
         }
       }
     }
@@ -130,7 +135,7 @@ function WhatsAppModal({ onClose, onSuccess }) {
       cancelled = true;
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [applyStatus, t]);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4 text-left">

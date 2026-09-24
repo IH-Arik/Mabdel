@@ -25,6 +25,39 @@ function sessionDir(orgId) {
   return path.join(SESSIONS_DIR, orgId);
 }
 
+// The webhook secret lives only in memory otherwise, so a container restart
+// (every deploy) would leave every already-linked organization deaf until
+// someone clicked Connect again. Persist it next to the Baileys auth files.
+const META_FILE = 'gateway-meta.json';
+
+async function saveMeta(orgId, webhookSecret) {
+  await fs.mkdir(sessionDir(orgId), { recursive: true });
+  await fs.writeFile(path.join(sessionDir(orgId), META_FILE), JSON.stringify({ webhookSecret }));
+}
+
+async function restoreSessions() {
+  let dirs = [];
+  try {
+    dirs = await fs.readdir(SESSIONS_DIR, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const dir of dirs) {
+    if (!dir.isDirectory()) continue;
+    try {
+      // Only re-open sessions that were actually paired; an abandoned, never-scanned
+      // QR attempt must not spawn a socket on every restart.
+      const creds = JSON.parse(await fs.readFile(path.join(SESSIONS_DIR, dir.name, 'creds.json'), 'utf8'));
+      if (!creds.registered) continue;
+      const meta = JSON.parse(await fs.readFile(path.join(SESSIONS_DIR, dir.name, META_FILE), 'utf8'));
+      await startSession(dir.name, meta.webhookSecret);
+      logger.info({ orgId: dir.name }, 'restored WhatsApp session after restart');
+    } catch (err) {
+      logger.warn({ orgId: dir.name, err: err.message }, 'could not restore WhatsApp session');
+    }
+  }
+}
+
 async function connectSession(orgId) {
   const { state, saveCreds } = await useMultiFileAuthState(sessionDir(orgId));
   const { version } = await fetchLatestBaileysVersion();
@@ -70,7 +103,8 @@ async function connectSession(orgId) {
         logger.info({ orgId }, 'WhatsApp session logged out, session data cleared');
       } else {
         logger.warn({ orgId, statusCode }, 'WhatsApp connection closed, reconnecting');
-        await connectSession(orgId).catch((err) => logger.error({ orgId, err }, 'reconnect failed'));
+        entry.socket = null;
+        setTimeout(() => reconnectWithRetry(orgId), 3000);
       }
     }
   });
@@ -108,6 +142,22 @@ async function connectSession(orgId) {
   return socket;
 }
 
+// Baileys closes the socket once right after a fresh QR pairing (restartRequired)
+// and expects the client to reconnect. A single failed attempt used to leave the
+// session stuck in "pending_qr" forever, so retry with backoff.
+async function reconnectWithRetry(orgId, attempt = 1) {
+  const entry = sessions.get(orgId);
+  if (!entry || entry.socket) return;
+  try {
+    await connectSession(orgId);
+  } catch (err) {
+    logger.error({ orgId, attempt, err: err.message }, 'reconnect failed');
+    if (attempt < 6) {
+      setTimeout(() => reconnectWithRetry(orgId, attempt + 1), Math.min(30000, 2000 * attempt));
+    }
+  }
+}
+
 async function startSession(orgId, webhookSecret) {
   let entry = sessions.get(orgId);
   if (!entry) {
@@ -116,6 +166,7 @@ async function startSession(orgId, webhookSecret) {
   } else {
     entry.webhookSecret = webhookSecret;
   }
+  await saveMeta(orgId, webhookSecret);
 
   if (!entry.socket) {
     await connectSession(orgId);
@@ -193,4 +244,5 @@ app.get('/health', (req, res) => {
 
 app.listen(PORT, () => {
   logger.info(`GoCustify WhatsApp gateway listening on port ${PORT}`);
+  restoreSessions();
 });
