@@ -56,10 +56,12 @@ class IntegrationService(SmartFlowBase):
             organization_id = await self._resolve_organization_id(user_id)
             if not organization_id:
                 return
-            pending = await self.db.social_integrations.find_one(
-                {"organization_id": organization_id, "platform": "whatsapp", "status": "pending_qr"}
-            )
-            if pending:
+            doc = await self.db.social_integrations.find_one({"organization_id": organization_id, "platform": "whatsapp"})
+            if not doc:
+                return
+            if not ObjectId.is_valid(str(doc.get("user_id"))):
+                await self.db.social_integrations.update_one({"_id": doc["_id"]}, {"$set": {"user_id": user_id}})
+            if doc.get("status") == "pending_qr":
                 await self.get_whatsapp_connect_status(user_id)
         except Exception:
             pass  # best-effort; the catalog must load even if the gateway is down
@@ -315,6 +317,12 @@ class IntegrationService(SmartFlowBase):
 
         existing = await self.db.social_integrations.find_one({"organization_id": organization_id, "platform": "whatsapp"})
         webhook_secret = (existing or {}).get("whatsapp_secret_token") or secrets.token_urlsafe(18)
+        # organization_id is not a user id (real orgs use UUIDs), but every read path
+        # - the catalog, inbound conversations - keys off social_integrations.user_id
+        # being a real user. Keep the original connector as owner; repair records that
+        # an earlier version wrote with the organization id there.
+        existing_owner = (existing or {}).get("user_id")
+        owner_user_id = existing_owner if existing_owner and ObjectId.is_valid(str(existing_owner)) else user_id
 
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
@@ -344,7 +352,7 @@ class IntegrationService(SmartFlowBase):
             {"organization_id": organization_id, "platform": "whatsapp"},
             {
                 "$set": {
-                    "user_id": organization_id,
+                    "user_id": owner_user_id,
                     "platform": "whatsapp",
                     "organization_id": organization_id,
                     "whatsapp_secret_token": webhook_secret,
@@ -803,6 +811,23 @@ class IntegrationService(SmartFlowBase):
         if expected and secret != expected:
             raise AppException(status_code=401, code="WEBHOOK_UNAUTHORIZED", message="Webhook secret is invalid.")
 
+    async def _real_integration_owner_id(self, integration: dict) -> str:
+        """WhatsApp records written by an earlier version carry the organization id
+        (a UUID in real data) as user_id. Everything downstream - contacts,
+        conversations, push notifications - needs a real user, so repair the record
+        the first time an inbound message resolves through it, rather than waiting
+        for someone to open the Integrations page."""
+        owner_id = str(integration["user_id"])
+        if ObjectId.is_valid(owner_id) or not integration.get("organization_id"):
+            return owner_id
+        member = await self.db.users.find_one({"organization_id": integration["organization_id"], "role": "owner"}, {"_id": 1})
+        member = member or await self.db.users.find_one({"organization_id": integration["organization_id"]}, {"_id": 1})
+        if not member:
+            return owner_id
+        owner_id = str(member["_id"])
+        await self.db.social_integrations.update_one({"_id": integration["_id"]}, {"$set": {"user_id": owner_id}})
+        return owner_id
+
     async def resolve_webhook_user_id(self, platform: str, payload: dict, secret: str | None = None) -> str:
         secret_field = {"telegram": "telegram_secret_token", "whatsapp": "whatsapp_secret_token"}.get(platform)
         if secret_field and secret:
@@ -810,7 +835,7 @@ class IntegrationService(SmartFlowBase):
                 {"platform": platform, "status": "connected", secret_field: secret}
             )
             if integration:
-                return integration["user_id"]
+                return await self._real_integration_owner_id(integration)
 
         normalized = get_social_provider_adapter(platform).normalize_webhook(payload)
         external_account_id = normalized.external_account_id if normalized else None
@@ -819,7 +844,7 @@ class IntegrationService(SmartFlowBase):
                 {"platform": platform, "status": "connected", "external_account_id": str(external_account_id)}
             )
             if integration:
-                return integration["user_id"]
+                return await self._real_integration_owner_id(integration)
 
         raise AppException(
             status_code=400,
