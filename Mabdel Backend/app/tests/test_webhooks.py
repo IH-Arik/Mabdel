@@ -220,8 +220,11 @@ def test_whatsapp_webhook_integration(client, mock_db, monkeypatch):
     monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
     from bson import ObjectId
 
+    # Real organizations use UUIDs, not a user id - the integration must still be
+    # owned by a real user or the catalog/inbox can never see it.
+    org_id = "617a2b64-4045-4e10-921b-a305a922b579"
     user_id = asyncio.run(_create_user(mock_db, email="whatsapp-user@example.com"))
-    asyncio.run(mock_db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"organization_id": user_id}}))
+    asyncio.run(mock_db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"organization_id": org_id}}))
     grant_owner_role(mock_db, "whatsapp-user@example.com")
 
     access_token = create_access_token(user_id, "whatsapp-user@example.com")
@@ -236,7 +239,7 @@ def test_whatsapp_webhook_integration(client, mock_db, monkeypatch):
     assert connect_response.json()["data"]["status"] == "pending_qr"
     assert connect_response.json()["data"]["qr_data_url"] == "data:image/png;base64,AAA"
 
-    integration = asyncio.run(mock_db.social_integrations.find_one({"organization_id": user_id, "platform": "whatsapp"}))
+    integration = asyncio.run(mock_db.social_integrations.find_one({"organization_id": org_id, "platform": "whatsapp"}))
     webhook_secret = integration["whatsapp_secret_token"]
     assert webhook_secret
 
@@ -245,9 +248,14 @@ def test_whatsapp_webhook_integration(client, mock_db, monkeypatch):
     qr_response = client.get("/api/v1/smartflow/integrations/whatsapp/qr", headers=headers)
     assert qr_response.status_code == 200
     assert qr_response.json()["data"]["status"] == "connected"
-    integration = asyncio.run(mock_db.social_integrations.find_one({"organization_id": user_id, "platform": "whatsapp"}))
+    integration = asyncio.run(mock_db.social_integrations.find_one({"organization_id": org_id, "platform": "whatsapp"}))
     assert integration["status"] == "connected"
     assert integration["external_account_id"] == "8801700000000"
+    assert integration["user_id"] == user_id
+
+    catalog = client.get("/api/v1/smartflow/integrations/catalog", headers=headers).json()["data"]
+    whatsapp_card = next(item for item in catalog if item["platform"] == "whatsapp")
+    assert whatsapp_card["connected"] is True
 
     # 3. Simulate a real inbound message from the gateway, authenticated with the
     # per-organization secret issued at connect time (not the global shared secret,
@@ -269,6 +277,8 @@ def test_whatsapp_webhook_integration(client, mock_db, monkeypatch):
     assert res_data["status"] == "processed"
     assert res_data["message"]["content"] == "Hello via Baileys"
     assert res_data["message"]["platform"] == "whatsapp"
+    conversation = asyncio.run(mock_db.conversations.find_one({"platform": "whatsapp"}))
+    assert conversation["user_id"] == user_id
 
 
 def _meta_signed_whatsapp_request(client, body: dict, secret: str):
@@ -341,6 +351,49 @@ def test_whatsapp_webhook_rejects_signature_header_when_meta_secret_unconfigured
         "anything",
     )
     assert response.status_code == 401
+
+
+def test_whatsapp_webhook_repairs_legacy_record_owned_by_organization_uuid(client, mock_db):
+    """Regression for the production 500: an earlier version stored the organization
+    id (a UUID) as the integration's user_id, so the first inbound message crashed in
+    push-notification code with InvalidId. The webhook must repair the record to a
+    real owner instead of failing."""
+    from bson import ObjectId
+
+    org_id = "617a2b64-4045-4e10-921b-a305a922b579"
+    owner_id = asyncio.run(_create_user(mock_db, email="legacy-wa-owner@example.com"))
+    asyncio.run(mock_db.users.update_one({"_id": ObjectId(owner_id)}, {"$set": {"organization_id": org_id, "role": "owner"}}))
+    asyncio.run(
+        mock_db.social_integrations.insert_one(
+            {
+                "user_id": org_id,
+                "organization_id": org_id,
+                "platform": "whatsapp",
+                "status": "connected",
+                "external_account_id": "8801909620260",
+                "whatsapp_secret_token": "legacy-secret",
+            }
+        )
+    )
+
+    response = client.post(
+        "/api/v1/smartflow/integrations/whatsapp/webhook",
+        json={
+            "event_id": "wa-legacy-1",
+            "contact_external_id": "8801711111111@s.whatsapp.net",
+            "content": "hi after upgrade",
+            "contact_name": "Customer",
+            "external_account_id": "8801909620260",
+        },
+        headers={"X-Webhook-Secret": "legacy-secret"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["status"] == "processed"
+
+    repaired = asyncio.run(mock_db.social_integrations.find_one({"platform": "whatsapp"}))
+    assert repaired["user_id"] == owner_id
+    conversation = asyncio.run(mock_db.conversations.find_one({"platform": "whatsapp"}))
+    assert conversation["user_id"] == owner_id
 
 
 def test_whatsapp_webhook_rejects_wrong_secret(client, mock_db, monkeypatch):
