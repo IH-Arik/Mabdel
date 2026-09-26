@@ -38,8 +38,9 @@ def test_integrations_connect_returns_oauth_url_when_access_token_missing(client
     _verify_signup_otp(client, mock_db, email=email)
     token = _login_and_get_token(client, email)
 
-    monkeypatch.setattr(settings, "META_CLIENT_ID", "meta-client-id")
-    monkeypatch.setattr(settings, "META_CLIENT_SECRET", "meta-secret")
+    # Instagram DMs use "Instagram API with Instagram Login" - its own app id/secret.
+    monkeypatch.setattr(settings, "INSTAGRAM_APP_ID", "ig-client-id")
+    monkeypatch.setattr(settings, "INSTAGRAM_APP_SECRET", "ig-secret")
     monkeypatch.setattr(settings, "META_INSTAGRAM_REDIRECT_URI", "http://127.0.0.1:8000/api/v1/smartflow/integrations/instagram/oauth/callback")
 
     response = client.post(
@@ -50,7 +51,7 @@ def test_integrations_connect_returns_oauth_url_when_access_token_missing(client
     assert response.status_code == 200
     payload = response.json()["data"]
     assert payload["connected"] is False
-    assert "facebook.com" in payload["auth_url"]
+    assert "instagram.com/oauth/authorize" in payload["auth_url"]
     assert payload["platform"] == "instagram"
     query = parse_qs(urlparse(payload["auth_url"]).query)
     assert query["redirect_uri"] == ["http://127.0.0.1:8000/api/v1/smartflow/integrations/instagram/oauth/callback"]
@@ -91,6 +92,8 @@ def test_integration_catalog_returns_supported_platform_cards_with_status(client
 
     monkeypatch.setattr(settings, "META_CLIENT_ID", "meta-client-id")
     monkeypatch.setattr(settings, "META_CLIENT_SECRET", "meta-secret")
+    monkeypatch.setattr(settings, "INSTAGRAM_APP_ID", "ig-client-id")
+    monkeypatch.setattr(settings, "INSTAGRAM_APP_SECRET", "ig-secret")
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "google-client-id")
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_SECRET", "google-secret")
     monkeypatch.setattr(settings, "LINKEDIN_CLIENT_ID", "linkedin-client-id")

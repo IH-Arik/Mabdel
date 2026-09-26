@@ -589,6 +589,7 @@ class IntegrationService(SmartFlowBase):
     async def complete_integration_oauth(self, platform: str, code: str, state: str) -> dict:
         # Claim the state atomically (single use). Deleting only after a successful
         # exchange left it replayable, and two concurrent callbacks could both pass.
+        code = code[:-2] if code.endswith("#_") else code
         state_doc = await self.db.oauth_states.find_one_and_delete({"state": state})
         expires_at = state_doc.get("expires_at") if state_doc else None
         now = utc_now()
@@ -635,6 +636,10 @@ class IntegrationService(SmartFlowBase):
                 details={"platform": platform, "provider_status": token_response.status_code},
             )
         token_data = token_response.json()
+        # Instagram Login documents the token response as { data: [ {access_token, user_id, ...} ] };
+        # other providers (and older Instagram responses) return it flat. Accept both.
+        if isinstance(token_data.get("data"), list) and token_data["data"]:
+            token_data = {**token_data, **token_data["data"][0]}
         access_token = token_data.get("access_token")
         if not access_token:
             raise AppException(status_code=502, code="OAUTH_ACCESS_TOKEN_MISSING", message="Provider did not return an access token.")
@@ -710,6 +715,32 @@ class IntegrationService(SmartFlowBase):
                 "calendar_provider": "microsoft_calendar",
                 "timezone": "UTC",
             }
+        elif platform == "instagram":
+            account = await get_social_provider_adapter(platform).connect_instagram(access_token, token_data)
+            access_token = account["access_token"]
+            token_data["expires_in"] = account["expires_in"] or token_data.get("expires_in")
+            account_metadata = {
+                "external_account_id": account["external_account_id"],
+                "external_account_name": account["external_account_name"],
+            }
+            provider_metadata = account["provider_metadata"]
+        elif platform == "whatsapp":
+            cloud = await get_social_provider_adapter(platform).connect_cloud_api(access_token)
+            access_token = cloud["access_token"]
+            account_metadata = {
+                "external_account_id": cloud["external_account_id"],
+                "external_account_name": cloud["external_account_name"],
+            }
+            provider_metadata = cloud["provider_metadata"]
+        elif platform == "facebook_messenger":
+            page = await get_social_provider_adapter(platform).connect_messenger(access_token)
+            # The Send API needs the Page token, not the user token OAuth returned.
+            access_token = page["access_token"]
+            account_metadata = {
+                "external_account_id": page["external_account_id"],
+                "external_account_name": page["external_account_name"],
+            }
+            provider_metadata = page["provider_metadata"]
         else:
             adapter = get_social_provider_adapter(platform)
             account_metadata = await adapter.fetch_account_metadata(access_token, token_data)
@@ -859,6 +890,70 @@ class IntegrationService(SmartFlowBase):
             {"$set": {"last_webhook_at": utc_now(), "webhook_status": "active", "updated_at": utc_now()}},
         )
         return {"status": "processed", "message": message}
+
+    async def handle_meta_webhook(self, platform: str, payload: dict) -> dict:
+        """One Meta delivery (Messenger, Instagram, or WhatsApp Cloud API): possibly several
+        entries/events, each belonging to whichever connected account its entry id names.
+        Events for accounts we don't know, duplicates, and non-message events are counted
+        as ignored - the caller answers 200 regardless, as Meta requires."""
+        events = get_social_provider_adapter(platform).normalize_webhook_events(payload)
+        processed = 0
+        ignored = 0
+        for event in events:
+            integration = None
+            if event.external_account_id:
+                integration = await self.db.social_integrations.find_one(
+                    {"platform": platform, "status": "connected", "external_account_id": str(event.external_account_id)}
+                )
+            if not integration:
+                ignored += 1
+                continue
+            user_id = await self._real_integration_owner_id(integration)
+            message = await self._record_inbound_message(user_id, platform, event.to_payload(), is_history_import=False)
+            if message is None:
+                ignored += 1
+                continue
+            processed += 1
+            await self.db.social_integrations.update_one(
+                {"_id": integration["_id"]},
+                {"$set": {"last_webhook_at": utc_now(), "webhook_status": "active", "updated_at": utc_now()}},
+            )
+            if platform == "facebook_messenger" and event.direction == "inbound":
+                await self._enrich_messenger_contact_name(user_id, integration, event.contact_external_id)
+        return {"status": "processed", "processed": processed, "ignored": ignored}
+
+    async def _enrich_messenger_contact_name(self, user_id: str, integration: dict, psid: str) -> None:
+        """Messenger events carry only a page-scoped id, so a new contact would be stuck as
+        "Facebook Contact". Look the person's name up once (Page token, best-effort) and only
+        while the contact still has the placeholder name - a name the owner set is never
+        overwritten, and a Graph failure never affects message delivery."""
+        try:
+            placeholder = f"{self._platform_label('facebook_messenger')} Contact"
+            contact = await self.db.contacts.find_one(
+                {
+                    "user_id": user_id,
+                    "name": placeholder,
+                    "identities": {"$elemMatch": {"platform": "facebook_messenger", "external_id": psid}},
+                }
+            )
+            token = self._decrypt_integration_token(integration)
+            if not contact or not token:
+                return
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                response = await client.get(
+                    f"https://graph.facebook.com/{settings.META_GRAPH_VERSION}/{psid}",
+                    params={"fields": "name", "access_token": token},
+                )
+            name = (response.json().get("name") or "").strip() if response.status_code == 200 else ""
+            if not name:
+                return
+            await self.db.contacts.update_one({"_id": contact["_id"]}, {"$set": {"name": name, "updated_at": utc_now()}})
+            await self.db.conversations.update_many(
+                {"user_id": user_id, "contact_id": str(contact["_id"]), "platform": "facebook_messenger", "title": placeholder},
+                {"$set": {"title": name}},
+            )
+        except Exception:
+            logger.warning("Messenger contact name lookup failed for %s", psid, exc_info=True)
 
     async def handle_inbound_webhook_batch(self, user_id: str, platform: str, messages: list[dict]) -> dict:
         """Bulk variant for a WhatsApp history-sync import: same per-message handling
