@@ -955,13 +955,22 @@ class IntegrationService(SmartFlowBase):
         except Exception:
             logger.warning("Messenger contact name lookup failed for %s", psid, exc_info=True)
 
+    _HISTORY_CONNECTED_CHECK_EVERY = 25
+
     async def handle_inbound_webhook_batch(self, user_id: str, platform: str, messages: list[dict]) -> dict:
         """Bulk variant for a WhatsApp history-sync import: same per-message handling
         as a live webhook, just without notifications/unread bumps and tolerant of
         a single bad entry in an otherwise-good batch."""
         imported = 0
         skipped = 0
-        for raw in messages:
+        for index, raw in enumerate(messages):
+            # A history batch can take minutes to store; a disconnect mid-import must
+            # stop it, not keep filling the inbox the user just cut off.
+            if index and index % self._HISTORY_CONNECTED_CHECK_EVERY == 0 and not await self.db.social_integrations.find_one(
+                {"user_id": user_id, "platform": platform, "status": "connected"}, {"_id": 1}
+            ):
+                skipped += len(messages) - index
+                break
             try:
                 payload = self.normalize_webhook_payload(platform, raw)
             except AppException:
