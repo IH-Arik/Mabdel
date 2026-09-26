@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs/promises');
 const express = require('express');
@@ -8,7 +9,7 @@ const { Boom } = require('@hapi/boom');
 
 const baileys = require('@whiskeysockets/baileys');
 const makeWASocket = baileys.default;
-const { DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } = baileys;
+const { DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion, toNumber } = baileys;
 
 const PORT = process.env.PORT || 3001;
 const FASTAPI_URL = (process.env.FASTAPI_URL || 'http://localhost:8000').replace(/\/$/, '');
@@ -21,8 +22,56 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 // status is one of "pending_qr" | "connected" | "disconnected".
 const sessions = new Map();
 
+// orgId becomes a directory name, so only accept the characters real organization ids
+// (UUIDs / ObjectIds) use - never path separators or dots.
+const ORG_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
 function sessionDir(orgId) {
+  if (!ORG_ID_PATTERN.test(orgId)) {
+    throw new Error('invalid organization id');
+  }
   return path.join(SESSIONS_DIR, orgId);
+}
+
+function secretsMatch(provided, expected) {
+  const a = Buffer.from(String(provided || ''));
+  const b = Buffer.from(String(expected));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// message.messageTimestamp is a protobuf Long (verified: WhiskeySockets/Baileys'
+// own process-message.ts converts it the same way), not a plain number - toNumber()
+// is Baileys' own exported helper for this exact field, reused here rather than
+// reimplemented, since a naive Number(value) or a raw .low read is silently wrong
+// for a Long instance.
+function messageTimestampToIso(value) {
+  const seconds = toNumber(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return new Date().toISOString();
+  return new Date(seconds * 1000).toISOString();
+}
+
+// Plain message text, or a readable placeholder (plus caption) for media - media-only
+// messages used to arrive as blank bubbles.
+function describeMessage(message) {
+  const m = message.message || {};
+  const text = m.conversation || (m.extendedTextMessage && m.extendedTextMessage.text);
+  if (text) return text;
+  const media = [
+    ['imageMessage', 'Image'],
+    ['videoMessage', 'Video'],
+    ['documentMessage', 'Document'],
+    ['audioMessage', 'Voice message'],
+    ['stickerMessage', 'Sticker'],
+    ['locationMessage', 'Location'],
+    ['contactMessage', 'Contact'],
+  ];
+  for (const [key, label] of media) {
+    if (m[key]) {
+      const caption = m[key].caption;
+      return caption ? `[${label}] ${caption}` : `[${label}]`;
+    }
+  }
+  return '';
 }
 
 // The webhook secret lives only in memory otherwise, so a container restart
@@ -67,6 +116,15 @@ async function connectSession(orgId) {
     version,
     logger: logger.child({ orgId }),
     printQRInTerminal: false,
+    // Baileys' own docs recommend browser: Browsers.macOS('Desktop') alongside
+    // syncFullHistory for a longer history window - tried it here and it broke
+    // pairing outright (WhatsApp repeatedly closed the connection with statusCode
+    // 428 immediately after registration, before ever emitting a QR, reproduced
+    // several times against real WhatsApp servers). A working connection matters
+    // more than a longer history window, so this stays on the default browser
+    // profile; syncFullHistory alone still gets whatever history WhatsApp is
+    // willing to hand this profile.
+    syncFullHistory: true,
   });
 
   const entry = sessions.get(orgId);
@@ -112,18 +170,18 @@ async function connectSession(orgId) {
   socket.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const message of messages) {
-      if (message.key.fromMe) continue;
       if (message.key.remoteJid && message.key.remoteJid.endsWith('@g.us')) continue; // direct messaging only
 
-      const content =
-        (message.message && (message.message.conversation || (message.message.extendedTextMessage && message.message.extendedTextMessage.text))) || '';
-
+      // A message sent directly from the linked phone (not through the app) must
+      // still show up in Unified - it used to be silently dropped here.
       const payload = {
         event_id: message.key.id,
         contact_external_id: message.key.remoteJid,
-        content,
+        content: describeMessage(message),
         contact_name: message.pushName || 'WhatsApp Contact',
         external_account_id: entry.linkedNumber,
+        direction: message.key.fromMe ? 'outbound' : 'inbound',
+        timestamp: messageTimestampToIso(message.messageTimestamp),
       };
 
       try {
@@ -132,10 +190,36 @@ async function connectSession(orgId) {
           payload,
           { headers: { 'X-Webhook-Secret': entry.webhookSecret, 'Content-Type': 'application/json' } }
         );
-        logger.info({ orgId, status: response.status }, 'forwarded inbound WhatsApp message');
+        logger.info({ orgId, status: response.status }, 'forwarded WhatsApp message');
       } catch (err) {
         logger.error({ orgId, err: err.response ? err.response.data : err.message }, 'failed to forward WhatsApp message');
       }
+    }
+  });
+
+  socket.ev.on('messaging-history.set', async ({ messages }) => {
+    const batch = (messages || [])
+      .filter((message) => message.key.remoteJid && !message.key.remoteJid.endsWith('@g.us'))
+      .map((message) => ({
+        event_id: message.key.id,
+        contact_external_id: message.key.remoteJid,
+        content: describeMessage(message),
+        contact_name: message.pushName || 'WhatsApp Contact',
+        external_account_id: entry.linkedNumber,
+        direction: message.key.fromMe ? 'outbound' : 'inbound',
+        timestamp: messageTimestampToIso(message.messageTimestamp),
+      }));
+    if (batch.length === 0) return;
+
+    try {
+      const response = await axios.post(
+        `${FASTAPI_URL}/api/v1/smartflow/integrations/whatsapp/webhook/history`,
+        { messages: batch },
+        { headers: { 'X-Webhook-Secret': entry.webhookSecret, 'Content-Type': 'application/json' } }
+      );
+      logger.info({ orgId, count: batch.length, result: response.data }, 'forwarded WhatsApp history batch');
+    } catch (err) {
+      logger.error({ orgId, err: err.response ? err.response.data : err.message }, 'failed to forward WhatsApp history batch');
     }
   });
 
@@ -177,10 +261,16 @@ async function startSession(orgId, webhookSecret) {
 const app = express();
 app.use(express.json());
 
+if (!GATEWAY_INTERNAL_SECRET) {
+  logger.warn('GATEWAY_INTERNAL_SECRET is not set: /sessions is unauthenticated. Only safe when the gateway is reachable from the api container alone.');
+}
+
 app.use('/sessions', (req, res, next) => {
-  if (!GATEWAY_INTERNAL_SECRET) return next();
-  if (req.header('X-Gateway-Secret') !== GATEWAY_INTERNAL_SECRET) {
+  if (GATEWAY_INTERNAL_SECRET && !secretsMatch(req.header('X-Gateway-Secret'), GATEWAY_INTERNAL_SECRET)) {
     return res.status(401).json({ error: 'Invalid gateway secret' });
+  }
+  if (!ORG_ID_PATTERN.test(req.params.orgId || (req.path.split('/')[1] || ''))) {
+    return res.status(400).json({ error: 'Invalid organization id' });
   }
   next();
 });
