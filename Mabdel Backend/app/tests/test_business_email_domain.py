@@ -395,3 +395,36 @@ def test_inbound_webhook_lands_message_in_conversations(client, mock_db, monkeyp
 def test_resolve_sender_returns_none_without_verified_domain(mock_db):
     service = EmailDomainService(mock_db)
     assert asyncio.run(service.resolve_sender("64b7f9f9f9f9f9f9f9f9f9f9")) is None
+
+
+def test_concurrent_domain_requests_leave_exactly_one_domain_for_the_org(mock_db, monkeypatch):
+    """The one-domain-per-business rule was check-then-insert. Simulate the race: the other
+    request's row already exists by the time ours inserts (its existence check ran first)."""
+    from bson import ObjectId
+
+    monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test")
+    monkeypatch.setattr(settings, "EMAIL_DOMAIN_ROOT", "gocustify.com")
+    service = EmailDomainService(mock_db)
+
+    async def no_existing(user):
+        return None
+
+    async def fake_create(domain):
+        return {"id": f"resend-{domain}", "records": []}
+
+    removed: list[str] = []
+    monkeypatch.setattr(service, "get_domain_for_user", no_existing)
+    monkeypatch.setattr(service, "_resend_create_domain", fake_create)
+    monkeypatch.setattr(service, "_resend_remove_sync", lambda domain_id: removed.append(domain_id))
+
+    user = {"_id": ObjectId(), "organization_id": "org-race"}
+    winner_id = ObjectId.from_datetime(__import__("datetime").datetime(2020, 1, 1))  # sorts before the new insert
+    asyncio.run(mock_db.email_domains.insert_one({"_id": winner_id, "organization_id": "org-race", "domain": "first-name.gocustify.com"}))
+
+    with pytest.raises(AppException) as exc_info:
+        asyncio.run(service.request_domain(user, business_name="Second Business Name"))
+
+    assert exc_info.value.code == "EMAIL_DOMAIN_EXISTS"
+    remaining = asyncio.run(mock_db.email_domains.find({"organization_id": "org-race"}).to_list(None))
+    assert [d["domain"] for d in remaining] == ["first-name.gocustify.com"]
+    assert removed and removed[0].startswith("resend-")

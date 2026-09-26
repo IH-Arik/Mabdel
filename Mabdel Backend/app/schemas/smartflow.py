@@ -44,7 +44,7 @@ LeasePropertyType = Literal["apartment", "house", "office_space", "shop", "wareh
 LeaseStatus = Literal["draft", "active", "pending_signature", "expired", "cancelled"]
 CallType = Literal["scheduled", "missed", "completed", "outbound", "incoming", "incoming_automated"]
 CallStatus = Literal["queued", "initiated", "ringing", "in_progress", "ai_ready", "callback", "missed", "completed", "busy", "no_answer", "failed", "canceled"]
-IntegrationStatus = Literal["connected", "disconnected"]
+IntegrationStatus = Literal["connected", "disconnected", "pending_qr"]
 NotificationType = Literal[
     "message",
     "missed_call",

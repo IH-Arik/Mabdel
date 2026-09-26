@@ -30,6 +30,9 @@ META_PLATFORMS = {"facebook_messenger", "instagram"}
 def _verify_meta_signature(raw_body: bytes, signature_header: str | None) -> None:
     secret = settings.META_CLIENT_SECRET
     if not secret:
+        # Fail closed: an unset app secret used to mean "skip verification".
+        if settings.ENVIRONMENT.lower() != "development":
+            raise AppException(status_code=401, code="WEBHOOK_SIGNATURE_INVALID", message="Meta webhook signature cannot be verified.")
         return
     if not signature_header or not signature_header.startswith("sha256="):
         raise AppException(status_code=401, code="WEBHOOK_SIGNATURE_MISSING", message="Meta webhook signature missing.")
@@ -249,3 +252,29 @@ async def receive_platform_webhook(
 
     data = await service.handle_inbound_webhook(resolved_user_id, platform, raw_payload)
     return success_response(data=data, message="Webhook processed successfully.")
+
+
+@router.post("/integrations/whatsapp/webhook/history")
+async def receive_whatsapp_history_batch(
+    request: Request,
+    x_webhook_secret: str | None = Header(default=None, alias="X-Webhook-Secret"),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """The gateway calls this once a freshly linked session syncs the phone's existing
+    chat history (Baileys' messaging-history.set), so old messages land in Unified too,
+    not just new ones. Same per-organization secret as the live webhook; whatsapp's
+    resolve/validate already match on the secret alone, no per-message field needed."""
+    raw_body = await request.body()
+    try:
+        raw_payload = json.loads(raw_body)
+    except Exception:
+        raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Webhook payload must be valid JSON.")
+    messages = raw_payload.get("messages") if isinstance(raw_payload, dict) else None
+    if not isinstance(messages, list):
+        raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Expected a 'messages' array.")
+
+    resolved_user_id = await service.resolve_webhook_user_id("whatsapp", {}, x_webhook_secret)
+    await service.validate_platform_webhook_secret(resolved_user_id, "whatsapp", x_webhook_secret)
+
+    data = await service.handle_inbound_webhook_batch(resolved_user_id, "whatsapp", messages)
+    return success_response(data=data, message="WhatsApp history import processed.")

@@ -130,7 +130,17 @@ class MongoConnectionManager:
             partialFilterExpression={"organization_id": {"$type": "string"}, "is_global_chat": True},
         )
         await self.database.group_members.create_index([("group_id", 1), ("member_id", 1)], unique=True)
-        await self.database.processed_webhooks.create_index([("platform", 1), ("event_id", 1)], unique=True)
+        # The dedupe key must include user_id: event ids such as a Telegram message_id are
+        # small per-chat integers, so two tenants can legitimately receive the same one.
+        # The old (platform, event_id) unique index silently dropped the second
+        # tenant's message as a "duplicate".
+        try:
+            await self.database.processed_webhooks.drop_index("platform_1_event_id_1")
+        except Exception:
+            pass  # already dropped / never existed
+        await self.database.processed_webhooks.create_index([("platform", 1), ("event_id", 1), ("user_id", 1)], unique=True)
+        # Dedupe only needs to outlive provider retries; raw payloads must not grow forever.
+        await self.database.processed_webhooks.create_index("created_at", expireAfterSeconds=60 * 60 * 24 * 30)
         await self.database.app_configs.create_index([("updated_at", -1)])
         await self.database.feature_flags.create_index("key", unique=True)
         await self.database.onboarding_slides.create_index("id", unique=True)

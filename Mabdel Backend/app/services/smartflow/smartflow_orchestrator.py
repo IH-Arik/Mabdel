@@ -647,6 +647,9 @@ class SmartFlowService(SmartFlowBase):
     async def handle_inbound_webhook(self, user_id, platform, payload):
         return await self.integration_service.handle_inbound_webhook(user_id, platform, payload)
 
+    async def handle_inbound_webhook_batch(self, user_id, platform, messages):
+        return await self.integration_service.handle_inbound_webhook_batch(user_id, platform, messages)
+
     def normalize_webhook_payload(self, platform, payload):
         return self.integration_service.normalize_webhook_payload(platform, payload)
 
