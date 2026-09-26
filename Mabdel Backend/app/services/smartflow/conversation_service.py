@@ -405,16 +405,25 @@ class ConversationService(SmartFlowBase):
     async def _inbox_tab_counts(self, access: list[dict], user_id: str) -> dict:
         """Tab badges for the whole inbox, independent of the page and the tab being
         viewed: active chats per channel, plus Mine / Unassigned."""
+        customer = {"platform": {"$in": sorted(self.CUSTOMER_PLATFORMS)}, "contact_id": {"$nin": [None, ""]}, "is_global_chat": {"$ne": True}}
         by_channel: dict[str, int] = {}
+        archived_by_channel: dict[str, int] = {}
         async for row in self.db.conversations.aggregate([
-            {"$match": {"$or": access, "archived": {"$ne": True}}},
-            {"$group": {"_id": "$platform", "count": {"$sum": 1}}},
+            {"$match": {"$or": access, **customer}},
+            {"$group": {"_id": {"platform": "$platform", "archived": {"$eq": ["$archived", True]}}, "count": {"$sum": 1}}},
         ]):
-            by_channel[row["_id"] or "unknown"] = row["count"]
-        active = {"$or": access, "archived": {"$ne": True}}
+            key = row["_id"]["platform"] or "unknown"
+            target = archived_by_channel if row["_id"]["archived"] else by_channel
+            target[key] = target.get(key, 0) + row["count"]
+        active = {"$or": access, "archived": {"$ne": True}, **customer}
         mine = await self.db.conversations.count_documents({**active, "assigned_to": user_id})
         unassigned = await self.db.conversations.count_documents({**active, "assigned_to": {"$in": [None, ""]}})
-        return {"conversation_counts": by_channel, "assigned_to_me_count": mine, "unassigned_count": unassigned}
+        return {
+            "conversation_counts": by_channel,
+            "archived_conversation_counts": archived_by_channel,
+            "assigned_to_me_count": mine,
+            "unassigned_count": unassigned,
+        }
 
     async def archive_conversation(self, user_id: str, conversation_id: str, archived: bool) -> dict:
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
