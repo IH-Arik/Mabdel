@@ -1026,8 +1026,12 @@ class ConversationService(SmartFlowBase):
     # Outbound message delivery
     # ------------------------------------------------------------------
 
-    async def _deliver_outbound(self, user_id: str, platform: str, contact_id: str | None, content: str) -> bool:
-        """Send message to the actual platform. Returns True if delivered, False if failed/skipped."""
+    async def _deliver_outbound(
+        self, user_id: str, platform: str, contact_id: str | None, content: str, errors: list[str] | None = None
+    ) -> bool:
+        """Send message to the actual platform. Returns True if delivered, False if failed/skipped.
+        When a provider explains a failure, the reason is appended to ``errors``."""
+        errors = errors if errors is not None else []
         if platform in {"ai", "internal"}:
             return True  # no external delivery needed
 
@@ -1049,11 +1053,11 @@ class ConversationService(SmartFlowBase):
 
         try:
             if platform == "facebook_messenger":
-                return await self._deliver_meta_messenger(access_token, contact_external_id, content)
+                return await self._deliver_meta_messenger(integration, access_token, contact_external_id, content, errors)
             elif platform == "instagram":
-                return await self._deliver_instagram(access_token, contact_external_id, content)
+                return await self._deliver_instagram(integration, access_token, contact_external_id, content, errors)
             elif platform == "whatsapp":
-                return await self._deliver_whatsapp(integration, access_token, contact_external_id, content)
+                return await self._deliver_whatsapp(integration, access_token, contact_external_id, content, errors)
             elif platform == "telegram":
                 return await self._deliver_telegram(access_token, contact_external_id, content)
             else:
@@ -1104,36 +1108,104 @@ class ConversationService(SmartFlowBase):
             return False
         return True
 
-    async def _deliver_meta_messenger(self, access_token: str | None, recipient_id: str, content: str) -> bool:
-        if not access_token:
+    @staticmethod
+    def _graph_failure_reason(resp: httpx.Response) -> str:
+        """A readable reason for a rejected Meta send, so the user isn't left guessing why
+        a reply shows as failed."""
+        try:
+            error = (resp.json() or {}).get("error") or {}
+        except Exception:
+            error = {}
+        code = error.get("code")
+        subcode = error.get("error_subcode")
+        message = str(error.get("message") or "")
+        if code in (10, 131047) or subcode in (2018278, 1545041, 2534022) or "window" in message.lower() or "re-engage" in message.lower():
+            return "The 24-hour reply window has closed - the customer has to message first."
+        if code in (102, 190) or error.get("type") == "OAuthException" and "token" in message.lower():
+            return "The Meta connection expired - reconnect it in Integrations."
+        return f"Meta rejected the message: {message[:200] or resp.status_code}"
+
+    async def _deliver_meta_messenger(
+        self, integration: dict, access_token: str | None, recipient_id: str, content: str, errors: list[str]
+    ) -> bool:
+        page_id = integration.get("external_account_id")
+        if not access_token or not page_id:
+            errors.append("Messenger is not fully connected - reconnect it in Integrations.")
             return False
+        # Send API: POST /<PAGE_ID>/messages with a *Page* access token and an explicit
+        # messaging_type (RESPONSE = a reply inside the 24-hour window).
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
-                "https://graph.facebook.com/v20.0/me/messages",
+                f"https://graph.facebook.com/{settings.META_GRAPH_VERSION}/{page_id}/messages",
+                json={"recipient": {"id": recipient_id}, "messaging_type": "RESPONSE", "message": {"text": content}},
+                params={"access_token": access_token},
+            )
+        if resp.status_code >= 400:
+            errors.append(self._graph_failure_reason(resp))
+            return False
+        return True
+
+    async def _fresh_instagram_token(self, integration: dict, access_token: str | None) -> str | None:
+        """Instagram tokens live 60 days. Refresh one that is close to expiry (and at least a
+        day old - the earliest Instagram allows) at send time, so a connected account keeps
+        working without anyone re-authorising it."""
+        expires_at = integration.get("access_token_expires_at")
+        if not access_token or not expires_at:
+            return access_token
+        now = utc_now()
+        if expires_at.tzinfo is None:
+            now = now.replace(tzinfo=None)
+        if expires_at - now > timedelta(days=10):
+            return access_token
+        try:
+            from app.core.crypto import encrypt_value
+            from app.services.social_provider_adapters import get_social_provider_adapter
+
+            refreshed = await get_social_provider_adapter("instagram").refresh_token(access_token)
+            if not refreshed:
+                return access_token
+            new_expiry = utc_now() + timedelta(seconds=int(refreshed.get("expires_in") or 5183944))
+            await self.db.social_integrations.update_one(
+                {"_id": integration["_id"]},
+                {"$set": {"access_token_encrypted": encrypt_value(refreshed["access_token"]), "access_token_expires_at": new_expiry, "updated_at": utc_now()}},
+            )
+            return refreshed["access_token"]
+        except Exception:
+            logger.warning("Instagram token refresh failed", exc_info=True)
+            return access_token
+
+    async def _deliver_instagram(
+        self, integration: dict, access_token: str | None, recipient_id: str, content: str, errors: list[str]
+    ) -> bool:
+        account_id = integration.get("external_account_id")
+        if not access_token or not account_id:
+            errors.append("Instagram is not fully connected - reconnect it in Integrations.")
+            return False
+        access_token = await self._fresh_instagram_token(integration, access_token)
+        # Instagram Login: POST graph.instagram.com/<VERSION>/<IG_ID>/messages with the
+        # Instagram user token and the recipient's Instagram-scoped id.
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"https://graph.instagram.com/{settings.META_GRAPH_VERSION}/{account_id}/messages",
                 json={"recipient": {"id": recipient_id}, "message": {"text": content}},
                 params={"access_token": access_token},
             )
-        return resp.status_code < 400
-
-    async def _deliver_instagram(self, access_token: str | None, recipient_id: str, content: str) -> bool:
-        if not access_token:
+        if resp.status_code >= 400:
+            errors.append(self._graph_failure_reason(resp))
             return False
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                "https://graph.facebook.com/v20.0/me/messages",
-                json={"recipient": {"id": recipient_id}, "message": {"text": content}},
-                params={"access_token": access_token},
-            )
-        return resp.status_code < 400
+        return True
 
-    async def _deliver_whatsapp(self, integration: dict, access_token: str | None, recipient_id: str, content: str) -> bool:
+    async def _deliver_whatsapp(
+        self, integration: dict, access_token: str | None, recipient_id: str, content: str, errors: list[str] | None = None
+    ) -> bool:
+        errors = errors if errors is not None else []
         # Official Meta WhatsApp Business API: integrations connected via Meta OAuth
         # carry an access token; QR-gateway integrations never do.
         phone_number_id = (integration.get("provider_metadata") or {}).get("phone_number_id") or integration.get("external_account_id")
         if access_token and phone_number_id:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(
-                    f"https://graph.facebook.com/v20.0/{phone_number_id}/messages",
+                    f"https://graph.facebook.com/{settings.META_GRAPH_VERSION}/{phone_number_id}/messages",
                     json={
                         "messaging_product": "whatsapp",
                         "to": recipient_id,
@@ -1142,7 +1214,10 @@ class ConversationService(SmartFlowBase):
                     },
                     headers={"Authorization": f"Bearer {access_token}"},
                 )
-            return resp.status_code < 400
+            if resp.status_code >= 400:
+                errors.append(self._graph_failure_reason(resp))
+                return False
+            return True
 
         organization_id = integration.get("organization_id")
         if not organization_id:
@@ -1195,13 +1270,14 @@ class ConversationService(SmartFlowBase):
         contact_id: str | None,
         content: str,
     ) -> None:
-        delivered = await self._deliver_outbound(user_id, platform, contact_id, content)
+        errors: list[str] = []
+        delivered = await self._deliver_outbound(user_id, platform, contact_id, content, errors)
         if delivered or not ObjectId.is_valid(message_id):
             return
 
         updated = await self.db.messages.find_one_and_update(
             {"_id": ObjectId(message_id), "user_id": user_id},
-            {"$set": {"status": "failed"}},
+            {"$set": {"status": "failed", "delivery_error": errors[0] if errors else None}},
             return_document=ReturnDocument.AFTER,
         )
         if not updated:

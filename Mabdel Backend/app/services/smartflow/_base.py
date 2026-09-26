@@ -2104,7 +2104,7 @@ class SmartFlowBase:
                 "brand_color": "#E4405F",
                 "auth_mode": "oauth",
                 "is_available": True,
-                "is_configured": bool(settings.META_CLIENT_ID and settings.META_CLIENT_SECRET),
+                "is_configured": bool(settings.INSTAGRAM_APP_ID and settings.INSTAGRAM_APP_SECRET),
             },
             {
                 "platform": "whatsapp",
@@ -2287,25 +2287,28 @@ class SmartFlowBase:
                 # access_type=offline behavior.
                 "extra_authorize_params": {},
             },
+            # Instagram DMs use "Instagram API with Instagram Login" (Meta's current path):
+            # Instagram's own authorize/token hosts and app credentials, and
+            # instagram_business_* scopes. Facebook Login is not used for Instagram.
             "instagram": {
-                "provider": "meta",
-                "authorize_url": "https://www.facebook.com/v20.0/dialog/oauth",
-                "token_url": "https://graph.facebook.com/v20.0/oauth/access_token",
-                "client_id": settings.META_CLIENT_ID,
-                "client_secret": settings.META_CLIENT_SECRET,
-                "redirect_uri": settings.META_INSTAGRAM_REDIRECT_URI or settings.META_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/instagram/oauth/callback",
-                "scopes": ["instagram_basic", "pages_show_list", "instagram_manage_messages"],
-                "token_payload": {},
+                "provider": "instagram_login",
+                "authorize_url": "https://www.instagram.com/oauth/authorize",
+                "token_url": "https://api.instagram.com/oauth/access_token",
+                "client_id": settings.INSTAGRAM_APP_ID,
+                "client_secret": settings.INSTAGRAM_APP_SECRET,
+                "redirect_uri": settings.META_INSTAGRAM_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/instagram/oauth/callback",
+                "scopes": ["instagram_business_basic", "instagram_business_manage_messages"],
+                "token_payload": {"grant_type": "authorization_code"},
                 "extra_authorize_params": {},
             },
             "facebook_messenger": {
                 "provider": "meta",
-                "authorize_url": "https://www.facebook.com/v20.0/dialog/oauth",
-                "token_url": "https://graph.facebook.com/v20.0/oauth/access_token",
+                "authorize_url": f"https://www.facebook.com/{settings.META_GRAPH_VERSION}/dialog/oauth",
+                "token_url": f"https://graph.facebook.com/{settings.META_GRAPH_VERSION}/oauth/access_token",
                 "client_id": settings.META_CLIENT_ID,
                 "client_secret": settings.META_CLIENT_SECRET,
                 "redirect_uri": settings.META_MESSENGER_REDIRECT_URI or settings.META_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/facebook_messenger/oauth/callback",
-                "scopes": ["pages_show_list", "pages_messaging"],
+                "scopes": ["pages_show_list", "pages_messaging", "pages_manage_metadata"],
                 "token_payload": {},
                 "extra_authorize_params": {},
             },
@@ -2314,8 +2317,8 @@ class SmartFlowBase:
             # an organization uses one or the other, never both at once.
             "whatsapp": {
                 "provider": "meta",
-                "authorize_url": "https://www.facebook.com/v20.0/dialog/oauth",
-                "token_url": "https://graph.facebook.com/v20.0/oauth/access_token",
+                "authorize_url": f"https://www.facebook.com/{settings.META_GRAPH_VERSION}/dialog/oauth",
+                "token_url": f"https://graph.facebook.com/{settings.META_GRAPH_VERSION}/oauth/access_token",
                 "client_id": settings.META_CLIENT_ID,
                 "client_secret": settings.META_CLIENT_SECRET,
                 "redirect_uri": settings.META_WHATSAPP_REDIRECT_URI or settings.META_REDIRECT_URI or f"{settings.PUBLIC_BACKEND_URL}/api/v1/smartflow/integrations/whatsapp/oauth/callback",

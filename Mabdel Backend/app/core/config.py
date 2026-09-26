@@ -97,6 +97,13 @@ class Settings(BaseSettings):
     THREADS_REDIRECT_URI: str | None = None
     WEBHOOK_SHARED_SECRET: str | None = None
     META_WEBHOOK_VERIFY_TOKEN: str | None = None
+    # Graph API v20.0 stopped being supported on 2026-09-24 (calls silently run on a newer
+    # version). Pin a supported one in one place instead of a literal in every URL.
+    META_GRAPH_VERSION: str = "v22.0"
+    # Instagram messaging uses "Instagram API with Instagram Login": its own app id/secret
+    # (Meta app dashboard -> Instagram product -> API setup), separate from META_CLIENT_*.
+    INSTAGRAM_APP_ID: str | None = None
+    INSTAGRAM_APP_SECRET: str | None = None
     FCM_SERVER_KEY: str | None = None
     APNS_KEY_ID: str | None = None
     APNS_TEAM_ID: str | None = None

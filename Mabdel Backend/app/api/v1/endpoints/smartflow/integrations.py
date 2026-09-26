@@ -5,7 +5,7 @@ import hmac
 import json
 
 from fastapi import Depends, Header, Query, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
 from app.core.config import settings
 from app.core.exceptions import AppException
@@ -192,17 +192,19 @@ async def disconnect_integration(
     return success_response(data=data, message="Integration disconnected successfully.")
 
 
-@router.get("/integrations/{platform}/webhook")
+@router.get("/integrations/{platform}/webhook", response_model=None)
 async def verify_platform_webhook(
     platform: str,
     hub_mode: str | None = Query(default=None, alias="hub.mode"),
     hub_verify_token: str | None = Query(default=None, alias="hub.verify_token"),
     hub_challenge: str | None = Query(default=None, alias="hub.challenge"),
     service: SmartFlowService = Depends(get_smartflow_service),
-) -> dict:
+) -> Response | dict:
     if platform in {"instagram", "facebook_messenger", "whatsapp"}:
         service.validate_meta_webhook_challenge(hub_mode, hub_verify_token)
-        return success_response(data={"challenge": hub_challenge}, message="Webhook verified successfully.")
+        # Meta's "Verify and save" compares the response BODY to the challenge it sent,
+        # so it must be the bare value - not our usual JSON envelope, which Meta rejects.
+        return PlainTextResponse(hub_challenge or "")
     return success_response(data={"verified": True}, message="Webhook verification not required for this platform.")
 
 
@@ -237,6 +239,14 @@ async def receive_platform_webhook(
         raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Webhook payload must be valid JSON.")
     if not isinstance(raw_payload, dict):
         raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Webhook payload must be a JSON object.")
+
+    if platform in META_PLATFORMS or whatsapp_meta_signed:
+        # Meta batches events (several entries / messages per delivery) and also sends
+        # echoes, receipts and reads to this same URL. Each event resolves to its own
+        # connected account, and the delivery is always acknowledged with 200: Meta
+        # retries any non-200 for 36 hours and can eventually disable the subscription.
+        data = await service.handle_meta_webhook(platform, raw_payload)
+        return success_response(data=data, message="Webhook processed successfully.")
 
     resolved_user_id = (None if whatsapp_meta_signed else user_id) or await service.resolve_webhook_user_id(
         platform,

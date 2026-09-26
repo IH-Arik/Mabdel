@@ -37,7 +37,8 @@ def test_meta_webhook_verification(client, monkeypatch):
         params={"hub.mode": "subscribe", "hub.verify_token": "verify-me", "hub.challenge": "12345"},
     )
     assert response.status_code == 200
-    assert response.json()["data"]["challenge"] == "12345"
+    # Meta compares the response body to the challenge, so it must be the bare value.
+    assert response.text == "12345"
 
 
 def test_webhook_processing_is_idempotent(client, mock_db, monkeypatch):
@@ -156,7 +157,6 @@ def test_telegram_webhook_resolves_user_from_secret_without_query_user_id(client
 
 
 def test_meta_webhook_resolves_user_from_external_account_id(client, mock_db, monkeypatch):
-    monkeypatch.setattr(settings, "WEBHOOK_SHARED_SECRET", "super-secret")
     monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
     user_id = asyncio.run(_create_user(mock_db, email="webhook5@example.com"))
     asyncio.run(
@@ -174,20 +174,29 @@ def test_meta_webhook_resolves_user_from_external_account_id(client, mock_db, mo
     response = client.post(
         "/api/v1/smartflow/integrations/instagram/webhook",
         json={
+            "object": "instagram",
             "entry": [
                 {
                     "id": "ig-page-1",
+                    "time": 1758900000,
                     "messaging": [
-                        {"id": "mid-1", "sender": {"id": "person-1"}, "message": {"text": "Instagram DM"}}
+                        {
+                            "sender": {"id": "person-1"},
+                            "recipient": {"id": "ig-page-1"},
+                            "timestamp": 1758900000000,
+                            "message": {"mid": "mid-1", "text": "Instagram DM"},
+                        }
                     ],
                 }
-            ]
+            ],
         },
-        headers={"X-Webhook-Secret": "super-secret"},
     )
 
     assert response.status_code == 200
-    assert response.json()["data"]["status"] == "processed"
+    assert response.json()["data"] == {"status": "processed", "processed": 1, "ignored": 0}
+    stored = asyncio.run(mock_db.messages.find_one({"provider_event_id": "mid-1"}))
+    assert stored["content"] == "Instagram DM"
+    assert stored["direction"] == "inbound"
 
 
 def _fake_gateway(monkeypatch, *, start_status="pending_qr", start_qr="data:image/png;base64,AAA", poll_status="connected", linked_number="8801700000000"):
@@ -451,16 +460,40 @@ def test_whatsapp_official_api_webhook_accepts_valid_meta_signature(client, mock
     response = _meta_signed_whatsapp_request(
         client,
         {
-            "event_id": "wamid-official-1",
-            "contact_external_id": "8801711111111",
-            "content": "Hello via Meta Cloud API",
-            "contact_name": "Bob",
-            "external_account_id": "phone-id-1",
+            "object": "whatsapp_business_account",
+            "entry": [
+                {
+                    "id": "WABA-1",
+                    "changes": [
+                        {
+                            "field": "messages",
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {"display_phone_number": "15550000000", "phone_number_id": "phone-id-1"},
+                                "contacts": [{"profile": {"name": "Bob"}, "wa_id": "8801711111111"}],
+                                "messages": [
+                                    {
+                                        "from": "8801711111111",
+                                        "id": "wamid-official-1",
+                                        "timestamp": "1758900000",
+                                        "type": "text",
+                                        "text": {"body": "Hello via Meta Cloud API"},
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                }
+            ],
         },
         "meta-app-secret",
     )
     assert response.status_code == 200, response.text
-    assert response.json()["data"]["message"]["content"] == "Hello via Meta Cloud API"
+    assert response.json()["data"]["processed"] == 1
+    stored = asyncio.run(mock_db.messages.find_one({"provider_event_id": "wamid-official-1"}))
+    assert stored["content"] == "Hello via Meta Cloud API"
+    contact = asyncio.run(mock_db.contacts.find_one({"user_id": user_id}))
+    assert contact["name"] == "Bob"
 
 
 def test_whatsapp_webhook_rejects_forged_meta_signature(client, mock_db, monkeypatch):
