@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
 import { useLanguage } from '../context/LanguageContext';
+import { isTrustedOAuthMessage } from '../utils/oauthMessages';
 
 const INPUT =
   'w-full px-4 py-3 bg-[#0C0E12] border border-[#1E2530] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-[15px] placeholder:text-[#70829B]';
@@ -27,18 +28,35 @@ function unwrap(response) {
   return response?.data?.data ?? response?.data ?? null;
 }
 
+// The status endpoint answers { items, summary }; older/fallback shapes are a bare array.
+function asList(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+}
+
+const PROVIDER_MESSAGES = ['mabdel-zoho-mail-oauth', 'mabdel-microsoft-oauth'];
+
 function CopyButton({ value }) {
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
   return (
     <button
       type="button"
-      onClick={() => {
-        navigator.clipboard?.writeText(value);
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+        } catch {
+          return; // clipboard unavailable or denied: don't claim it was copied
+        }
         setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => setCopied(false), 1500);
       }}
       className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-      aria-label="Copy"
+      aria-label={t('bed_copy')}
     >
       {copied ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Copy size={14} className="text-[#9BA7BB]" />}
     </button>
@@ -50,7 +68,13 @@ export default function BusinessEmailDomain() {
   const [loading, setLoading] = useState(true);
   const [domain, setDomain] = useState(null);
   const [error, setError] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
   const [notice, setNotice] = useState('');
+  const [zohoError, setZohoError] = useState('');
+  const [microsoftError, setMicrosoftError] = useState('');
+  const nameId = useId();
+  const customId = useId();
+  const prefixId = useId();
 
   const [useCustom, setUseCustom] = useState(false);
   const [businessName, setBusinessName] = useState('');
@@ -61,6 +85,7 @@ export default function BusinessEmailDomain() {
   const [checking, setChecking] = useState(false);
 
   const availabilityTimer = useRef(null);
+  const availabilityRequestRef = useRef(0);
 
   const [zohoConnected, setZohoConnected] = useState(false);
   const [zohoEmail, setZohoEmail] = useState('');
@@ -81,70 +106,57 @@ export default function BusinessEmailDomain() {
     try {
       setDomain(unwrap(await smartflowApi.getEmailDomain()));
       setError('');
+      setLoadFailed(false);
     } catch (err) {
+      setLoadFailed(true);
       setError(err.response?.data?.message || t('bed_err_load'));
     } finally {
       setLoading(false);
     }
   }, [t]);
 
-  const loadZohoStatus = useCallback(async () => {
+  // One /integrations/status call feeds both provider cards (it used to be two
+  // identical requests on every load and every popup return).
+  const loadProviderStatuses = useCallback(async () => {
     setZohoLoading(true);
+    setMicrosoftLoading(true);
     try {
-      const response = await smartflowApi.getIntegrationStatus();
-      const items = unwrap(response)?.items || [];
+      const items = asList(unwrap(await smartflowApi.getIntegrationStatus()));
       const zoho = items.find((item) => item.platform === 'zoho');
       setZohoConnected(Boolean(zoho?.connected));
       setZohoEmail(zoho?.external_account_name || '');
       setZohoNeedsReauth(zoho?.health_status === 'needs_reauth' || zoho?.sync_status === 'needs_reauth');
-    } catch {
-      setZohoConnected(false);
-      setZohoEmail('');
-    } finally {
-      setZohoLoading(false);
-    }
-  }, []);
-
-  const loadMicrosoftStatus = useCallback(async () => {
-    setMicrosoftLoading(true);
-    try {
-      const response = await smartflowApi.getIntegrationStatus();
-      const items = unwrap(response)?.items || [];
       const microsoft = items.find((item) => item.platform === 'microsoft');
       setMicrosoftConnected(Boolean(microsoft?.connected));
       setMicrosoftEmail(microsoft?.external_account_name || '');
       setMicrosoftNeedsReauth(microsoft?.health_status === 'needs_reauth' || microsoft?.sync_status === 'needs_reauth');
     } catch {
+      setZohoConnected(false);
+      setZohoEmail('');
       setMicrosoftConnected(false);
       setMicrosoftEmail('');
     } finally {
+      setZohoLoading(false);
       setMicrosoftLoading(false);
     }
   }, []);
 
   useEffect(() => {
     load();
-    loadZohoStatus();
-    loadMicrosoftStatus();
-  }, [load, loadZohoStatus, loadMicrosoftStatus]);
+    loadProviderStatuses();
+  }, [load, loadProviderStatuses]);
 
   useEffect(() => {
     function handleFocus() {
-      if (zohoWindowRef.current && zohoWindowRef.current.closed) {
-        zohoWindowRef.current = null;
-        loadZohoStatus();
-      }
-      if (microsoftWindowRef.current && microsoftWindowRef.current.closed) {
-        microsoftWindowRef.current = null;
-        loadMicrosoftStatus();
-      }
+      const zohoClosed = zohoWindowRef.current && zohoWindowRef.current.closed;
+      const microsoftClosed = microsoftWindowRef.current && microsoftWindowRef.current.closed;
+      if (zohoClosed) zohoWindowRef.current = null;
+      if (microsoftClosed) microsoftWindowRef.current = null;
+      if (zohoClosed || microsoftClosed) loadProviderStatuses();
     }
     function handleMessage(event) {
-      if (event?.data?.type === 'mabdel-zoho-mail-oauth') {
-        loadZohoStatus();
-      }
-      if (event?.data?.type === 'mabdel-microsoft-oauth') {
-        loadMicrosoftStatus();
+      if (isTrustedOAuthMessage(event, PROVIDER_MESSAGES)) {
+        loadProviderStatuses();
       }
     }
     window.addEventListener('focus', handleFocus);
@@ -153,33 +165,44 @@ export default function BusinessEmailDomain() {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('message', handleMessage);
     };
-  }, [loadZohoStatus, loadMicrosoftStatus]);
+  }, [loadProviderStatuses]);
 
-  async function handleConnectZoho() {
-    setZohoBusy(true);
+  async function openProviderPopup(platform, windowRef, setProviderError, noUrlKey, failKey) {
+    setProviderError('');
     try {
-      const res = await smartflowApi.startIntegrationOAuth('zoho');
+      const res = await smartflowApi.startIntegrationOAuth(platform);
       const url = res?.data?.data?.auth_url || res?.data?.auth_url;
       if (!url) {
-        setError(t('bed_err_zoho_no_auth_url'));
+        setProviderError(t(noUrlKey));
         return;
       }
-      zohoWindowRef.current = window.open(url, '_blank');
+      const popup = window.open(url, '_blank');
+      if (!popup) {
+        setProviderError(t('integ_err_popup_blocked'));
+        return;
+      }
+      windowRef.current = popup;
     } catch (err) {
-      setError(err.response?.data?.message || t('bed_err_zoho_connect'));
-    } finally {
-      setZohoBusy(false);
+      setProviderError(err.response?.data?.message || t(failKey));
     }
   }
 
-  async function handleDisconnectZoho() {
+  async function handleConnectZoho() {
     setZohoBusy(true);
+    await openProviderPopup('zoho', zohoWindowRef, setZohoError, 'bed_err_zoho_no_auth_url', 'bed_err_zoho_connect');
+    setZohoBusy(false);
+  }
+
+  async function handleDisconnectZoho() {
+    if (!window.confirm(t('bed_confirm_disconnect_provider', { name: 'Zoho Mail' }))) return;
+    setZohoBusy(true);
+    setZohoError('');
     try {
       await smartflowApi.disconnectIntegration('zoho');
-      await loadZohoStatus();
+      await loadProviderStatuses();
       setNotice(t('bed_msg_zoho_disconnected'));
     } catch (err) {
-      setError(err.response?.data?.message || t('bed_err_zoho_disconnect'));
+      setZohoError(err.response?.data?.message || t('bed_err_zoho_disconnect'));
     } finally {
       setZohoBusy(false);
     }
@@ -187,29 +210,26 @@ export default function BusinessEmailDomain() {
 
   async function handleConnectMicrosoft() {
     setMicrosoftBusy(true);
-    try {
-      const res = await smartflowApi.startIntegrationOAuth('microsoft');
-      const url = res?.data?.data?.auth_url || res?.data?.auth_url;
-      if (!url) {
-        setError(t('bed_err_microsoft_no_auth_url'));
-        return;
-      }
-      microsoftWindowRef.current = window.open(url, '_blank');
-    } catch (err) {
-      setError(err.response?.data?.message || t('bed_err_microsoft_connect'));
-    } finally {
-      setMicrosoftBusy(false);
-    }
+    await openProviderPopup(
+      'microsoft',
+      microsoftWindowRef,
+      setMicrosoftError,
+      'bed_err_microsoft_no_auth_url',
+      'bed_err_microsoft_connect',
+    );
+    setMicrosoftBusy(false);
   }
 
   async function handleDisconnectMicrosoft() {
+    if (!window.confirm(t('bed_confirm_disconnect_provider', { name: 'Microsoft 365' }))) return;
     setMicrosoftBusy(true);
+    setMicrosoftError('');
     try {
       await smartflowApi.disconnectIntegration('microsoft');
-      await loadMicrosoftStatus();
+      await loadProviderStatuses();
       setNotice(t('bed_msg_microsoft_disconnected'));
     } catch (err) {
-      setError(err.response?.data?.message || t('bed_err_microsoft_disconnect'));
+      setMicrosoftError(err.response?.data?.message || t('bed_err_microsoft_disconnect'));
     } finally {
       setMicrosoftBusy(false);
     }
@@ -225,13 +245,16 @@ export default function BusinessEmailDomain() {
     }
     clearTimeout(availabilityTimer.current);
     availabilityTimer.current = setTimeout(async () => {
+      // A slow earlier response must not overwrite the result for what is typed now.
+      const requestId = ++availabilityRequestRef.current;
       setChecking(true);
       try {
-        setAvailability(unwrap(await smartflowApi.checkEmailDomainAvailability(name)));
+        const result = unwrap(await smartflowApi.checkEmailDomainAvailability(name));
+        if (requestId === availabilityRequestRef.current) setAvailability(result);
       } catch {
-        setAvailability(null);
+        if (requestId === availabilityRequestRef.current) setAvailability(null);
       } finally {
-        setChecking(false);
+        if (requestId === availabilityRequestRef.current) setChecking(false);
       }
     }, 450);
     return () => clearTimeout(availabilityTimer.current);
@@ -288,9 +311,27 @@ export default function BusinessEmailDomain() {
 
   if (loading) {
     return (
-      <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 flex items-center gap-3">
-        <Loader2 size={18} className="text-[#c084fc] animate-spin" />
+      <div role="status" className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 flex items-center gap-3">
+        <Loader2 size={18} className="text-[#c084fc] animate-spin" aria-hidden="true" />
         <span className="text-[#9BA7BB] text-[15px]">{t('bed_loading')}</span>
+      </div>
+    );
+  }
+
+  // A failed load is not "no domain yet": showing the create form would invite claiming
+  // a second domain for a business that already has one.
+  if (loadFailed) {
+    return (
+      <div role="alert" className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 flex items-center gap-3 text-start">
+        <AlertCircle size={18} className="text-rose-400 shrink-0" aria-hidden="true" />
+        <span className="text-[#F3F9FF] text-[14px] flex-1">{error || t('bed_err_load')}</span>
+        <button
+          type="button"
+          onClick={load}
+          className="h-[38px] px-4 bg-[#c084fc] text-[#03141E] rounded-xl font-semibold hover:bg-[#7e22ce] hover:text-white transition-colors cursor-pointer text-[13px]"
+        >
+          {t('integ_btn_retry')}
+        </button>
       </div>
     );
   }
@@ -301,7 +342,7 @@ export default function BusinessEmailDomain() {
 
   return (
     <>
-    <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 space-y-4 text-left">
+    <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 space-y-4 text-start">
       <div className="flex items-start gap-3">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -324,8 +365,16 @@ export default function BusinessEmailDomain() {
         ) : null}
       </div>
 
-      {error ? <div className="text-rose-400 text-[13px]">{error}</div> : null}
-      {notice ? <div className="text-emerald-400 text-[13px]">{notice}</div> : null}
+      {error ? (
+        <div role="alert" className="text-rose-400 text-[13px]">
+          {error}
+        </div>
+      ) : null}
+      {notice ? (
+        <div role="status" className="text-emerald-400 text-[13px]">
+          {notice}
+        </div>
+      ) : null}
 
       {!domain ? (
         <div className="space-y-3.5">
@@ -352,10 +401,11 @@ export default function BusinessEmailDomain() {
 
           {!useCustom ? (
             <div>
-              <label className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">
+              <label htmlFor={nameId} className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">
                 {t('bed_lbl_business_name')}
               </label>
               <input
+                id={nameId}
                 className={INPUT}
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
@@ -380,10 +430,11 @@ export default function BusinessEmailDomain() {
             </div>
           ) : (
             <div>
-              <label className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">
+              <label htmlFor={customId} className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">
                 {t('bed_lbl_custom_domain')}
               </label>
               <input
+                id={customId}
                 className={INPUT}
                 value={customDomain}
                 onChange={(e) => setCustomDomain(e.target.value)}
@@ -394,8 +445,11 @@ export default function BusinessEmailDomain() {
           )}
 
           <div>
-            <label className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">{t('bed_lbl_prefix')}</label>
+            <label htmlFor={prefixId} className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">
+              {t('bed_lbl_prefix')}
+            </label>
             <input
+              id={prefixId}
               className={INPUT}
               value={prefix}
               onChange={(e) => setPrefix(e.target.value)}
@@ -443,7 +497,7 @@ export default function BusinessEmailDomain() {
               <div className="overflow-x-auto">
                 <table className="w-full text-[12px] min-w-[440px]">
                   <thead>
-                    <tr className="text-[#70829B] text-left">
+                    <tr className="text-[#70829B] text-start">
                       <th className="pb-1.5 pr-2 font-semibold">{t('bed_col_type')}</th>
                       <th className="pb-1.5 pr-2 font-semibold">{t('bed_col_name')}</th>
                       <th className="pb-1.5 pr-2 font-semibold">{t('bed_col_value')}</th>
@@ -504,7 +558,7 @@ export default function BusinessEmailDomain() {
       )}
     </div>
 
-    <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 space-y-3 text-left">
+    <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 space-y-3 text-start">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#E4252722' }}>
           <Link2 size={20} className="text-[#E42527]" />
@@ -525,7 +579,13 @@ export default function BusinessEmailDomain() {
         ) : null}
       </div>
 
-      {domain?.status === 'verified' && (zohoConnected || microsoftConnected) ? (
+      {zohoError ? (
+        <div role="alert" className="text-rose-400 text-[13px]">
+          {zohoError}
+        </div>
+      ) : null}
+
+      {domain?.status === 'verified' && zohoConnected ? (
         <p className="text-amber-300 text-[13px] leading-relaxed bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
           {t('bed_zoho_overrides_domain_hint')}
         </p>
@@ -557,7 +617,7 @@ export default function BusinessEmailDomain() {
       )}
     </div>
 
-    <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 space-y-3 text-left">
+    <div className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-5 space-y-3 text-start">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0078D422' }}>
           <Link2 size={20} className="text-[#0078D4]" />
@@ -577,6 +637,12 @@ export default function BusinessEmailDomain() {
           </span>
         ) : null}
       </div>
+
+      {microsoftError ? (
+        <div role="alert" className="text-rose-400 text-[13px]">
+          {microsoftError}
+        </div>
+      ) : null}
 
       {domain?.status === 'verified' && microsoftConnected ? (
         <p className="text-amber-300 text-[13px] leading-relaxed bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
