@@ -213,6 +213,23 @@ class EmailDomainService:
             ) from exc
         document["_id"] = result.inserted_id
 
+        # "One domain per business" was only a check-then-insert, so two concurrent
+        # requests with different names could both pass it. Whichever row has the
+        # lower _id wins deterministically; the loser cleans up after itself.
+        earlier = await self.db.email_domains.count_documents({**self._org_scope(user), "_id": {"$lt": result.inserted_id}})
+        if earlier:
+            await self.db.email_domains.delete_one({"_id": result.inserted_id})
+            if created.get("id"):
+                try:
+                    await asyncio.to_thread(self._resend_remove_sync, created["id"])
+                except Exception:
+                    logger.exception("Failed to remove duplicate Resend domain %s", created["id"])
+            raise AppException(
+                status_code=409,
+                code="EMAIL_DOMAIN_EXISTS",
+                message="This business already has a domain being set up.",
+            )
+
         if dns_applied:
             # Records exist already, so ask Resend to start checking immediately.
             await self._resend_verify(created.get("id"))
