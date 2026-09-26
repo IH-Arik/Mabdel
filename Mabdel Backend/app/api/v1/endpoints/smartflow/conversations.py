@@ -5,9 +5,11 @@ from fastapi import Depends, File, Query, UploadFile, WebSocket, WebSocketDiscon
 from app.core.realtime import conversation_realtime_hub, inbox_realtime_hub
 from app.core.security import decode_token
 from app.core.exceptions import AppException
-from app.dependencies import get_current_user, get_mongo_database, require_permission, require_subscription
+from app.dependencies import get_current_user, get_mongo_database, get_redis_client, require_permission, require_subscription
+from app.services.rbac_service import RBACService
 from app.repositories.auth_repository import AuthRepository
 from app.schemas.smartflow import (
+    ConversationAssignRequest,
     ConversationCreateRequest,
     ForwardMessageRequest,
     MessageCreateRequest,
@@ -75,6 +77,11 @@ async def inbox_stream(websocket: WebSocket, token: str) -> None:
             await websocket.close(code=1008)
             return
         user_id = str(user["_id"])
+        # Shared-inbox updates carry customer message previews; same bar as the REST list.
+        rbac = RBACService(db, await get_redis_client())
+        if not rbac.has_permission(await rbac.get_user_permissions(user_id, user.get("role", "user")), "messages", "view"):
+            await websocket.close(code=1008)
+            return
         service = SmartFlowService(db)
         await inbox_realtime_hub.connect(user_id, websocket, user_id)
         summary = await service.get_unread_message_summary(user_id, None)
@@ -102,12 +109,45 @@ async def list_conversations(
     archived: bool | None = None,
     unread_only: bool = False,
     type_filter: str | None = Query(default=None, alias="type"),
+    assignee: str | None = Query(default=None, pattern="^(me|unassigned|all)$"),
     current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     platform_list = [value.strip() for value in (platforms or "").split(",") if value.strip()] or None
-    data = await service.list_conversations(str(current_user["_id"]), page, page_size, search, platform, platform_list, archived, unread_only, type_filter)
+    data = await service.list_conversations(
+        str(current_user["_id"]), page, page_size, search, platform, platform_list, archived, unread_only, type_filter, assignee
+    )
     return success_response(data=data, message="Conversations fetched successfully.")
+
+
+@router.get("/conversations/assignees")
+async def list_conversation_assignees(
+    current_user: dict = Depends(require_permission("messages", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.list_assignable_members(str(current_user["_id"]))
+    return success_response(data=data, message="Assignable teammates fetched successfully.")
+
+
+@router.patch("/conversations/{conversation_id}/assign")
+async def assign_conversation(
+    conversation_id: str,
+    payload: ConversationAssignRequest,
+    current_user: dict = Depends(require_permission("messages", "send")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.assign_conversation(str(current_user["_id"]), conversation_id, payload.assignee_id)
+    return success_response(data=data, message="Conversation assignment updated.")
+
+
+@router.get("/conversations/{conversation_id}/contact")
+async def get_conversation_contact(
+    conversation_id: str,
+    current_user: dict = Depends(require_permission("messages", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.get_conversation_contact_details(str(current_user["_id"]), conversation_id)
+    return success_response(data=data, message="Conversation contact fetched successfully.")
 
 
 @router.post("/conversations", status_code=status.HTTP_201_CREATED)

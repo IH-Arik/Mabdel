@@ -162,6 +162,10 @@ class ConversationCreateRequest(BaseModel):
     platform: PlatformType = "whatsapp"
 
 
+class ConversationAssignRequest(BaseModel):
+    assignee_id: str | None = Field(default=None, max_length=64)
+
+
 class ConversationResponse(BaseModel):
     id: str
     title: str | None = None

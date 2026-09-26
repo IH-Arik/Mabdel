@@ -26,6 +26,22 @@ from ._base import SmartFlowBase
 
 
 class ConversationService(SmartFlowBase):
+    async def _publish_to_conversation_audience(self, conversation: dict, extra_user_ids: list[str] | None = None) -> None:
+        """Refresh the sidebar of everyone who can see this thread: the whole org for a
+        shared customer inbox, otherwise its owner and members."""
+        if self._is_customer_conversation(conversation):
+            audience = set(await self._customer_inbox_audience(conversation))
+        else:
+            audience = {conversation.get("user_id")} | set(conversation.get("member_ids") or [])
+        audience |= set(extra_user_ids or [])
+        for viewer_id in audience:
+            if not viewer_id:
+                continue
+            try:
+                await self._publish_inbox_update(viewer_id, str(conversation["_id"]), conversation=conversation)
+            except Exception:
+                continue
+
     async def _publish_global_chat_inbox_updates(self, conversation: dict) -> None:
         for member_id in conversation.get("member_ids", []):
             try:
@@ -94,11 +110,16 @@ class ConversationService(SmartFlowBase):
             "created_at": now,
             "updated_at": now,
         }
-        # Only stamped when there are real teammates on the thread (a solo/customer
-        # conversation has no organization boundary to enforce) — lets
-        # _get_accessible_conversation's teammate-inbox path check it later.
+        # Stamped when there are real teammates on the thread, and on every customer
+        # thread (it belongs to the organization's shared inbox) - lets
+        # _get_accessible_conversation check the organization later.
+        if not organization_id and self._is_customer_conversation(document):
+            organization_id = (await self._get_user_document(user_id)).get("organization_id")
         if organization_id:
             document["organization_id"] = organization_id
+        if self._is_customer_conversation(document):
+            document["assigned_to"] = None
+            document["last_message_at"] = now
         result = await self.db.conversations.insert_one(document)
         document["_id"] = result.inserted_id
         return await self._serialize_conversation(document, viewer_user_id=user_id)
@@ -164,8 +185,17 @@ class ConversationService(SmartFlowBase):
         archived: bool | None,
         unread_only: bool = False,
         type_filter: str | None = None,
+        assignee: str | None = None,
     ) -> dict:
-        filters: dict = {"$or": [{"user_id": user_id}, {"member_ids": user_id, "is_global_chat": {"$ne": True}}]}
+        user = await self._get_user_document(user_id)
+        access: list[dict] = [{"user_id": user_id}, {"member_ids": user_id, "is_global_chat": {"$ne": True}}]
+        if user.get("organization_id"):
+            access.append(self._org_customer_inbox_filter(user["organization_id"]))
+        filters: dict = {"$or": access}
+        if assignee == "me":
+            filters["assigned_to"] = user_id
+        elif assignee == "unassigned":
+            filters["assigned_to"] = {"$in": [None, ""]}
         platform_values = [value for value in (platforms or []) if value]
         if platform:
             platform_values.insert(0, platform)
@@ -180,10 +210,13 @@ class ConversationService(SmartFlowBase):
             filters["archived"] = archived
         if type_filter:
             filters["type"] = type_filter
-        conversations = await self.db.conversations.find(filters).sort("updated_at", -1).to_list(length=500)
+        # Newest real message first; updated_at is bumped by archive/read/member edits
+        # and by the moment a history import created the thread, so it can't order.
+        conversations = await self.db.conversations.find(filters).sort(
+            [("last_message_at", -1), ("updated_at", -1)]
+        ).to_list(length=2000)
 
-        user = await self._get_user_document(user_id)
-        if self._user_has_global_chat_access(user) and user.get("organization_id"):
+        if self._user_has_global_chat_access(user) and user.get("organization_id") and assignee not in ("me", "unassigned"):
             global_chat_filters: dict = {
                 "organization_id": user.get("organization_id"),
                 "is_global_chat": True,
@@ -252,14 +285,15 @@ class ConversationService(SmartFlowBase):
                 )
                 for item in page_slice
             ]))
-            archived_count = await self.db.conversations.count_documents({"$or": [{"user_id": user_id}, {"member_ids": user_id}], "archived": True})
-            active_count = await self.db.conversations.count_documents({"$or": [{"user_id": user_id}, {"member_ids": user_id}], "archived": {"$ne": True}})
+            archived_count = await self.db.conversations.count_documents({"$or": access, "archived": True})
+            active_count = await self.db.conversations.count_documents({"$or": access, "archived": {"$ne": True}})
             summary = {"total_unread": 0, "archived_count": archived_count, "active_count": active_count, "by_platform": {}}
             for conversation in conversations:
                 unread_count = unread_counts.get(str(conversation.get("_id") or conversation.get("id")), 0)
                 summary["total_unread"] += unread_count
                 platform = conversation.get("platform", "unknown")
                 summary["by_platform"][platform] = summary["by_platform"].get(platform, 0) + unread_count
+        summary.update(await self._inbox_tab_counts(access, user_id))
         return {
             "items": page_items,
             "summary": summary,
@@ -271,11 +305,122 @@ class ConversationService(SmartFlowBase):
             },
         }
 
+    async def _require_customer_conversation(self, user_id: str, conversation_id: str) -> dict:
+        conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+        if not self._is_customer_conversation(conversation):
+            raise AppException(status_code=400, code="NOT_A_CUSTOMER_CONVERSATION", message="Only customer conversations can be assigned.")
+        return conversation
+
+    async def assign_conversation(self, user_id: str, conversation_id: str, assignee_id: str | None) -> dict:
+        conversation = await self._require_customer_conversation(user_id, conversation_id)
+        organization_id = await self._conversation_organization_id(conversation)
+        assignee = None
+        if assignee_id:
+            assignee = (
+                await self.db.users.find_one({"_id": ObjectId(assignee_id), "organization_id": organization_id}, {"full_name": 1, "email": 1})
+                if ObjectId.is_valid(assignee_id) and organization_id
+                else None
+            )
+            if not assignee:
+                raise AppException(status_code=404, code="ASSIGNEE_NOT_FOUND", message="That teammate isn't part of this business.")
+        updated = await self.db.conversations.find_one_and_update(
+            {"_id": conversation["_id"]},
+            {"$set": {"assigned_to": assignee_id or None, "assigned_at": utc_now(), "assigned_by": user_id}},
+            return_document=ReturnDocument.AFTER,
+        )
+        await self._publish_to_conversation_audience(updated, extra_user_ids=[user_id])
+        if assignee_id and assignee_id != user_id:
+            await self.create_notification(
+                user_id=assignee_id,
+                notification_type="message",
+                title="A conversation was assigned to you",
+                body=f"{updated.get('title') or 'A customer'} ({self._platform_label(updated.get('platform'))})",
+                metadata={"conversation_id": str(updated["_id"])},
+            )
+        return await self._serialize_conversation(updated, viewer_user_id=user_id)
+
+    async def list_assignable_members(self, user_id: str) -> list[dict]:
+        organization_id = (await self._get_user_document(user_id)).get("organization_id")
+        if not organization_id:
+            return []
+        members = []
+        async for member in self.db.users.find(
+            {"organization_id": organization_id, "status": {"$nin": ["inactive", "suspended", "deleted"]}},
+            {"full_name": 1, "email": 1, "role": 1, "avatar_url": 1},
+        ).sort("full_name", 1):
+            members.append({
+                "id": str(member["_id"]),
+                "name": member.get("full_name") or member.get("email") or "Member",
+                "role": member.get("role"),
+                "avatar_url": self._normalize_media_url(member.get("avatar_url")),
+            })
+        return members
+
+    async def get_conversation_contact_details(self, user_id: str, conversation_id: str) -> dict:
+        """The customer behind a thread plus their other threads in this business, found
+        by the same phone number or email address (one row per channel stays, but they
+        are linked)."""
+        conversation = await self._require_customer_conversation(user_id, conversation_id)
+        contact = await self.db.contacts.find_one({"_id": ObjectId(conversation["contact_id"])}) if ObjectId.is_valid(conversation["contact_id"]) else None
+        if not contact:
+            return {"contact": None, "related": []}
+        keys = []
+        if contact.get("phone"):
+            keys.append({"phone": contact["phone"]})
+        if contact.get("email"):
+            keys.append({"email": contact["email"]})
+        related: list[dict] = []
+        if keys:
+            team_ids = await self._resolve_team_user_ids(str(conversation.get("user_id") or user_id))
+            twin_ids = [
+                str(twin["_id"])
+                async for twin in self.db.contacts.find({"user_id": {"$in": team_ids}, "$or": keys}, {"_id": 1})
+            ]
+            async for other in self.db.conversations.find(
+                {"contact_id": {"$in": twin_ids}, "_id": {"$ne": conversation["_id"]}, "is_global_chat": {"$ne": True}}
+            ).sort("last_message_at", -1).limit(20):
+                related.append({
+                    "id": str(other["_id"]),
+                    "platform": other.get("platform"),
+                    "platform_label": self._platform_label(other.get("platform")),
+                    "title": other.get("title"),
+                    "last_message_at": other.get("last_message_at") or other.get("updated_at"),
+                    "archived": bool(other.get("archived")),
+                })
+        return {
+            "contact": {
+                "id": str(contact["_id"]),
+                "name": contact.get("name"),
+                "phone": contact.get("phone"),
+                "email": contact.get("email"),
+                "avatar_url": self._normalize_media_url(contact.get("avatar_url")),
+                "identities": [
+                    {"platform": identity.get("platform"), "handle": identity.get("handle")}
+                    for identity in contact.get("identities") or []
+                ],
+            },
+            "related": related,
+        }
+
+    async def _inbox_tab_counts(self, access: list[dict], user_id: str) -> dict:
+        """Tab badges for the whole inbox, independent of the page and the tab being
+        viewed: active chats per channel, plus Mine / Unassigned."""
+        by_channel: dict[str, int] = {}
+        async for row in self.db.conversations.aggregate([
+            {"$match": {"$or": access, "archived": {"$ne": True}}},
+            {"$group": {"_id": "$platform", "count": {"$sum": 1}}},
+        ]):
+            by_channel[row["_id"] or "unknown"] = row["count"]
+        active = {"$or": access, "archived": {"$ne": True}}
+        mine = await self.db.conversations.count_documents({**active, "assigned_to": user_id})
+        unassigned = await self.db.conversations.count_documents({**active, "assigned_to": {"$in": [None, ""]}})
+        return {"conversation_counts": by_channel, "assigned_to_me_count": mine, "unassigned_count": unassigned}
+
     async def archive_conversation(self, user_id: str, conversation_id: str, archived: bool) -> dict:
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
         if conversation.get("is_global_chat"):
             raise AppException(status_code=400, code="GLOBAL_CHAT_ARCHIVE_UNSUPPORTED", message="Global chat cannot be archived individually.")
-        if conversation.get("user_id") != user_id:
+        if conversation.get("user_id") != user_id and not self._is_customer_conversation(conversation):
             raise AppException(status_code=403, code="CONVERSATION_ARCHIVE_FORBIDDEN", message="Only the conversation owner can archive this conversation.")
         updated = await self.db.conversations.find_one_and_update(
             {"_id": conversation["_id"]},
@@ -288,7 +433,7 @@ class ConversationService(SmartFlowBase):
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
         if conversation.get("is_global_chat"):
             raise AppException(status_code=400, code="GLOBAL_CHAT_DELETE_UNSUPPORTED", message="Global chat cannot be deleted.")
-        if conversation.get("user_id") != user_id:
+        if conversation.get("user_id") != user_id and not self._is_customer_conversation(conversation):
             raise AppException(status_code=403, code="CONVERSATION_DELETE_FORBIDDEN", message="Only the conversation owner can delete this conversation.")
         await self.db.conversations.delete_one({"_id": conversation["_id"]})
         await self.db.messages.delete_many({"conversation_id": conversation_id})
@@ -303,8 +448,10 @@ class ConversationService(SmartFlowBase):
                 {"$addToSet": {"read_by": user_id}, "$set": {"updated_at": now}},
             )
         else:
+            # Messages are stamped with the conversation owner, not the reader - a
+            # teammate reading a shared-inbox thread must clear it too.
             await self.db.messages.update_many(
-                {"user_id": user_id, "conversation_id": conversation_id, "unread_count": {"$gt": 0}},
+                {"user_id": conversation.get("user_id", user_id), "conversation_id": conversation_id, "unread_count": {"$gt": 0}},
                 {"$set": {"status": "read", "unread_count": 0, "read_at": now, "delivered_at": now}},
             )
         refreshed = await self.db.conversations.find_one({"_id": conversation["_id"]})
@@ -386,7 +533,7 @@ class ConversationService(SmartFlowBase):
             # something more recent that already landed.
             self.db.conversations.update_one(
                 {"_id": conversation["_id"]},
-                {"$max": {"updated_at": message_time}},
+                {"$max": {"updated_at": message_time, "last_message_at": message_time}},
             ),
         )
         document["_id"] = insert_result.inserted_id
@@ -402,16 +549,9 @@ class ConversationService(SmartFlowBase):
         )
         if conversation.get("is_global_chat"):
             await self._publish_global_chat_inbox_updates(conversation)
-        else:
-            # Notify all members of the conversation so their sidebars update in real-time
-            member_ids = conversation.get("member_ids") or []
-            # Always notify the sender (owner may not be in member_ids)
-            notify_ids = list({user_id, conversation.get("user_id", user_id)} | set(member_ids))
-            for notify_id in notify_ids:
-                try:
-                    await self._publish_inbox_update(notify_id, payload["conversation_id"], conversation=conversation)
-                except Exception:
-                    continue
+        elif not is_history_import:
+            # A history import refreshes each touched thread once, after its batch.
+            await self._publish_to_conversation_audience(conversation, extra_user_ids=[user_id])
 
         if payload["direction"] == "outbound":
             asyncio.create_task(
@@ -1027,7 +1167,8 @@ class ConversationService(SmartFlowBase):
     # ------------------------------------------------------------------
 
     async def _deliver_outbound(
-        self, user_id: str, platform: str, contact_id: str | None, content: str, errors: list[str] | None = None
+        self, user_id: str, platform: str, contact_id: str | None, content: str, errors: list[str] | None = None,
+        receipt: dict | None = None,
     ) -> bool:
         """Send message to the actual platform. Returns True if delivered, False if failed/skipped.
         When a provider explains a failure, the reason is appended to ``errors``."""
@@ -1036,16 +1177,25 @@ class ConversationService(SmartFlowBase):
             return True  # no external delivery needed
 
         if platform == "email":
-            return await self._deliver_email(user_id, contact_id, content)
+            delivered = await self._deliver_email(user_id, contact_id, content)
+            if not delivered:
+                errors.append("The email could not be sent - check that your business email domain is verified.")
+            return delivered
 
         contact_external_id = await self._get_contact_external_id(user_id, platform, contact_id)
         if not contact_external_id:
+            errors.append(f"This contact has no {self._platform_label(platform)} address to reply to.")
             return False
 
+        # The channel is connected once per organization; whoever connected it, any
+        # teammate replying from the shared inbox goes out through it.
         integration = await self.db.social_integrations.find_one(
             {"user_id": user_id, "platform": platform, "status": "connected"}
+        ) or await self.db.social_integrations.find_one(
+            {"user_id": {"$in": await self._resolve_team_user_ids(user_id)}, "platform": platform, "status": "connected"}
         )
         if not integration:
+            errors.append(f"{self._platform_label(platform)} is not connected - connect it in Integrations.")
             return False
 
         from app.core.crypto import decrypt_value
@@ -1057,13 +1207,17 @@ class ConversationService(SmartFlowBase):
             elif platform == "instagram":
                 return await self._deliver_instagram(integration, access_token, contact_external_id, content, errors)
             elif platform == "whatsapp":
-                return await self._deliver_whatsapp(integration, access_token, contact_external_id, content, errors)
+                return await self._deliver_whatsapp(integration, access_token, contact_external_id, content, errors, receipt)
             elif platform == "telegram":
-                return await self._deliver_telegram(access_token, contact_external_id, content)
+                delivered = await self._deliver_telegram(access_token, contact_external_id, content)
+                if not delivered:
+                    errors.append("Telegram rejected the message.")
+                return delivered
             else:
-                # Platform doesn't support outbound (e.g. Snapchat)
+                errors.append(f"Replying on {self._platform_label(platform)} from GoCustify isn't supported yet.")
                 return False
-        except Exception:
+        except httpx.HTTPError:
+            errors.append(f"Couldn't reach {self._platform_label(platform)} - try again in a moment.")
             return False
 
     async def _deliver_email(self, user_id: str, contact_id: str | None, content: str) -> bool:
@@ -1196,7 +1350,8 @@ class ConversationService(SmartFlowBase):
         return True
 
     async def _deliver_whatsapp(
-        self, integration: dict, access_token: str | None, recipient_id: str, content: str, errors: list[str] | None = None
+        self, integration: dict, access_token: str | None, recipient_id: str, content: str, errors: list[str] | None = None,
+        receipt: dict | None = None,
     ) -> bool:
         errors = errors if errors is not None else []
         # Official Meta WhatsApp Business API: integrations connected via Meta OAuth
@@ -1222,21 +1377,38 @@ class ConversationService(SmartFlowBase):
         organization_id = integration.get("organization_id")
         if not organization_id:
             logger.warning("WhatsApp integration has no organization_id; cannot resolve a gateway session for %s", recipient_id)
+            errors.append("WhatsApp is not linked right now - reconnect it in Integrations.")
             return False
         if not settings.WHATSAPP_GATEWAY_URL:
             logger.warning("WhatsApp gateway URL not configured; cannot send message to %s", recipient_id)
+            errors.append("WhatsApp sending is not configured on the server.")
             return False
 
         headers = {}
         if settings.WHATSAPP_GATEWAY_INTERNAL_SECRET:
             headers["X-Gateway-Secret"] = settings.WHATSAPP_GATEWAY_INTERNAL_SECRET
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 f"{settings.WHATSAPP_GATEWAY_URL.rstrip('/')}/sessions/{organization_id}/send-message",
                 json={"to": recipient_id, "message": content},
                 headers=headers,
             )
+        if resp.status_code < 400:
+            try:
+                sent_id = (resp.json() or {}).get("messageId")
+            except ValueError:
+                sent_id = None
+            if sent_id and receipt is not None:
+                # WhatsApp echoes our own send back through the gateway; this id lets
+                # the webhook recognise it instead of storing the message twice.
+                receipt["provider_message_id"] = sent_id
+        if resp.status_code == 503:
+            errors.append("WhatsApp is not linked right now - reconnect it in Integrations.")
+        elif resp.status_code == 429:
+            errors.append("Sending too fast on WhatsApp - wait a moment and retry.")
+        elif resp.status_code >= 400:
+            errors.append("WhatsApp could not send the message.")
         return resp.status_code < 400
 
     async def _deliver_telegram(self, bot_token: str | None, chat_id: str, content: str) -> bool:
@@ -1250,7 +1422,7 @@ class ConversationService(SmartFlowBase):
         return resp.status_code < 400
 
     async def _get_contact_external_id(self, user_id: str, platform: str, contact_id: str | None) -> str | None:
-        if not contact_id:
+        if not contact_id or not ObjectId.is_valid(contact_id):
             return None
         contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
         if not contact:
@@ -1271,13 +1443,26 @@ class ConversationService(SmartFlowBase):
         content: str,
     ) -> None:
         errors: list[str] = []
-        delivered = await self._deliver_outbound(user_id, platform, contact_id, content, errors)
+        # Contacts and the channel connection belong to the conversation's owner, not
+        # to the teammate who happened to write the reply.
+        conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id)}) if ObjectId.is_valid(conversation_id) else None
+        owner_id = (conversation or {}).get("user_id") or user_id
+        receipt: dict = {}
+        try:
+            delivered = await self._deliver_outbound(owner_id, platform, contact_id, content, errors, receipt)
+        except Exception:
+            logger.exception("Outbound %s delivery crashed", platform)
+            delivered = False
+        if delivered and receipt.get("provider_message_id") and ObjectId.is_valid(message_id):
+            await self.db.messages.update_one(
+                {"_id": ObjectId(message_id)}, {"$set": {"provider_message_id": receipt["provider_message_id"]}}
+            )
         if delivered or not ObjectId.is_valid(message_id):
             return
 
         updated = await self.db.messages.find_one_and_update(
-            {"_id": ObjectId(message_id), "user_id": user_id},
-            {"$set": {"status": "failed", "delivery_error": errors[0] if errors else None}},
+            {"_id": ObjectId(message_id)},
+            {"$set": {"status": "failed", "delivery_error": errors[0] if errors else "The message could not be delivered."}},
             return_document=ReturnDocument.AFTER,
         )
         if not updated:
@@ -1288,7 +1473,8 @@ class ConversationService(SmartFlowBase):
             "message.updated",
             lambda viewer_id: self._serialize_message(updated, viewer_user_id=viewer_id or user_id),
         )
-        await self._publish_inbox_update(user_id, conversation_id)
+        if conversation:
+            await self._publish_to_conversation_audience(conversation, extra_user_ids=[user_id])
 
     async def ensure_global_chat(self, organization_id: str, business_name: str, owner_id: str) -> dict:
         """Ensure a global chat exists for the organization."""

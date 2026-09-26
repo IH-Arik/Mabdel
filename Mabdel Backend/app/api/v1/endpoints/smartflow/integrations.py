@@ -288,3 +288,25 @@ async def receive_whatsapp_history_batch(
 
     data = await service.handle_inbound_webhook_batch(resolved_user_id, "whatsapp", messages)
     return success_response(data=data, message="WhatsApp history import processed.")
+
+
+@router.post("/integrations/whatsapp/webhook/contacts")
+async def receive_whatsapp_contacts(
+    request: Request,
+    x_webhook_secret: str | None = Header(default=None, alias="X-Webhook-Secret"),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """The gateway forwards the names/numbers the linked phone knows (history sync and
+    contact updates), so threads show real names instead of "WhatsApp Contact"."""
+    try:
+        raw_payload = json.loads(await request.body())
+    except Exception:
+        raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Webhook payload must be valid JSON.")
+    contacts = raw_payload.get("contacts") if isinstance(raw_payload, dict) else None
+    if not isinstance(contacts, list):
+        raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Expected a 'contacts' array.")
+
+    resolved_user_id = await service.resolve_webhook_user_id("whatsapp", {}, x_webhook_secret)
+    await service.validate_platform_webhook_secret(resolved_user_id, "whatsapp", x_webhook_secret)
+    data = await service.apply_whatsapp_contact_names(resolved_user_id, contacts)
+    return success_response(data=data, message="WhatsApp contacts processed.")
