@@ -13,7 +13,8 @@ import {
   PhoneCall,
   ExternalLink,
   Calendar,
-  MessageCircle
+  MessageCircle,
+  Plug
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { clsx } from 'clsx';
@@ -44,6 +45,7 @@ const primaryNavItemDefs = [
   { key: 'layout_groups', icon: Users2, path: '/groups' },
   { key: 'layout_calendar', icon: Calendar, path: '/calendar' },
   { key: 'layout_documents', icon: FileText, path: '/documents' },
+  { key: 'layout_integrations', icon: Plug, path: '/integrations' },
   { key: 'layout_profile', icon: Settings, path: '/profile' },
 ];
 

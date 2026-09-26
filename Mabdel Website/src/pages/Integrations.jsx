@@ -1,14 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, ChevronLeft, HelpCircle, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
   SiMessenger,
   SiInstagram,
   SiWhatsapp,
   SiX,
-  SiYoutube,
-  SiTiktok,
-  SiPinterest,
   SiTelegram,
   SiSnapchat,
   SiGoogle,
@@ -17,17 +14,18 @@ import {
 import { FaLinkedin } from 'react-icons/fa';
 import { smartflowApi } from '../api/services';
 import BusinessEmailDomain from '../components/BusinessEmailDomain';
+import ModalShell from '../components/ModalShell';
 import { useLanguage } from '../context/LanguageContext';
+import { isTrustedOAuthMessage } from '../utils/oauthMessages';
 
+// Only platforms the backend can actually connect. YouTube, TikTok and Pinterest were
+// listed here before but have no backend provider, so they could never appear.
 const PLATFORM_META = {
   facebook_messenger: { Icon: SiMessenger, bg: '#00B2FF', label: 'Facebook', descKey: 'integ_desc_facebook' },
   instagram: { Icon: SiInstagram, bg: '#C13584', label: 'Instagram', descKey: 'integ_desc_instagram' },
   whatsapp: { Icon: SiWhatsapp, bg: '#25D366', label: 'WhatsApp', descKey: 'integ_desc_whatsapp' },
   linkedin: { Icon: FaLinkedin, bg: '#0A66C2', label: 'LinkedIn', descKey: 'integ_desc_linkedin' },
   twitter_x: { Icon: SiX, bg: '#000000', label: 'X (Twitter)', descKey: 'integ_desc_twitter' },
-  youtube: { Icon: SiYoutube, bg: '#FF0000', label: 'YouTube', descKey: 'integ_desc_youtube' },
-  tiktok: { Icon: SiTiktok, bg: '#010101', label: 'TikTok', descKey: 'integ_desc_tiktok' },
-  pinterest: { Icon: SiPinterest, bg: '#E60023', label: 'Pinterest', descKey: 'integ_desc_pinterest' },
   telegram: { Icon: SiTelegram, bg: '#229ED9', label: 'Telegram', descKey: 'integ_desc_telegram' },
   snapchat: { Icon: SiSnapchat, bg: '#FFFC00', label: 'Snapchat', descKey: 'integ_desc_snapchat', badgeColor: '#000' },
   google_business: { Icon: SiGoogle, bg: '#4285F4', label: 'Google Business', descKey: 'integ_desc_google' },
@@ -36,56 +34,64 @@ const PLATFORM_META = {
 
 const INPUT =
   'w-full px-4 py-3 bg-[#0C0E12] border border-[#1E2530] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-[15px] placeholder:text-[#70829B]';
+const SECONDARY_BUTTON =
+  'w-full h-[50px] bg-[#1E2530] text-[#F8FAFC] rounded-xl font-semibold hover:bg-slate-800 transition-colors cursor-pointer text-[15px]';
+
+const OAUTH_COMPLETION_MESSAGES = ['mabdel-google-calendar-oauth', 'mabdel-zoom-calendar-oauth'];
+
+// Backend list payloads are sometimes a bare array and sometimes { items: [...] }.
+function asList(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+}
 
 function WhatsAppChoiceModal({ onClose, onChooseQr, onChooseApi }) {
   const { t } = useLanguage();
+  const titleId = useId();
   const optionClass =
-    'w-full text-left bg-[#0C0E12] border border-[#1E2530] hover:border-[#25D366]/60 rounded-xl p-4 transition-colors cursor-pointer';
+    'w-full text-start bg-[#0C0E12] border border-[#1E2530] hover:border-[#25D366]/60 rounded-xl p-4 transition-colors cursor-pointer';
 
   return (
-    <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4 text-left">
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-[22px] w-full max-w-sm space-y-3"
-      >
-        <h3 className="font-bold text-[#F3F9FF] text-xl">{t('integ_wa_choice_title')}</h3>
+    <ModalShell titleId={titleId} onClose={onClose} className="space-y-3">
+      <h3 id={titleId} className="font-bold text-[#F3F9FF] text-xl">
+        {t('integ_wa_choice_title')}
+      </h3>
 
-        <button onClick={onChooseQr} className={optionClass}>
-          <div className="text-[#F3F9FF] font-semibold text-[15px]">{t('integ_wa_choice_qr_title')}</div>
-          <div className="text-[#9BA7BB] text-[13px] mt-1 leading-relaxed">{t('integ_wa_choice_qr_desc')}</div>
-        </button>
+      <button type="button" onClick={onChooseQr} className={optionClass}>
+        <div className="text-[#F3F9FF] font-semibold text-[15px]">{t('integ_wa_choice_qr_title')}</div>
+        <div className="text-[#9BA7BB] text-[13px] mt-1 leading-relaxed">{t('integ_wa_choice_qr_desc')}</div>
+      </button>
 
-        <button onClick={onChooseApi} className={optionClass}>
-          <div className="text-[#F3F9FF] font-semibold text-[15px]">{t('integ_wa_choice_api_title')}</div>
-          <div className="text-[#9BA7BB] text-[13px] mt-1 leading-relaxed">{t('integ_wa_choice_api_desc')}</div>
-        </button>
+      <button type="button" onClick={onChooseApi} className={optionClass}>
+        <div className="text-[#F3F9FF] font-semibold text-[15px]">{t('integ_wa_choice_api_title')}</div>
+        <div className="text-[#9BA7BB] text-[13px] mt-1 leading-relaxed">{t('integ_wa_choice_api_desc')}</div>
+      </button>
 
-        <button
-          onClick={onClose}
-          className="w-full h-[46px] bg-[#1E2530] text-[#F8FAFC] rounded-xl font-semibold hover:bg-slate-800 transition-colors cursor-pointer text-[15px]"
-        >
-          {t('integ_btn_cancel')}
-        </button>
-      </motion.div>
-    </div>
+      <button type="button" onClick={onClose} className={SECONDARY_BUTTON}>
+        {t('integ_btn_cancel')}
+      </button>
+    </ModalShell>
   );
 }
 
 const WHATSAPP_POLL_INTERVAL_MS = 3000;
+const WHATSAPP_SUCCESS_VISIBLE_MS = 1800;
 
 function WhatsAppModal({ onClose, onSuccess }) {
   const { t } = useLanguage();
+  const titleId = useId();
   // 'starting' | 'pending_qr' | 'connected' | 'error'
   const [phase, setPhase] = useState('starting');
   const [qrDataUrl, setQrDataUrl] = useState(null);
   const [linkedNumber, setLinkedNumber] = useState(null);
   const [error, setError] = useState('');
   const pollRef = useRef(null);
+  const successTimerRef = useRef(null);
+  const startPromiseRef = useRef(null);
+  const phaseRef = useRef('starting');
   // The parent passes fresh inline callbacks on every render; keeping them in a ref
-  // stops the effect below from restarting the WhatsApp session each time the page
-  // re-renders (e.g. when fetchAll toggles its loading state).
+  // stops the session effect from restarting whenever the page re-renders.
   const callbacksRef = useRef({ onClose, onSuccess, t });
   useEffect(() => {
     callbacksRef.current = { onClose, onSuccess, t };
@@ -94,17 +100,27 @@ function WhatsAppModal({ onClose, onSuccess }) {
   useEffect(() => {
     let cancelled = false;
 
+    function setPhaseBoth(next) {
+      phaseRef.current = next;
+      setPhase(next);
+    }
+
     function applyStatus(data) {
+      if (!data) return;
       const { onClose: close, onSuccess: success, t: translate } = callbacksRef.current;
       if (data.status === 'connected') {
-        setPhase('connected');
+        if (phaseRef.current === 'connected') return;
+        setPhaseBoth('connected');
         setLinkedNumber(data.linked_number);
         setQrDataUrl(null);
         if (pollRef.current) clearInterval(pollRef.current);
-        success(translate('integ_msg_wa_linked', { number: data.linked_number || '' }));
-        setTimeout(close, 1800);
+        // Let the success view be seen before the (blocking) alert and the close.
+        successTimerRef.current = setTimeout(() => {
+          success(translate('integ_msg_wa_linked', { number: data.linked_number || '' }));
+          close();
+        }, WHATSAPP_SUCCESS_VISIBLE_MS);
       } else {
-        setPhase('pending_qr');
+        setPhaseBoth('pending_qr');
         if (data.qr_data_url) setQrDataUrl(data.qr_data_url);
       }
     }
@@ -113,91 +129,114 @@ function WhatsAppModal({ onClose, onSuccess }) {
       try {
         const response = await smartflowApi.connectWhatsApp();
         if (cancelled) return;
-        applyStatus(response.data.data);
+        applyStatus(response.data?.data);
         pollRef.current = setInterval(async () => {
           try {
             const poll = await smartflowApi.getWhatsAppQr();
-            if (!cancelled) applyStatus(poll.data.data);
+            if (!cancelled) applyStatus(poll.data?.data);
           } catch {
             // transient poll failure - keep trying on the next tick
           }
         }, WHATSAPP_POLL_INTERVAL_MS);
       } catch (err) {
         if (!cancelled) {
-          setPhase('error');
+          setPhaseBoth('error');
           setError(err.response?.data?.message || callbacksRef.current.t('integ_err_wa_link_failed'));
         }
       }
     }
 
-    start();
+    startPromiseRef.current = start();
     return () => {
       cancelled = true;
       if (pollRef.current) clearInterval(pollRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
     };
   }, []);
 
+  // Cancelling before the phone is linked must also drop the half-open session on the
+  // server, otherwise it keeps a pending QR session alive for nothing.
+  const handleCancel = useCallback(async () => {
+    if (phaseRef.current !== 'connected') {
+      try {
+        await startPromiseRef.current;
+        await smartflowApi.disconnectIntegration('whatsapp');
+      } catch {
+        // nothing to clean up (never started) or already gone
+      }
+    }
+    callbacksRef.current.onClose();
+  }, []);
+
   return (
-    <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4 text-left">
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-[22px] w-full max-w-sm space-y-3.5 text-center"
-      >
-        <h3 className="font-bold text-[#F3F9FF] text-xl">{t('integ_title_connect_wa')}</h3>
+    <ModalShell titleId={titleId} onClose={handleCancel} className="space-y-3.5 text-center">
+      <h3 id={titleId} className="font-bold text-[#F3F9FF] text-xl">
+        {t('integ_title_connect_wa')}
+      </h3>
 
-        {phase === 'starting' && (
-          <div className="flex flex-col items-center gap-3 py-8">
-            <Loader2 size={28} className="animate-spin text-[#25D366]" />
-            <p className="text-[#9BA7BB] text-sm">{t('integ_wa_starting')}</p>
-          </div>
-        )}
+      {phase === 'starting' && (
+        <div role="status" className="flex flex-col items-center gap-3 py-8">
+          <Loader2 size={28} className="animate-spin text-[#25D366]" aria-hidden="true" />
+          <p className="text-[#9BA7BB] text-sm">{t('integ_wa_starting')}</p>
+        </div>
+      )}
 
-        {phase === 'pending_qr' && (
-          <div className="flex flex-col items-center gap-3">
-            {qrDataUrl ? (
-              <img src={qrDataUrl} alt="WhatsApp QR code" className="w-56 h-56 rounded-xl bg-white p-2" />
-            ) : (
-              <div className="w-56 h-56 rounded-xl bg-[#0C0E12] border border-[#1E2530] flex items-center justify-center">
-                <Loader2 size={24} className="animate-spin text-[#25D366]" />
-              </div>
-            )}
-            <p className="text-[#9BA7BB] text-[13px] leading-relaxed">{t('integ_wa_qr_instructions')}</p>
-          </div>
-        )}
+      {phase === 'pending_qr' && (
+        <div className="flex flex-col items-center gap-3">
+          {qrDataUrl ? (
+            <img src={qrDataUrl} alt={t('integ_wa_qr_alt')} className="w-56 h-56 rounded-xl bg-white p-2" />
+          ) : (
+            <div role="status" className="w-56 h-56 rounded-xl bg-[#0C0E12] border border-[#1E2530] flex items-center justify-center">
+              <Loader2 size={24} className="animate-spin text-[#25D366]" aria-hidden="true" />
+            </div>
+          )}
+          <p className="text-[#9BA7BB] text-[13px] leading-relaxed">{t('integ_wa_qr_instructions')}</p>
+        </div>
+      )}
 
-        {phase === 'connected' && (
-          <div className="flex flex-col items-center gap-3 py-8">
-            <CheckCircle2 size={40} className="text-[#25D366]" />
-            <p className="text-[#F3F9FF] font-semibold">{t('integ_wa_connected', { number: linkedNumber || '' })}</p>
-          </div>
-        )}
+      {phase === 'connected' && (
+        <div role="status" className="flex flex-col items-center gap-3 py-8">
+          <CheckCircle2 size={40} className="text-[#25D366]" aria-hidden="true" />
+          <p className="text-[#F3F9FF] font-semibold">{t('integ_wa_connected', { number: linkedNumber || '' })}</p>
+        </div>
+      )}
 
-        {phase === 'error' && <div className="text-rose-400 text-sm">{error}</div>}
+      {phase === 'error' && (
+        <div role="alert" className="text-rose-400 text-sm">
+          {error}
+        </div>
+      )}
 
-        <button
-          onClick={onClose}
-          className="w-full h-[50px] bg-[#1E2530] text-[#F8FAFC] rounded-xl font-semibold hover:bg-slate-800 transition-colors cursor-pointer text-[15px]"
-        >
-          {t('integ_btn_cancel')}
-        </button>
-      </motion.div>
-    </div>
+      <button type="button" onClick={handleCancel} className={SECONDARY_BUTTON}>
+        {t('integ_btn_cancel')}
+      </button>
+    </ModalShell>
   );
 }
 
 function TelegramModal({ onClose, onSuccess }) {
   const { t } = useLanguage();
+  const titleId = useId();
+  const tokenId = useId();
+  const usernameId = useId();
+  const secretId = useId();
   const [botToken, setBotToken] = useState('');
   const [botUsername, setBotUsername] = useState('');
   const [secretToken, setSecretToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  async function connect() {
-    if (!botToken.trim()) {
+  async function connect(event) {
+    event?.preventDefault();
+    if (loading) return;
+    // Same limits the API enforces (bot_token >= 10, secret_token >= 8), so the user
+    // gets a clear message instead of a raw 422.
+    if (botToken.trim().length < 10) {
       setError(t('integ_err_invalid_bot_token'));
+      return;
+    }
+    if (secretToken.trim() && secretToken.trim().length < 8) {
+      setError(t('integ_err_secret_short'));
       return;
     }
     setError('');
@@ -217,21 +256,30 @@ function TelegramModal({ onClose, onSuccess }) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4 text-left">
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-[#111318] border border-[#1E2530] rounded-[20px] p-[22px] w-full max-w-sm space-y-3.5"
-      >
-        <h3 className="font-bold text-[#F3F9FF] text-xl">{t('integ_title_connect_tg')}</h3>
+  const labelClass = 'text-[#9BA7BB] text-[13px] font-semibold mb-1 block';
 
-        {error && <div className="text-rose-400 text-sm">{error}</div>}
+  return (
+    <ModalShell titleId={titleId} onClose={onClose}>
+      <form onSubmit={connect} className="space-y-3.5">
+        <h3 id={titleId} className="font-bold text-[#F3F9FF] text-xl">
+          {t('integ_title_connect_tg')}
+        </h3>
+
+        {error && (
+          <div role="alert" className="text-rose-400 text-sm">
+            {error}
+          </div>
+        )}
 
         <div>
-          <label className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">{t('integ_lbl_bot_token')}</label>
+          <label htmlFor={tokenId} className={labelClass}>
+            {t('integ_lbl_bot_token')}
+          </label>
           <input
+            id={tokenId}
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
             value={botToken}
             onChange={(e) => setBotToken(e.target.value)}
             placeholder="123456:ABCDEF_bot_token"
@@ -239,8 +287,13 @@ function TelegramModal({ onClose, onSuccess }) {
           />
         </div>
         <div>
-          <label className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">{t('integ_lbl_bot_username')}</label>
+          <label htmlFor={usernameId} className={labelClass}>
+            {t('integ_lbl_bot_username')}
+          </label>
           <input
+            id={usernameId}
+            autoComplete="off"
+            spellCheck={false}
             value={botUsername}
             onChange={(e) => setBotUsername(e.target.value)}
             placeholder="gocustify_bot"
@@ -248,8 +301,14 @@ function TelegramModal({ onClose, onSuccess }) {
           />
         </div>
         <div>
-          <label className="text-[#9BA7BB] text-[13px] font-semibold mb-1 block">{t('integ_lbl_secret_token')}</label>
+          <label htmlFor={secretId} className={labelClass}>
+            {t('integ_lbl_secret_token')}
+          </label>
           <input
+            id={secretId}
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
             value={secretToken}
             onChange={(e) => setSecretToken(e.target.value)}
             placeholder={t('integ_webhook_secret_placeholder')}
@@ -258,28 +317,26 @@ function TelegramModal({ onClose, onSuccess }) {
         </div>
 
         <div className="flex gap-2.5 pt-1.5">
-          <button
-            onClick={onClose}
-            className="flex-1 h-[50px] bg-[#1E2530] text-[#F8FAFC] rounded-xl font-semibold hover:bg-slate-800 transition-colors cursor-pointer text-[15px]"
-          >
+          <button type="button" onClick={onClose} className={`flex-1 ${SECONDARY_BUTTON}`}>
             {t('integ_btn_cancel')}
           </button>
           <button
-            onClick={connect}
+            type="submit"
             disabled={loading}
             className="flex-1 h-[50px] bg-[#c084fc] text-[#03141E] rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#7e22ce] transition-colors cursor-pointer disabled:opacity-60 text-[15px]"
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {loading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
             {t('integ_btn_connect')}
           </button>
         </div>
-      </motion.div>
-    </div>
+      </form>
+    </ModalShell>
   );
 }
 
 function PlatformCard({ item, onConnect, onDisconnect }) {
   const { t } = useLanguage();
+  const [busy, setBusy] = useState(false);
   const meta = PLATFORM_META[item.platform] || {
     Icon: HelpCircle,
     bg: '#455A64',
@@ -287,22 +344,30 @@ function PlatformCard({ item, onConnect, onDisconnect }) {
     descKey: 'integ_desc_default',
   };
   const desc = t(meta.descKey);
-  const isUnavailable = !item.is_available && item.cta_label === 'Unavailable';
+  // Judge availability by the structured fields the API sends, not by comparing a
+  // display string ("Unavailable") that could be reworded or translated.
+  const isUnavailable = item.is_available === false || item.is_configured === false;
   const iconColor = meta.badgeColor || '#fff';
   const Icon = meta.Icon;
 
+  async function run(action) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await action();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleDisconnect() {
     if (!window.confirm(t('integ_confirm_disconnect', { name: meta.label }))) return;
-    try {
-      await onDisconnect(item.platform);
-    } catch (err) {
-      void err;
-    }
+    await run(() => onDisconnect(item.platform));
   }
 
   return (
     <div
-      className={`bg-[#111318] border border-[#1E2530] rounded-2xl px-3.5 py-3.5 flex flex-row items-center gap-3 text-left ${
+      className={`bg-[#111318] border border-[#1E2530] rounded-2xl px-3.5 py-3.5 flex flex-row items-center gap-3 text-start ${
         isUnavailable ? 'opacity-50' : ''
       }`}
     >
@@ -310,7 +375,7 @@ function PlatformCard({ item, onConnect, onDisconnect }) {
         className="w-[52px] h-[52px] rounded-xl flex items-center justify-center shrink-0 border-[1.5px]"
         style={{ backgroundColor: meta.bg, borderColor: '#333' }}
       >
-        <Icon size={26} color={iconColor} />
+        <Icon size={26} color={iconColor} aria-hidden="true" />
       </div>
 
       <div className="flex-1 flex flex-col justify-center min-w-0">
@@ -323,20 +388,29 @@ function PlatformCard({ item, onConnect, onDisconnect }) {
 
       {item.connected ? (
         <button
+          type="button"
           onClick={handleDisconnect}
-          className="flex items-center gap-1.5 bg-[#0D2318] border border-[#1a4a2e] px-3 py-2 rounded-full cursor-pointer hover:bg-emerald-950 transition-colors shrink-0"
+          disabled={busy}
+          aria-label={t('integ_aria_disconnect', { name: meta.label })}
+          className="flex items-center gap-1.5 bg-[#0D2318] border border-[#1a4a2e] px-3 py-2 rounded-full cursor-pointer hover:bg-emerald-950 transition-colors shrink-0 disabled:opacity-60"
         >
-          <CheckCircle2 size={16} className="text-[#4DCE63]" />
+          {busy ? (
+            <Loader2 size={16} className="animate-spin text-[#4DCE63]" aria-hidden="true" />
+          ) : (
+            <CheckCircle2 size={16} className="text-[#4DCE63]" aria-hidden="true" />
+          )}
           <span className="text-[#4DCE63] text-[13px] font-semibold">{t('integ_status_connected')}</span>
         </button>
       ) : (
         <button
-          onClick={() => !isUnavailable && onConnect(item)}
-          disabled={isUnavailable}
-          className={`px-4 py-2 rounded-full min-w-[80px] flex items-center justify-center cursor-pointer transition-colors shrink-0 ${
-            isUnavailable ? 'bg-[#1E2530] text-[#03141E]' : 'bg-[#c084fc] text-[#03141E] hover:bg-[#7e22ce]'
+          type="button"
+          onClick={() => !isUnavailable && run(() => onConnect(item))}
+          disabled={isUnavailable || busy}
+          className={`px-4 py-2 rounded-full min-w-[80px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0 ${
+            isUnavailable ? 'bg-[#1E2530] text-[#03141E]' : 'bg-[#c084fc] text-[#03141E] hover:bg-[#7e22ce] disabled:opacity-60'
           }`}
         >
+          {busy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : null}
           <span className="text-[14px] font-bold">{isUnavailable ? t('integ_status_soon') : t('integ_btn_connect')}</span>
         </button>
       )}
@@ -353,58 +427,61 @@ export default function Integrations() {
   const [whatsappChoice, setWhatsappChoice] = useState(false);
   const [telegramModal, setTelegramModal] = useState(false);
   const oauthWindowRef = useRef(null);
+  const loadedOnceRef = useRef(false);
+  const itemsRef = useRef([]);
 
   const fetchAll = useCallback(async () => {
+    // Only the first load blanks the page. Later refreshes (after an OAuth return,
+    // a disconnect, a modal closing) update in place - they used to swap the whole
+    // list for a spinner, which also threw away anything typed in the email-domain form.
+    if (!loadedOnceRef.current) setLoading(true);
+    setError('');
+
+    let list = [];
+    let failed = false;
     try {
-      setLoading(true);
-      setError('');
+      const catalogRes = await smartflowApi.getIntegrationCatalog();
+      list = asList(catalogRes.data?.data);
+    } catch (err) {
+      failed = true;
+      console.error('Integrations catalog request failed.', err);
+    }
 
-      const [catalogRes, statusRes] = await Promise.allSettled([
-        smartflowApi.getIntegrationCatalog(),
-        smartflowApi.getIntegrationStatus(),
-      ]);
-
-      const catalogItems = catalogRes.status === 'fulfilled' ? catalogRes.value.data?.data || [] : [];
-      const statusItems = statusRes.status === 'fulfilled' ? statusRes.value.data?.data?.items || statusRes.value.data?.data || [] : [];
-
-      if (catalogItems.length > 0) {
-        setItems(catalogItems);
-        return;
-      }
-
-      if (statusItems.length > 0) {
-        const normalized = statusItems.map((item) => ({
+    // The status endpoint returns the same catalog plus a summary, so it is only a
+    // fallback; calling both on every load doubled the backend work.
+    if (list.length === 0) {
+      try {
+        const statusRes = await smartflowApi.getIntegrationStatus();
+        list = asList(statusRes.data?.data).map((item) => ({
           platform: item.platform,
           platform_label: PLATFORM_META[item.platform]?.label || item.platform_label || item.platform,
           connected: Boolean(item.connected),
           auth_mode: item.auth_mode || (item.platform === 'whatsapp' || item.platform === 'telegram' ? 'manual' : 'oauth'),
           is_available: item.is_available ?? true,
-          cta_label: item.connected ? 'Connected' : 'Connect',
           external_account_name: item.external_account_name || null,
         }));
-        setItems(normalized);
-        return;
+        failed = false;
+      } catch (err) {
+        console.error('Integrations status request failed.', err);
       }
-
-      if (catalogRes.status === 'rejected' && statusRes.status === 'rejected') {
-        console.error('Integrations page requests failed.', {
-          catalog: catalogRes.reason,
-          status: statusRes.reason,
-        });
-        setError(t('integ_err_load_failed'));
-        setItems([]);
-        return;
-      }
-
-      setItems([]);
-    } catch (err) {
-      console.error('Failed to load integrations page.', err);
-      setError(t('integ_err_load_failed'));
-      setItems([]);
-    } finally {
-      setLoading(false);
     }
+
+    if (list.length === 0 && failed) {
+      // Keep showing what we already had rather than wiping a working page.
+      if (itemsRef.current.length === 0) setItems([]);
+      setError(t('integ_err_load_failed'));
+    } else {
+      itemsRef.current = list;
+      setItems(list);
+    }
+    loadedOnceRef.current = true;
+    setLoading(false);
   }, [t]);
+
+  const fetchAllRef = useRef(fetchAll);
+  useEffect(() => {
+    fetchAllRef.current = fetchAll;
+  });
 
   useEffect(() => {
     fetchAll();
@@ -414,13 +491,13 @@ export default function Integrations() {
     function handleFocus() {
       if (oauthWindowRef.current && oauthWindowRef.current.closed) {
         oauthWindowRef.current = null;
-        fetchAll();
+        fetchAllRef.current();
       }
     }
 
     function handleMessage(event) {
-      if (event?.data?.type === 'mabdel-google-calendar-oauth') {
-        fetchAll();
+      if (isTrustedOAuthMessage(event, OAUTH_COMPLETION_MESSAGES)) {
+        fetchAllRef.current();
       }
     }
 
@@ -430,7 +507,7 @@ export default function Integrations() {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('message', handleMessage);
     };
-  }, [fetchAll]);
+  }, []);
 
   async function handleConnect(item) {
     if (item.platform === 'whatsapp') {
@@ -456,11 +533,17 @@ export default function Integrations() {
     try {
       const res = await smartflowApi.startIntegrationOAuth(platform);
       const url = res.data?.data?.auth_url || res.data?.auth_url;
-      if (url) {
-        oauthWindowRef.current = window.open(url, '_blank');
-      } else {
+      if (!url) {
         window.alert(t('integ_err_no_auth_url'));
+        return;
       }
+      const popup = window.open(url, '_blank');
+      if (!popup) {
+        // Opened after an await, so browsers may treat it as an unsolicited pop-up.
+        window.alert(t('integ_err_popup_blocked'));
+        return;
+      }
+      oauthWindowRef.current = popup;
     } catch (err) {
       window.alert(err.response?.data?.message || t('integ_err_initiate_failed'));
     }
@@ -479,45 +562,53 @@ export default function Integrations() {
     <div className="flex flex-col h-full bg-[#020406] max-w-3xl mx-auto w-full">
       <div className="flex items-center justify-between py-2 mb-3">
         <button
+          type="button"
           onClick={() => window.history.back()}
+          aria-label={t('integ_btn_back')}
           className="w-9 h-9 flex items-center justify-center cursor-pointer hover:bg-white/5 rounded-full transition-colors"
         >
-          <ChevronLeft size={28} className="text-[#F1F7FF]" />
+          <ChevronLeft size={28} className="text-[#F1F7FF] rtl:rotate-180" aria-hidden="true" />
         </button>
         <h1 className="text-[#F3F9FF] text-[20px] font-bold text-center flex-1">{t('integ_title')}</h1>
         <div className="w-9 h-9" />
       </div>
 
       <div className="flex-1 pb-10">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3.5">
-            <Loader2 size={32} className="text-[#c084fc] animate-spin" />
-            <p className="text-[#9BA7BB] text-[15px]">{t('integ_loading')}</p>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3.5 text-center px-6">
-            <AlertCircle size={32} className="text-rose-400" />
-            <p className="text-[#F3F9FF] text-[16px] font-semibold">{error}</p>
-            <button
-              onClick={fetchAll}
-              className="h-[46px] px-5 bg-[#c084fc] text-[#03141E] rounded-xl font-semibold hover:bg-[#7e22ce] transition-colors cursor-pointer"
-            >
-              {t('integ_btn_retry')}
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <BusinessEmailDomain />
-            {items.map((item) => (
+        <div className="flex flex-col gap-3">
+          {/* Always mounted, so a catalog failure or refresh never hides or resets it. */}
+          <BusinessEmailDomain />
+
+          {loading ? (
+            <div role="status" className="flex flex-col items-center justify-center h-48 gap-3.5">
+              <Loader2 size={32} className="text-[#c084fc] animate-spin" aria-hidden="true" />
+              <p className="text-[#9BA7BB] text-[15px]">{t('integ_loading')}</p>
+            </div>
+          ) : error ? (
+            <div role="alert" className="flex flex-col items-center justify-center h-48 gap-3.5 text-center px-6">
+              <AlertCircle size={32} className="text-rose-400" aria-hidden="true" />
+              <p className="text-[#F3F9FF] text-[16px] font-semibold">{error}</p>
+              <button
+                type="button"
+                onClick={fetchAll}
+                className="h-[46px] px-5 bg-[#c084fc] text-[#03141E] rounded-xl font-semibold hover:bg-[#7e22ce] transition-colors cursor-pointer"
+              >
+                {t('integ_btn_retry')}
+              </button>
+            </div>
+          ) : items.length === 0 ? (
+            <p className="text-center text-[#9BA7BB] text-[15px] py-10">{t('integ_empty')}</p>
+          ) : (
+            items.map((item) => (
               <PlatformCard key={item.platform} item={item} onConnect={handleConnect} onDisconnect={handleDisconnect} />
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
 
       <AnimatePresence>
         {whatsappChoice ? (
           <WhatsAppChoiceModal
+            key="wa-choice"
             onClose={() => setWhatsappChoice(false)}
             onChooseQr={() => {
               setWhatsappChoice(false);
@@ -531,15 +622,19 @@ export default function Integrations() {
         ) : null}
         {whatsappModal ? (
           <WhatsAppModal
-            onClose={() => setWhatsappModal(false)}
-            onSuccess={(msg) => {
-              window.alert(msg);
+            key="wa-qr"
+            onClose={() => {
+              setWhatsappModal(false);
+              // Whatever happened in the modal (linked, cancelled, poll missed it), the
+              // card must reflect the server's state afterwards.
               fetchAll();
             }}
+            onSuccess={(msg) => window.alert(msg)}
           />
         ) : null}
         {telegramModal ? (
           <TelegramModal
+            key="tg"
             onClose={() => setTelegramModal(false)}
             onSuccess={(msg) => {
               window.alert(msg);
