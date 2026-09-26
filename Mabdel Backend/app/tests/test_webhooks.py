@@ -411,6 +411,33 @@ def test_whatsapp_history_import_backfills_without_spamming_notifications(client
     assert asyncio.run(mock_db.messages.count_documents({"platform": "whatsapp"})) == 4  # 3 history + 1 live
 
 
+def test_whatsapp_history_import_stops_when_disconnected_mid_batch(mock_db, monkeypatch):
+    from app.services.smartflow.integration_service import IntegrationService
+
+    user_id = "69efae8b5af39608a990e09e"
+    asyncio.run(mock_db.social_integrations.insert_one({"user_id": user_id, "platform": "whatsapp", "status": "connected"}))
+    service = IntegrationService(mock_db)
+    monkeypatch.setattr(IntegrationService, "_HISTORY_CONNECTED_CHECK_EVERY", 2)
+    recorded = []
+
+    async def fake_record(uid, platform, payload, is_history_import=False):
+        recorded.append(payload)
+        if len(recorded) == 3:  # the user clicks Disconnect while the import is running
+            await mock_db.social_integrations.update_one({"user_id": uid}, {"$set": {"status": "disconnected"}})
+        return {"id": str(len(recorded))}
+
+    monkeypatch.setattr(service, "_record_inbound_message", fake_record)
+    batch = [
+        {"event_id": f"h-{i}", "contact_external_id": "8801711111111@s.whatsapp.net", "content": "x", "external_account_id": "8801700000000"}
+        for i in range(10)
+    ]
+
+    result = asyncio.run(service.handle_inbound_webhook_batch(user_id, "whatsapp", batch))
+
+    assert len(recorded) == 4  # checked before #3 (still connected) and before #5 (stopped)
+    assert result == {"status": "processed", "imported": 4, "skipped": 6}
+
+
 def test_whatsapp_history_import_rejects_wrong_secret(client, mock_db, monkeypatch):
     from bson import ObjectId
 
