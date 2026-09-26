@@ -48,7 +48,7 @@ def main() -> int:
     env_lines: list[str] = []
     for tier, name, amount in TIERS:
         lookup_key = f"gocustify_{tier}_monthly"
-        existing = client.v1.prices.list(params={"lookup_keys": [lookup_key], "active": True, "limit": 1}).data
+        existing = client.prices.list(params={"lookup_keys": [lookup_key], "active": True, "limit": 1}).data
         if existing:
             price = existing[0]
             note = "reused"
@@ -60,8 +60,8 @@ def main() -> int:
                     file=sys.stderr,
                 )
         else:
-            product = client.v1.products.create(params={"name": name, "metadata": {"gocustify_tier": tier}})
-            price = client.v1.prices.create(
+            product = client.products.create(params={"name": name, "metadata": {"gocustify_tier": tier}})
+            price = client.prices.create(
                 params={
                     "product": product.id,
                     "currency": "usd",
