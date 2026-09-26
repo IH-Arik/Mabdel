@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hmac
+import logging
 import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
@@ -21,6 +23,8 @@ from .conversation_service import ConversationService
 from .google_calendar_service import GoogleCalendarService
 from .microsoft_calendar_service import MicrosoftCalendarService
 from .zoom_calendar_service import ZoomCalendarService
+
+logger = logging.getLogger(__name__)
 
 
 class IntegrationService(SmartFlowBase):
@@ -44,26 +48,42 @@ class IntegrationService(SmartFlowBase):
 
     async def list_integrations(self, user_id: str) -> list[dict]:
         team_ids = await self._resolve_team_user_ids(user_id)
-        docs = await self.db.social_integrations.find({"user_id": {"$in": team_ids}}).sort("platform", 1).to_list(length=20)
+        docs = await self.db.social_integrations.find({"user_id": {"$in": team_ids}}).sort("platform", 1).to_list(length=200)
         return [self._serialize_integration(doc) for doc in docs]
+
+    # How often a connected WhatsApp session is re-checked against the gateway when the
+    # catalog loads. Without this every page load made a gateway round trip (the page
+    # computes the catalog several times per load).
+    _WHATSAPP_GATEWAY_RECHECK_SECONDS = 60
+    _GATEWAY_BEST_EFFORT_TIMEOUT = 3.0
 
     async def _sync_pending_whatsapp(self, user_id: str) -> None:
         """A QR pairing is only recorded as connected when something asks the gateway
         (the connect modal's poll). If that modal was closed or the poll missed the
         moment, the card would stay on "Connect" although the phone is linked, so
-        refresh a pending session whenever the catalog is loaded."""
+        refresh a pending session whenever the catalog is loaded. Also restarts a
+        connected session the gateway lost (e.g. after a deploy)."""
         try:
             organization_id = await self._resolve_organization_id(user_id)
             if not organization_id:
                 return
-            doc = await self.db.social_integrations.find_one({"organization_id": organization_id, "platform": "whatsapp"})
+            doc = await self.db.social_integrations.find_one(
+                {"organization_id": organization_id, "platform": "whatsapp", "whatsapp_secret_token": {"$exists": True}}
+            )
             if not doc:
                 return
             if not ObjectId.is_valid(str(doc.get("user_id"))):
                 await self.db.social_integrations.update_one({"_id": doc["_id"]}, {"$set": {"user_id": user_id}})
             if doc.get("status") == "pending_qr":
-                await self.get_whatsapp_connect_status(user_id)
+                await self.get_whatsapp_connect_status(user_id, timeout=self._GATEWAY_BEST_EFFORT_TIMEOUT)
             elif doc.get("status") == "connected" and doc.get("whatsapp_secret_token"):
+                now = utc_now()
+                checked_at = doc.get("gateway_checked_at")
+                if checked_at is not None and checked_at.tzinfo is None:
+                    now = now.replace(tzinfo=None)
+                if checked_at is not None and (now - checked_at).total_seconds() < self._WHATSAPP_GATEWAY_RECHECK_SECONDS:
+                    return
+                await self.db.social_integrations.update_one({"_id": doc["_id"]}, {"$set": {"gateway_checked_at": now}})
                 await self._restore_whatsapp_session_if_lost(organization_id, doc["whatsapp_secret_token"])
         except Exception:
             pass  # best-effort; the catalog must load even if the gateway is down
@@ -75,7 +95,7 @@ class IntegrationService(SmartFlowBase):
         reports no live session for a connected integration, start it again - the
         paired credentials are on the gateway's volume, so no new QR is needed."""
         base = settings.WHATSAPP_GATEWAY_URL.rstrip("/")
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=self._GATEWAY_BEST_EFFORT_TIMEOUT) as client:
             state = (await client.get(f"{base}/sessions/{organization_id}/qr", headers=self._whatsapp_gateway_headers())).json()
             if state.get("status") == "disconnected":
                 await client.post(
@@ -87,7 +107,7 @@ class IntegrationService(SmartFlowBase):
     async def get_integration_catalog(self, user_id: str) -> list[dict]:
         await self._sync_pending_whatsapp(user_id)
         team_ids = await self._resolve_team_user_ids(user_id)
-        docs = await self.db.social_integrations.find({"user_id": {"$in": team_ids}}).to_list(length=50)
+        docs = await self.db.social_integrations.find({"user_id": {"$in": team_ids}}).to_list(length=200)
         # If multiple teammates connected the same platform, prefer the caller's own
         # connection in the catalog view, then fall back to the first teammate's.
         # A live connection always wins over a stale disconnected doc (WhatsApp can
@@ -173,7 +193,7 @@ class IntegrationService(SmartFlowBase):
         return self._sanitize_integration(result)
 
     async def sync_integration(self, user_id: str, platform: str) -> dict:
-        integration = await self.db.social_integrations.find_one({"user_id": user_id, "platform": platform, "status": "connected"})
+        integration = await self._find_team_integration(user_id, platform, {"status": "connected"})
         if not integration:
             raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
         if platform in {"google_business", "zoom", "microsoft"}:
@@ -262,11 +282,12 @@ class IntegrationService(SmartFlowBase):
             )
 
         if response.status_code >= 400:
+            logger.warning("Telegram setWebhook failed: status=%s body=%s", response.status_code, response.text[:500])
             raise AppException(
                 status_code=502,
                 code="TELEGRAM_WEBHOOK_SETUP_FAILED",
                 message="Telegram webhook setup failed.",
-                details={"status_code": response.status_code, "response": response.text[:500]},
+                details={"status_code": response.status_code},
             )
 
         payload_data = response.json()
@@ -326,48 +347,76 @@ class IntegrationService(SmartFlowBase):
             raise AppException(status_code=422, code="NO_ORGANIZATION", message="Your account isn't part of an organization yet.")
         return organization_id
 
+    async def _team_whatsapp_docs(self, user_id: str, organization_id: str | None) -> list[dict]:
+        """Every WhatsApp record this organization holds. The organization has ONE
+        WhatsApp connection (QR gateway or official API); older records can be
+        spread across teammates, so look at the whole team, not just the caller."""
+        team_ids = await self._resolve_team_user_ids(user_id)
+        conditions: list[dict] = [{"user_id": {"$in": team_ids}}]
+        if organization_id:
+            conditions.append({"organization_id": organization_id})
+        return await self.db.social_integrations.find({"platform": "whatsapp", "$or": conditions}).to_list(length=50)
+
+    @staticmethod
+    def _disconnected_whatsapp_fields() -> dict:
+        return {
+            "status": "disconnected",
+            "external_account_id": None,
+            "access_token_encrypted": None,
+            "refresh_token_encrypted": None,
+            "sync_status": "idle",
+            "last_error": None,
+            "updated_at": utc_now(),
+        }
+
+    async def _gateway_post(self, organization_id: str, action: str, payload: dict | None = None, timeout: float = 10.0) -> httpx.Response:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            return await client.post(
+                f"{settings.WHATSAPP_GATEWAY_URL.rstrip('/')}/sessions/{organization_id}/{action}",
+                json=payload,
+                headers=self._whatsapp_gateway_headers(),
+            )
+
     async def start_whatsapp_connect(self, user_id: str) -> dict:
-        """One WhatsApp session per organization (same pattern as one Stripe Connect
-        account / one Telnyx number per organization) - keyed and stored by
-        organization_id so any teammate can (re)connect or poll the same session,
-        not just whoever happened to click first."""
+        """One WhatsApp connection per organization (same pattern as one Stripe Connect
+        account / one Telnyx number per organization). The QR session is keyed by
+        organization_id in the gateway; the integration record keeps ONE row for the
+        whole team so switching between QR and the official API reuses it (a second
+        row would violate the unique (user_id, platform) index)."""
         organization_id = await self._require_organization_id(user_id)
 
-        existing = await self.db.social_integrations.find_one({"organization_id": organization_id, "platform": "whatsapp"})
+        docs = await self._team_whatsapp_docs(user_id, organization_id)
+        existing = next((d for d in docs if d.get("organization_id") == organization_id and d.get("whatsapp_secret_token")), None)
+        existing = existing or (docs[0] if docs else None)
         webhook_secret = (existing or {}).get("whatsapp_secret_token") or secrets.token_urlsafe(18)
-        # organization_id is not a user id (real orgs use UUIDs), but every read path
-        # - the catalog, inbound conversations - keys off social_integrations.user_id
-        # being a real user. Keep the original connector as owner; repair records that
-        # an earlier version wrote with the organization id there.
-        existing_owner = (existing or {}).get("user_id")
-        owner_user_id = existing_owner if existing_owner and ObjectId.is_valid(str(existing_owner)) else user_id
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            try:
-                response = await client.post(
-                    f"{settings.WHATSAPP_GATEWAY_URL.rstrip('/')}/sessions/{organization_id}/start",
-                    json={"webhook_secret": webhook_secret},
-                    headers=self._whatsapp_gateway_headers(),
-                )
-                response.raise_for_status()
-            except httpx.HTTPError as exc:
-                raise AppException(
-                    status_code=503, code="WHATSAPP_GATEWAY_UNREACHABLE", message=f"Could not reach the WhatsApp gateway: {exc}"
-                ) from exc
+        try:
+            response = await self._gateway_post(organization_id, "start", {"webhook_secret": webhook_secret}, timeout=15.0)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            logger.warning("WhatsApp gateway start failed for org %s: %s", organization_id, exc)
+            raise AppException(
+                status_code=503, code="WHATSAPP_GATEWAY_UNREACHABLE", message="Could not reach the WhatsApp gateway. Please try again shortly."
+            ) from exc
 
         gateway_state = response.json()
         now = utc_now()
 
-        # One WhatsApp connection per organization: switching to QR retires any
-        # official-API connection (those docs never carry an organization_id).
-        team_ids = await self._resolve_team_user_ids(user_id)
-        await self.db.social_integrations.update_many(
-            {"platform": "whatsapp", "user_id": {"$in": team_ids}, "organization_id": {"$exists": False}},
-            {"$set": {"status": "disconnected", "access_token_encrypted": None, "refresh_token_encrypted": None, "updated_at": now}},
-        )
+        # organization_id is not a user id (real orgs use UUIDs), but every read path
+        # keys off social_integrations.user_id being a real user. Keep the original
+        # connector as owner; repair records that carry the organization id there.
+        existing_owner = (existing or {}).get("user_id")
+        owner_user_id = existing_owner if existing_owner and ObjectId.is_valid(str(existing_owner)) else user_id
 
+        # Going QR retires any official-API connection (drop its tokens) and any stray
+        # duplicate rows other teammates may hold.
+        stale_ids = [d["_id"] for d in docs if existing is None or d["_id"] != existing["_id"]]
+        if stale_ids:
+            await self.db.social_integrations.update_many({"_id": {"$in": stale_ids}}, {"$set": self._disconnected_whatsapp_fields()})
+
+        doc_filter = {"_id": existing["_id"]} if existing else {"organization_id": organization_id, "platform": "whatsapp"}
         stored = await self.db.social_integrations.find_one_and_update(
-            {"organization_id": organization_id, "platform": "whatsapp"},
+            doc_filter,
             {
                 "$set": {
                     "user_id": owner_user_id,
@@ -376,6 +425,9 @@ class IntegrationService(SmartFlowBase):
                     "whatsapp_secret_token": webhook_secret,
                     "status": "connected" if gateway_state.get("status") == "connected" else "pending_qr",
                     "external_account_id": gateway_state.get("linked_number"),
+                    "access_token_encrypted": None,
+                    "refresh_token_encrypted": None,
+                    "provider_metadata": {},
                     "webhook_status": "configured",
                     "updated_at": now,
                 },
@@ -391,20 +443,21 @@ class IntegrationService(SmartFlowBase):
             "integration": self._serialize_integration(stored),
         }
 
-    async def get_whatsapp_connect_status(self, user_id: str) -> dict:
+    async def get_whatsapp_connect_status(self, user_id: str, timeout: float = 10.0) -> dict:
         organization_id = await self._require_organization_id(user_id)
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            try:
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.get(
                     f"{settings.WHATSAPP_GATEWAY_URL.rstrip('/')}/sessions/{organization_id}/qr",
                     headers=self._whatsapp_gateway_headers(),
                 )
                 response.raise_for_status()
-            except httpx.HTTPError as exc:
-                raise AppException(
-                    status_code=503, code="WHATSAPP_GATEWAY_UNREACHABLE", message=f"Could not reach the WhatsApp gateway: {exc}"
-                ) from exc
+        except httpx.HTTPError as exc:
+            logger.warning("WhatsApp gateway status failed for org %s: %s", organization_id, exc)
+            raise AppException(
+                status_code=503, code="WHATSAPP_GATEWAY_UNREACHABLE", message="Could not reach the WhatsApp gateway. Please try again shortly."
+            ) from exc
 
         gateway_state = response.json()
         if gateway_state.get("status") == "connected":
@@ -425,57 +478,63 @@ class IntegrationService(SmartFlowBase):
             "linked_number": gateway_state.get("linked_number"),
         }
 
-    async def _disconnect_whatsapp_qr(self, organization_id: str) -> dict | None:
-        """Tears down the QR gateway session and marks its integration record
-        disconnected. Returns None when this org never had a QR connection."""
-        existing = await self.db.social_integrations.find_one({"organization_id": organization_id, "platform": "whatsapp"})
-        if not existing:
-            return None
-
-        async with httpx.AsyncClient(timeout=10.0) as client:
+    async def _retire_whatsapp_qr_for_official_api(self, connected_id: ObjectId, user_id: str) -> None:
+        """An organization has one WhatsApp connection. After the official API connects,
+        tear down any QR gateway session and drop its QR-only fields from the row that
+        was just connected (the upsert can land on the old QR row), without ever
+        disconnecting that row."""
+        organization_id = await self._resolve_organization_id(user_id)
+        docs = await self._team_whatsapp_docs(user_id, organization_id)
+        if any(d.get("whatsapp_secret_token") for d in docs) and organization_id:
             try:
-                await client.post(
-                    f"{settings.WHATSAPP_GATEWAY_URL.rstrip('/')}/sessions/{organization_id}/disconnect",
-                    headers=self._whatsapp_gateway_headers(),
-                )
+                await self._gateway_post(organization_id, "disconnect", timeout=self._GATEWAY_BEST_EFFORT_TIMEOUT)
+            except httpx.HTTPError:
+                pass  # best-effort
+        await self.db.social_integrations.update_one(
+            {"_id": connected_id}, {"$unset": {"organization_id": "", "whatsapp_secret_token": "", "gateway_checked_at": ""}}
+        )
+        others = [d["_id"] for d in docs if d["_id"] != connected_id]
+        if others:
+            await self.db.social_integrations.update_many({"_id": {"$in": others}}, {"$set": self._disconnected_whatsapp_fields()})
+
+    async def disconnect_whatsapp(self, user_id: str) -> dict:
+        """Disconnects the organization's WhatsApp connection, whichever kind it is
+        (QR gateway session and/or official API), for any teammate with manage rights."""
+        organization_id = await self._resolve_organization_id(user_id)
+        docs = await self._team_whatsapp_docs(user_id, organization_id)
+        if not docs:
+            raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
+
+        qr_doc = next((d for d in docs if d.get("whatsapp_secret_token")), None)
+        if qr_doc:
+            try:
+                await self._gateway_post(qr_doc.get("organization_id") or organization_id, "disconnect", timeout=10.0)
             except httpx.HTTPError:
                 pass  # best-effort - the integration record is marked disconnected regardless
 
-        return await self.db.social_integrations.find_one_and_update(
-            {"organization_id": organization_id, "platform": "whatsapp"},
-            {
-                "$set": {
-                    "status": "disconnected",
-                    "external_account_id": None,
-                    "sync_status": "idle",
-                    "last_error": None,
-                    "updated_at": utc_now(),
-                }
-            },
-            return_document=ReturnDocument.AFTER,
+        await self.db.social_integrations.update_many(
+            {"_id": {"$in": [d["_id"] for d in docs]}}, {"$set": self._disconnected_whatsapp_fields()}
         )
+        updated = await self.db.social_integrations.find_one({"_id": docs[0]["_id"]})
+        return self._sanitize_integration(updated)
 
-    async def disconnect_whatsapp(self, user_id: str) -> dict:
-        """Disconnects whichever WhatsApp connection the organization has: the QR
-        gateway session and/or an official Meta Business API integration."""
-        organization_id = await self._require_organization_id(user_id)
-        qr_result = await self._disconnect_whatsapp_qr(organization_id)
-
-        api_result = None
-        try:
-            api_result = await self.disconnect_integration(user_id, "whatsapp")
-        except AppException as exc:
-            if exc.code != "INTEGRATION_NOT_FOUND":
-                raise
-
-        result = api_result or (self._sanitize_integration(qr_result) if qr_result else None)
-        if result is None:
-            raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
-        return result
+    async def _find_team_integration(self, user_id: str, platform: str, extra: dict | None = None) -> dict | None:
+        """The caller's own connection first, else a teammate's. The catalog shows
+        connections org-wide, so disconnect/sync must reach them too - otherwise a
+        teammate sees "Connected" and gets a 404 on Disconnect."""
+        query = {"platform": platform, **(extra or {})}
+        own = await self.db.social_integrations.find_one({"user_id": user_id, **query})
+        if own:
+            return own
+        team_ids = await self._resolve_team_user_ids(user_id)
+        return await self.db.social_integrations.find_one({"user_id": {"$in": team_ids}, **query})
 
     async def disconnect_integration(self, user_id: str, platform: str) -> dict:
+        target = await self._find_team_integration(user_id, platform)
+        if not target:
+            raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
         updated = await self.db.social_integrations.find_one_and_update(
-            {"user_id": user_id, "platform": platform},
+            {"_id": target["_id"]},
             {
                 "$set": {
                     "status": "disconnected",
@@ -489,8 +548,6 @@ class IntegrationService(SmartFlowBase):
             },
             return_document=ReturnDocument.AFTER,
         )
-        if not updated:
-            raise AppException(status_code=404, code="INTEGRATION_NOT_FOUND", message="Integration not found.")
         return self._sanitize_integration(updated)
 
     async def start_integration_oauth(self, user_id: str, platform: str) -> dict:
@@ -530,7 +587,9 @@ class IntegrationService(SmartFlowBase):
         }
 
     async def complete_integration_oauth(self, platform: str, code: str, state: str) -> dict:
-        state_doc = await self.db.oauth_states.find_one({"state": state})
+        # Claim the state atomically (single use). Deleting only after a successful
+        # exchange left it replayable, and two concurrent callbacks could both pass.
+        state_doc = await self.db.oauth_states.find_one_and_delete({"state": state})
         expires_at = state_doc.get("expires_at") if state_doc else None
         now = utc_now()
         if expires_at is not None and expires_at.tzinfo is None:
@@ -568,11 +627,12 @@ class IntegrationService(SmartFlowBase):
                 headers={"Accept": "application/json"},
             )
         if token_response.status_code >= 400:
+            logger.warning("OAuth token exchange failed for %s: status=%s body=%s", platform, token_response.status_code, token_response.text[:300])
             raise AppException(
                 status_code=502,
                 code="OAUTH_TOKEN_EXCHANGE_FAILED",
                 message="OAuth token exchange failed.",
-                details={"platform": platform, "provider_status": token_response.status_code, "response": token_response.text[:300]},
+                details={"platform": platform, "provider_status": token_response.status_code},
             )
         token_data = token_response.json()
         access_token = token_data.get("access_token")
@@ -676,13 +736,8 @@ class IntegrationService(SmartFlowBase):
                 }
             },
         )
-        await self.db.oauth_states.delete_one({"_id": state_doc["_id"]})
         if platform == "whatsapp":
-            # One WhatsApp connection per organization: going official retires any
-            # QR gateway session.
-            organization_id = await self._resolve_organization_id(state_doc["user_id"])
-            if organization_id:
-                await self._disconnect_whatsapp_qr(organization_id)
+            await self._retire_whatsapp_qr_for_official_api(ObjectId(integration["id"]), state_doc["user_id"])
         if platform in {"google_business", "zoom", "microsoft"}:
             # sync_integration itself now checks get_calendar_provider_settings to
             # decide full pull-sync vs. meet-link-only — no connect-time flag needed.
@@ -697,8 +752,9 @@ class IntegrationService(SmartFlowBase):
             "integration": self._sanitize_integration(await self.db.social_integrations.find_one({"_id": ObjectId(integration["id"])})),
         }
 
-    async def handle_inbound_webhook(self, user_id: str, platform: str, payload: dict) -> dict:
-        payload = self.normalize_webhook_payload(platform, payload)
+    async def _record_inbound_message(self, user_id: str, platform: str, payload: dict, *, is_history_import: bool) -> dict | None:
+        """Core contact/conversation/message write shared by a single live webhook
+        delivery and a bulk history-import batch. Returns None on a duplicate event."""
         existing = await self.db.processed_webhooks.find_one(
             {
                 "platform": platform,
@@ -707,7 +763,7 @@ class IntegrationService(SmartFlowBase):
             }
         )
         if existing:
-            return {"status": "ignored", "reason": "duplicate_event"}
+            return None
         try:
             await self.db.processed_webhooks.insert_one(
                 {
@@ -719,7 +775,7 @@ class IntegrationService(SmartFlowBase):
                 }
             )
         except Exception:
-            return {"status": "ignored", "reason": "duplicate_event"}
+            return None
 
         contact = await self.db.contacts.find_one(
             {
@@ -749,8 +805,8 @@ class IntegrationService(SmartFlowBase):
         )
         if not conversation:
             conversation = {
-            "user_id": user_id,
-            "title": contact["name"],
+                "user_id": user_id,
+                "title": contact["name"],
                 "contact_id": str(contact["_id"]),
                 "type": "direct",
                 "platform": platform,
@@ -762,15 +818,18 @@ class IntegrationService(SmartFlowBase):
             insert = await self.db.conversations.insert_one(conversation)
             conversation["_id"] = insert.inserted_id
 
+        direction = payload.get("direction") if payload.get("direction") in ("inbound", "outbound") else "inbound"
         message = await self.conversation_service.create_message(
             user_id,
             {
                 "conversation_id": str(conversation["_id"]),
                 "contact_id": str(contact["_id"]),
                 "platform": platform,
-                "direction": "inbound",
+                "direction": direction,
                 "content": payload["content"],
                 "media_url": payload.get("media_url"),
+                "timestamp": payload.get("timestamp"),
+                "is_history_import": is_history_import,
                 "reply_to_message_id": None,
                 "forward_from_message_id": None,
                 "provider_event_id": payload["event_id"],
@@ -778,17 +837,52 @@ class IntegrationService(SmartFlowBase):
                 "external_account_id": payload.get("external_account_id"),
             },
         )
-        await self.create_notification(
-            user_id=user_id,
-            notification_type="message",
-            title=f"New {platform} message",
-            body=payload["content"],
-        )
+        # A history import backfills the past - notifying the owner about dozens of
+        # old messages (and self-sent ones, which were never notify-worthy at all)
+        # would just spam them. Only a live inbound message is worth a notification.
+        if not is_history_import and direction == "inbound":
+            await self.create_notification(
+                user_id=user_id,
+                notification_type="message",
+                title=f"New {platform} message",
+                body=payload["content"],
+            )
+        return message
+
+    async def handle_inbound_webhook(self, user_id: str, platform: str, payload: dict) -> dict:
+        payload = self.normalize_webhook_payload(platform, payload)
+        message = await self._record_inbound_message(user_id, platform, payload, is_history_import=False)
+        if message is None:
+            return {"status": "ignored", "reason": "duplicate_event"}
         await self.db.social_integrations.update_one(
             {"user_id": user_id, "platform": platform},
             {"$set": {"last_webhook_at": utc_now(), "webhook_status": "active", "updated_at": utc_now()}},
         )
         return {"status": "processed", "message": message}
+
+    async def handle_inbound_webhook_batch(self, user_id: str, platform: str, messages: list[dict]) -> dict:
+        """Bulk variant for a WhatsApp history-sync import: same per-message handling
+        as a live webhook, just without notifications/unread bumps and tolerant of
+        a single bad entry in an otherwise-good batch."""
+        imported = 0
+        skipped = 0
+        for raw in messages:
+            try:
+                payload = self.normalize_webhook_payload(platform, raw)
+            except AppException:
+                skipped += 1
+                continue
+            message = await self._record_inbound_message(user_id, platform, payload, is_history_import=True)
+            if message is None:
+                skipped += 1
+            else:
+                imported += 1
+        if imported:
+            await self.db.social_integrations.update_one(
+                {"user_id": user_id, "platform": platform},
+                {"$set": {"webhook_status": "active", "updated_at": utc_now()}},
+            )
+        return {"status": "processed", "imported": imported, "skipped": skipped}
 
     def normalize_webhook_payload(self, platform: str, payload: dict) -> dict:
         normalized = get_social_provider_adapter(platform).normalize_webhook(payload)
@@ -803,9 +897,24 @@ class IntegrationService(SmartFlowBase):
         )
 
     @staticmethod
+    def _secrets_match(provided: str | None, expected: str) -> bool:
+        return bool(provided) and hmac.compare_digest(str(provided).encode(), expected.encode())
+
+    @staticmethod
+    def _require_webhook_auth_configured() -> None:
+        """Webhook auth must fail closed. An empty secret used to mean "accept
+        everything", which let anyone inject messages for any tenant via ?user_id=.
+        Only local development may run without one."""
+        if settings.ENVIRONMENT.lower() != "development":
+            raise AppException(status_code=401, code="WEBHOOK_UNAUTHORIZED", message="Webhook authentication is not configured.")
+
+    @staticmethod
     def validate_webhook_secret(secret: str | None) -> None:
         configured = settings.WEBHOOK_SHARED_SECRET
-        if configured and secret != configured:
+        if not configured:
+            IntegrationService._require_webhook_auth_configured()
+            return
+        if not IntegrationService._secrets_match(secret, configured):
             raise AppException(status_code=401, code="WEBHOOK_UNAUTHORIZED", message="Webhook secret is invalid.")
 
     async def validate_platform_webhook_secret(self, user_id: str, platform: str, secret: str | None) -> None:
@@ -816,17 +925,20 @@ class IntegrationService(SmartFlowBase):
 
         integration = await self.db.social_integrations.find_one({"user_id": user_id, "platform": platform})
         expected = (integration or {}).get(secret_field)
-        # Unlike telegram (which always has a secret once connected), a whatsapp
-        # integration with no stored secret at all means it was never really
-        # connected via start_whatsapp_connect - never silently fall through to
-        # the global WEBHOOK_SHARED_SECRET for whatsapp specifically, since that
-        # would resurrect the same guessable-user_id gap this replaced.
+
         if platform == "whatsapp":
-            if not expected or secret != expected:
+            # A whatsapp integration with no stored secret was never connected through
+            # start_whatsapp_connect - never fall through to the global shared secret,
+            # that would resurrect the guessable-user_id gap.
+            if not expected or not self._secrets_match(secret, expected):
                 raise AppException(status_code=401, code="WEBHOOK_UNAUTHORIZED", message="Webhook secret is invalid.")
             return
+
         expected = expected or settings.WEBHOOK_SHARED_SECRET
-        if expected and secret != expected:
+        if not expected:
+            self._require_webhook_auth_configured()
+            return
+        if not self._secrets_match(secret, expected):
             raise AppException(status_code=401, code="WEBHOOK_UNAUTHORIZED", message="Webhook secret is invalid.")
 
     async def _real_integration_owner_id(self, integration: dict) -> str:

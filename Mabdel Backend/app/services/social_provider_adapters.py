@@ -10,6 +10,20 @@ from app.core.exceptions import AppException
 from app.utils.helpers import utc_now
 
 
+def _parse_timestamp(value: Any) -> datetime | None:
+    # The gateway sends an ISO-8601 string over JSON, not a Python datetime - this
+    # used to always fall through to utc_now(), silently discarding the real
+    # message time a history import (or a delayed live delivery) needs.
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+    return None
+
+
 @dataclass(frozen=True)
 class NormalizedSocialMessage:
     event_id: str
@@ -20,6 +34,9 @@ class NormalizedSocialMessage:
     external_account_id: str | None = None
     contact_name: str | None = None
     raw_payload: dict[str, Any] | None = None
+    # "inbound" (a contact wrote in) or "outbound" (sent from the connected account
+    # itself, e.g. directly from a linked WhatsApp phone rather than through this app).
+    direction: str = "inbound"
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -31,6 +48,7 @@ class NormalizedSocialMessage:
             "external_account_id": self.external_account_id,
             "contact_name": self.contact_name,
             "raw_payload": self.raw_payload,
+            "direction": self.direction,
         }
 
 
@@ -47,10 +65,11 @@ class SocialProviderAdapter:
                 contact_external_id=str(payload["contact_external_id"]),
                 content=str(payload["content"]),
                 media_url=payload.get("media_url"),
-                timestamp=payload.get("timestamp") if isinstance(payload.get("timestamp"), datetime) else utc_now(),
+                timestamp=_parse_timestamp(payload.get("timestamp")),
                 external_account_id=payload.get("external_account_id"),
                 contact_name=payload.get("contact_name"),
                 raw_payload=payload.get("raw_payload") or payload,
+                direction=payload.get("direction") if payload.get("direction") in ("inbound", "outbound") else "inbound",
             )
         return None
 

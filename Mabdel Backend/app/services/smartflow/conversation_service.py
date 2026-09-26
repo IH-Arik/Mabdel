@@ -346,7 +346,11 @@ class ConversationService(SmartFlowBase):
         mentions = await self._normalize_message_mentions(user_id, payload.get("mentions", []))
         content = (payload.get("content") or "").strip()
         now = utc_now()
-        unread_count = 1 if payload["direction"] == "inbound" else 0
+        # A history import backfills a real past message - it must keep its own real
+        # time (for both sorting and what the conversation preview shows), not "now".
+        message_time = payload.get("timestamp") or now
+        is_history_import = bool(payload.get("is_history_import"))
+        unread_count = 1 if (payload["direction"] == "inbound" and not is_history_import) else 0
         document = {
             "user_id": conversation.get("user_id", user_id),  # conversation owner id for scoping
             "sender_user_id": user_id,  # always the actual sender
@@ -361,8 +365,8 @@ class ConversationService(SmartFlowBase):
             "attachments": attachments,
             "mentions": mentions,
             "status": "sent",
-            "timestamp": now,
-            "delivered_at": now if payload["direction"] == "inbound" else None,
+            "timestamp": message_time,
+            "delivered_at": message_time if payload["direction"] == "inbound" else None,
             "unread_count": unread_count,
             "is_archived": False,
             "read_at": None,
@@ -377,9 +381,12 @@ class ConversationService(SmartFlowBase):
         }
         insert_result, _ = await asyncio.gather(
             self.db.messages.insert_one(document),
+            # $max, not $set: an out-of-order history-imported message (or a live
+            # message delivered late) must never drag "last activity" backward past
+            # something more recent that already landed.
             self.db.conversations.update_one(
                 {"_id": conversation["_id"]},
-                {"$set": {"updated_at": now}},
+                {"$max": {"updated_at": message_time}},
             ),
         )
         document["_id"] = insert_result.inserted_id

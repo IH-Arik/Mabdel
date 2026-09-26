@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 
 from app.core.config import settings
 from app.core.security import create_access_token, hash_password
@@ -280,6 +281,147 @@ def test_whatsapp_webhook_integration(client, mock_db, monkeypatch):
     conversation = asyncio.run(mock_db.conversations.find_one({"platform": "whatsapp"}))
     assert conversation["user_id"] == user_id
 
+    # 4. A message sent directly from the linked phone (not through Unified) must
+    # still land in the same conversation, tagged outbound, without notifying the
+    # owner about their own message.
+    notifications_before = asyncio.run(mock_db.notifications.count_documents({"user_id": user_id}))
+    self_sent_payload = {
+        "event_id": "wa-msg-124",
+        "contact_external_id": "8801711111111@s.whatsapp.net",
+        "content": "Sure, I'll call you back",
+        "external_account_id": "8801700000000",
+        "direction": "outbound",
+        "timestamp": "2026-01-01T10:00:00+00:00",
+    }
+    self_sent_response = client.post(
+        "/api/v1/smartflow/integrations/whatsapp/webhook",
+        json=self_sent_payload,
+        headers={"X-Webhook-Secret": webhook_secret},
+    )
+    assert self_sent_response.status_code == 200, self_sent_response.text
+    self_sent_data = self_sent_response.json()["data"]
+    assert self_sent_data["message"]["direction"] == "outbound"
+    assert asyncio.run(mock_db.notifications.count_documents({"user_id": user_id})) == notifications_before
+
+    stored_message = asyncio.run(mock_db.messages.find_one({"provider_event_id": "wa-msg-124"}))
+    assert stored_message["timestamp"].isoformat().startswith("2026-01-01")
+    assert stored_message["unread_count"] == 0
+
+
+def test_whatsapp_history_import_backfills_without_spamming_notifications(client, mock_db, monkeypatch):
+    from bson import ObjectId
+
+    org_id = "617a2b64-4045-4e10-921b-a305a922b579"
+    user_id = asyncio.run(_create_user(mock_db, email="whatsapp-history@example.com"))
+    asyncio.run(mock_db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"organization_id": org_id}}))
+    grant_owner_role(mock_db, "whatsapp-history@example.com")
+    headers = {"Authorization": f"Bearer {create_access_token(user_id, 'whatsapp-history@example.com')}"}
+
+    _fake_gateway(monkeypatch)
+    client.post("/api/v1/smartflow/integrations/whatsapp/connect", headers=headers)
+    client.get("/api/v1/smartflow/integrations/whatsapp/qr", headers=headers)  # flips it to "connected"
+    integration = asyncio.run(mock_db.social_integrations.find_one({"organization_id": org_id, "platform": "whatsapp"}))
+    webhook_secret = integration["whatsapp_secret_token"]
+
+    # Newest-first, mixed direction, exactly what a real history sync looks like.
+    batch = {
+        "messages": [
+            {
+                "event_id": "hist-3",
+                "contact_external_id": "8801711111111@s.whatsapp.net",
+                "content": "Yes, tomorrow works",
+                "external_account_id": "8801700000000",
+                "direction": "outbound",
+                "timestamp": "2025-06-03T09:00:00+00:00",
+            },
+            {
+                "event_id": "hist-2",
+                "contact_external_id": "8801711111111@s.whatsapp.net",
+                "content": "Can we reschedule?",
+                "external_account_id": "8801700000000",
+                "direction": "inbound",
+                "timestamp": "2025-06-02T09:00:00+00:00",
+            },
+            {
+                "event_id": "hist-1",
+                "contact_external_id": "8801711111111@s.whatsapp.net",
+                "content": "Hi, following up on the quote",
+                "external_account_id": "8801700000000",
+                "direction": "inbound",
+                "timestamp": "2025-06-01T09:00:00+00:00",
+            },
+        ]
+    }
+    response = client.post(
+        "/api/v1/smartflow/integrations/whatsapp/webhook/history",
+        json=batch,
+        headers={"X-Webhook-Secret": webhook_secret},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"] == {"status": "processed", "imported": 3, "skipped": 0}
+
+    messages = asyncio.run(mock_db.messages.find({"platform": "whatsapp"}).sort("timestamp", 1).to_list(None))
+    assert [m["provider_event_id"] for m in messages] == ["hist-1", "hist-2", "hist-3"]
+    assert all(m["unread_count"] == 0 for m in messages)
+    assert asyncio.run(mock_db.notifications.count_documents({"user_id": user_id})) == 0
+
+    def _naive(value):
+        return value.replace(tzinfo=None) if value.tzinfo else value
+
+    # The conversation was created just now (utc_now(), by the first history write) -
+    # $max must not drag it back to an older history timestamp.
+    conversation = asyncio.run(mock_db.conversations.find_one({"platform": "whatsapp"}))
+    assert _naive(conversation["updated_at"]) > _naive(datetime(2025, 6, 3))
+
+    # A live message arriving after the import must correctly become the newest
+    # activity - $max must not get stuck at whatever was written first.
+    live_response = client.post(
+        "/api/v1/smartflow/integrations/whatsapp/webhook",
+        json={
+            "event_id": "live-after-history",
+            "contact_external_id": "8801711111111@s.whatsapp.net",
+            "content": "Are you there?",
+            "external_account_id": "8801700000000",
+        },
+        headers={"X-Webhook-Secret": webhook_secret},
+    )
+    assert live_response.status_code == 200
+    conversation = asyncio.run(mock_db.conversations.find_one({"platform": "whatsapp"}))
+    live_message = asyncio.run(mock_db.messages.find_one({"provider_event_id": "live-after-history"}))
+    assert _naive(conversation["updated_at"]) == _naive(live_message["timestamp"])
+
+    # Redelivering the same batch (Baileys can emit history in more than one pass)
+    # must import nothing new - the per-tenant processed_webhooks index dedupes it.
+    replay = client.post(
+        "/api/v1/smartflow/integrations/whatsapp/webhook/history",
+        json=batch,
+        headers={"X-Webhook-Secret": webhook_secret},
+    )
+    assert replay.status_code == 200
+    assert replay.json()["data"] == {"status": "processed", "imported": 0, "skipped": 3}
+    assert asyncio.run(mock_db.messages.count_documents({"platform": "whatsapp"})) == 4  # 3 history + 1 live
+
+
+def test_whatsapp_history_import_rejects_wrong_secret(client, mock_db, monkeypatch):
+    from bson import ObjectId
+
+    org_id = "617a2b64-4045-4e10-921b-a305a922b579"
+    user_id = asyncio.run(_create_user(mock_db, email="whatsapp-history-bad@example.com"))
+    asyncio.run(mock_db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"organization_id": org_id}}))
+    grant_owner_role(mock_db, "whatsapp-history-bad@example.com")
+    headers = {"Authorization": f"Bearer {create_access_token(user_id, 'whatsapp-history-bad@example.com')}"}
+
+    _fake_gateway(monkeypatch)
+    client.post("/api/v1/smartflow/integrations/whatsapp/connect", headers=headers)
+
+    response = client.post(
+        "/api/v1/smartflow/integrations/whatsapp/webhook/history",
+        json={"messages": [{"event_id": "x", "contact_external_id": "1", "content": "spoof", "external_account_id": "8801700000000"}]},
+        headers={"X-Webhook-Secret": "totally-wrong"},
+    )
+    assert response.status_code in (400, 401)
+    assert asyncio.run(mock_db.messages.count_documents({})) == 0
+
 
 def _meta_signed_whatsapp_request(client, body: dict, secret: str):
     import hashlib
@@ -469,3 +611,42 @@ def test_whatsapp_webhook_rejects_wrong_secret(client, mock_db, monkeypatch):
     )
     assert response.status_code in (400, 401)
 
+
+
+def test_processed_webhooks_index_allows_same_event_id_for_different_tenants(mock_db):
+    """Two organizations can legitimately receive the same provider event id (a Telegram
+    message_id is a small per-chat integer). The dedupe index must be per-tenant or the
+    second tenant's message is silently dropped as a 'duplicate'."""
+    from types import SimpleNamespace
+
+    import pymongo.errors
+
+    from app.core.database import MongoConnectionManager
+
+    asyncio.run(MongoConnectionManager.ensure_indexes(SimpleNamespace(database=mock_db)))
+
+    asyncio.run(mock_db.processed_webhooks.insert_one({"platform": "telegram", "event_id": "77", "user_id": "tenant-a"}))
+    asyncio.run(mock_db.processed_webhooks.insert_one({"platform": "telegram", "event_id": "77", "user_id": "tenant-b"}))
+
+    try:
+        asyncio.run(mock_db.processed_webhooks.insert_one({"platform": "telegram", "event_id": "77", "user_id": "tenant-a"}))
+    except pymongo.errors.DuplicateKeyError:
+        pass
+    else:
+        raise AssertionError("the same tenant must still be deduplicated")
+
+
+def test_webhooks_fail_closed_in_production_when_no_secret_is_configured(client, mock_db, monkeypatch):
+    """An empty WEBHOOK_SHARED_SECRET / META_CLIENT_SECRET used to mean 'accept anything',
+    so a bare ?user_id=<victim> injected messages into any tenant."""
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "WEBHOOK_SHARED_SECRET", None)
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
+    user_id = asyncio.run(_create_user(mock_db, email="failclosed@example.com"))
+    payload = {"event_id": "evt-x", "contact_external_id": "abc", "content": "spoof"}
+
+    for platform in ("snapchat", "telegram", "instagram"):
+        response = client.post(f"/api/v1/smartflow/integrations/{platform}/webhook?user_id={user_id}", json=payload)
+        assert response.status_code == 401, (platform, response.text)
+
+    assert asyncio.run(mock_db.processed_webhooks.count_documents({})) == 0
