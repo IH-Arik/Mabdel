@@ -3,7 +3,7 @@ from __future__ import annotations
 import hmac
 import logging
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 from bson import ObjectId
@@ -783,6 +783,43 @@ class IntegrationService(SmartFlowBase):
             "integration": self._sanitize_integration(await self.db.social_integrations.find_one({"_id": ObjectId(integration["id"])})),
         }
 
+    @staticmethod
+    def _canonical_contact_external_id(platform: str, external_id: str) -> str:
+        """WhatsApp addresses the same person as ``8801...@s.whatsapp.net`` (QR gateway,
+        sometimes with a ``:device`` suffix) and as bare ``8801...`` (official Cloud API).
+        Store the bare number so both connections land on one contact; a privacy
+        ``@lid`` id has no number in it and is kept as is."""
+        value = str(external_id or "").strip()
+        if platform == "whatsapp":
+            local, _, domain = value.partition("@")
+            if domain in ("s.whatsapp.net", "c.us"):
+                return local.split(":")[0]
+        return value
+
+    @staticmethod
+    def _contact_external_id_variants(platform: str, external_id: str) -> list[str]:
+        if platform == "whatsapp" and external_id.isdigit():
+            return [external_id, f"{external_id}@s.whatsapp.net"]
+        return [external_id]
+
+    def _contact_phone_from_external_id(self, platform: str, external_id: str) -> str | None:
+        if platform == "whatsapp" and external_id.isdigit():
+            return f"+{external_id}"
+        if platform == "sms":
+            return self._normalize_phone_value(external_id) or None
+        return None
+
+    @staticmethod
+    def _parse_payload_time(value):
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str) and value:
+            try:
+                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        return utc_now()
+
     async def _record_inbound_message(self, user_id: str, platform: str, payload: dict, *, is_history_import: bool) -> dict | None:
         """Core contact/conversation/message write shared by a single live webhook
         delivery and a bulk history-import batch. Returns None on a duplicate event."""
@@ -795,6 +832,10 @@ class IntegrationService(SmartFlowBase):
         )
         if existing:
             return None
+        if payload.get("direction") == "outbound" and await self.db.messages.find_one(
+            {"platform": platform, "provider_message_id": payload["event_id"]}, {"_id": 1}
+        ):
+            return None  # the echo of a reply we sent from GoCustify ourselves
         try:
             await self.db.processed_webhooks.insert_one(
                 {
@@ -808,48 +849,75 @@ class IntegrationService(SmartFlowBase):
         except Exception:
             return None
 
+        external_id = self._canonical_contact_external_id(platform, payload["contact_external_id"])
+        placeholder_name = f"{self._platform_label(platform)} Contact"
+        direction = payload.get("direction") if payload.get("direction") in ("inbound", "outbound") else "inbound"
+        # A message we sent carries our own profile name, never the customer's.
+        offered_name = payload.get("contact_name") if direction == "inbound" else None
+        if offered_name == placeholder_name:
+            offered_name = None
+        phone = self._contact_phone_from_external_id(platform, external_id)
+
         contact = await self.db.contacts.find_one(
             {
                 "user_id": user_id,
                 "identities": {
-                    "$elemMatch": {"platform": platform, "external_id": payload["contact_external_id"]},
+                    "$elemMatch": {"platform": platform, "external_id": {"$in": self._contact_external_id_variants(platform, external_id)}},
                 },
             }
         )
         if not contact:
             contact = {
                 "user_id": user_id,
-                "name": payload.get("contact_name") or f"{self._platform_label(platform)} Contact",
+                "name": offered_name or placeholder_name,
                 "email": None,
-                "phone": None,
+                "phone": phone,
                 "avatar_url": None,
-                "identities": [{"platform": platform, "external_id": payload["contact_external_id"], "handle": None}],
+                "identities": [{"platform": platform, "external_id": external_id, "handle": None}],
                 "presence": "offline",
                 "created_at": utc_now(),
                 "updated_at": utc_now(),
             }
             insert = await self.db.contacts.insert_one(contact)
             contact["_id"] = insert.inserted_id
+        else:
+            fixes: dict = {}
+            if offered_name and contact.get("name") in (None, "", placeholder_name):
+                fixes["name"] = offered_name
+            if phone and not contact.get("phone"):
+                fixes["phone"] = phone
+            if fixes:
+                fixes["updated_at"] = utc_now()
+                await self.db.contacts.update_one({"_id": contact["_id"]}, {"$set": fixes})
+                if "name" in fixes:
+                    await self.db.conversations.update_many(
+                        {"contact_id": str(contact["_id"]), "title": {"$in": [None, "", placeholder_name]}},
+                        {"$set": {"title": fixes["name"]}},
+                    )
+                contact.update(fixes)
 
+        message_time = self._parse_payload_time(payload.get("timestamp"))
         conversation = await self.db.conversations.find_one(
             {"user_id": user_id, "contact_id": str(contact["_id"]), "platform": platform}
         )
         if not conversation:
             conversation = {
                 "user_id": user_id,
+                "organization_id": await self._resolve_organization_id(user_id),
                 "title": contact["name"],
                 "contact_id": str(contact["_id"]),
                 "type": "direct",
                 "platform": platform,
                 "member_ids": [user_id],
+                "assigned_to": None,
                 "archived": False,
                 "created_at": utc_now(),
                 "updated_at": utc_now(),
+                "last_message_at": message_time,
             }
             insert = await self.db.conversations.insert_one(conversation)
             conversation["_id"] = insert.inserted_id
 
-        direction = payload.get("direction") if payload.get("direction") in ("inbound", "outbound") else "inbound"
         message = await self.conversation_service.create_message(
             user_id,
             {
@@ -873,7 +941,7 @@ class IntegrationService(SmartFlowBase):
         # would just spam them. Only a live inbound message is worth a notification.
         if not is_history_import and direction == "inbound":
             await self.create_notification(
-                user_id=user_id,
+                user_id=conversation.get("assigned_to") or user_id,
                 notification_type="message",
                 title=f"New {platform} message",
                 body=payload["content"],
@@ -955,7 +1023,52 @@ class IntegrationService(SmartFlowBase):
         except Exception:
             logger.warning("Messenger contact name lookup failed for %s", psid, exc_info=True)
 
+    async def apply_whatsapp_contact_names(self, user_id: str, contacts: list[dict]) -> dict:
+        """Names (address book / profile) and phone numbers the linked phone knows, for
+        people we already have a thread with. Only fills a placeholder name or a missing
+        number - never creates contacts for the whole address book, never overwrites a
+        name someone typed in."""
+        placeholder = f"{self._platform_label('whatsapp')} Contact"
+        updated = 0
+        for item in contacts[:1000]:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name") or "").strip()[:120]
+            number = self._canonical_contact_external_id("whatsapp", str(item.get("phone_jid") or ""))
+            number = number if number.isdigit() else ""
+            lid = str(item.get("lid") or "").strip()
+            ids = (self._contact_external_id_variants("whatsapp", number) if number else []) + ([lid] if lid else [])
+            if not ids:
+                continue
+            contact = await self.db.contacts.find_one(
+                {"user_id": user_id, "identities": {"$elemMatch": {"platform": "whatsapp", "external_id": {"$in": ids}}}}
+            )
+            if not contact:
+                continue
+            update: dict = {}
+            if name and contact.get("name") in (None, "", placeholder):
+                update.setdefault("$set", {})["name"] = name
+            if number and not contact.get("phone"):
+                update.setdefault("$set", {})["phone"] = f"+{number}"
+            known = {identity.get("external_id") for identity in contact.get("identities") or []}
+            if number and number not in known:
+                # Bridge a @lid-only contact to its number, so a later message addressed
+                # either way lands in the same thread.
+                update["$addToSet"] = {"identities": {"platform": "whatsapp", "external_id": number, "handle": None}}
+            if not update:
+                continue
+            update.setdefault("$set", {})["updated_at"] = utc_now()
+            await self.db.contacts.update_one({"_id": contact["_id"]}, update)
+            if "name" in update.get("$set", {}):
+                await self.db.conversations.update_many(
+                    {"contact_id": str(contact["_id"]), "title": {"$in": [None, "", placeholder]}},
+                    {"$set": {"title": name}},
+                )
+            updated += 1
+        return {"status": "processed", "updated": updated}
+
     _HISTORY_CONNECTED_CHECK_EVERY = 25
+    _HISTORY_REFRESH_LIMIT = 50
 
     async def handle_inbound_webhook_batch(self, user_id: str, platform: str, messages: list[dict]) -> dict:
         """Bulk variant for a WhatsApp history-sync import: same per-message handling
@@ -963,6 +1076,7 @@ class IntegrationService(SmartFlowBase):
         a single bad entry in an otherwise-good batch."""
         imported = 0
         skipped = 0
+        touched_conversation_ids: set[str] = set()
         for index, raw in enumerate(messages):
             # A history batch can take minutes to store; a disconnect mid-import must
             # stop it, not keep filling the inbox the user just cut off.
@@ -981,6 +1095,12 @@ class IntegrationService(SmartFlowBase):
                 skipped += 1
             else:
                 imported += 1
+                touched_conversation_ids.add(message.get("conversation_id"))
+        for conversation_id in list(touched_conversation_ids)[: self._HISTORY_REFRESH_LIMIT]:
+            if conversation_id and ObjectId.is_valid(conversation_id):
+                conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id)})
+                if conversation:
+                    await self.conversation_service._publish_to_conversation_audience(conversation)
         if imported:
             await self.db.social_integrations.update_one(
                 {"user_id": user_id, "platform": platform},

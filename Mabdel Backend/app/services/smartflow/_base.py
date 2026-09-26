@@ -309,6 +309,46 @@ class SmartFlowBase:
             raise AppException(status_code=404, code="USER_NOT_FOUND", message="Requested resource was not found.")
         return user
 
+    # Channels that talk to people outside the business. Their threads belong to the
+    # organization's shared inbox, not to whoever happened to connect the channel.
+    CUSTOMER_PLATFORMS = frozenset(
+        {"whatsapp", "facebook_messenger", "instagram", "telegram", "email", "sms",
+         "google_business", "linkedin", "twitter_x", "snapchat", "threads"}
+    )
+
+    @classmethod
+    def _is_customer_conversation(cls, conversation: dict) -> bool:
+        return (
+            conversation.get("platform") in cls.CUSTOMER_PLATFORMS
+            and bool(conversation.get("contact_id"))
+            and not conversation.get("is_global_chat")
+            and conversation.get("type", "direct") == "direct"
+        )
+
+    @classmethod
+    def _org_customer_inbox_filter(cls, organization_id: str) -> dict:
+        return {
+            "organization_id": organization_id,
+            "platform": {"$in": sorted(cls.CUSTOMER_PLATFORMS)},
+            "contact_id": {"$nin": [None, ""]},
+            "is_global_chat": {"$ne": True},
+            "type": {"$in": ["direct", None]},
+        }
+
+    async def _conversation_organization_id(self, conversation: dict) -> str | None:
+        """Stamped on every customer thread since the shared inbox; older threads fall
+        back to their owner's organization."""
+        return conversation.get("organization_id") or await self._resolve_organization_id(str(conversation.get("user_id") or ""))
+
+    async def _customer_inbox_audience(self, conversation: dict) -> list[str]:
+        """Everyone who should see a customer thread change live: the whole org."""
+        organization_id = await self._conversation_organization_id(conversation)
+        ids = {str(conversation.get("user_id") or "")}
+        if organization_id:
+            async for user in self.db.users.find({"organization_id": organization_id}, {"_id": 1}):
+                ids.add(str(user["_id"]))
+        return [user_id for user_id in ids if user_id]
+
     @staticmethod
     def _user_has_global_chat_access(user: dict | None) -> bool:
         if not user:
@@ -340,7 +380,16 @@ class SmartFlowBase:
                 raise AppException(status_code=403, code="GLOBAL_CHAT_ACCESS_DENIED", message="You do not have access to this global chat.")
             return conversation
 
-        # Path 3: non-global conversation member (teammate inbox)
+        # Path 3: a customer thread (WhatsApp/Meta/email/SMS...) is shared by the whole
+        # organization - the route has already required messages:view.
+        conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id)})
+        if conversation and self._is_customer_conversation(conversation):
+            conversation_org = await self._conversation_organization_id(conversation)
+            user = await self._get_user_document(user_id)
+            if conversation_org and user.get("organization_id") == conversation_org:
+                return conversation
+
+        # Path 4: non-global conversation member (teammate inbox)
         conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "member_ids": user_id})
         if conversation:
             # Team conversations created after the cross-organization messaging fix
@@ -832,6 +881,12 @@ class SmartFlowBase:
         )
         safe["last_message_preview"] = latest_message["content"] if latest_message else None
         safe["last_message_sender_name"] = latest_sender_name
+        safe["last_message_direction"] = (latest_message or {}).get("direction")
+        safe["last_message_status"] = (latest_message or {}).get("status")
+        safe["last_message_delivery_error"] = (latest_message or {}).get("delivery_error")
+        safe["last_message_at"] = safe.get("last_message_at") or (latest_message or {}).get("timestamp") or safe.get("updated_at")
+        safe["assigned_to"] = safe.get("assigned_to")
+        safe["is_customer_conversation"] = self._is_customer_conversation(conversation)
         safe["unread_count"] = unread_total
         safe["has_unread"] = safe["unread_count"] > 0
         safe["is_ai_assistant"] = safe.get("type") == "ai"
@@ -1022,7 +1077,10 @@ class SmartFlowBase:
         contacts_by_key: dict[str, dict] = {}
         if contact_ids:
             oids = [ObjectId(cid) for cid in contact_ids]
-            async for contact in self.db.contacts.find({"_id": {"$in": oids}, "user_id": owner_user_id}):
+            # By id only: these ids come from conversations the viewer can already open,
+            # and a shared-inbox thread's contact belongs to whoever connected the
+            # channel, not to the teammate viewing it.
+            async for contact in self.db.contacts.find({"_id": {"$in": oids}}):
                 contacts_by_key[str(contact["_id"])] = contact
 
         if titles_needed:
@@ -1119,20 +1177,10 @@ class SmartFlowBase:
 
     async def _publish_inbox_update(self, user_id: str, conversation_id: str, conversation: dict | None = None) -> None:
         if conversation is None:
-            if not ObjectId.is_valid(conversation_id):
+            try:
+                conversation = await self._get_accessible_conversation(user_id, conversation_id)
+            except AppException:
                 return
-            # Path 1: owner
-            conversation = await self.db.conversations.find_one({"_id": ObjectId(conversation_id), "user_id": user_id})
-            if not conversation:
-                # Path 2: global chat member
-                conversation = await self.db.conversations.find_one(
-                    {"_id": ObjectId(conversation_id), "is_global_chat": True, "member_ids": user_id}
-                )
-            if not conversation:
-                # Path 3: non-global member (teammate inbox)
-                conversation = await self.db.conversations.find_one(
-                    {"_id": ObjectId(conversation_id), "member_ids": user_id}
-                )
         if not conversation:
             return
         serialized, summary = await asyncio.gather(
@@ -1230,8 +1278,8 @@ class SmartFlowBase:
             if precomputed_contacts_by_key is not None:
                 contact = precomputed_contacts_by_key.get(contact_id)
             else:
-                contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
-            if contact:
+                contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id)})
+            if contact and latest_message.get("direction") != "outbound":
                 return contact.get("name")
         if latest_message.get("direction") == "outbound":
             return "You"
@@ -1436,10 +1484,24 @@ class SmartFlowBase:
                     }
             return {"name": "Member", "avatar_url": None, "presence": "offline", "is_self": False}
         if message.get("direction") == "outbound":
+            # A customer thread is shared by the team: our side is always "self", but
+            # say which teammate wrote it when it wasn't the viewer. Messages sent
+            # straight from the linked phone/mailbox arrive through a webhook.
+            if message.get("provider_event_id") and message.get("contact_id"):
+                return {"name": "Sent outside GoCustify", "avatar_url": None, "presence": "online", "is_self": True}
+            if sender_user_id and sender_user_id != user_id and ObjectId.is_valid(sender_user_id):
+                sender = await self.db.users.find_one({"_id": ObjectId(sender_user_id)}, {"full_name": 1, "email": 1, "avatar_url": 1})
+                if sender:
+                    return {
+                        "name": sender.get("full_name") or sender.get("email") or "Member",
+                        "avatar_url": sender.get("avatar_url"),
+                        "presence": "online",
+                        "is_self": True,
+                    }
             return {"name": "You", "avatar_url": None, "presence": "online", "is_self": True}
         contact_id = message.get("contact_id")
         if contact_id and ObjectId.is_valid(contact_id):
-            contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
+            contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id)})
             if contact:
                 return {
                     "name": contact.get("name"),

@@ -270,14 +270,17 @@ class InboundEmailService:
         now = utc_now()
         conversation = {
             "user_id": owner_id,
+            "organization_id": await self.smartflow._resolve_organization_id(owner_id),
             "title": contact.get("name") or from_email,
             "contact_id": str(contact["_id"]),
             "type": "direct",
             "platform": "email",
             "member_ids": [owner_id],
+            "assigned_to": None,
             "archived": False,
             "created_at": now,
             "updated_at": now,
+            "last_message_at": now,
         }
         insert = await self.db.conversations.insert_one(conversation)
         conversation["_id"] = insert.inserted_id

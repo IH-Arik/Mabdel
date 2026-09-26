@@ -157,10 +157,19 @@ class SmartFlowService(SmartFlowBase):
     async def get_conversation(self, user_id, conversation_id):
         return await self.conversation_service.get_conversation(user_id, conversation_id)
 
-    async def list_conversations(self, user_id, page, page_size, search, platform, platforms, archived, unread_only=False, type_filter=None):
+    async def list_conversations(self, user_id, page, page_size, search, platform, platforms, archived, unread_only=False, type_filter=None, assignee=None):
         return await self.conversation_service.list_conversations(
-            user_id, page, page_size, search, platform, platforms, archived, unread_only=unread_only, type_filter=type_filter
+            user_id, page, page_size, search, platform, platforms, archived, unread_only=unread_only, type_filter=type_filter, assignee=assignee
         )
+
+    async def assign_conversation(self, user_id, conversation_id, assignee_id):
+        return await self.conversation_service.assign_conversation(user_id, conversation_id, assignee_id)
+
+    async def list_assignable_members(self, user_id):
+        return await self.conversation_service.list_assignable_members(user_id)
+
+    async def get_conversation_contact_details(self, user_id, conversation_id):
+        return await self.conversation_service.get_conversation_contact_details(user_id, conversation_id)
 
     async def archive_conversation(self, user_id, conversation_id, archived):
         return await self.conversation_service.archive_conversation(user_id, conversation_id, archived)
@@ -652,6 +661,9 @@ class SmartFlowService(SmartFlowBase):
 
     async def handle_inbound_webhook_batch(self, user_id, platform, messages):
         return await self.integration_service.handle_inbound_webhook_batch(user_id, platform, messages)
+
+    async def apply_whatsapp_contact_names(self, user_id, contacts):
+        return await self.integration_service.apply_whatsapp_contact_names(user_id, contacts)
 
     def normalize_webhook_payload(self, platform, payload):
         return self.integration_service.normalize_webhook_payload(platform, payload)
