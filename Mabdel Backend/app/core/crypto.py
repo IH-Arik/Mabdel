@@ -9,11 +9,15 @@ from app.core.config import settings
 from app.core.exceptions import AppException
 
 
-def _build_fernet() -> Fernet:
-    secret = settings.OAUTH_TOKEN_ENCRYPTION_KEY or settings.SECRET_KEY
+def fernet_for_secret(secret: str) -> Fernet:
+    """The Fernet for an arbitrary secret string, derived exactly like the app's own key.
+    Exposed so a key rotation can read with the old secret and write with the new one."""
     digest = hashlib.sha256(secret.encode("utf-8")).digest()
-    key = base64.urlsafe_b64encode(digest)
-    return Fernet(key)
+    return Fernet(base64.urlsafe_b64encode(digest))
+
+
+def _build_fernet() -> Fernet:
+    return fernet_for_secret(settings.OAUTH_TOKEN_ENCRYPTION_KEY or settings.SECRET_KEY)
 
 
 _fernet = _build_fernet()
