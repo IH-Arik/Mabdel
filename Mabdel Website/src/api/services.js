@@ -272,6 +272,9 @@ export const smartflowApi = {
   createConversation: (data) => client.post('/api/v1/smartflow/conversations', data),
   archiveConversation: (id, archived = true) => client.patch(`/api/v1/smartflow/conversations/${id}/archive`, null, { params: { archived } }),
   markConversationRead: (id) => client.post(`/api/v1/smartflow/conversations/${id}/mark-read`),
+  assignConversation: (id, assigneeId) => client.patch(`/api/v1/smartflow/conversations/${id}/assign`, { assignee_id: assigneeId }),
+  getConversationAssignees: () => client.get('/api/v1/smartflow/conversations/assignees'),
+  getConversationContact: (id) => client.get(`/api/v1/smartflow/conversations/${id}/contact`),
   getMessages: (id, params) => client.get(`/api/v1/smartflow/conversations/${id}/messages`, { params }),
   uploadConversationAttachment: (id, formData) => client.post(`/api/v1/smartflow/conversations/${id}/attachments`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

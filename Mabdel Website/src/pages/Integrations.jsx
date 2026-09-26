@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { AlertCircle, CheckCircle2, ChevronLeft, HelpCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronLeft, HelpCircle, Inbox, Loader2, MessageSquareText } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import {
   SiMessenger,
@@ -17,6 +18,7 @@ import BusinessEmailDomain from '../components/BusinessEmailDomain';
 import ModalShell from '../components/ModalShell';
 import { useLanguage } from '../context/LanguageContext';
 import { isTrustedOAuthMessage } from '../utils/oauthMessages';
+import { formatCstDateTime } from '../utils/dateUtils';
 
 // Only platforms the backend can actually connect. YouTube, TikTok and Pinterest were
 // listed here before but have no backend provider, so they could never appear.
@@ -31,6 +33,12 @@ const PLATFORM_META = {
   google_business: { Icon: SiGoogle, bg: '#4285F4', label: 'Google Business', descKey: 'integ_desc_google' },
   threads: { Icon: SiThreads, bg: '#101010', label: 'Threads', descKey: 'integ_desc_threads' },
 };
+
+// Channels whose messages land in Unified Conversation; the rest are other kinds of
+// integrations (calendar/business profile, social posting).
+const MESSAGING_PLATFORMS = ['whatsapp', 'facebook_messenger', 'instagram', 'telegram'];
+
+const inboxLink = (platform) => `/unified-conversation?channel=${platform}`;
 
 const INPUT =
   'w-full px-4 py-3 bg-[#0C0E12] border border-[#1E2530] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-[15px] placeholder:text-[#70829B]';
@@ -334,6 +342,59 @@ function TelegramModal({ onClose, onSuccess }) {
   );
 }
 
+function SmsNumberCard() {
+  const { t } = useLanguage();
+  const [state, setState] = useState({ loading: true, number: null });
+
+  useEffect(() => {
+    let active = true;
+    smartflowApi
+      .getTelnyxStatus()
+      .then((response) => {
+        const data = response.data?.data || {};
+        const number = data.telnyx_mode === 'custom' ? data.telnyx_custom_phone_number : data.telnyx_phone_number;
+        if (active) setState({ loading: false, number: number || null });
+      })
+      .catch(() => active && setState({ loading: false, number: null }));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <div className="bg-[#111318] border border-[#1E2530] rounded-2xl px-3.5 py-3.5 flex flex-row items-center gap-3 text-start">
+      <div className="w-[52px] h-[52px] rounded-xl flex items-center justify-center shrink-0 border-[1.5px]" style={{ backgroundColor: '#3B82F6', borderColor: '#333' }}>
+        <MessageSquareText size={26} color="#fff" aria-hidden="true" />
+      </div>
+      <div className="flex-1 flex flex-col justify-center min-w-0">
+        <h3 className="font-bold text-[#F0F6FF] text-[16px] truncate">{t('integ_sms_title')}</h3>
+        <p className="text-[13px] text-[#6B7A90] leading-[18px] line-clamp-2">{t('integ_sms_desc')}</p>
+        {state.number ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+            <span className="text-[#9BA7BB]">{t('integ_sms_number', { number: state.number })}</span>
+            <Link to={inboxLink('sms')} className="inline-flex items-center gap-1 font-semibold text-[#c084fc] hover:underline">
+              <Inbox size={12} aria-hidden="true" />
+              {t('integ_open_in_unified')}
+            </Link>
+          </div>
+        ) : null}
+      </div>
+      {state.loading ? (
+        <Loader2 size={18} className="animate-spin text-[#9BA7BB] shrink-0" aria-hidden="true" />
+      ) : state.number ? (
+        <span className="flex items-center gap-1.5 bg-[#0D2318] border border-[#1a4a2e] px-3 py-2 rounded-full shrink-0">
+          <CheckCircle2 size={16} className="text-[#4DCE63]" aria-hidden="true" />
+          <span className="text-[#4DCE63] text-[13px] font-semibold">{t('integ_status_connected')}</span>
+        </span>
+      ) : (
+        <Link to="/profile" className="px-4 py-2 rounded-full bg-[#c084fc] text-[#03141E] hover:bg-[#7e22ce] text-[14px] font-bold shrink-0">
+          {t('integ_sms_setup')}
+        </Link>
+      )}
+    </div>
+  );
+}
+
 function PlatformCard({ item, onConnect, onDisconnect }) {
   const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
@@ -383,6 +444,24 @@ function PlatformCard({ item, onConnect, onDisconnect }) {
         <p className="text-[13px] text-[#6B7A90] leading-[18px] line-clamp-2">{desc}</p>
         {item.external_account_name ? (
           <p className="text-[12px] text-[#9BA7BB] truncate mt-1">{item.external_account_name}</p>
+        ) : null}
+        {item.connected && MESSAGING_PLATFORMS.includes(item.platform) ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+            {item.connection_mode ? (
+              <span className="rounded-full bg-[#1E2530] px-2 py-0.5 font-semibold text-[#C8D2E0]">
+                {item.connection_mode === 'official' ? t('integ_mode_official') : t('integ_mode_qr')}
+              </span>
+            ) : null}
+            <span className="text-[#9BA7BB]">
+              {item.last_webhook_at
+                ? t('integ_last_message', { time: formatCstDateTime(item.last_webhook_at) })
+                : t('integ_no_messages_yet')}
+            </span>
+            <Link to={inboxLink(item.platform)} className="inline-flex items-center gap-1 font-semibold text-[#c084fc] hover:underline">
+              <Inbox size={12} aria-hidden="true" />
+              {t('integ_open_in_unified')}
+            </Link>
+          </div>
         ) : null}
       </div>
 
@@ -575,8 +654,13 @@ export default function Integrations() {
 
       <div className="flex-1 pb-10">
         <div className="flex flex-col gap-3">
+          <div className="pt-1">
+            <h2 className="text-[#F3F9FF] text-[16px] font-bold">{t('integ_section_messaging')}</h2>
+            <p className="text-[13px] text-[#6B7A90]">{t('integ_section_messaging_desc')}</p>
+          </div>
           {/* Always mounted, so a catalog failure or refresh never hides or resets it. */}
           <BusinessEmailDomain />
+          <SmsNumberCard />
 
           {loading ? (
             <div role="status" className="flex flex-col items-center justify-center h-48 gap-3.5">
@@ -598,9 +682,21 @@ export default function Integrations() {
           ) : items.length === 0 ? (
             <p className="text-center text-[#9BA7BB] text-[15px] py-10">{t('integ_empty')}</p>
           ) : (
-            items.map((item) => (
-              <PlatformCard key={item.platform} item={item} onConnect={handleConnect} onDisconnect={handleDisconnect} />
-            ))
+            <>
+              {items
+                .filter((item) => MESSAGING_PLATFORMS.includes(item.platform))
+                .map((item) => (
+                  <PlatformCard key={item.platform} item={item} onConnect={handleConnect} onDisconnect={handleDisconnect} />
+                ))}
+              <div className="pt-4">
+                <h2 className="text-[#F3F9FF] text-[16px] font-bold">{t('integ_section_other')}</h2>
+              </div>
+              {items
+                .filter((item) => !MESSAGING_PLATFORMS.includes(item.platform))
+                .map((item) => (
+                  <PlatformCard key={item.platform} item={item} onConnect={handleConnect} onDisconnect={handleDisconnect} />
+                ))}
+            </>
           )}
         </div>
       </div>

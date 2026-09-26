@@ -2096,6 +2096,9 @@ class SmartFlowBase:
         safe = self._sanitize_integration(document)
         meta = metadata or self._integration_metadata(safe.get("platform"))
         connected = safe.get("status") == "connected"
+        if safe.get("platform") == "whatsapp" and connected:
+            # Read before sanitizing hides the credentials: a token means the official API.
+            safe["connection_mode"] = "official" if document.get("access_token_encrypted") else "qr"
         adapter = get_social_provider_adapter(safe.get("platform") or "")
         safe["connected"] = connected
         safe["platform_label"] = meta["platform_label"]
