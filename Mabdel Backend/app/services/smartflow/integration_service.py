@@ -927,7 +927,7 @@ class IntegrationService(SmartFlowBase):
                 "direction": direction,
                 "content": payload["content"],
                 "media_url": payload.get("media_url"),
-                "timestamp": payload.get("timestamp"),
+                "timestamp": message_time,
                 "is_history_import": is_history_import,
                 "reply_to_message_id": None,
                 "forward_from_message_id": None,
@@ -1022,6 +1022,83 @@ class IntegrationService(SmartFlowBase):
             )
         except Exception:
             logger.warning("Messenger contact name lookup failed for %s", psid, exc_info=True)
+
+    async def _organization_owner_for_number(self, phone_number: str) -> str | None:
+        """The business that owns a Telnyx number (each business has its own), as the
+        user its inbox threads are filed under."""
+        number = self._normalize_phone_value(phone_number)
+        if not number:
+            return None
+        org = await self.db.organizations.find_one(
+            {"$or": [{"telnyx_phone_number": number}, {"telnyx_custom_phone_number": number}]}, {"organization_id": 1}
+        )
+        if not org or not org.get("organization_id"):
+            return None
+        owner = await self.db.users.find_one(
+            {"organization_id": org["organization_id"], "$or": [{"role": "owner"}, {"primary_role": "owner"}]}, {"_id": 1}
+        ) or await self.db.users.find_one({"organization_id": org["organization_id"]}, {"_id": 1})
+        return str(owner["_id"]) if owner else None
+
+    async def handle_telnyx_sms_event(self, event: dict) -> dict:
+        """Telnyx messaging webhook: an inbound SMS lands in the business's Unified inbox;
+        a delivery receipt updates the status of a reply we sent."""
+        data = event.get("data") if isinstance(event.get("data"), dict) else {}
+        event_type = str(data.get("event_type") or "")
+        payload = data.get("payload") if isinstance(data.get("payload"), dict) else {}
+
+        if event_type == "message.received":
+            sender = self._normalize_phone_value(((payload.get("from") or {}).get("phone_number")) or "")
+            recipients = [item.get("phone_number") for item in payload.get("to") or [] if isinstance(item, dict)]
+            owner_id = None
+            for recipient in recipients:
+                owner_id = await self._organization_owner_for_number(recipient or "")
+                if owner_id:
+                    break
+            if not sender or not owner_id:
+                return {"status": "ignored", "reason": "unknown_number"}
+            media_count = len(payload.get("media") or [])
+            text = str(payload.get("text") or "").strip()
+            content = text or ("[Picture message]" if media_count else "")
+            if not content:
+                return {"status": "ignored", "reason": "empty"}
+            message = await self._record_inbound_message(
+                owner_id,
+                "sms",
+                {
+                    "event_id": str(payload.get("id") or data.get("id")),
+                    "contact_external_id": sender,
+                    "content": content,
+                    "direction": "inbound",
+                    "timestamp": payload.get("received_at") or data.get("occurred_at"),
+                    "external_account_id": recipients[0] if recipients else None,
+                },
+                is_history_import=False,
+            )
+            return {"status": "processed" if message else "ignored"}
+
+        if event_type in ("message.sent", "message.finalized"):
+            provider_id = str(payload.get("id") or "")
+            statuses = {str((item or {}).get("status") or "") for item in payload.get("to") or []}
+            if not provider_id:
+                return {"status": "ignored"}
+            if statuses & {"delivery_failed", "sending_failed", "delivery_unconfirmed"} and "delivered" not in statuses:
+                errors = payload.get("errors") or []
+                reason = (errors[0] or {}).get("detail") or (errors[0] or {}).get("title") if errors else None
+                update = {"status": "failed", "delivery_error": f"The SMS was not delivered{': ' + reason if reason else '.'}"}
+            elif "delivered" in statuses:
+                update = {"status": "delivered", "delivered_at": utc_now()}
+            else:
+                return {"status": "ignored"}
+            message = await self.db.messages.find_one_and_update(
+                {"platform": "sms", "provider_message_id": provider_id}, {"$set": update}, return_document=ReturnDocument.AFTER
+            )
+            if message:
+                conversation = await self.db.conversations.find_one({"_id": ObjectId(message["conversation_id"])}) if ObjectId.is_valid(message.get("conversation_id") or "") else None
+                if conversation:
+                    await self.conversation_service._publish_to_conversation_audience(conversation)
+            return {"status": "processed" if message else "ignored"}
+
+        return {"status": "ignored", "reason": "unsupported_event_type"}
 
     async def apply_whatsapp_contact_names(self, user_id: str, contacts: list[dict]) -> dict:
         """Names (address book / profile) and phone numbers the linked phone knows, for
