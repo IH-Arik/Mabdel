@@ -156,7 +156,8 @@ def test_inbound_parse_normalizes_and_strips_quoted_reply():
     assert parsed["from_email"] == "jane@example.com"
     assert parsed["from_name"] == "Jane Doe"
     assert parsed["to_addresses"] == ["market@dentist.gocustify.com", "cc@other.com"]
-    assert parsed["content"] == "Need a quote\n\nPlease send pricing."
+    assert parsed["content"] == "Please send pricing."  # the subject is kept separately
+    assert parsed["subject"] == "Need a quote"
     assert "old thread" not in parsed["content"]
 
 
@@ -227,7 +228,8 @@ def test_merge_full_email_overlays_fetched_body():
             "attachments": [{"id": "att_9", "filename": "q.pdf"}],
         },
     )
-    assert merged["content"] == "Quote\n\nHere are the numbers."
+    assert merged["content"] == "Here are the numbers."
+    assert merged["subject"] == "Quote"
     assert merged["provider_message_id"] == "<abc@mail>"
     assert merged["attachments"][0]["provider_attachment_id"] == "att_9"
 
@@ -428,3 +430,49 @@ def test_concurrent_domain_requests_leave_exactly_one_domain_for_the_org(mock_db
     remaining = asyncio.run(mock_db.email_domains.find({"organization_id": "org-race"}).to_list(None))
     assert [d["domain"] for d in remaining] == ["first-name.gocustify.com"]
     assert removed and removed[0].startswith("resend-")
+
+
+def test_email_reply_threads_with_the_original_message(mock_db, monkeypatch):
+    import asyncio
+
+    from bson import ObjectId
+
+    from app.services.email_service import EmailService
+    from app.services.email_domain import EmailDomainService
+    from app.services.smartflow.conversation_service import ConversationService
+
+    owner_id = str(ObjectId())
+    contact_id = asyncio.run(mock_db.contacts.insert_one({"user_id": owner_id, "name": "Jane", "email": "jane@example.com"})).inserted_id
+    conversation_id = str(ObjectId())
+    asyncio.run(
+        mock_db.messages.insert_one(
+            {
+                "conversation_id": conversation_id,
+                "platform": "email",
+                "direction": "inbound",
+                "subject": "Need a quote",
+                "timestamp": __import__("datetime").datetime(2026, 9, 1),
+                "provider_metadata": {"message_id": "<abc@mail.example.com>", "email_to": "sales@dentist.gocustify.com"},
+            }
+        )
+    )
+    prefixes = []
+
+    async def fake_sender(self, user_id, prefix=None):
+        prefixes.append(prefix)
+        return {"email": f"{prefix}@dentist.gocustify.com", "name": "Dentist"}
+
+    sent = {}
+
+    async def fake_send(self, **kwargs):
+        sent.update(kwargs)
+
+    monkeypatch.setattr(EmailDomainService, "resolve_sender", fake_sender)
+    monkeypatch.setattr(EmailService, "send_business_email", fake_send)
+
+    delivered = asyncio.run(ConversationService(mock_db)._deliver_email(owner_id, str(contact_id), "Here you go", conversation_id))
+
+    assert delivered is True
+    assert prefixes == ["sales"]  # answered from the address the customer wrote to
+    assert sent["subject"] == "Re: Need a quote"
+    assert sent["headers"] == {"In-Reply-To": "<abc@mail.example.com>", "References": "<abc@mail.example.com>"}

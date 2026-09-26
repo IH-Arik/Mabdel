@@ -78,7 +78,7 @@ class InboundEmailService:
         conversation = await self._upsert_conversation(owner_id, contact, parsed["from_email"])
 
         attachments = await self._store_attachments(owner_id, parsed["event_id"], parsed["attachments"])
-        content = parsed["content"] or "(no content)"
+        content = parsed["content"] or parsed["subject"] or "(no content)"
         message = await self.smartflow.create_message(
             owner_id,
             {
@@ -94,6 +94,15 @@ class InboundEmailService:
                 "provider_event_id": event_id,
                 "provider_message_id": parsed["provider_message_id"] or event_id,
                 "external_account_id": parsed["recipient"],
+                "subject": parsed["subject"] or None,
+                # What a reply needs to thread in the customer's mail client.
+                "provider_metadata": {
+                    "email_from": parsed["from_email"],
+                    "email_to": parsed["recipient"],
+                    "message_id": parsed["provider_message_id"],
+                    "in_reply_to": parsed.get("in_reply_to"),
+                    "references": parsed.get("references"),
+                },
             },
         )
 
@@ -131,6 +140,11 @@ class InboundEmailService:
         merged["content"] = self._extract_content(full, subject) or parsed["content"]
         merged["attachments"] = self._extract_attachments(full.get("attachments"))
         merged["provider_message_id"] = str(full.get("message_id") or parsed["provider_message_id"] or "") or None
+        headers = self._header_map(full.get("headers"))
+        merged["in_reply_to"] = headers.get("in-reply-to") or parsed.get("in_reply_to")
+        merged["references"] = headers.get("references") or parsed.get("references")
+        if not merged["provider_message_id"] and headers.get("message-id"):
+            merged["provider_message_id"] = headers["message-id"]
 
         if not merged["from_email"]:
             _, from_email = parseaddr(self._first_str(full.get("from")))
@@ -300,6 +314,7 @@ class InboundEmailService:
         )
         subject = (data.get("subject") or "").strip()
         content = self._extract_content(data, subject)
+        headers = self._header_map(data.get("headers"))
 
         return {
             "event_id": event_id,
@@ -311,15 +326,32 @@ class InboundEmailService:
             "subject": subject,
             "content": content,
             "attachments": self._extract_attachments(data.get("attachments")),
+            "in_reply_to": headers.get("in-reply-to"),
+            "references": headers.get("references"),
         }
+
+    @staticmethod
+    def _header_map(value) -> dict[str, str]:
+        """Email headers as a lowercase-keyed dict, whether they arrive as a mapping or
+        as a list of {name, value} pairs."""
+        headers: dict[str, str] = {}
+        if isinstance(value, dict):
+            items = value.items()
+        elif isinstance(value, list):
+            items = [((item or {}).get("name") or (item or {}).get("key"), (item or {}).get("value")) for item in value if isinstance(item, dict)]
+        else:
+            return headers
+        for key, raw in items:
+            if key and isinstance(raw, str):
+                headers[str(key).strip().lower()] = raw.strip()
+        return headers
 
     def _extract_content(self, data: dict, subject: str) -> str:
         body = (data.get("text") or "").strip()
         if not body and data.get("html"):
             body = self._html_to_text(data["html"])
         body = _REPLY_SPLIT_RE.split(body, maxsplit=1)[0].strip() if body else ""
-        if subject and body:
-            return f"{subject}\n\n{body}"[:MAX_INBOUND_CONTENT]
+        # The subject travels separately (message["subject"]) and is shown as its own line.
         return (body or subject)[:MAX_INBOUND_CONTENT]
 
     @staticmethod

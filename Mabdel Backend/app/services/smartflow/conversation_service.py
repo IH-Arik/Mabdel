@@ -526,6 +526,10 @@ class ConversationService(SmartFlowBase):
             # only reader; external-channel inboxes keep using unread_count instead.
             "read_by": [user_id] if self._is_shared_member_conversation(conversation) else [],
         }
+        if payload.get("subject"):
+            document["subject"] = str(payload["subject"])[:300]
+        if payload.get("provider_metadata"):
+            document["provider_metadata"] = payload["provider_metadata"]
         insert_result, _ = await asyncio.gather(
             self.db.messages.insert_one(document),
             # $max, not $set: an out-of-order history-imported message (or a live
@@ -1169,6 +1173,7 @@ class ConversationService(SmartFlowBase):
     async def _deliver_outbound(
         self, user_id: str, platform: str, contact_id: str | None, content: str, errors: list[str] | None = None,
         receipt: dict | None = None,
+        conversation_id: str | None = None,
     ) -> bool:
         """Send message to the actual platform. Returns True if delivered, False if failed/skipped.
         When a provider explains a failure, the reason is appended to ``errors``."""
@@ -1176,8 +1181,11 @@ class ConversationService(SmartFlowBase):
         if platform in {"ai", "internal"}:
             return True  # no external delivery needed
 
+        if platform == "sms":
+            return await self._deliver_sms(user_id, contact_id, content, errors, receipt)
+
         if platform == "email":
-            delivered = await self._deliver_email(user_id, contact_id, content)
+            delivered = await self._deliver_email(user_id, contact_id, content, conversation_id)
             if not delivered:
                 errors.append("The email could not be sent - check that your business email domain is verified.")
             return delivered
@@ -1220,7 +1228,37 @@ class ConversationService(SmartFlowBase):
             errors.append(f"Couldn't reach {self._platform_label(platform)} - try again in a moment.")
             return False
 
-    async def _deliver_email(self, user_id: str, contact_id: str | None, content: str) -> bool:
+    async def _deliver_sms(
+        self, user_id: str, contact_id: str | None, content: str, errors: list[str], receipt: dict | None
+    ) -> bool:
+        """Reply by SMS from the business's own Telnyx number."""
+        from app.services.call_service import CallService
+        from app.services.telnyx_provisioning_service import TelnyxProvisioningService
+
+        to_number = await self._get_contact_external_id(user_id, "sms", contact_id)
+        if not to_number and contact_id and ObjectId.is_valid(contact_id):
+            contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id)}, {"phone": 1})
+            to_number = (contact or {}).get("phone")
+        if not to_number:
+            errors.append("This contact has no phone number to text.")
+            return False
+        organization_id = await self._resolve_organization_id(user_id)
+        org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+        from_number = TelnyxProvisioningService.get_org_phone_number(org) if org else None
+        if not from_number:
+            errors.append("Your business has no SMS number yet - set one up under AI Calling.")
+            return False
+        try:
+            response = await CallService().send_sms(to_number=to_number, message=content, from_number=from_number)
+        except AppException as exc:
+            errors.append(f"SMS could not be sent: {exc.message}")
+            return False
+        provider_id = ((response or {}).get("data") or {}).get("id") or (response or {}).get("id")
+        if provider_id and receipt is not None:
+            receipt["provider_message_id"] = str(provider_id)
+        return True
+
+    async def _deliver_email(self, user_id: str, contact_id: str | None, content: str, conversation_id: str | None = None) -> bool:
         """Reply to an email thread from the owner's verified business domain."""
         if not contact_id or not ObjectId.is_valid(contact_id):
             return False
@@ -1239,14 +1277,39 @@ class ConversationService(SmartFlowBase):
 
         from app.services.email_domain import EmailDomainService
 
-        sender = await EmailDomainService(self.db).resolve_sender(user_id)
+        # Reply as the thread: same subject, same address the customer wrote to, and the
+        # In-Reply-To/References headers mail clients use to group a conversation.
+        last_inbound = None
+        references: list[str] = []
+        if conversation_id:
+            async for earlier in self.db.messages.find(
+                {"conversation_id": conversation_id, "platform": "email"}
+            ).sort("timestamp", -1).limit(20):
+                meta = earlier.get("provider_metadata") or {}
+                if earlier.get("direction") == "inbound" and last_inbound is None:
+                    last_inbound = earlier
+                if meta.get("message_id"):
+                    references.insert(0, meta["message_id"])
+        last_meta = (last_inbound or {}).get("provider_metadata") or {}
+        written_to = str(last_meta.get("email_to") or "")
+        prefix = written_to.split("@")[0] if "@" in written_to else None
+
+        sender = await EmailDomainService(self.db).resolve_sender(user_id, prefix)
         if not sender:
             # Without a verified domain, replies would come from the platform
             # address and break the thread — surface as failed instead.
             logger.warning("No verified business email domain for user %s; email reply not sent.", user_id)
             return False
 
-        subject = f"Re: {contact.get('name') or 'your message'}"
+        original_subject = ((last_inbound or {}).get("subject") or "").strip()
+        if original_subject:
+            subject = original_subject if original_subject.lower().startswith("re:") else f"Re: {original_subject}"
+        else:
+            subject = f"Re: {contact.get('name') or 'your message'}"
+        headers = {}
+        if last_meta.get("message_id"):
+            headers["In-Reply-To"] = last_meta["message_id"]
+            headers["References"] = " ".join(dict.fromkeys(references[-10:] or [last_meta["message_id"]]))
         try:
             await EmailService().send_business_email(
                 email=target,
@@ -1256,6 +1319,10 @@ class ConversationService(SmartFlowBase):
                 from_email=sender["email"],
                 from_name=sender.get("name"),
                 reply_to=sender["email"],
+                headers=headers or None,
+                sender_provider=sender.get("provider"),
+                sender_user_id=user_id,
+                db=self.db,
             )
         except Exception:
             logger.exception("Email reply delivery failed for user %s", user_id)
@@ -1449,7 +1516,7 @@ class ConversationService(SmartFlowBase):
         owner_id = (conversation or {}).get("user_id") or user_id
         receipt: dict = {}
         try:
-            delivered = await self._deliver_outbound(owner_id, platform, contact_id, content, errors, receipt)
+            delivered = await self._deliver_outbound(owner_id, platform, contact_id, content, errors, receipt, conversation_id)
         except Exception:
             logger.exception("Outbound %s delivery crashed", platform)
             delivered = False

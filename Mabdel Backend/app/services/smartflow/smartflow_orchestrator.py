@@ -662,6 +662,9 @@ class SmartFlowService(SmartFlowBase):
     async def handle_inbound_webhook_batch(self, user_id, platform, messages):
         return await self.integration_service.handle_inbound_webhook_batch(user_id, platform, messages)
 
+    async def handle_telnyx_sms_event(self, event):
+        return await self.integration_service.handle_telnyx_sms_event(event)
+
     async def apply_whatsapp_contact_names(self, user_id, contacts):
         return await self.integration_service.apply_whatsapp_contact_names(user_id, contacts)
 

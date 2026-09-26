@@ -208,6 +208,33 @@ async def verify_platform_webhook(
     return success_response(data={"verified": True}, message="Webhook verification not required for this platform.")
 
 
+@router.post("/integrations/sms/webhook")
+async def receive_telnyx_sms(
+    request: Request,
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """Telnyx messaging webhook (set it as the Messaging Profile's webhook URL): inbound
+    SMS to a business's number, and delivery receipts for replies sent from Unified.
+    Signed with the same Telnyx key as the call webhooks."""
+    from app.services.call_service import CallService
+
+    from app.services.smartflow.integration_service import IntegrationService
+
+    raw_body = await request.body()
+    if not settings.TELNYX_VALIDATE_SIGNATURE:
+        # An unsigned SMS endpoint would let anyone drop messages into any inbox.
+        IntegrationService._require_webhook_auth_configured()
+    await CallService().validate_telnyx_request(request, raw_body)
+    try:
+        event = json.loads(raw_body)
+    except Exception:
+        raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Webhook payload must be valid JSON.")
+    if not isinstance(event, dict):
+        raise AppException(status_code=400, code="WEBHOOK_PAYLOAD_INVALID", message="Webhook payload must be an object.")
+    data = await service.handle_telnyx_sms_event(event)
+    return success_response(data=data, message="SMS webhook processed.")
+
+
 @router.post("/integrations/{platform}/webhook")
 async def receive_platform_webhook(
     platform: str,
