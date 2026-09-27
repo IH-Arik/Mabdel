@@ -1487,6 +1487,8 @@ class SmartFlowBase:
             # A customer thread is shared by the team: our side is always "self", but
             # say which teammate wrote it when it wasn't the viewer. Messages sent
             # straight from the linked phone/mailbox arrive through a webhook.
+            if message.get("automated"):
+                return {"name": "Automatic message", "avatar_url": None, "presence": "online", "is_self": True}
             if message.get("provider_event_id") and message.get("contact_id"):
                 return {"name": "Sent outside GoCustify", "avatar_url": None, "presence": "online", "is_self": True}
             if sender_user_id and sender_user_id != user_id and ObjectId.is_valid(sender_user_id):

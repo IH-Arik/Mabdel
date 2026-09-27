@@ -27,6 +27,8 @@ def _serialize(doc: dict) -> dict:
         "status": doc.get("status", "pending"),
         "meeting_link": doc.get("meeting_link"),
         "confirmed_by_user_id": doc.get("confirmed_by_user_id"),
+        "kind": doc.get("kind", "new"),
+        "calendar_event_id": doc.get("calendar_event_id"),
         "created_at": doc.get("created_at"),
         "updated_at": doc.get("updated_at"),
     }
@@ -79,29 +81,24 @@ class CallMeetingRequestService(SmartFlowBase):
         caller_phone: str | None,
         requested_start: datetime,
         requested_end: datetime,
+        language: str | None = None,
     ) -> dict:
         """Attempts direct calendar booking when available, falling back to creating
         a pending request if manual approval is required or missing details."""
         organization_id = await self._require_organization_id(user_id)
-        try:
-            org = await self.db.organizations.find_one({"organization_id": organization_id})
-        except Exception:
-            org = None
-        require_manual_approval = (org or {}).get("require_meeting_approval", False)
         has_contact_info = bool(caller_name and (caller_email or caller_phone))
 
-        if not require_manual_approval and has_contact_info:
+        if not await self.approval_required(organization_id) and has_contact_info:
             try:
-                event = await self.calendar_service.create_calendar_event(
+                event = await self._create_customer_event(
                     user_id,
-                    {
-                        "title": f"Appointment with {caller_name}",
-                        "description": f"Auto-booked by AI Phone Agent during live call. Caller: {caller_name}"
-                        + (f" ({caller_phone})" if caller_phone else ""),
-                        "starts_at": requested_start,
-                        "ends_at": requested_end,
-                        "meeting_mode": "online",
-                    },
+                    caller_name=caller_name,
+                    caller_email=caller_email,
+                    caller_phone=caller_phone,
+                    starts_at=requested_start,
+                    ends_at=requested_end,
+                    language=language,
+                    note="Booked by the AI receptionist during a call.",
                 )
                 now = utc_now()
                 doc = {
@@ -113,16 +110,22 @@ class CallMeetingRequestService(SmartFlowBase):
                     "requested_start": requested_start,
                     "requested_end": requested_end,
                     "status": "confirmed",
+                    "kind": "new",
+                    "language": language,
                     "meeting_link": event.get("meeting_link"),
+                    "calendar_event_id": event["id"],
                     "confirmed_by_user_id": "ai_agent",
                     "created_at": now,
                     "updated_at": now,
                 }
                 result = await self.db.call_meeting_requests.insert_one(doc)
                 doc["_id"] = result.inserted_id
+                await self.db.calendar_events.update_one(
+                    {"_id": ObjectId(event["id"])}, {"$set": {"call_meeting_request_id": str(doc["_id"])}}
+                )
                 if doc.get("caller_email"):
                     await self._send_confirmation_email(doc)
-                await self._send_confirmation_sms(doc)
+                await self._text_customer(user_id, doc, "booked")
                 await self._notify_organization(doc)
                 serialized = _serialize(doc)
                 serialized["booking_outcome"] = "booked"
@@ -130,7 +133,6 @@ class CallMeetingRequestService(SmartFlowBase):
             except AppException as exc:
                 if exc.code == "CALL_MEETING_REQUEST_SLOT_TAKEN" or exc.code == "CALENDAR_CONFLICT":
                     return {"status": "conflict", "booking_outcome": "conflict"}
-                pass
 
         pending_doc = await self.create_pending_request(
             organization_id=organization_id,
@@ -140,9 +142,52 @@ class CallMeetingRequestService(SmartFlowBase):
             caller_phone=caller_phone,
             requested_start=requested_start,
             requested_end=requested_end,
+            language=language,
         )
         pending_doc["booking_outcome"] = "pending"
         return pending_doc
+
+    async def approval_required(self, organization_id: str | None) -> bool:
+        org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+        return bool((org or {}).get("require_meeting_approval", False))
+
+    async def _create_customer_event(
+        self,
+        user_id: str,
+        *,
+        caller_name: str,
+        caller_email: str | None,
+        caller_phone: str | None,
+        starts_at: datetime,
+        ends_at: datetime,
+        language: str | None,
+        note: str,
+    ) -> dict:
+        """A calendar event that knows who the customer is - so a later change or
+        cancellation, by the AI or a team member, can text them."""
+        from .appointment_notifications import AppointmentNotifier
+
+        phone = self._normalize_phone_value(caller_phone or "") or None
+        contact_id = await AppointmentNotifier(self.db).sms_contact_id(user_id, phone, caller_name) if phone else None
+        return await self.calendar_service.create_calendar_event(
+            user_id,
+            {
+                "title": f"Appointment with {caller_name}",
+                "description": f"{note} Caller: {caller_name}" + (f" ({phone})" if phone else ""),
+                "starts_at": starts_at,
+                "ends_at": ends_at,
+                "meeting_mode": "online",
+                "contact_ids": [contact_id] if contact_id else [],
+                "source": "ai_call",
+                "customer": {
+                    "name": caller_name,
+                    "phone": phone,
+                    "email": (caller_email or "").strip().lower() or None,
+                    "contact_id": contact_id,
+                    "language": language,
+                },
+            },
+        )
 
     async def create_pending_request(
         self,
@@ -154,6 +199,9 @@ class CallMeetingRequestService(SmartFlowBase):
         caller_phone: str | None,
         requested_start: datetime,
         requested_end: datetime,
+        language: str | None = None,
+        kind: str = "new",
+        calendar_event_id: str | None = None,
     ) -> dict:
         now = utc_now()
         document = {
@@ -165,6 +213,9 @@ class CallMeetingRequestService(SmartFlowBase):
             "requested_start": requested_start,
             "requested_end": requested_end,
             "status": "pending",
+            "kind": kind,
+            "language": language,
+            "calendar_event_id": calendar_event_id,
             "meeting_link": None,
             "confirmed_by_user_id": None,
             "created_at": now,
@@ -172,7 +223,7 @@ class CallMeetingRequestService(SmartFlowBase):
         }
         result = await self.db.call_meeting_requests.insert_one(document)
         document["_id"] = result.inserted_id
-        await self._send_pending_sms(document)
+        await self._text_customer(await self._org_owner_id(organization_id), document, "pending")
         await self._notify_organization(document)
         return _serialize(document)
 
@@ -207,24 +258,29 @@ class CallMeetingRequestService(SmartFlowBase):
             )
 
         try:
-            event = await self.calendar_service.create_calendar_event(
-                user_id,
-                {
-                    "title": f"Appointment with {doc['caller_name']}",
-                    "description": f"Booked from an AI phone call. Caller: {doc['caller_name']}"
-                    + (f" ({doc['caller_phone']})" if doc.get("caller_phone") else ""),
-                    "starts_at": doc["requested_start"],
-                    "ends_at": doc["requested_end"],
-                    "meeting_mode": "online",
-                },
-            )
+            if doc.get("kind") == "reschedule" and doc.get("calendar_event_id"):
+                event = await self.calendar_service.update_calendar_event(
+                    user_id,
+                    doc["calendar_event_id"],
+                    {"starts_at": doc["requested_start"], "ends_at": doc["requested_end"]},
+                    notify_customer=False,
+                )
+            else:
+                event = await self._create_customer_event(
+                    user_id,
+                    caller_name=doc["caller_name"],
+                    caller_email=doc.get("caller_email"),
+                    caller_phone=doc.get("caller_phone"),
+                    starts_at=doc["requested_start"],
+                    ends_at=doc["requested_end"],
+                    language=doc.get("language"),
+                    note="Booked from an AI phone call.",
+                )
         except AppException as exc:
             if exc.code == "CALENDAR_CONFLICT":
                 # The pending-request soft-hold (find_free_slots excludes other pending
                 # requests) prevents this in the common case; this only fires if
-                # something else — a manually created event, a second request that
-                # raced past the hold — took the slot in the meantime. Surface it
-                # clearly rather than a generic scheduling error.
+                # something else took the slot in the meantime.
                 raise AppException(
                     status_code=409,
                     code="CALL_MEETING_REQUEST_SLOT_TAKEN",
@@ -237,15 +293,19 @@ class CallMeetingRequestService(SmartFlowBase):
                 "$set": {
                     "status": "confirmed",
                     "meeting_link": event.get("meeting_link"),
+                    "calendar_event_id": event["id"],
                     "confirmed_by_user_id": user_id,
                     "updated_at": utc_now(),
                 }
             },
             return_document=ReturnDocument.AFTER,
         )
+        await self.db.calendar_events.update_one(
+            {"_id": ObjectId(event["id"])}, {"$set": {"call_meeting_request_id": str(updated["_id"])}}
+        )
         if doc.get("caller_email"):
             await self._send_confirmation_email(updated)
-        await self._send_confirmation_sms(updated)
+        await self._text_customer(user_id, updated, "rescheduled" if doc.get("kind") == "reschedule" else "booked")
         return _serialize(updated)
 
     async def decline(self, user_id: str, request_id: str) -> dict:
@@ -263,7 +323,7 @@ class CallMeetingRequestService(SmartFlowBase):
         )
         if updated.get("caller_email"):
             await self._send_decline_email(updated)
-        await self._send_decline_sms(updated)
+        await self._text_customer(user_id, updated, "declined")
         return _serialize(updated)
 
     async def _get_org_request(self, user_id: str, request_id: str) -> dict:
@@ -333,36 +393,25 @@ class CallMeetingRequestService(SmartFlowBase):
         except Exception:
             pass
 
-    async def _send_confirmation_sms(self, doc: dict) -> None:
-        """Best-effort — a failed courtesy text shouldn't turn a successful booking
-        into an error for the caller or the team member approving it."""
-        if not doc.get("caller_phone"):
-            return
-        try:
-            when = doc["requested_start"].strftime("%a %b %d at %I:%M %p").replace(" 0", " ")
-            message = f"Your appointment is confirmed for {when}."
-            if doc.get("meeting_link"):
-                message += f" Join link: {doc['meeting_link']}"
-            await self.call_service.send_sms(to_number=doc["caller_phone"], message=message)
-        except Exception:
-            pass
+    async def _org_owner_id(self, organization_id: str) -> str | None:
+        owner = await self.db.users.find_one(
+            {"organization_id": organization_id, "$or": [{"role": "owner"}, {"primary_role": "owner"}]}, {"_id": 1}
+        ) or await self.db.users.find_one({"organization_id": organization_id}, {"_id": 1})
+        return str(owner["_id"]) if owner else None
 
-    async def _send_pending_sms(self, doc: dict) -> None:
-        if not doc.get("caller_phone"):
-            return
-        try:
-            when = doc["requested_start"].strftime("%a %b %d at %I:%M %p").replace(" 0", " ")
-            message = f"We received your appointment request for {when}. Our team will confirm shortly."
-            await self.call_service.send_sms(to_number=doc["caller_phone"], message=message)
-        except Exception:
-            pass
+    async def _text_customer(self, user_id: str | None, doc: dict, kind: str) -> None:
+        """Best-effort SMS from the business's own number, logged in Unified. A failed
+        courtesy text never turns a successful booking into an error."""
+        from .appointment_notifications import AppointmentNotifier
 
-    async def _send_decline_sms(self, doc: dict) -> None:
-        if not doc.get("caller_phone"):
+        if not user_id or not doc.get("caller_phone"):
             return
-        try:
-            when = doc["requested_start"].strftime("%a %b %d at %I:%M %p").replace(" 0", " ")
-            message = f"We're not able to confirm an appointment at {when}. Please call back to find another time."
-            await self.call_service.send_sms(to_number=doc["caller_phone"], message=message)
-        except Exception:
-            pass
+        await AppointmentNotifier(self.db).notify(
+            user_id,
+            kind=kind,
+            phone=doc.get("caller_phone"),
+            name=doc.get("caller_name"),
+            starts_at=doc["requested_start"],
+            language=doc.get("language"),
+            meeting_link=doc.get("meeting_link"),
+        )

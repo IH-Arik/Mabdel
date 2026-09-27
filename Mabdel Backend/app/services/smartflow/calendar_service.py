@@ -5,6 +5,8 @@ import secrets
 from datetime import date, datetime, timedelta, timezone
 
 
+from bson import ObjectId
+
 from app.core.exceptions import AppException
 from app.services.email_service import EmailService
 from app.utils.helpers import resolve_organization_user_ids, utc_now
@@ -440,8 +442,60 @@ class CalendarService(SmartFlowBase):
         await self._create_calendar_event_notifications(user_id, document, action="created")
         return await self._serialize_calendar_event(document)
 
-    async def update_calendar_event(self, user_id: str, event_id: str, updates: dict) -> dict:
-        event = await self._get_owned_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")
+    async def _get_editable_event(self, user_id: str, event_id: str) -> dict:
+        """Your own events, plus the organization's customer appointments (booked by the
+        AI receptionist under the owner) - any teammate may move or cancel those."""
+        try:
+            return await self._get_owned_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")
+        except AppException:
+            event = await self._get_team_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")
+            if not event.get("customer"):
+                raise AppException(status_code=404, code="EVENT_NOT_FOUND", message="Requested resource was not found.")
+            return event
+
+    @staticmethod
+    def _same_instant(left, right) -> bool:
+        def utc(value):
+            if not isinstance(value, datetime):
+                return value
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+        return utc(left) == utc(right)
+
+    async def _after_customer_appointment_change(self, before: dict, after: dict | None) -> None:
+        """Text the customer when their appointment moves or is cancelled, and keep the
+        call's booking record in step. Title or notes edits send nothing."""
+        from .appointment_notifications import AppointmentNotifier
+
+        customer = before.get("customer") or {}
+        cancelled = after is None
+        if not cancelled and self._same_instant(before.get("starts_at"), after.get("starts_at")):
+            return
+        request_id = before.get("call_meeting_request_id")
+        if request_id and ObjectId.is_valid(request_id):
+            update = {"status": "cancelled", "updated_at": utc_now()} if cancelled else {
+                "requested_start": after["starts_at"],
+                "requested_end": after["ends_at"],
+                "rescheduled_at": utc_now(),
+                "updated_at": utc_now(),
+            }
+            await self.db.call_meeting_requests.update_one({"_id": ObjectId(request_id)}, {"$set": update})
+        if customer.get("phone"):
+            await AppointmentNotifier(self.db).notify(
+                str(before["user_id"]),
+                kind="cancelled" if cancelled else "rescheduled",
+                phone=customer["phone"],
+                name=customer.get("name"),
+                starts_at=before["starts_at"] if cancelled else after["starts_at"],
+                language=customer.get("language"),
+                meeting_link=None if cancelled else after.get("meeting_link"),
+            )
+
+    async def update_calendar_event(self, user_id: str, event_id: str, updates: dict, *, notify_customer: bool = True) -> dict:
+        event = await self._get_editable_event(user_id, event_id)
+        # Provider sync (Google/Zoom/Microsoft/CalDAV) runs on the calendar the event
+        # was created on - the owner's - even when a teammate makes the change.
+        user_id = str(event["user_id"])
         clean_updates = {key: value for key, value in updates.items() if value is not None}
         merged = {**event, **clean_updates}
         self._validate_calendar_event_payload(merged)
@@ -588,6 +642,8 @@ class CalendarService(SmartFlowBase):
         )
         if updated:
             await self._create_calendar_event_notifications(user_id, updated, action="updated")
+        if notify_customer and event.get("customer") and updated:
+            await self._after_customer_appointment_change(event, updated)
         return await self._serialize_calendar_event(updated)
 
     async def share_calendar_event(self, user_id: str, event_id: str, payload: dict) -> dict:
@@ -615,8 +671,9 @@ class CalendarService(SmartFlowBase):
             "share_url": share_url,
         }
 
-    async def delete_calendar_event(self, user_id: str, event_id: str) -> None:
-        event = await self._get_owned_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")
+    async def delete_calendar_event(self, user_id: str, event_id: str, *, notify_customer: bool = True) -> None:
+        event = await self._get_editable_event(user_id, event_id)
+        user_id = str(event["user_id"])
         if event.get("google_event_id"):
             await self.google_calendar_service.delete_remote_event(user_id, event.get("google_event_id"))
         if event.get("zoom_meeting_id"):
@@ -626,3 +683,5 @@ class CalendarService(SmartFlowBase):
         if event.get("caldav_uid"):
             await self.caldav_service.delete_event(user_id, event.get("caldav_uid"))
         await self.db.calendar_events.delete_one({"_id": event["_id"]})
+        if notify_customer and event.get("customer"):
+            await self._after_customer_appointment_change(event, None)

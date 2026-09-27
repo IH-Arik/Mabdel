@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+
+from bson import ObjectId
 from datetime import date, datetime, timedelta, timezone
 
 from app.core.config import settings
@@ -1065,6 +1067,16 @@ def test_decline_notifies_caller_by_email(client, mock_db, monkeypatch):
     assert sent_emails[0]["email"] == "caller@example.com"
 
 
+def _queued_customer_text(mock_db, phone: str) -> dict | None:
+    async def _find():
+        contact = await mock_db.contacts.find_one({"phone": phone})
+        if not contact:
+            return None
+        return await mock_db.messages.find_one({"contact_id": str(contact["_id"]), "platform": "sms", "automated": True})
+
+    return asyncio.run(_find())
+
+
 def test_accept_notifies_caller_by_sms(client, mock_db, monkeypatch):
     """The caller's phone number is always known (they called from it) — an SMS
     confirmation should go out regardless of whether they also gave an email."""
@@ -1079,7 +1091,7 @@ def test_accept_notifies_caller_by_sms(client, mock_db, monkeypatch):
     monkeypatch.setattr("app.services.call_service.CallService.send_sms", fake_send_sms)
 
     async def fake_create_event(self, user_id, payload):
-        return {"meeting_link": "https://meet.example.com/test"}
+        return {"id": str(ObjectId()), "meeting_link": "https://meet.example.com/test"}
 
     monkeypatch.setattr(
         "app.services.smartflow.calendar_service.CalendarService.create_calendar_event", fake_create_event
@@ -1103,9 +1115,10 @@ def test_accept_notifies_caller_by_sms(client, mock_db, monkeypatch):
     request_id = asyncio.run(_seed())
     response = client.post(f"/api/v1/smartflow/calls/meeting-requests/{request_id}/accept", headers=headers)
     assert response.status_code == 200
-    assert len(sent_sms) == 1
-    assert sent_sms[0]["to_number"] == "+15551234567"
-    assert "confirmed" in sent_sms[0]["message"].lower()
+    # The text is queued in the caller's SMS thread (sent from the business's own
+    # number by the inbox's delivery path), never fired straight from the platform number.
+    text = _queued_customer_text(mock_db, "+15551234567")
+    assert text and "confirmed" in text["content"].lower()
 
 
 def test_decline_notifies_caller_by_sms(client, mock_db, monkeypatch):
@@ -1137,8 +1150,8 @@ def test_decline_notifies_caller_by_sms(client, mock_db, monkeypatch):
     request_id = asyncio.run(_seed())
     response = client.post(f"/api/v1/smartflow/calls/meeting-requests/{request_id}/decline", headers=headers)
     assert response.status_code == 200
-    assert len(sent_sms) == 1
-    assert sent_sms[0]["to_number"] == "+15551234567"
+    text = _queued_customer_text(mock_db, "+15551234567")
+    assert text and "can't confirm" in text["content"]
 
 
 def test_cannot_accept_already_handled_request(client, mock_db):
