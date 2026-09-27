@@ -493,6 +493,8 @@ function CallRow({ item, onAnalyze, onDirectCall, onRequestCallback, onDownloadR
 
 function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
   const [phone, setPhone] = useState(initialPhone);
+  const [purpose, setPurpose] = useState('follow_up');
+  const [notes, setNotes] = useState('');
   const [calling, setCalling] = useState(false);
   const [error, setError] = useState('');
 
@@ -510,7 +512,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
     setCalling(true);
     setError('');
     try {
-      const response = await onCall(normalized);
+      const response = await onCall(normalized, { purpose, script_notes: notes.trim() || null });
       onSuccess(t('calls_success_call_started'), response);
       onClose();
     } catch (requestError) {
@@ -548,6 +550,33 @@ function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
             placeholder="+15551234567"
             className="w-full rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-3 text-sm text-white outline-none transition-colors focus:border-[#9333ea]/50"
             onKeyDown={(event) => event.key === 'Enter' && call()}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="ai-call-purpose" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#A4B0B7]">{t('calls_purpose_label')}</label>
+          <select
+            id="ai-call-purpose"
+            value={purpose}
+            onChange={(event) => setPurpose(event.target.value)}
+            className="w-full rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-3 text-sm text-white outline-none focus:border-[#9333ea]/50"
+          >
+            <option value="follow_up">{t('calls_purpose_follow_up')}</option>
+            <option value="appointment_reminder">{t('calls_purpose_reminder')}</option>
+            <option value="custom">{t('calls_purpose_custom')}</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="ai-call-notes" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#A4B0B7]">{t('calls_notes_label')}</label>
+          <textarea
+            id="ai-call-notes"
+            rows={3}
+            maxLength={1000}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            placeholder={t('calls_notes_placeholder')}
+            className="w-full resize-none rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-3 text-sm text-white outline-none focus:border-[#9333ea]/50"
           />
         </div>
 
@@ -929,7 +958,7 @@ export default function Calls() {
             <MakeCallModal
               initialPhone={initialPhone}
               onClose={() => setShowCallModal(false)}
-              onCall={(phoneNumber) => smartflowApi.createOutboundCall({ phone_number: phoneNumber, ai_ready: true })}
+              onCall={(phoneNumber, brief) => smartflowApi.createOutboundCall({ phone_number: phoneNumber, ai_ready: true, ...brief })}
               onSuccess={async (message, response) => {
                 setSuccess(message);
                 const log = response?.data?.data?.call_log;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneOff, PhoneOutgoing, Save, Send, Sparkles, Trash2, X,
+  BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Save, Send, Sparkles, Trash2, X, Zap,
 } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
 import { LABEL } from '../shared';
@@ -136,6 +136,10 @@ function AIConfigTab() {
         closing_message: callSettings.closing_message || null,
         language_menu_enabled: Boolean(callSettings.language_menu_enabled),
         language_menu: callSettings.language_menu || [],
+        knowledge_base: callSettings.knowledge_base || null,
+        transfer_number: callSettings.transfer_number || null,
+        voice_engine: callSettings.voice_engine === 'classic' ? 'classic' : 'realtime',
+        require_meeting_approval: Boolean(callSettings.require_meeting_approval),
       });
       setCallSettings(response.data?.data || callSettings);
       setSaved(true);
@@ -148,6 +152,8 @@ function AIConfigTab() {
   };
 
   const instructionsLength = (callSettings?.custom_instructions || '').length;
+  const knowledgeLength = (callSettings?.knowledge_base || '').length;
+  const engine = callSettings?.voice_engine === 'classic' ? 'classic' : 'realtime';
 
   return (
     <div className="space-y-5">
@@ -285,6 +291,72 @@ function AIConfigTab() {
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-none"
             />
             <p className="text-[#4A5568] text-xs mt-1 text-right">{instructionsLength}/2000</p>
+          </SectionCard>
+
+          <SectionCard icon={Zap} title={t('aiprof_hdr_engine')} description={t('aiprof_engine_desc')}>
+            <div className="grid sm:grid-cols-2 gap-3" role="radiogroup" aria-label={t('aiprof_hdr_engine')}>
+              {[
+                { key: 'realtime', title: t('aiprof_engine_realtime'), body: t('aiprof_engine_realtime_desc') },
+                { key: 'classic', title: t('aiprof_engine_classic'), body: t('aiprof_engine_classic_desc') },
+              ].map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={engine === option.key}
+                  onClick={() => updateField('voice_engine', option.key)}
+                  className={`text-left p-3 rounded-xl border transition-colors cursor-pointer ${
+                    engine === option.key ? 'bg-[#9333ea]/10 border-[#9333ea]/50' : 'bg-[#131A24] border-[#243041] hover:border-[#9333ea]/30'
+                  }`}
+                >
+                  <p className="text-white font-semibold text-sm flex items-center justify-between">
+                    {option.title}
+                    {engine === option.key ? <CheckCircle2 size={14} className="text-[#9333ea]" /> : null}
+                  </p>
+                  <p className="text-[#A4B0B7] text-xs mt-1">{option.body}</p>
+                </button>
+              ))}
+            </div>
+          </SectionCard>
+
+          <SectionCard icon={BookOpen} title={t('aiprof_hdr_knowledge')} description={t('aiprof_knowledge_desc')}>
+            <textarea
+              rows={7}
+              maxLength={8000}
+              placeholder={t('aiprof_ph_knowledge')}
+              value={callSettings?.knowledge_base || ''}
+              onChange={(event) => updateField('knowledge_base', event.target.value)}
+              aria-label={t('aiprof_hdr_knowledge')}
+              className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-y"
+            />
+            <p className="text-[#4A5568] text-xs mt-1 text-right">{knowledgeLength}/8000</p>
+          </SectionCard>
+
+          <SectionCard icon={CalendarCheck} title={t('aiprof_hdr_appointments')} description={t('aiprof_appointments_desc')}>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Boolean(callSettings?.require_meeting_approval)}
+                onChange={(event) => updateField('require_meeting_approval', event.target.checked)}
+                className="w-4 h-4 mt-0.5 accent-[#9333ea]"
+              />
+              <span>
+                <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_approval')}</span>
+                <span className="text-[#A4B0B7] text-xs">{t('aiprof_approval_hint')}</span>
+              </span>
+            </label>
+          </SectionCard>
+
+          <SectionCard icon={PhoneForwarded} title={t('aiprof_hdr_transfer')} description={t('aiprof_transfer_desc')}>
+            <input
+              type="tel"
+              maxLength={32}
+              placeholder="+1 555 000 1111"
+              value={callSettings?.transfer_number || ''}
+              onChange={(event) => updateField('transfer_number', event.target.value)}
+              aria-label={t('aiprof_hdr_transfer')}
+              className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50"
+            />
           </SectionCard>
 
           <SectionCard icon={Grid3x3} title={t('aiprof_hdr_language_menu')} description={t('aiprof_language_menu_desc')}>
