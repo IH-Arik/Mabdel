@@ -162,6 +162,12 @@ class SmartFlowService(SmartFlowBase):
             user_id, page, page_size, search, platform, platforms, archived, unread_only=unread_only, type_filter=type_filter, assignee=assignee
         )
 
+    async def compose_reply(self, user_id, **kwargs):
+        return await self.conversation_service.compose_reply(user_id, **kwargs)
+
+    async def transcribe_dictation(self, **kwargs):
+        return await self.conversation_service.transcribe_dictation(**kwargs)
+
     async def assign_conversation(self, user_id, conversation_id, assignee_id):
         return await self.conversation_service.assign_conversation(user_id, conversation_id, assignee_id)
 
