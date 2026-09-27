@@ -582,6 +582,8 @@ class ConversationService(SmartFlowBase):
             # only reader; external-channel inboxes keep using unread_count instead.
             "read_by": [user_id] if self._is_shared_member_conversation(conversation) else [],
         }
+        if payload.get("automated"):
+            document["automated"] = True  # sent by the system (e.g. appointment texts), not typed by a person
         if payload.get("subject"):
             document["subject"] = str(payload["subject"])[:300]
         if payload.get("provider_metadata"):

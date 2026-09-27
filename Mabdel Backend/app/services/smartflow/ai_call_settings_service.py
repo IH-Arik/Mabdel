@@ -32,12 +32,19 @@ class AICallSettingsService(SmartFlowBase):
         "closing_message": None,
         "language_menu_enabled": False,
         "language_menu": [],
+        "knowledge_base": None,
+        "transfer_number": None,
+        "voice_engine": "realtime",
     }
 
     async def get_settings(self, user_id: str) -> dict:
         organization_id = await self._resolve_organization_id(user_id)
         org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
-        return self.merge_settings((org or {}).get("ai_call_settings"))
+        return {
+            **self.merge_settings((org or {}).get("ai_call_settings")),
+            # Lives on the organization itself (the booking service reads it there).
+            "require_meeting_approval": bool((org or {}).get("require_meeting_approval", False)),
+        }
 
     @classmethod
     def merge_settings(cls, stored: dict | None) -> dict:
@@ -65,16 +72,21 @@ class AICallSettingsService(SmartFlowBase):
         # a custom greeting back to the built-in one — so it is not filtered out.
         merged = {**current, **payload}
         merged["language_menu"] = self._validate_language_menu(merged.get("language_menu"))
+        if merged.get("transfer_number"):
+            merged["transfer_number"] = self._normalize_phone_value(merged["transfer_number"]) or None
+        if merged.get("voice_engine") not in ("realtime", "classic"):
+            merged["voice_engine"] = "realtime"
+        require_approval = bool(merged.pop("require_meeting_approval", False))
 
         await self.db.organizations.update_one(
             {"organization_id": organization_id},
             {
-                "$set": {"ai_call_settings": merged, "updated_at": utc_now()},
+                "$set": {"ai_call_settings": merged, "require_meeting_approval": require_approval, "updated_at": utc_now()},
                 "$setOnInsert": {"organization_id": organization_id, "created_at": utc_now()},
             },
             upsert=True,
         )
-        return merged
+        return {**merged, "require_meeting_approval": require_approval}
 
     @staticmethod
     def _validate_language_menu(menu: list | None) -> list[dict]:

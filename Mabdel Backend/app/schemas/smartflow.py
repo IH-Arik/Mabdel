@@ -458,6 +458,10 @@ class AICallSettingsResponse(BaseModel):
     closing_message: str | None = None
     language_menu_enabled: bool = False
     language_menu: list[AICallLanguageMenuOption] = Field(default_factory=list)
+    knowledge_base: str | None = None
+    transfer_number: str | None = None
+    voice_engine: str = "realtime"
+    require_meeting_approval: bool = False
 
 
 class AICallSettingsUpdateRequest(BaseModel):
@@ -477,10 +481,16 @@ class AICallSettingsUpdateRequest(BaseModel):
     closing_message: str | None = Field(default=None, max_length=500)
     language_menu_enabled: bool | None = None
     language_menu: list[AICallLanguageMenuOption] | None = None
+    # What a receptionist would know: services, prices, policies, parking, FAQs.
+    knowledge_base: str | None = Field(default=None, max_length=8000)
+    # Where the AI hands a caller who asks for a person.
+    transfer_number: str | None = Field(default=None, max_length=32)
+    voice_engine: Literal["realtime", "classic"] | None = None
+    require_meeting_approval: bool | None = None
 
     @field_validator(
         "assistant_name", "business_type", "custom_instructions",
-        "greeting_inbound", "greeting_outbound", "closing_message",
+        "greeting_inbound", "greeting_outbound", "closing_message", "knowledge_base",
     )
     @classmethod
     def _clean_free_text(cls, value: str | None) -> str | None:
