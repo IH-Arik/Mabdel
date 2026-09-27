@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 10
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4o-mini"
+    # Speech-to-speech model for the AI receptionist on phone calls.
+    OPENAI_REALTIME_URL: str = "wss://api.openai.com/v1/realtime"
+    OPENAI_REALTIME_MODEL: str = "gpt-realtime"
+    OPENAI_REALTIME_TRANSCRIBE_MODEL: str = "gpt-4o-mini-transcribe"
     OAUTH_STATE_EXPIRE_MINUTES: int = 10
 
     GOOGLE_CLIENT_ID: str | None = None

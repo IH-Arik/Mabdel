@@ -14,6 +14,7 @@ from app.services.telnyx_web_voice_service import TelnyxWebVoiceService
 from app.utils.responses import success_response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.services.ai_phone_agent import MU_LAW_SILENCE, AIPhoneAgent, is_outbound_call, other_party_number
+from app.services.realtime_receptionist import RealtimeReceptionist, choose_voice_engine
 from app.services.gocustify_ai_service import GoCustifyAIService
 from app.core.exceptions import AppException
 from app.utils.audio import utc_now
@@ -502,12 +503,22 @@ async def _handle_call_status(service: SmartFlowService, call_id: str, event_typ
                 # and render its greeting audio now, in that window, so the callee
                 # hears the first word as soon as the stream is live instead of waiting
                 # out a TTS round trip on top of it. call_stream picks this agent up.
-                agent = AIPhoneAgent(call_id, ai_service, service)
-                agent.user_id = call["user_id"]
-                agent.is_outbound = True
-                agent.caller_phone = other_party_number(call)
-                active_sessions[call_id] = agent
-                asyncio.create_task(agent.prewarm_greeting())
+                if await choose_voice_engine(service.db, call["user_id"]) == "realtime":
+                    # Open the OpenAI session in that same window, so the first word is
+                    # not waiting on a connection handshake either.
+                    agent = RealtimeReceptionist(call_id, ai_service, service, call_log=call, call_control=call_service)
+                    agent.user_id = call["user_id"]
+                    agent.is_outbound = True
+                    agent.caller_phone = other_party_number(call)
+                    active_sessions[call_id] = agent
+                    asyncio.create_task(agent.connect())
+                else:
+                    agent = AIPhoneAgent(call_id, ai_service, service)
+                    agent.user_id = call["user_id"]
+                    agent.is_outbound = True
+                    agent.caller_phone = other_party_number(call)
+                    active_sessions[call_id] = agent
+                    asyncio.create_task(agent.prewarm_greeting())
         except Exception as exc:
             logger.error("Failed to start outbound streaming for call %s: %s", call_id, exc)
 
@@ -664,6 +675,64 @@ async def get_live_call_transcript(
     )
 
 
+async def _run_realtime_stream(websocket: WebSocket, call_id: str, receptionist: RealtimeReceptionist) -> None:
+    """Media loop for a Realtime call: caller audio goes straight to the model, the
+    model's audio straight back (see RealtimeReceptionist)."""
+    send_failed = False
+    keepalive_task = None
+
+    async def send_to_telnyx(message: dict):
+        nonlocal send_failed
+        try:
+            await websocket.send_json(message)
+        except Exception:
+            if not send_failed:
+                send_failed = True
+                logger.warning("Call %s: failed sending audio frame to Telnyx", call_id, exc_info=True)
+
+    async def keep_stream_alive():
+        # Same reason as the classic loop: an outbound stream is joined with
+        # start_streaming, which cannot ask Telnyx to fill idle time with silence.
+        while True:
+            await asyncio.sleep(0.02)
+            if not receptionist.is_speaking:
+                await send_to_telnyx({"event": "media", "media": {"payload": SILENCE_FRAME_PAYLOAD}})
+
+    try:
+        while True:
+            raw_message = await websocket.receive()
+            if raw_message.get("type") == "websocket.disconnect":
+                break
+            text_payload = raw_message.get("text")
+            if text_payload is None:
+                continue
+            stream_message = call_service.parse_stream_message(text_payload)
+            if stream_message is None:
+                continue
+            if stream_message.event == "start":
+                receptionist.stream_sid = stream_message.stream_id
+                logger.info("Call %s: Telnyx stream started, Realtime receptionist answering", call_id)
+                await receptionist.start(send_to_telnyx)
+                if receptionist.is_outbound:
+                    keepalive_task = asyncio.create_task(keep_stream_alive())
+            elif stream_message.event == "media":
+                if stream_message.media and stream_message.media.get("payload"):
+                    await receptionist.on_caller_audio(stream_message.media["payload"])
+            elif stream_message.event == "error":
+                logger.error("Call %s: Telnyx stream error: %s", call_id, text_payload)
+            elif stream_message.event == "stop":
+                break
+    finally:
+        if keepalive_task:
+            keepalive_task.cancel()
+        await receptionist.close()
+        active_sessions.pop(call_id, None)
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
 @router.websocket("/calls/stream/{call_id}", name="call_stream")
 async def call_stream(websocket: WebSocket, call_id: str) -> None:
     """
@@ -675,13 +744,32 @@ async def call_stream(websocket: WebSocket, call_id: str) -> None:
     db = await get_mongo_database()
     flow_service = SmartFlowService(db)
 
-    # Resolve the business owner from the call log created by the incoming webhook.
+    # Only a call our own webhook/outbound flow created may attach a media stream: the
+    # URL carries no secret, and attaching used to fall back to an arbitrary user's
+    # business data for any unknown id.
     call_log = await db.call_logs.find_one({"twilio_call_sid": call_id})
-    if call_log and call_log.get("user_id") and call_log["user_id"] != "guest":
-        user_id_val = call_log["user_id"]
-    else:
-        fallback_user = await db.users.find_one({})
-        user_id_val = str(fallback_user["_id"]) if fallback_user else "guest"
+    if not call_log:
+        logger.warning("Call stream refused for unknown call id %s", call_id)
+        await websocket.close(code=1008)
+        return
+    user_id_val = call_log.get("user_id") or "guest"
+
+    if await choose_voice_engine(db, user_id_val) == "realtime":
+        receptionist = active_sessions.get(call_id)
+        if not isinstance(receptionist, RealtimeReceptionist):
+            receptionist = RealtimeReceptionist(call_id, ai_service, flow_service, call_log=call_log, call_control=call_service)
+            receptionist.user_id = user_id_val
+            receptionist.is_outbound = is_outbound_call(call_log)
+            receptionist.caller_phone = other_party_number(call_log)
+        receptionist.call_log = call_log
+        if await receptionist.connect():
+            receptionist.session_started_at = utc_now()
+            active_sessions[call_id] = receptionist
+            await _run_realtime_stream(websocket, call_id, receptionist)
+            return
+        # The Realtime session could not start: the classic agent answers instead,
+        # so the caller never sits in silence.
+        active_sessions.pop(call_id, None)
 
     # An outbound call already has an agent, created when the callee answered so its
     # greeting could be rendered while Telnyx brought the stream up. Reuse it rather

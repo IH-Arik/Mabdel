@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 import asyncio
 
 from app.tests.conftest import grant_role
@@ -48,6 +50,17 @@ def _seed_open_business_hours(mock_db, organization_id: str) -> None:
 
 # ── start / message / end ────────────────────────────────────────────────
 
+
+
+@pytest.fixture(autouse=True)
+def _classic_engine(monkeypatch):
+    """These tests cover the classic agent's scripted flow."""
+    import app.api.v1.endpoints.smartflow.ai_call_test as simulator
+
+    async def classic(db, user_id):
+        return "classic"
+
+    monkeypatch.setattr(simulator, "choose_voice_engine", classic)
 
 def test_start_session_returns_session_id_and_greeting(client, mock_db):
     headers, _ = _owner_with_org(client, mock_db, "aitest-start@example.com")

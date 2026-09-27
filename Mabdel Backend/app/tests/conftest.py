@@ -96,6 +96,18 @@ def grant_role(db, email: str, role_slug: str) -> None:
     asyncio.run(_grant())
 
 
+@pytest.fixture(autouse=True)
+def _no_real_openai_realtime(monkeypatch):
+    """Tests never open a real OpenAI Realtime socket (the key in .env is real): a
+    call falls back to the classic agent unless the test installs a fake socket."""
+    import app.services.realtime_receptionist as realtime
+
+    async def _refuse():
+        raise RuntimeError("OpenAI Realtime is not reachable from tests")
+
+    monkeypatch.setattr(realtime, "open_openai_socket", _refuse)
+
+
 @pytest.fixture(scope="function")
 def mock_db():
     original_public_backend_url = settings.PUBLIC_BACKEND_URL
