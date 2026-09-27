@@ -1179,6 +1179,9 @@ class OutboundCallRequest(BaseModel):
     phone_number: str | None = None
     from_number: str | None = None
     ai_ready: bool = True
+    # What the AI is calling about - briefed into the Realtime receptionist.
+    purpose: Literal["follow_up", "appointment_reminder", "custom"] = "follow_up"
+    script_notes: str | None = Field(default=None, max_length=1000)
 
 
 class OutboundCallResponse(BaseModel):

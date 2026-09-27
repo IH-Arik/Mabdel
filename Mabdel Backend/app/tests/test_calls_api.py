@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import base64
 import json
 import time
@@ -262,7 +264,8 @@ def test_recording_saved_webhook_transcribes_and_summarizes(client, mock_db, mon
     assert call_log["ai_summary"]["status"] == "generated"
 
 
-def test_call_stream_handles_telnyx_media_events(client) -> None:
+def test_call_stream_handles_telnyx_media_events(client, mock_db) -> None:
+    asyncio.run(mock_db.call_logs.insert_one({"twilio_call_sid": "CAstream", "user_id": "guest", "direction": "inbound"}))
     with client.websocket_connect("/api/v1/calls/stream/CAstream") as websocket:
         websocket.send_json({"event": "connected"})
         websocket.send_json({"event": "start", "stream_id": "MZ123"})

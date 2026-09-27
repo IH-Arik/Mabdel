@@ -125,6 +125,8 @@ class CallHistoryService(SmartFlowBase):
                 "callback_requested": False,
                 "from_number": from_number,
                 "status": "queued",
+                "purpose": payload.get("purpose") or "follow_up",
+                "script_notes": (payload.get("script_notes") or "").strip()[:1000] or None,
             },
         )
         # initiate_outbound_call returns "queued" directly — it's already a valid

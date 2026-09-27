@@ -14,6 +14,7 @@ from app.schemas.smartflow import (
     AICallTestStartResponse,
 )
 from app.services.ai_phone_agent import AIPhoneAgent
+from app.services.realtime_receptionist import RealtimeReceptionist, choose_voice_engine
 from app.services.gocustify_ai_service import GoCustifyAIService
 from app.services.smartflow_service import SmartFlowService
 from app.utils.responses import success_response
@@ -73,7 +74,12 @@ async def start_ai_call_test(
 
     user_id = str(current_user["_id"])
     session_id = uuid.uuid4().hex
-    agent = AIPhoneAgent(f"sim_{session_id}", GoCustifyAIService(), service, is_simulation=True)
+    # Preview the engine real callers will get: the Realtime receptionist's briefing and
+    # tools (in dry-run), or the classic agent when the business chose it.
+    if await choose_voice_engine(service.db, user_id) == "realtime":
+        agent = RealtimeReceptionist(f"sim_{session_id}", GoCustifyAIService(), service, is_simulation=True)
+    else:
+        agent = AIPhoneAgent(f"sim_{session_id}", GoCustifyAIService(), service, is_simulation=True)
     agent.user_id = user_id
     agent.greeted = True  # this path composes the greeting text itself, not via greet()
 
@@ -127,7 +133,10 @@ async def send_ai_call_test_message(
     entry["last_activity"] = time.monotonic()
 
     try:
-        reply = await agent._advance_conversation(payload.message)
+        if isinstance(agent, RealtimeReceptionist):
+            reply = await agent.simulate_turn(payload.message)
+        else:
+            reply = await agent._advance_conversation(payload.message)
     except Exception:
         logger.exception("Test AI: session %s failed to advance conversation", session_id)
         raise AppException(

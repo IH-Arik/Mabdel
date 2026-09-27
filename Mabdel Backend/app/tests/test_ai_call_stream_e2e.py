@@ -7,6 +7,9 @@ def test_ai_greeting_audio_is_sent_back_over_the_stream(client, mock_db, monkeyp
     """The real gap the existing test_call_stream_handles_telnyx_media_events leaves open:
     it only asserts the socket doesn't crash, never that the AI actually speaks."""
     install_fake_streaming_tts(monkeypatch)
+    import asyncio
+
+    asyncio.run(mock_db.call_logs.insert_one({"twilio_call_sid": "CAgreet", "user_id": "guest", "direction": "inbound"}))
 
     with client.websocket_connect("/api/v1/calls/stream/CAgreet") as websocket:
         websocket.send_json({"event": "connected"})
