@@ -548,8 +548,8 @@ export default function UnifiedConversations() {
                 sending={sending}
                 replyTo={replyTo}
                 onCancelReply={() => setReplyTo(null)}
-                recentMessages={messages}
                 replyWindowClosed={replyWindowClosed}
+                onError={setError}
                 t={t}
               />
             </div>

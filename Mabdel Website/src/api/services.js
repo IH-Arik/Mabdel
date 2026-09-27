@@ -275,6 +275,12 @@ export const smartflowApi = {
   assignConversation: (id, assigneeId) => client.patch(`/api/v1/smartflow/conversations/${id}/assign`, { assignee_id: assigneeId }),
   getConversationAssignees: () => client.get('/api/v1/smartflow/conversations/assignees'),
   getConversationContact: (id) => client.get(`/api/v1/smartflow/conversations/${id}/contact`),
+  composeMessage: (data) => client.post('/api/v1/smartflow/ai/compose', data),
+  transcribeDictation: (blob) => {
+    const fd = new FormData();
+    fd.append('audio_file', blob, 'dictation.webm');
+    return client.post('/api/v1/smartflow/ai/transcribe', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   getMessages: (id, params) => client.get(`/api/v1/smartflow/conversations/${id}/messages`, { params }),
   uploadConversationAttachment: (id, formData) => client.post(`/api/v1/smartflow/conversations/${id}/attachments`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

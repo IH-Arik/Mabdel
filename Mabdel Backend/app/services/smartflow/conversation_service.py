@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import html as html_lib
 import time
 from datetime import timedelta
@@ -304,6 +305,52 @@ class ConversationService(SmartFlowBase):
                 "pages": ceil(total / page_size) if page_size else 1,
             },
         }
+
+    async def compose_reply(self, user_id: str, *, action: str, draft: str = "", conversation_id: str | None = None, language: str = "") -> dict:
+        """AI writing help for the inbox composer. Unlike /ai/chat this never lands in
+        the owner's AI-assistant history - it only returns text for the draft."""
+        if action not in self.ai_service.COMPOSE_INSTRUCTIONS:
+            raise AppException(status_code=400, code="COMPOSE_ACTION_INVALID", message="Unknown writing action.")
+        if action != "draft_reply" and not draft.strip():
+            raise AppException(status_code=400, code="COMPOSE_DRAFT_REQUIRED", message="Write something first, then ask the AI to rework it.")
+        transcript, channel, customer = "", "", "Customer"
+        if conversation_id:
+            conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+            channel = conversation.get("platform") or ""
+            customer = conversation.get("title") or customer
+            recent = await self.db.messages.find({"conversation_id": conversation_id}).sort("timestamp", -1).limit(12).to_list(12)
+            transcript = "\n".join(
+                f"{'Business' if message.get('direction') == 'outbound' else customer}: {message.get('content')}"
+                for message in reversed(recent)
+                if message.get("content")
+            )
+        if action == "draft_reply" and not transcript:
+            raise AppException(status_code=400, code="COMPOSE_NO_CONTEXT", message="There is no conversation to reply to yet.")
+        user = await self._get_user_document(user_id)
+        text = await asyncio.to_thread(
+            self.ai_service.compose_message,
+            action,
+            draft=draft[:4000],
+            transcript=transcript[-6000:],
+            channel=channel,
+            business_name=user.get("business_name") or "",
+            language=language,
+        )
+        if not text:
+            raise AppException(status_code=503, code="AI_UNAVAILABLE", message="The AI writer is not available right now. Try again in a moment.")
+        return {"text": text}
+
+    async def transcribe_dictation(self, *, audio_bytes: bytes, mime_type: str, filename: str) -> dict:
+        """Speech to text only - for dictating a message. No chat, no workflows."""
+        if not audio_bytes:
+            raise AppException(status_code=400, code="VOICE_TRANSCRIPTION_FAILED", message="The recording was empty.")
+        result = await asyncio.to_thread(
+            self.ai_service.transcribe_voice,
+            audio_base64=base64.b64encode(audio_bytes).decode("utf-8"),
+            audio_mime_type=mime_type or "audio/webm",
+            audio_filename=filename or "voice.webm",
+        )
+        return {"transcript": result["transcript"]}
 
     async def _require_customer_conversation(self, user_id: str, conversation_id: str) -> dict:
         conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")

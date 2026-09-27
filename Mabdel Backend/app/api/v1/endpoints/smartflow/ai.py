@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import base64
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Depends, File, Form, Query, Request, UploadFile
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from app.core.exceptions import AppException
 from app.dependencies import get_current_user, require_permission, require_subscription
@@ -213,6 +213,38 @@ async def ai_voice_chat_upload(
         voice_id=voice_id,
     )
     return success_response(data=data, message="AI voice chat processed successfully.")
+
+
+class ComposeRequest(BaseModel):
+    action: Literal["draft_reply", "improve", "shorter", "friendlier", "professional", "translate"]
+    draft: str = Field(default="", max_length=4000)
+    conversation_id: str | None = Field(default=None, max_length=64)
+    language: str = Field(default="", max_length=40)
+
+
+@router.post("/ai/compose")
+async def ai_compose(
+    payload: ComposeRequest,
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.compose_reply(str(current_user["_id"]), **payload.model_dump())
+    return success_response(data=data, message="Message written.")
+
+
+@router.post("/ai/transcribe")
+async def ai_transcribe(
+    audio_file: UploadFile = File(...),
+    current_user: dict = Depends(require_permission("ai_tools", "use")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    audio_bytes = await audio_file.read(25 * 1024 * 1024 + 1)
+    if len(audio_bytes) > 25 * 1024 * 1024:
+        raise AppException(status_code=413, code="AUDIO_TOO_LARGE", message="The recording is too long.")
+    data = await service.transcribe_dictation(
+        audio_bytes=audio_bytes, mime_type=audio_file.content_type or "audio/webm", filename=audio_file.filename or "voice.webm"
+    )
+    return success_response(data=data, message="Transcribed.")
 
 
 @router.post("/ai/workflow-prefill")

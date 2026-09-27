@@ -351,6 +351,55 @@ class GoCustifyAIService:
                 "error": str(exc)[:240],
             }
 
+    COMPOSE_INSTRUCTIONS = {
+        "draft_reply": "Write the next reply the business should send to the customer, based on the conversation.",
+        "improve": "Rewrite the draft so it is clear, friendly and professional. Fix spelling and grammar.",
+        "shorter": "Rewrite the draft shorter, keeping every important detail.",
+        "friendlier": "Rewrite the draft in a warmer, friendlier tone.",
+        "professional": "Rewrite the draft in a polished, professional tone.",
+        "translate": "Translate the draft into {language}, keeping its meaning and tone.",
+    }
+
+    def compose_message(
+        self,
+        action: str,
+        *,
+        draft: str = "",
+        transcript: str = "",
+        channel: str = "",
+        business_name: str = "",
+        language: str = "",
+    ) -> str | None:
+        """Write or rewrite a reply to a customer for the shared inbox. Returns only the
+        message text, or None when the model is unavailable."""
+        if not settings.OPENAI_API_KEY or action not in self.COMPOSE_INSTRUCTIONS:
+            return None
+        task = self.COMPOSE_INSTRUCTIONS[action].format(language=language or "English")
+        style = {
+            "sms": "Keep it under 300 characters; SMS style, no markdown.",
+            "email": "Plain email body text with a short greeting and sign-off, no subject line.",
+        }.get(channel, "Chat message style: short and natural, no markdown, no signature.")
+        system_prompt = (
+            f"You help {business_name or 'a business'}'s team reply to customers. {task} {style} "
+            "Reply in the same language as the customer unless asked to translate. Never invent "
+            "prices, dates, policies or promises that are not in the conversation or the draft. "
+            "Return ONLY the message text - no preamble, no quotes, no explanation."
+        )
+        parts = []
+        if transcript:
+            parts.append(f"Conversation so far:\n{transcript}")
+        if draft:
+            parts.append(f"Draft:\n{draft}")
+        try:
+            response = _get_sync_openai_client().chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": "\n\n".join(parts) or "(empty)"}],
+            )
+            text = (response.choices[0].message.content or "").strip().strip('"').strip()
+            return text or None
+        except Exception:
+            return None
+
     def improve_text(self, text: str) -> tuple[str | None, int]:
         if not settings.OPENAI_API_KEY:
             return None, 0

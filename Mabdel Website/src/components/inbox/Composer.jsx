@@ -1,83 +1,80 @@
 import { useRef, useState } from 'react';
-import { AlertTriangle, Loader2, Send, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, Loader2, Mic, Send, Sparkles, Square, Undo2, X } from 'lucide-react';
 import { smartflowApi } from '../../api/services';
 import { channelMeta } from '../../constants/channels';
 import { getApiData } from './inboxUtils';
+import useDictation from './useDictation';
 
 const TYPING_PING_MS = 3000;
 
-function AiSuggestions({ recentMessages, contactName, onUse, t }) {
-  const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(false);
+const REWRITE_ACTIONS = ['improve', 'shorter', 'friendlier', 'professional'];
+const TRANSLATE_LANGUAGES = ['English', 'Bangla', 'Hindi', 'Urdu', 'Arabic', 'Spanish', 'French', 'Portuguese', 'Turkish', 'Russian', 'Chinese', 'Japanese'];
 
-  const generate = async () => {
-    setLoading(true);
-    const fallback = [t('conv_fallback_reply_1'), t('conv_fallback_reply_2'), t('conv_fallback_reply_3')];
-    // Give the model the actual conversation, otherwise the replies are generic.
-    const transcript = recentMessages
-      .filter((message) => message.content)
-      .slice(-8)
-      .map((message) => `${message.direction === 'outbound' ? 'Business' : contactName || 'Customer'}: ${message.content}`)
-      .join('\n');
+const chipClass =
+  'inline-flex cursor-pointer items-center gap-1 rounded-lg border border-[#9333ea]/25 bg-[#9333ea]/10 px-2.5 py-1 text-[11px] font-bold text-[#d8b4fe] hover:bg-[#9333ea]/20 disabled:cursor-not-allowed disabled:opacity-50';
+
+// Draft a reply from the conversation, or rework what the user has typed.
+function AiWriter({ conversationId, draft, onDraft, onError, t }) {
+  const [busy, setBusy] = useState('');
+  const [previous, setPrevious] = useState(null);
+
+  const run = async (action, language = '') => {
+    setBusy(action);
     try {
-      const response = await smartflowApi.aiChat(
-        `Suggest 3 short, friendly replies the business could send next. One per line, no numbering, no quotes.\n\n${transcript}`,
-        { response_mode: 'text' },
-      );
-      const data = getApiData(response);
-      const text = data?.ai_message?.content || data?.response || '';
-      const lines = text
-        .split('\n')
-        .map((line) => line.replace(/^[-*0-9.)\s]+/, '').replace(/^"|"$/g, '').trim())
-        .filter(Boolean)
-        .slice(0, 3);
-      setSuggestions(lines.length ? lines : fallback);
-    } catch {
-      setSuggestions(fallback);
+      const response = await smartflowApi.composeMessage({ action, draft, conversation_id: conversationId, language });
+      const text = getApiData(response)?.text;
+      if (text) {
+        setPrevious(draft);
+        onDraft(text);
+      }
+    } catch (error) {
+      onError(error?.response?.data?.message || t('conv_err_ai_writer'));
     } finally {
-      setLoading(false);
+      setBusy('');
     }
   };
 
-  if (!suggestions.length) {
-    return (
-      <button
-        type="button"
-        onClick={generate}
-        disabled={loading}
-        className="flex cursor-pointer items-center gap-1.5 text-xs font-bold text-[#c084fc] hover:underline disabled:opacity-60"
-      >
-        {loading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-        {loading ? t('conv_generating_suggestions') : t('conv_ai_reply_suggestions')}
-      </button>
-    );
-  }
+  const hasDraft = Boolean(draft.trim());
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1 text-xs font-bold text-[#c084fc]">
-          <Sparkles size={11} />
-          {t('conv_ai_suggestions')}
-        </span>
-        <button type="button" onClick={() => setSuggestions([])} aria-label={t('conv_close')} className="cursor-pointer text-[#A4B0B7] hover:text-white">
-          <X size={12} />
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t('conv_ai_writer')}>
+      <button type="button" onClick={() => run('draft_reply')} disabled={Boolean(busy)} className={chipClass}>
+        {busy === 'draft_reply' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+        {t('conv_ai_draft_reply')}
+      </button>
+      {REWRITE_ACTIONS.map((action) => (
+        <button key={action} type="button" onClick={() => run(action)} disabled={!hasDraft || Boolean(busy)} className={chipClass}>
+          {busy === action ? <Loader2 size={11} className="animate-spin" /> : null}
+          {t(`conv_ai_${action}`)}
         </button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {suggestions.map((suggestion, index) => (
-          <button
-            key={`${suggestion}-${index}`}
-            type="button"
-            onClick={() => {
-              onUse(suggestion);
-              setSuggestions([]);
-            }}
-            className="cursor-pointer rounded-xl border border-[#9333ea]/25 bg-[#9333ea]/10 px-3 py-1.5 text-left text-xs font-semibold text-[#d8b4fe] hover:bg-[#9333ea]/20"
-          >
-            {suggestion}
-          </button>
+      ))}
+      <label className="sr-only" htmlFor="conv-translate">{t('conv_ai_translate')}</label>
+      <select
+        id="conv-translate"
+        value=""
+        disabled={!hasDraft || Boolean(busy)}
+        onChange={(event) => event.target.value && run('translate', event.target.value)}
+        className="cursor-pointer rounded-lg border border-[#9333ea]/25 bg-[#12091f] px-2 py-1 text-[11px] font-bold text-[#d8b4fe] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <option value="">{busy === 'translate' ? t('conv_ai_working') : t('conv_ai_translate')}</option>
+        {TRANSLATE_LANGUAGES.map((language) => (
+          <option key={language} value={language}>
+            {language}
+          </option>
         ))}
-      </div>
+      </select>
+      {previous !== null ? (
+        <button
+          type="button"
+          onClick={() => {
+            onDraft(previous);
+            setPrevious(null);
+          }}
+          className="inline-flex cursor-pointer items-center gap-1 px-1 text-[11px] font-bold text-slate-400 hover:text-white"
+        >
+          <Undo2 size={11} />
+          {t('conv_ai_undo')}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -90,13 +87,18 @@ export default function Composer({
   sending,
   replyTo,
   onCancelReply,
-  recentMessages,
   replyWindowClosed,
+  onError,
   t,
 }) {
   const lastTypingPingRef = useRef(0);
   const stopTypingTimerRef = useRef(null);
   const label = channelMeta(conversation?.platform).label;
+  const dictation = useDictation({
+    onText: (text) => onChange(value.trim() ? `${value.trim()} ${text}` : text),
+    onError,
+    t,
+  });
 
   const pingTyping = (text) => {
     if (!conversation?.id) return;
@@ -122,7 +124,7 @@ export default function Composer({
 
   return (
     <div className="space-y-2 border-t border-[#243041]/40 bg-[#0c101b]/80 p-3 md:p-4">
-      <AiSuggestions recentMessages={recentMessages} contactName={conversation?.contact_name} onUse={onChange} t={t} />
+      <AiWriter conversationId={conversation?.id} draft={value} onDraft={onChange} onError={onError} t={t} />
 
       {replyWindowClosed ? (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-950/30 px-3 py-2 text-[11px] text-amber-200">
@@ -162,6 +164,19 @@ export default function Composer({
           rows={2}
           className="max-h-40 min-h-[48px] flex-1 resize-none rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-[13px] text-white placeholder-slate-600 focus:border-[#9333ea]/50 focus:outline-none"
         />
+        <button
+          type="button"
+          onClick={dictation.toggle}
+          disabled={dictation.transcribing}
+          aria-pressed={dictation.recording}
+          aria-label={dictation.recording ? t('conv_stop_recording') : t('conv_dictate')}
+          title={dictation.recording ? t('conv_stop_recording') : t('conv_dictate')}
+          className={`flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors disabled:opacity-60 ${
+            dictation.recording ? 'border-rose-500/60 bg-rose-950/40 text-rose-300' : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-[#c084fc]'
+          }`}
+        >
+          {dictation.transcribing ? <Loader2 size={16} className="animate-spin" /> : dictation.recording ? <Square size={14} /> : <Mic size={16} />}
+        </button>
         <button
           type="submit"
           disabled={sending || !value.trim()}
