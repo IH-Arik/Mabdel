@@ -156,7 +156,7 @@ def test_audio_passes_through_and_the_greeting_is_protected(client, mock_db, mon
         await socket.emit({"type": "response.output_audio.delta", "item_id": "item_1", "delta": "//79/A=="})
         assert to_telnyx[-1] == {"event": "media", "media": {"payload": "//79/A=="}}
 
-        await socket.emit({"type": "response.done", "response": {"output": []}})
+        await _greeting_done(socket)
         assert socket.of_type("input_audio_buffer.clear")
         await agent.on_caller_audio("aGVsbG8=")
         assert socket.of_type("input_audio_buffer.append")[-1]["audio"] == "aGVsbG8="
@@ -179,7 +179,7 @@ def test_tools_book_a_time_the_caller_named_and_record_it(client, mock_db, monke
         agent = _receptionist(mock_db, owner_id, socket)
         await agent.connect()
         await agent.start(lambda message: _noop())
-        await socket.emit({"type": "response.done", "response": {"output": []}})  # greeting finished
+        await _greeting_done(socket)
         await socket.emit({
             "type": "response.done",
             "response": {"output": [{"type": "function_call", "name": "check_availability", "call_id": "c1", "arguments": json.dumps({"date": "2026-08-18", "part_of_day": "morning"})}]},
@@ -216,12 +216,109 @@ async def _until(condition, timeout=5.0):
         await asyncio.sleep(0.01)
 
 
+async def _greeting_done(socket, response_id="resp_greet"):
+    """The greeting is its own response: the server announces it, then finishes it."""
+    await socket.emit({"type": "response.created", "response": {"id": response_id}})
+    await socket.emit({"type": "response.done", "response": {"id": response_id, "output": []}})
+
+
+def _pcmu_delta(milliseconds: int) -> str:
+    import base64
+
+    return base64.b64encode(b"\xff" * (milliseconds * 8)).decode()
+
+
 async def _noop():
     return None
 
 
-def test_goodbye_then_hang_up_and_transfer_to_a_person(client, mock_db, monkeypatch):
-    owner_id = _business(client, mock_db, monkeypatch, "rt-end@example.com", transfer_number="+15550001111")
+def test_transfer_waits_for_the_announcement_then_connects(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-transfer@example.com", transfer_number="+15550001111")
+    socket = FakeOpenAI()
+    control = FakeCallControl()
+    monkeypatch.setattr(realtime, "HANGUP_AFTER_GOODBYE_PAD_SECONDS", 0.05)
+    sent: list[dict] = []
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket, control)
+        await agent.connect()
+
+        async def to_telnyx(message):
+            sent.append(message)
+
+        await agent.start(to_telnyx)
+        await _greeting_done(socket)
+        # "One moment, I'll connect you" - 400 ms of audio already queued at Telnyx.
+        await socket.emit({"type": "response.output_audio.delta", "item_id": "item_t", "delta": _pcmu_delta(400)})
+
+        result = await agent.run_tool("transfer_to_human", json.dumps({"reason": "wants the dentist"}))
+        assert result == {"transferred": True}
+        assert control.transfers == []  # not yet - the announcement is still playing
+        assert {"event": "clear"} not in sent  # and it is never cut off
+        await agent.on_caller_audio("aGVsbG8=")
+        assert not socket.of_type("input_audio_buffer.append")  # the call is with a person now
+
+        await asyncio.sleep(0.6)
+        assert control.transfers == [("call-rt", "+15550001111")]
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_a_failed_transfer_is_explained_and_the_call_carries_on(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-transfer-fail@example.com", transfer_number="+15550001111")
+    socket = FakeOpenAI()
+    control = FakeCallControl()
+
+    async def refuse(call_id, *, to_number):
+        return False
+
+    control.transfer_call = refuse
+    monkeypatch.setattr(realtime, "HANGUP_AFTER_GOODBYE_PAD_SECONDS", 0)
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket, control)
+        await agent.connect()
+        await agent.start(lambda message: _noop())
+        await _greeting_done(socket)
+        await agent.run_tool("transfer_to_human", "{}")
+        await _until(lambda: any("transfer did not go through" in (e.get("response") or {}).get("instructions", "") for e in socket.of_type("response.create")))
+        assert agent.transferring is False
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_goodbye_said_once_then_hang_up_after_it_plays(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-end@example.com")
+    socket = FakeOpenAI()
+    control = FakeCallControl()
+    monkeypatch.setattr(realtime, "HANGUP_AFTER_GOODBYE_PAD_SECONDS", 0.05)
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket, control)
+        await agent.connect()
+        await agent.start(lambda message: _noop())
+        await _greeting_done(socket)
+        creates_before = len(socket.of_type("response.create"))
+
+        # The model says goodbye (300 ms of audio) and calls end_call in the same turn.
+        await socket.emit({"type": "response.output_audio.delta", "item_id": "item_bye", "delta": _pcmu_delta(300)})
+        await socket.emit({"type": "response.done", "response": {"id": "r_bye", "output": [{"type": "function_call", "name": "end_call", "call_id": "c9", "arguments": "{}"}]}})
+        await _until(lambda: len(socket.of_type("conversation.item.create")) == 1)
+        await asyncio.sleep(0.05)
+        assert len(socket.of_type("response.create")) == creates_before  # no second goodbye
+        assert control.hung_up == []  # the goodbye is still playing
+
+        await asyncio.sleep(0.5)
+        assert control.hung_up == ["call-rt"]
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_end_call_without_a_spoken_goodbye_asks_for_one_first(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-end2@example.com")
     socket = FakeOpenAI()
     control = FakeCallControl()
     monkeypatch.setattr(realtime, "HANGUP_AFTER_GOODBYE_PAD_SECONDS", 0)
@@ -230,19 +327,12 @@ def test_goodbye_then_hang_up_and_transfer_to_a_person(client, mock_db, monkeypa
         agent = _receptionist(mock_db, owner_id, socket, control)
         await agent.connect()
         await agent.start(lambda message: _noop())
-        await socket.emit({"type": "response.done", "response": {"output": []}})
-
-        result = await agent.run_tool("transfer_to_human", json.dumps({"reason": "wants the dentist"}))
-        assert result == {"transferred": True} and control.transfers == [("call-rt", "+15550001111")]
-        await agent.on_caller_audio("aGVsbG8=")
-        assert not socket.of_type("input_audio_buffer.append")  # the call is with a person now
-
-        agent.transferring = False
-        await socket.emit({"type": "response.done", "response": {"output": [{"type": "function_call", "name": "end_call", "call_id": "c9", "arguments": "{}"}]}})
-        assert not control.hung_up  # the goodbye has not been said yet
-        await socket.emit({"type": "response.done", "response": {"output": []}})
-        await asyncio.sleep(0.01)
-        assert control.hung_up == ["call-rt"]
+        await _greeting_done(socket)
+        await socket.emit({"type": "response.done", "response": {"id": "r1", "output": [{"type": "function_call", "name": "end_call", "call_id": "c1", "arguments": "{}"}]}})
+        await _until(lambda: any("goodbye" in (e.get("response") or {}).get("instructions", "") for e in socket.of_type("response.create")))
+        assert control.hung_up == []
+        await socket.emit({"type": "response.done", "response": {"id": "r2", "output": []}})
+        await _until(lambda: control.hung_up == ["call-rt"])
         await agent.close()
 
     asyncio.run(run())
@@ -362,3 +452,207 @@ def test_call_stream_answers_with_the_classic_agent_when_realtime_is_rejected(cl
 
     assert first["event"] == "media" and first["media"]["payload"]  # the classic greeting still plays
     assert not socket.of_type("response.create")  # the rejected Realtime session was never used
+
+
+def test_a_caller_speaking_during_a_tool_call_does_not_collide_with_the_reply(client, mock_db, monkeypatch):
+    """The real API rejects a second response.create while one is running (verified)."""
+    owner_id = _business(client, mock_db, monkeypatch, "rt-race@example.com")
+    socket = FakeOpenAI()
+
+    async def run():
+        gate = asyncio.Event()
+        agent = _receptionist(mock_db, owner_id, socket)
+
+        async def slow_tool(**_):
+            await gate.wait()
+            return {"slots": []}
+
+        agent._tool_check_availability = slow_tool
+        await agent.connect()
+        await agent.start(lambda message: _noop())
+        await _greeting_done(socket)
+        creates = len(socket.of_type("response.create"))
+
+        await socket.emit({"type": "response.done", "response": {"id": "r1", "output": [{"type": "function_call", "name": "check_availability", "call_id": "c1", "arguments": "{}"}]}})
+        await socket.emit({"type": "response.created", "response": {"id": "r_vad"}})  # the caller spoke; the server started a reply
+        gate.set()
+        await _until(lambda: len(socket.of_type("conversation.item.create")) == 1)
+        await asyncio.sleep(0.05)
+        assert len(socket.of_type("response.create")) == creates  # held back while that reply runs
+
+        await socket.emit({"type": "response.done", "response": {"id": "r_vad", "output": []}})
+        await _until(lambda: len(socket.of_type("response.create")) == creates + 1)  # then the tool result is answered
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_a_rejected_overlap_is_retried_when_the_running_reply_ends(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-overlap@example.com")
+    socket = FakeOpenAI()
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket)
+        await agent.connect()
+        await agent.start(lambda message: _noop())
+        await _greeting_done(socket)
+        await agent._request_response()
+        creates = len(socket.of_type("response.create"))
+        await socket.emit({"type": "error", "error": {"code": "conversation_already_has_active_response", "message": "busy"}})
+        await socket.emit({"type": "response.done", "response": {"id": "r_other", "output": []}})
+        await _until(lambda: len(socket.of_type("response.create")) == creates + 1)
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_a_language_switch_greeting_waits_for_the_cancelled_reply(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-lang-switch@example.com")
+    socket = FakeOpenAI()
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket)
+        await agent.connect()
+        await agent.start(lambda message: _noop())
+        await _greeting_done(socket)
+        await socket.emit({"type": "response.created", "response": {"id": "r_answer"}})  # mid-answer when they press 2
+        creates = len(socket.of_type("response.create"))
+
+        agent.language = "es"  # what set_language_from_digit does on a keypad press
+        await agent.acknowledge_language_switch()
+        assert socket.of_type("response.cancel")
+        assert len(socket.of_type("response.create")) == creates  # not sent into a running reply
+        assert agent.greeting_in_progress is True
+
+        await socket.emit({"type": "response.done", "response": {"id": "r_answer", "output": []}})  # the cancelled reply ends
+        await _until(lambda: len(socket.of_type("response.create")) == creates + 1)
+        assert agent.greeting_in_progress is True  # the cancelled reply did not end the protected greeting
+        await agent.on_caller_audio("aGVsbG8=")
+        assert not socket.of_type("input_audio_buffer.append")
+
+        await _greeting_done(socket, "resp_greet_es")
+        assert agent.greeting_in_progress is False
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_a_greeting_that_never_finishes_does_not_mute_the_caller(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-greet-stuck@example.com")
+    socket = FakeOpenAI()
+    monkeypatch.setattr(realtime, "GREETING_MAX_SECONDS", 0.05)
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket)
+        await agent.connect()
+        await agent.start(lambda message: _noop())
+        await agent.on_caller_audio("aGVsbG8=")
+        assert not socket.of_type("input_audio_buffer.append")
+        await asyncio.sleep(0.1)
+        await agent.on_caller_audio("aGVsbG8=")
+        assert socket.of_type("input_audio_buffer.append")
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_the_confirmation_text_uses_the_language_the_caller_spoke(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-language@example.com")
+    socket = FakeOpenAI()
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket)
+        booked = await agent.run_tool("book_appointment", json.dumps({"date": "2026-08-18", "time": "10:00", "first_name": "Nadia", "language": "es"}))
+        assert booked["outcome"] == "booked" and agent.language == "es"
+        cancelled = await agent.run_tool("cancel_appointment", json.dumps({"appointment_id": booked["appointment_id"], "language": "fr"}))
+        assert cancelled["outcome"] == "cancelled"
+
+    asyncio.run(run())
+    texts = [m["content"] for m in asyncio.run(mock_db.messages.find({"platform": "sms", "automated": True}).sort("timestamp", 1).to_list(None))]
+    assert "tu cita está confirmada" in texts[0]
+    assert "est annulé" in texts[1]
+
+
+def test_the_ai_cannot_book_a_date_that_has_already_passed(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-past@example.com")
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, FakeOpenAI())
+        past = await agent.run_tool("book_appointment", json.dumps({"date": "2026-08-10", "time": "10:00", "first_name": "Nadia"}))
+        assert past["outcome"] == "unavailable" and "already passed" in past["reason"]
+        far = await agent.run_tool("book_appointment", json.dumps({"date": "2027-08-18", "time": "10:00", "first_name": "Nadia"}))
+        assert far["outcome"] == "unavailable" and "too far" in far["reason"]
+        ok = await agent.run_tool("book_appointment", json.dumps({"date": "2026-08-17", "time": "10:00", "first_name": "Nadia"}))
+        assert ok["outcome"] == "booked"  # today, later on, is fine
+
+    asyncio.run(run())
+    assert asyncio.run(mock_db.calendar_events.count_documents({})) == 1
+
+
+def test_a_call_that_runs_past_the_time_limit_is_ended_politely(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-limit@example.com")
+    socket = FakeOpenAI()
+    control = FakeCallControl()
+    monkeypatch.setattr(realtime, "WATCH_INTERVAL_SECONDS", 0.02)
+    monkeypatch.setattr(realtime, "HANGUP_AFTER_GOODBYE_PAD_SECONDS", 0)
+    monkeypatch.setattr(realtime, "HARD_STOP_GRACE_SECONDS", 0.05)
+    monkeypatch.setattr(settings, "AI_CALL_MAX_SECONDS", 0)
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket, control)
+        await agent.connect()
+        await agent.start(lambda message: _noop())
+        await _greeting_done(socket)
+        await _until(lambda: any("time limit" in (e.get("response") or {}).get("instructions", "") for e in socket.of_type("response.create")))
+        await _until(lambda: control.hung_up == ["call-rt"])  # hard stop even if the goodbye never plays
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_a_caller_who_goes_quiet_is_asked_once_then_the_call_ends(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-idle@example.com")
+    socket = FakeOpenAI()
+    control = FakeCallControl()
+    monkeypatch.setattr(realtime, "WATCH_INTERVAL_SECONDS", 0.02)
+    monkeypatch.setattr(realtime, "HANGUP_AFTER_GOODBYE_PAD_SECONDS", 0)
+    monkeypatch.setattr(settings, "AI_CALL_IDLE_PROMPT_SECONDS", 0.05)
+    monkeypatch.setattr(settings, "AI_CALL_IDLE_HANGUP_SECONDS", 0.15)
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket, control)
+        await agent.connect()
+        await agent.start(lambda message: _noop())
+        await _greeting_done(socket)
+        await _until(lambda: any("gone quiet" in (e.get("response") or {}).get("instructions", "") for e in socket.of_type("response.create")))
+        await socket.emit({"type": "response.done", "response": {"id": "r_ask", "output": []}})  # the question was asked; silence again
+        await _until(lambda: any("cannot hear the caller" in (e.get("response") or {}).get("instructions", "") for e in socket.of_type("response.create")))
+        await socket.emit({"type": "response.done", "response": {"id": "r_bye", "output": []}})
+        await _until(lambda: control.hung_up == ["call-rt"])
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_speech_resets_the_quiet_timer(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-idle2@example.com")
+    socket = FakeOpenAI()
+    monkeypatch.setattr(realtime, "WATCH_INTERVAL_SECONDS", 0.02)
+    monkeypatch.setattr(settings, "AI_CALL_IDLE_PROMPT_SECONDS", 0.2)
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket)
+        await agent.connect()
+        await agent.start(lambda message: _noop())
+        await _greeting_done(socket)
+        for _ in range(6):  # the caller keeps talking, so nobody is "still there?"-ed
+            await asyncio.sleep(0.06)
+            await socket.emit({"type": "input_audio_buffer.speech_started"})
+        assert not any("gone quiet" in (e.get("response") or {}).get("instructions", "") for e in socket.of_type("response.create"))
+        await agent.close()
+
+    asyncio.run(run())
+
+
+def test_noise_reduction_is_on_for_phone_handsets():
+    assert realtime.audio_session_config("coral")["input"]["noise_reduction"] == {"type": "near_field"}
