@@ -19,7 +19,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 from app.core.exceptions import AppException
-from app.core.realtime import conversation_realtime_hub
+from app.core.realtime import conversation_realtime_hub, inbox_realtime_hub
 from app.services.email_service import EmailService
 from app.utils.helpers import utc_now
 
@@ -497,6 +497,8 @@ class ConversationService(SmartFlowBase):
             {"$set": {"archived": archived, "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
+        if self._is_customer_conversation(updated):
+            await self._publish_to_conversation_audience(updated, extra_user_ids=[user_id])
         return await self._serialize_conversation(updated, viewer_user_id=user_id)
 
     async def delete_conversation(self, user_id: str, conversation_id: str) -> bool:
@@ -505,8 +507,11 @@ class ConversationService(SmartFlowBase):
             raise AppException(status_code=400, code="GLOBAL_CHAT_DELETE_UNSUPPORTED", message="Global chat cannot be deleted.")
         if conversation.get("user_id") != user_id and not self._is_customer_conversation(conversation):
             raise AppException(status_code=403, code="CONVERSATION_DELETE_FORBIDDEN", message="Only the conversation owner can delete this conversation.")
+        audience = set(await self._customer_inbox_audience(conversation)) if self._is_customer_conversation(conversation) else set()
         await self.db.conversations.delete_one({"_id": conversation["_id"]})
         await self.db.messages.delete_many({"conversation_id": conversation_id})
+        for viewer_id in audience - {user_id}:
+            await inbox_realtime_hub.publish(viewer_id, "inbox.conversation_deleted", {"conversation_id": conversation_id})
         return True
 
     async def mark_conversation_read(self, user_id: str, conversation_id: str) -> dict:
@@ -527,7 +532,10 @@ class ConversationService(SmartFlowBase):
         refreshed = await self.db.conversations.find_one({"_id": conversation["_id"]})
         serialized = await self._serialize_conversation(refreshed, viewer_user_id=user_id)
         await conversation_realtime_hub.publish(conversation_id, "conversation.read", {"unread_count": 0, "read_at": now})
-        await self._publish_inbox_update(user_id, conversation_id)
+        if self._is_customer_conversation(conversation):
+            await self._publish_to_conversation_audience(refreshed, extra_user_ids=[user_id])
+        else:
+            await self._publish_inbox_update(user_id, conversation_id)
         return serialized
 
     async def list_messages(

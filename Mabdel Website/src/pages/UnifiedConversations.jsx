@@ -70,6 +70,7 @@ export default function UnifiedConversations() {
   const [busyAction, setBusyAction] = useState('');
   const scrollRef = useRef(null);
   const stickToBottomRef = useRef(true);
+  const activeThreadRef = useRef(null); // the thread on screen; late answers for another one are dropped
 
   // ── side panel / team ────────────────────────────────────────────────────
   const [showInfo, setShowInfo] = useState(false);
@@ -181,6 +182,13 @@ export default function UnifiedConversations() {
   );
 
   useReconnectingSocket('/api/v1/smartflow/ws/inbox', (payload) => {
+    if (payload?.event === 'inbox.conversation_deleted') {
+      const removedId = payload.data?.conversation_id;
+      setConversations((previous) => previous.filter((item) => item.id !== removedId));
+      setSelectedId((current) => (current === removedId ? null : current));
+      refreshCountsSoon();
+      return;
+    }
     if (payload?.event !== 'inbox.updated' || !payload?.data?.conversation) return;
     const incoming = payload.data.conversation;
     // The open thread was just read on screen; don't let a stale count flash back.
@@ -216,6 +224,7 @@ export default function UnifiedConversations() {
       else setLoadingOlder(true);
       try {
         const data = getApiData(await smartflowApi.getMessages(conversationId, { page: targetPage, page_size: THREAD_PAGE_SIZE }));
+        if (activeThreadRef.current !== conversationId) return;
         const items = toList(data);
         setMessages((previous) => (targetPage === 1 ? mergeMessages([], items) : mergeMessages(previous, items)));
         setThreadPage(targetPage);
@@ -225,10 +234,12 @@ export default function UnifiedConversations() {
           else if (element) element.scrollTop = element.scrollHeight - previousHeight; // keep the reader's place
         });
       } catch (threadError) {
-        setError(errorMessage(threadError, t('conv_err_load_thread')));
+        if (activeThreadRef.current === conversationId) setError(errorMessage(threadError, t('conv_err_load_thread')));
       } finally {
-        setThreadLoading(false);
-        setLoadingOlder(false);
+        if (activeThreadRef.current === conversationId) {
+          setThreadLoading(false);
+          setLoadingOlder(false);
+        }
       }
     },
     [scrollToBottom, t],
@@ -237,11 +248,12 @@ export default function UnifiedConversations() {
   const loadContact = useCallback(async (conversationId) => {
     setContactLoading(true);
     try {
-      setContactDetails(getApiData(await smartflowApi.getConversationContact(conversationId)));
+      const details = getApiData(await smartflowApi.getConversationContact(conversationId));
+      if (activeThreadRef.current === conversationId) setContactDetails(details);
     } catch {
-      setContactDetails(null);
+      if (activeThreadRef.current === conversationId) setContactDetails(null);
     } finally {
-      setContactLoading(false);
+      if (activeThreadRef.current === conversationId) setContactLoading(false);
     }
   }, []);
 
@@ -252,6 +264,9 @@ export default function UnifiedConversations() {
     setDraft('');
     setContactDetails(null);
     stickToBottomRef.current = true;
+    activeThreadRef.current = selectedId;
+    setThreadLoading(false);
+    setLoadingOlder(false);
     if (!selectedId) return;
     loadThread(selectedId, 1);
     loadContact(selectedId);
