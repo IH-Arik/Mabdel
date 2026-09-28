@@ -303,8 +303,10 @@ export const smartflowApi = {
   createAiConversation: () => client.post('/api/v1/smartflow/ai/conversations'),
   voiceChat: (blob) => {
     const fd = new FormData();
-    fd.append('audio_file', blob, 'voice.webm');
-    fd.append('response_mode', 'text');
+    const type = blob?.type || '';
+    const extension = type.includes('mp4') ? 'mp4' : type.includes('ogg') ? 'ogg' : 'webm';
+    fd.append('audio_file', blob, `voice.${extension}`);
+    fd.append('response_mode', 'audio'); // the assistant answers out loud
     return client.post('/api/v1/smartflow/ai/voice-chat-upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
   transcribeAudio: (blob) => {

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.exceptions import AppException
@@ -26,7 +28,10 @@ class WorkflowService(SmartFlowBase):
         response_mode: str = "both",
         voice_id: str | None = None,
     ) -> dict:
-        transcription = self.ai_service.transcribe_voice(
+        # Whisper is a blocking call: run it off the event loop, or every other request
+        # (live phone calls included) waits for this transcription.
+        transcription = await asyncio.to_thread(
+            self.ai_service.transcribe_voice,
             transcript=transcript,
             audio_url=audio_url,
             audio_base64=audio_base64,
@@ -57,7 +62,8 @@ class WorkflowService(SmartFlowBase):
         }
 
     async def process_workflow_prefill(self, user_id: str, payload: dict) -> dict:
-        transcription = self.ai_service.transcribe_voice(
+        transcription = await asyncio.to_thread(
+            self.ai_service.transcribe_voice,
             transcript=payload.get("transcript"),
             audio_url=payload.get("audio_url"),
             audio_base64=payload.get("audio_base64"),
