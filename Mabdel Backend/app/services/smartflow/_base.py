@@ -4098,8 +4098,9 @@ class SmartFlowBase:
         if user_id and recipient_name:
             clean_name = recipient_name.strip()
             if clean_name:
+                # Contacts belong to the whole organization, not just the login that asks.
                 resolved_contact = await self.db.contacts.find_one({
-                    "user_id": user_id,
+                    "user_id": {"$in": await self._resolve_team_user_ids(user_id)},
                     "$or": [
                         {"name": {"$regex": rf"\b{re.escape(clean_name)}\b", "$options": "i"}},
                         {"first_name": {"$regex": rf"^{re.escape(clean_name)}$", "$options": "i"}},
@@ -4246,7 +4247,7 @@ class SmartFlowBase:
                 return None, 0
 
             try:
-                client = OpenAI(api_key=settings.OPENAI_API_KEY)
+                client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=20.0, max_retries=1)
                 response = client.chat.completions.create(
                     model=settings.OPENAI_MODEL,
                     response_format={"type": "json_object"},
