@@ -398,7 +398,18 @@ def test_ai_chat_accepts_transcript_payload_for_invoice_flow(client, mock_db):
     assert data["navigation"]["params"]["prefill_prompt"] == "Create invoice for Jamil 250"
 
 
-def test_ai_workflow_prefill_supports_voice_form_creation_screens(client, mock_db):
+def _without_real_ai(monkeypatch):
+    """Prefill tests check our own extraction rules; a live model answer would make them vary run to run."""
+    from app.services.smartflow._base import SmartFlowBase
+
+    async def no_ai(self, intent, transcript, current_values):
+        return {}
+
+    monkeypatch.setattr(SmartFlowBase, "_extract_workflow_prefill_with_ai", no_ai)
+
+
+def test_ai_workflow_prefill_supports_voice_form_creation_screens(client, mock_db, monkeypatch):
+    _without_real_ai(monkeypatch)
     headers = _auth_headers(client, mock_db, email="ai-prefill@example.com")
     cases = [
         (
@@ -445,7 +456,8 @@ def test_ai_workflow_prefill_supports_voice_form_creation_screens(client, mock_d
         assert data["next_action"] in {"create", "review_form"}
 
 
-def test_ai_workflow_prefill_resolves_contact_and_overwrites_stale_email(client, mock_db):
+def test_ai_workflow_prefill_resolves_contact_and_overwrites_stale_email(client, mock_db, monkeypatch):
+    _without_real_ai(monkeypatch)
     headers = _auth_headers(client, mock_db, email="resolve-contacts@example.com")
     
     # 1. Create a contact in the database

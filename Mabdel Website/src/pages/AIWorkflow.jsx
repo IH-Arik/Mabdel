@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { smartflowApi } from '../api/services';
 import { Sparkles, Send, CheckCircle2, AlertCircle, Mic, Image as ImageIcon, Calendar, FileText, MessageSquare, History } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 
+// "Generate an image of ...", "create a picture of ..." - the chip says "an image", not "image".
+const IMAGE_REQUEST = /\b(generate|create|make|draw)\b[^.]{0,20}\b(image|picture|photo)\b/i;
+
 export default function AIWorkflow() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,6 +17,8 @@ export default function AIWorkflow() {
   const [voiceActive, setVoiceActive] = useState(false);
   const [recognitionInstance, setRecognitionInstance] = useState(null);
   const [generatedImage, setGeneratedImage] = useState(null);
+  const [error, setError] = useState('');
+  const runRef = useRef(0); // only the latest request may update the screen
 
   const startVoiceRecognition = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -35,7 +40,7 @@ export default function AIWorkflow() {
       const rec = new SpeechRecognition();
       rec.continuous = false;
       rec.interimResults = true;
-      rec.lang = 'en-US';
+      rec.lang = language; // the app language is a full locale code (e.g. bn-BD)
 
       rec.onstart = () => {
         setVoiceActive(true);
@@ -68,25 +73,30 @@ export default function AIWorkflow() {
   const handleProcess = async (e, directPrompt = null) => {
     if (e) e.preventDefault();
     const textToProcess = directPrompt || prompt;
-    if (!textToProcess.trim()) return;
+    if (!textToProcess.trim() || loading || voiceActive) return;
 
+    const runId = ++runRef.current;
     setLoading(true);
+    setError('');
     setResult(null);
     setGeneratedImage(null);
-    
+
     try {
-      // Check if it's an image generation request
-      if (textToProcess.toLowerCase().includes('generate image') || textToProcess.toLowerCase().includes('create image')) {
+      // "Generate an image of ...", "create a picture of ..." - the chip says "an image", not "image".
+      if (IMAGE_REQUEST.test(textToProcess)) {
          const res = await smartflowApi.generateAIImage({ prompt: textToProcess });
+         if (runId !== runRef.current) return;
          const data = res.data?.data || res.data;
+         if (!data?.image_url) throw new Error('no image');
          setGeneratedImage(data.image_url);
          setLoading(false);
          return;
       }
 
       const res = await smartflowApi.getAIWorkflowPrefill(textToProcess);
+      if (runId !== runRef.current) return;
       const data = res.data?.data || res.data;
-      
+
       // If no specific intent, navigate to normal AI chat
       if (!data.workflow || !data.workflow.intent || data.workflow.intent.toLowerCase() === 'none' || data.workflow.intent.toLowerCase() === 'unknown') {
          navigate('/voice-conversation', { state: { initialVoiceResult: textToProcess } });
@@ -95,8 +105,10 @@ export default function AIWorkflow() {
 
       setResult(data);
       setLoading(false);
-    } catch (error) {
-      console.error(error);
+    } catch (requestError) {
+      console.error(requestError);
+      if (runId !== runRef.current) return;
+      setError(IMAGE_REQUEST.test(textToProcess) ? t('wf_err_image') : requestError?.response?.data?.message || t('wf_err_generic'));
       setLoading(false);
     }
   };
@@ -209,8 +221,15 @@ export default function AIWorkflow() {
         </form>
       </div>
 
+      {error ? (
+        <div role="alert" className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-medium text-rose-200">
+          <AlertCircle size={18} className="shrink-0" />
+          {error}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-3">
-        <button 
+        <button
           onClick={() => { setPrompt("Create an invoice for "); }}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/50 border border-slate-800 text-slate-300 hover:bg-[#9333ea]/10 hover:border-[#9333ea]/50 hover:text-[#9333ea] transition-all text-sm font-semibold cursor-pointer"
         >
