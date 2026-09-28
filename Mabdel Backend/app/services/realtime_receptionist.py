@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 PCMU_BYTES_PER_MS = 8  # 8 kHz, one byte per sample
 MAX_KNOWLEDGE_CHARS = 8000
 HANGUP_AFTER_GOODBYE_PAD_SECONDS = 0.6
+SESSION_HANDSHAKE_SECONDS = 4.0
 
 TOOLS: list[dict] = [
     {
@@ -127,6 +128,22 @@ def _email_or_none(value: str | None) -> str | None:
     return cleaned if cleaned and _looks_like_valid_email(cleaned) else None
 
 
+def audio_session_config(voice: str) -> dict:
+    """Telephony audio: G.711 mu-law both ways. The API rejects a ``rate`` on
+    audio/pcmu (unlike audio/pcm) - verified against the live API; a rejected
+    session.update leaves the session on its 24 kHz PCM default, which Telnyx would
+    play as static."""
+    pcmu = {"type": "audio/pcmu"}
+    return {
+        "input": {
+            "format": pcmu,
+            "turn_detection": {"type": "semantic_vad", "eagerness": "auto", "create_response": True, "interrupt_response": True},
+            "transcription": {"model": settings.OPENAI_REALTIME_TRANSCRIBE_MODEL},
+        },
+        "output": {"format": pcmu, "voice": voice},
+    }
+
+
 async def open_openai_socket():
     """Server-to-server Realtime connection."""
     from websockets.asyncio.client import connect
@@ -135,7 +152,7 @@ async def open_openai_socket():
         f"{settings.OPENAI_REALTIME_URL}?model={settings.OPENAI_REALTIME_MODEL}",
         additional_headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
         max_size=None,
-        open_timeout=8,
+        open_timeout=4,
     )
 
 
@@ -199,15 +216,36 @@ class RealtimeReceptionist(AIPhoneAgent):
         async with self._connect_lock:
             if self.openai is not None:
                 return True
+            socket = None
             try:
                 socket = await self._open_socket()
                 call_settings = await self._get_call_settings()
                 await socket.send(json.dumps({"type": "session.update", "session": await self.session_config(call_settings)}))
+                # Only go live once OpenAI has accepted the configuration. A rejected
+                # session.update used to be ignored, so the call ran on the default audio
+                # format with no instructions or tools.
+                await self._await_session_ready(socket)
                 self.openai = socket
                 return True
             except Exception:
                 logger.warning("Call %s: Realtime session could not start - falling back to classic", self.call_id, exc_info=True)
+                if socket is not None:
+                    try:
+                        await socket.close()
+                    except Exception:
+                        pass
                 return False
+
+    @staticmethod
+    async def _await_session_ready(socket) -> None:
+        async with asyncio.timeout(SESSION_HANDSHAKE_SECONDS):
+            while True:
+                event = json.loads(await socket.recv())
+                kind = event.get("type")
+                if kind == "session.updated":
+                    return
+                if kind == "error":
+                    raise RuntimeError(f"OpenAI rejected the session: {(event.get('error') or {}).get('message')}")
 
     async def session_config(self, call_settings: dict) -> dict:
         preset = self.ai_service._resolve_voice_preset(call_settings.get("voice_id"))
@@ -216,14 +254,7 @@ class RealtimeReceptionist(AIPhoneAgent):
             "model": settings.OPENAI_REALTIME_MODEL,
             "instructions": await self.build_instructions(),
             "output_modalities": ["audio"],
-            "audio": {
-                "input": {
-                    "format": {"type": "audio/pcmu", "rate": 8000},
-                    "turn_detection": {"type": "semantic_vad", "eagerness": "auto", "create_response": True, "interrupt_response": True},
-                    "transcription": {"model": settings.OPENAI_REALTIME_TRANSCRIBE_MODEL},
-                },
-                "output": {"format": {"type": "audio/pcmu", "rate": 8000}, "voice": preset["provider_voice"]},
-            },
+            "audio": audio_session_config(preset["provider_voice"]),
             "tools": TOOLS,
             "tool_choice": "auto",
         }

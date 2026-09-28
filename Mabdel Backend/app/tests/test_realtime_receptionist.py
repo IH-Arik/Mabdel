@@ -23,12 +23,23 @@ class FakeOpenAI:
         self.inbox: asyncio.Queue | None = None
         self.closed = False
         self._preloaded: list[dict] = []
+        self.reject_session = False
+        self.handshake: asyncio.Queue = asyncio.Queue()
 
     def preload(self, *events):
         self._preloaded.extend(events)
 
     async def send(self, raw):
-        self.sent.append(json.loads(raw))
+        event = json.loads(raw)
+        self.sent.append(event)
+        if event.get("type") == "session.update":
+            # What the real API answers: session.updated, or an error for a bad config.
+            self.handshake.put_nowait(
+                {"type": "error", "error": {"message": "Unknown parameter"}} if self.reject_session else {"type": "session.updated"}
+            )
+
+    async def recv(self):
+        return json.dumps(await self.handshake.get())
 
     def __aiter__(self):
         return self
@@ -110,8 +121,10 @@ def test_session_is_telephony_audio_with_the_business_briefing(client, mock_db, 
 
     asyncio.run(run())
     session = socket.of_type("session.update")[0]["session"]
-    assert session["audio"]["input"]["format"] == {"type": "audio/pcmu", "rate": 8000}
-    assert session["audio"]["output"]["format"] == {"type": "audio/pcmu", "rate": 8000}
+    # No "rate": the live API rejects it on audio/pcmu, and a rejected session.update
+    # leaves the call on the default 24 kHz format.
+    assert session["audio"]["input"]["format"] == {"type": "audio/pcmu"}
+    assert session["audio"]["output"]["format"] == {"type": "audio/pcmu"}
     assert session["audio"]["output"]["voice"] == "coral"  # the business's chosen voice
     assert {tool["name"] for tool in session["tools"]} >= {"check_availability", "book_appointment", "reschedule_appointment", "cancel_appointment", "take_message", "transfer_to_human", "end_call"}
     instructions = session["instructions"]
@@ -312,3 +325,40 @@ def test_outbound_call_briefs_the_ai_with_its_purpose(client, mock_db, monkeypat
     instructions = socket.of_type("session.update")[0]["session"]["instructions"]
     assert "OUTBOUND CALL" in instructions and "appointment reminder" in instructions
     assert "Remind them to bring their X-rays." in instructions
+
+
+def test_a_rejected_session_falls_back_instead_of_running_unconfigured(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "rt-reject@example.com")
+    socket = FakeOpenAI()
+    socket.reject_session = True
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, socket)
+        assert await agent.connect() is False
+        assert agent.openai is None
+
+    asyncio.run(run())
+    assert socket.closed
+
+
+def test_call_stream_answers_with_the_classic_agent_when_realtime_is_rejected(client, mock_db, monkeypatch):
+    from app.tests.test_ai_call_reliability import install_fake_streaming_tts
+
+    install_fake_streaming_tts(monkeypatch)
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "sk-test")
+    socket = FakeOpenAI()
+    socket.reject_session = True
+
+    async def fake_open():
+        return socket
+
+    monkeypatch.setattr(realtime, "open_openai_socket", fake_open)
+    asyncio.run(mock_db.call_logs.insert_one({"twilio_call_sid": "CAfallback", "user_id": "guest", "direction": "inbound"}))
+
+    with client.websocket_connect("/api/v1/calls/stream/CAfallback") as websocket:
+        websocket.send_json({"event": "connected"})
+        websocket.send_json({"event": "start", "stream_id": "MZfb"})
+        first = websocket.receive_json()
+
+    assert first["event"] == "media" and first["media"]["payload"]  # the classic greeting still plays
+    assert not socket.of_type("response.create")  # the rejected Realtime session was never used
