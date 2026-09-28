@@ -61,18 +61,23 @@ class SmartFlowService(SmartFlowBase):
     # ==================================================================
     async def get_home_dashboard(self, user: dict) -> dict:
         user_id = str(user["_id"])
+        # Contacts, calls and integrations are shared by the whole organization; the home
+        # numbers must match the pages they link to, not just this one login.
+        team_ids = await self._resolve_team_user_ids(user_id)
+        team = {"user_id": {"$in": team_ids}}
+        calendar_visible = await self._calendar_visibility_filter(user_id)
         latest_messages = await self.db.messages.find({"user_id": user_id}).sort("timestamp", -1).limit(3).to_list(length=3)
         upcoming_events = await self.db.calendar_events.find(
-            {"user_id": user_id, "starts_at": {"$gte": utc_now()}}
+            {**calendar_visible, "starts_at": {"$gte": utc_now()}}
         ).sort("starts_at", 1).limit(3).to_list(length=3)
-        integrations = await self.db.social_integrations.find({"user_id": user_id, "status": "connected"}).to_list(length=20)
-        contacts = await self.db.contacts.find({"user_id": user_id}).sort("updated_at", -1).limit(5).to_list(length=5)
+        integrations = await self.db.social_integrations.find({**team, "status": "connected"}).to_list(length=50)
+        contacts = await self.db.contacts.find(team).sort("updated_at", -1).limit(5).to_list(length=5)
         doc_pipeline = [
             {"$match": {"user_id": user_id}},
             {"$group": {"_id": "$type", "count": {"$sum": 1}}},
         ]
         doc_counts = await self.db.documents.aggregate(doc_pipeline).to_list(length=10)
-        call_logs = await self.db.call_logs.find({"user_id": user_id}).sort("timestamp", -1).limit(5).to_list(length=5)
+        call_logs = await self.db.call_logs.find(team).sort("timestamp", -1).limit(5).to_list(length=5)
         unread_notifications = await self.db.notifications.count_documents({"user_id": user_id, "read": False})
         unread_messages = await self.db.messages.aggregate(
             [
@@ -81,8 +86,10 @@ class SmartFlowService(SmartFlowBase):
             ]
         ).to_list(length=1)
 
-        total_calls = await self.db.call_logs.count_documents({"user_id": user_id})
-        total_minutes_saved = sum(max(1, int(item.get("duration", 0) / 60)) for item in call_logs if item.get("ai_ready"))
+        # Minutes saved is over every call the AI handled - not just the five latest shown below.
+        call_summary = await self.call_history_service.get_call_summary(user_id)
+        total_calls = call_summary["total_calls"]
+        total_minutes_saved = call_summary["total_minutes_saved"]
 
         return {
             "greeting_name": user.get("full_name", "User").split(" ")[0],
@@ -92,12 +99,12 @@ class SmartFlowService(SmartFlowBase):
                 "latest_messages": self._to_public_many(latest_messages),
             },
             "contacts": {
-                "count": await self.db.contacts.count_documents({"user_id": user_id}),
+                "count": await self.db.contacts.count_documents(team),
                 "items": self._to_public_many(contacts),
             },
             "calendar": {
                 "upcoming_count": await self.db.calendar_events.count_documents(
-                    {"user_id": user_id, "starts_at": {"$gte": utc_now()}}
+                    {**calendar_visible, "starts_at": {"$gte": utc_now()}}
                 ),
                 "items": self._to_public_many(upcoming_events),
             },

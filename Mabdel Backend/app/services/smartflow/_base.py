@@ -353,6 +353,19 @@ class SmartFlowBase:
                 ids.add(str(user["_id"]))
         return [user_id for user_id in ids if user_id]
 
+    async def _calendar_visibility_filter(self, user_id: str) -> dict:
+        """Your own events, plus the organization's customer appointments (the AI
+        receptionist books them under the owner) - a teammate must be able to see, and so
+        move or cancel, what the AI booked."""
+        team_ids = await self._resolve_team_user_ids(user_id)
+        return {"$or": [{"user_id": user_id}, {"user_id": {"$in": team_ids}, "customer": {"$exists": True}}]}
+
+    # A call the AI handled: an outbound AI call, or any call that got an AI summary or
+    # transcript (inbound calls the receptionist answers never carried ai_ready).
+    AI_HANDLED_CALL_FILTER = {
+        "$or": [{"ai_ready": True}, {"ai_summary": {"$ne": None}}, {"voice_engine": {"$exists": True}}]
+    }
+
     @staticmethod
     def _user_has_global_chat_access(user: dict | None) -> bool:
         if not user:

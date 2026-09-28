@@ -868,6 +868,7 @@ class RealtimeReceptionist(AIPhoneAgent):
                 "speaker_segments": self.transcript_log,
                 "captured_requests": self.captured_requests,
                 "ai_actions": self.ai_actions,
+                "ai_ready": True,
                 "voice_engine": "realtime",
                 "updated_at": utc_now(),
             }},

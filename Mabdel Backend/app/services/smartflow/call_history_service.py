@@ -198,11 +198,21 @@ class CallHistoryService(SmartFlowBase):
 
     async def get_call_summary(self, user_id: str) -> dict:
         team_ids = await self._resolve_team_user_ids(user_id)
-        calls = await self.db.call_logs.find({"user_id": {"$in": team_ids}}).to_list(length=500)
+        team = {"user_id": {"$in": team_ids}}
+        # Counted in the database: this used to load only the first 500 calls, so the
+        # totals stopped growing at 500.
+        total_calls = await self.db.call_logs.count_documents(team)
+        ai_filter = {**team, **self.AI_HANDLED_CALL_FILTER}
+        ai_calls = await self.db.call_logs.count_documents(ai_filter)
+        minutes_saved = 0
+        async for call in self.db.call_logs.find(ai_filter, {"duration": 1}):
+            minutes_saved += max(1, int((call.get("duration") or 0) / 60))
+        callbacks = await self.db.call_logs.find({**team, "callback_requested": True}).sort("timestamp", -1).limit(50).to_list(length=50)
         return {
-            "total_calls": len(calls),
-            "total_minutes_saved": sum(max(1, int(call.get("duration", 0) / 60)) for call in calls if call.get("ai_ready")),
-            "callback_queue": [await self._serialize_call_log(call) for call in calls if call.get("callback_requested")],
+            "total_calls": total_calls,
+            "ai_calls": ai_calls,
+            "total_minutes_saved": minutes_saved,
+            "callback_queue": [await self._serialize_call_log(call) for call in callbacks],
         }
 
     async def get_call_transcript(self, user_id: str, call_id: str) -> dict:
