@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.compat_routes import router as compat_router
+from app.api.public_calendar import router as public_calendar_router
 from app.api.telnyx_webhook_alias import router as telnyx_webhook_alias_router
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -135,6 +136,7 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(compat_router)
+    app.include_router(public_calendar_router)
     app.include_router(telnyx_webhook_alias_router)
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
     mount_media(app)

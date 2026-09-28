@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -27,7 +27,7 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import { smartflowApi } from '../api/services';
 import { DatePickerInput, TimePickerInput } from '../components/ui/DateTimeInputs';
-import { formatCstDate, formatCstDateTime, formatCstTime } from '../utils/dateUtils';
+import { CST_TIME_ZONE, cstDateParts, cstWallTimeToDate, formatCstDate, formatCstDateTime, formatCstTime } from '../utils/dateUtils';
 import { useLanguage } from '../context/LanguageContext';
 
 const INPUT = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-sm placeholder:text-[#4A5568]';
@@ -53,6 +53,20 @@ function normalizeListPayload(payload) {
   return [];
 }
 
+// The backend serves 100 contacts a page; the attendee picker needs all of them.
+async function fetchAllContacts() {
+  const first = normalizeContactsPage(await smartflowApi.getContacts({ page: 1, page_size: 100 }));
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(first.pages - 1, 0) }, (_, index) => smartflowApi.getContacts({ page: index + 2, page_size: 100 })),
+  );
+  return [...first.items, ...rest.flatMap((response) => normalizeContactsPage(response).items)];
+}
+
+function normalizeContactsPage(response) {
+  const body = response?.data?.data ?? response?.data ?? {};
+  return { items: Array.isArray(body?.items) ? body.items : [], pages: Number(body?.pagination?.pages || 1) };
+}
+
 function normalizeEventPayload(payload) {
   return payload?.data?.data ?? payload?.data ?? payload ?? null;
 }
@@ -64,25 +78,16 @@ function parseDate(value) {
 }
 
 function toDateInput(value) {
-  const date = parseDate(value) || new Date();
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return cstDateParts(parseDate(value) || new Date()).date;
 }
 
 function toTimeInput(value, fallback = '10:00') {
   const date = parseDate(value);
-  if (!date) return fallback;
-  const hours = `${date.getHours()}`.padStart(2, '0');
-  const minutes = `${date.getMinutes()}`.padStart(2, '0');
-  return `${hours}:${minutes}`;
+  return date ? cstDateParts(date).time : fallback;
 }
 
 function combineLocalDateTime(date, time) {
-  if (!date || !time) return null;
-  const parsed = new Date(`${date}T${time}:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  return cstWallTimeToDate(date, time);
 }
 
 function formatDateTimeRange(event, t) {
@@ -90,10 +95,7 @@ function formatDateTimeRange(event, t) {
   const endsAt = parseDate(event?.ends_at);
   if (!startsAt) return t ? t('cal_date_unavailable') : 'Date unavailable';
 
-  const sameDay = endsAt
-    && startsAt.getFullYear() === endsAt.getFullYear()
-    && startsAt.getMonth() === endsAt.getMonth()
-    && startsAt.getDate() === endsAt.getDate();
+  const sameDay = endsAt && formatCstDate(startsAt) === formatCstDate(endsAt);
 
   const startDate = formatCstDate(startsAt);
   const startTime = formatCstTime(startsAt);
@@ -109,16 +111,15 @@ function formatDateTimeRange(event, t) {
 }
 
 function formatRelativeMeta(event) {
-  const parts = [event?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone];
+  const parts = [event?.timezone || CST_TIME_ZONE];
   if (event?.status) parts.push(event.status);
   if (event?.sync_status) parts.push(event.sync_status);
   return parts.filter(Boolean).join(' • ');
 }
 
 function getInitialFormState(prefill) {
-  const defaultStart = new Date();
-  defaultStart.setMinutes(0, 0, 0);
-  defaultStart.setHours(defaultStart.getHours() + 1);
+  const now = new Date();
+  const defaultStart = new Date(now.getTime() - (now.getTime() % 3600000) + 3600000); // the next full hour
   const defaultEnd = new Date(defaultStart.getTime() + 60 * 60 * 1000);
 
   return {
@@ -216,6 +217,11 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
       setError(t('cal_err_end_after_start'));
       return;
     }
+    // The list only shows what is still ahead, so a meeting saved in the past would seem to vanish.
+    if (!isEditing && startsAt.getTime() < new Date().getTime() - 60000) {
+      setError(t('cal_err_start_in_past'));
+      return;
+    }
 
     const payload = {
       title: title.trim(),
@@ -230,7 +236,7 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
       notify_via_email: notifyEmail,
       notify_via_sms: notifySMS,
       reminder_minutes: REMINDER_MIN[reminder] || 10,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: CST_TIME_ZONE,
     };
 
     setError('');
@@ -265,6 +271,10 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
           <AlertTriangle size={14} />
           {error}
         </div>
+      ) : null}
+
+      {event?.customer?.phone ? (
+        <p className="p-3 bg-[#0A1019] border border-[#9333ea]/25 rounded-xl text-[#A4B0B7] text-xs leading-5">{t('cal_customer_sms_hint')}</p>
       ) : null}
 
       <Field label={t('cal_lbl_meeting_title')}>
@@ -442,7 +452,7 @@ function EventCard({ item, onOpen }) {
   );
 }
 
-function CalendarStats({ events }) {
+function CalendarStats({ events, total }) {
   const { t } = useLanguage();
   const online = events.filter((event) => event.meeting_mode === 'online').length;
   const upcoming = events.filter((event) => parseDate(event.starts_at) && parseDate(event.starts_at) > new Date()).length;
@@ -450,9 +460,9 @@ function CalendarStats({ events }) {
   return (
     <div className="grid grid-cols-3 gap-4 text-left">
       {[
-        { label: t('cal_stat_total_events'), value: events.length, icon: CalIcon, color: '#9333ea' },
+        { label: t('cal_stat_total_events'), value: total, icon: CalIcon, color: '#9333ea' },
         { label: t('cal_stat_online_meetings'), value: online, icon: Video, color: '#8B5CF6' },
-        { label: t('cal_stat_upcoming'), value: upcoming, icon: Clock, color: '#10B981' },
+        { label: t('cal_stat_upcoming'), value: Math.max(upcoming, total), icon: Clock, color: '#10B981' },
       ].map((stat) => (
         <div key={stat.label} className={`${PANEL} p-4 flex items-center gap-3`}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${stat.color}18` }}>
@@ -514,10 +524,10 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
     try {
       const [eventResponse, contactsResponse] = await Promise.all([
         smartflowApi.getCalendarEvent(eventId),
-        smartflowApi.getContacts({ page_size: 100 }).catch(() => ({ data: { data: { items: [] } } })),
+        fetchAllContacts().catch(() => []),
       ]);
       setEvent(normalizeEventPayload(eventResponse));
-      setContacts(normalizeListPayload(contactsResponse));
+      setContacts(contactsResponse);
     } catch (err) {
       setError(err.response?.data?.message || t('cal_err_load_details'));
     } finally {
@@ -531,7 +541,7 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
 
   async function handleDelete() {
     if (!event?.id) return;
-    if (!window.confirm(t('cal_confirm_delete', { title: event.title }))) return;
+    if (!window.confirm(t('cal_confirm_delete', { title: event.title }) + (event.customer?.phone ? `\n\n${t('cal_customer_sms_hint')}` : ''))) return;
 
     setDeleting(true);
     try {
@@ -716,6 +726,17 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
                       )}
                     </div>
                   </div>
+                  {event.customer ? (
+                    <div className="flex items-start gap-3">
+                      <UserRound size={16} className="text-[#9333ea] mt-1" />
+                      <div className="min-w-0">
+                        <p className="text-white font-semibold">{t('cal_lbl_customer')}</p>
+                        <p className="text-[#A4B0B7] text-sm break-words">
+                          {[event.customer.name, event.customer.phone, event.customer.email].filter(Boolean).join(' \u00b7 ')}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="flex items-start gap-3">
                     <UserRound size={16} className="text-[#9333ea] mt-1" />
                     <div>
@@ -1042,6 +1063,10 @@ export default function Calendar() {
   const [microsoftNeedsReauth, setMicrosoftNeedsReauth] = useState(false);
   const [primaryProvider, setPrimaryProvider] = useState(null);
   const [providerSettingsLoading, setProviderSettingsLoading] = useState(false);
+  const [eventsTotal, setEventsTotal] = useState(0);
+  const [eventsPage, setEventsPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadedOnceRef = useRef(false);
 
   useEffect(() => {
     if (location.state?.prefill) {
@@ -1053,11 +1078,11 @@ export default function Calendar() {
 
   const fetchAll = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!loadedOnceRef.current) setLoading(true); // a refresh keeps what is on screen
       setError('');
       const [eventsResponse, contactsResponse] = await Promise.all([
-        smartflowApi.getCalendarEvents({ page_size: 100, upcoming_only: true }),
-        smartflowApi.getContacts({ page_size: 100 }).catch(() => ({ data: { data: { items: [] } } })),
+        smartflowApi.getCalendarEvents({ page: 1, page_size: 50, upcoming_only: true }),
+        fetchAllContacts().catch(() => []),
       ]);
 
       const normalizedEvents = normalizeListPayload(eventsResponse)
@@ -1072,13 +1097,34 @@ export default function Calendar() {
         });
 
       setEvents(normalizedEvents);
-      setContacts(normalizeListPayload(contactsResponse));
+      setEventsPage(1);
+      setEventsTotal(Number((eventsResponse?.data?.data ?? eventsResponse?.data ?? {})?.pagination?.total ?? normalizedEvents.length));
+      setContacts(contactsResponse);
+      loadedOnceRef.current = true;
     } catch (err) {
       setError(err.response?.data?.message || t('cal_err_load_events'));
     } finally {
       setLoading(false);
     }
   }, [t]);
+
+  async function handleLoadMore() {
+    setLoadingMore(true);
+    try {
+      const next = eventsPage + 1;
+      const response = await smartflowApi.getCalendarEvents({ page: next, page_size: 50, upcoming_only: true });
+      const more = normalizeListPayload(response);
+      setEvents((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...current, ...more.filter((item) => !known.has(item.id))];
+      });
+      setEventsPage(next);
+    } catch (err) {
+      setError(err.response?.data?.message || t('cal_err_load_events'));
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const fetchIntegrationState = useCallback(async () => {
     try {
@@ -1335,6 +1381,7 @@ export default function Calendar() {
       fetchAll();
       return;
     }
+    if (!events.some((event) => event.id === saved.id)) setEventsTotal((count) => count + 1);
     setEvents((current) => {
       const next = current.some((event) => event.id === saved.id)
         ? current.map((event) => (event.id === saved.id ? saved : event))
@@ -1352,6 +1399,7 @@ export default function Calendar() {
 
   function handleEventDeleted(eventId) {
     setEvents((current) => current.filter((event) => event.id !== eventId));
+    setEventsTotal((count) => Math.max(0, count - 1));
     setSelectedEventId(null);
   }
 
@@ -1419,7 +1467,7 @@ export default function Calendar() {
         />
       ) : null}
 
-      {!loading ? <CalendarStats events={events} /> : null}
+      {!loading ? <CalendarStats events={events} total={eventsTotal} /> : null}
 
       <div className={`grid gap-6 items-start ${showCreate ? 'grid-cols-1 xl:grid-cols-[1fr_420px]' : 'grid-cols-1'}`}>
         <div className={`${PANEL} overflow-hidden text-left order-2 xl:order-1`}>
@@ -1438,9 +1486,23 @@ export default function Calendar() {
               <div key={index} className="p-5 animate-pulse h-24 bg-[#1C2635]/20 border-b border-[#243041]/20" />
             ))
           ) : events.length ? (
-            events.map((item) => (
-              <EventCard key={item.id} item={item} onOpen={setSelectedEventId} />
-            ))
+            <>
+              {events.map((item) => (
+                <EventCard key={item.id} item={item} onOpen={setSelectedEventId} />
+              ))}
+              {events.length < eventsTotal ? (
+                <div className="p-4 text-center">
+                  <button
+                    type="button"
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="px-5 py-2 rounded-xl bg-[#0A1019] border border-[#243246] text-sm font-semibold text-white cursor-pointer disabled:opacity-60"
+                  >
+                    {loadingMore ? <Loader2 size={14} className="inline animate-spin" /> : t('cal_btn_load_more')}
+                  </button>
+                </div>
+              ) : null}
+            </>
           ) : (
             <div className="p-16 text-center">
               <div className="w-14 h-14 rounded-2xl bg-[#9333ea]/10 flex items-center justify-center mx-auto mb-4">

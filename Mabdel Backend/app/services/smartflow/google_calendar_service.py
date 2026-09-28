@@ -332,7 +332,7 @@ class GoogleCalendarService:
                 f"{self.BASE_URL}/calendars/{quote(calendar_id, safe='')}/events/{quote(google_event_id, safe='')}",
                 headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
             )
-        if response.status_code >= 400 and response.status_code != 410:
+        if response.status_code >= 400 and response.status_code not in (404, 410):  # already gone counts as deleted
             raise AppException(
                 status_code=502,
                 code="GOOGLE_EVENT_DELETE_FAILED",
