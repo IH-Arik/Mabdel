@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import base64
 import html as html_lib
 import time
@@ -1047,11 +1048,11 @@ class ConversationService(SmartFlowBase):
         result = await self.db.groups.insert_one(group)
         group["_id"] = result.inserted_id
         await self._sync_role_group_membership(user_id, group.get("role_slug"), member_ids, [])
-        return await self._serialize_group(group)
+        return await self._serialize_group(group, viewer_user_id=user_id)
 
     async def get_group(self, user_id: str, group_id: str) -> dict:
         group = await self._get_active_group_for_member(user_id, group_id)
-        return await self._serialize_group(group)
+        return await self._serialize_group(group, viewer_user_id=user_id)
 
     async def list_groups(self, user_id: str, page: int, page_size: int, search: str | None) -> dict:
         filters: dict = {
@@ -1059,9 +1060,9 @@ class ConversationService(SmartFlowBase):
             "is_active": {"$ne": False},
         }
         if search:
-            filters["name"] = {"$regex": search, "$options": "i"}
+            filters["name"] = {"$regex": re.escape(search.strip()), "$options": "i"}
         cursor = self.db.groups.find(filters).sort("updated_at", -1)
-        groups = await cursor.to_list(length=page_size)
+        groups = await cursor.to_list(length=1000)
 
         user = await self._get_user_document(user_id)
         if self._user_has_global_chat_access(user) and user.get("organization_id"):
@@ -1072,7 +1073,7 @@ class ConversationService(SmartFlowBase):
                 "is_active": {"$ne": False},
             }
             if search:
-                global_filters["name"] = {"$regex": search, "$options": "i"}
+                global_filters["name"] = {"$regex": re.escape(search.strip()), "$options": "i"}
             global_groups = await self.db.groups.find(global_filters).sort("updated_at", -1).to_list(length=10)
             existing_ids = {item["_id"] for item in groups}
             groups.extend([item for item in global_groups if item["_id"] not in existing_ids])
@@ -1081,7 +1082,7 @@ class ConversationService(SmartFlowBase):
         total = len(groups)
         slice_start = (page - 1) * page_size
         groups = groups[slice_start : slice_start + page_size]
-        items = [await self._serialize_group(item, include_members=False) for item in groups]
+        items = [await self._serialize_group(item, include_members=False, viewer_user_id=user_id) for item in groups]
         return {
             "items": items,
             "pagination": {
@@ -1125,7 +1126,7 @@ class ConversationService(SmartFlowBase):
             removed = list(old_member_ids - new_member_ids)
             await self._sync_role_group_membership(user_id, new_role_slug, added, removed)
 
-        return await self._serialize_group(updated)
+        return await self._serialize_group(updated, viewer_user_id=user_id)
 
     async def add_group_members(self, user_id: str, group_id: str, payload: dict) -> dict:
         group = await self._get_active_group_for_admin(user_id, group_id)
@@ -1146,7 +1147,7 @@ class ConversationService(SmartFlowBase):
         await self._sync_group_conversation(updated)
         newly_added = [member_id for member_id in member_ids if member_id not in existing_member_ids]
         await self._sync_role_group_membership(user_id, group.get("role_slug"), newly_added, [])
-        return await self._serialize_group(updated)
+        return await self._serialize_group(updated, viewer_user_id=user_id)
 
     async def update_group_member_role(self, user_id: str, group_id: str, member_id: str, role: str) -> dict:
         group = await self._get_active_group_for_admin(user_id, group_id)
@@ -1162,7 +1163,7 @@ class ConversationService(SmartFlowBase):
             {"$set": {"admin_ids": sorted(admin_ids), "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
-        return await self._serialize_group(updated)
+        return await self._serialize_group(updated, viewer_user_id=user_id)
 
     async def remove_group_member(self, user_id: str, group_id: str, member_id: str) -> dict:
         group = await self._get_active_group_for_admin(user_id, group_id)
@@ -1177,7 +1178,7 @@ class ConversationService(SmartFlowBase):
         )
         await self._sync_group_conversation(updated)
         await self._sync_role_group_membership(user_id, group.get("role_slug"), [], [member_id])
-        return await self._serialize_group(updated)
+        return await self._serialize_group(updated, viewer_user_id=user_id)
 
     async def invite_group_member(self, user_id: str, group_id: str, payload: dict) -> dict:
         group = await self._get_active_group_for_admin(user_id, group_id)
@@ -1203,7 +1204,7 @@ class ConversationService(SmartFlowBase):
             {"$set": {"pending_invites": pending_invites, "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
-        return await self._serialize_group(updated)
+        return await self._serialize_group(updated, viewer_user_id=user_id)
 
     async def cancel_group_invite(self, user_id: str, group_id: str, invite_id: str) -> dict:
         group = await self._get_active_group_for_admin(user_id, group_id)
@@ -1215,7 +1216,7 @@ class ConversationService(SmartFlowBase):
             {"$set": {"pending_invites": pending_invites, "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
-        return await self._serialize_group(updated)
+        return await self._serialize_group(updated, viewer_user_id=user_id)
 
     async def leave_group(self, user_id: str, group_id: str) -> dict:
         group = await self._get_active_group_for_member(user_id, group_id)
@@ -1239,11 +1240,7 @@ class ConversationService(SmartFlowBase):
             {"$set": updates},
             return_document=ReturnDocument.AFTER,
         )
-        if group.get("conversation_id") and ObjectId.is_valid(group["conversation_id"]):
-            await self.db.conversations.update_one(
-                {"_id": ObjectId(group["conversation_id"]), "user_id": user_id},
-                {"$set": {"archived": True, "updated_at": now}},
-            )
+        await self._sync_group_conversation(updated)
         return {"id": str(updated["_id"]), "left": True, "left_at": now}
 
     # ------------------------------------------------------------------
