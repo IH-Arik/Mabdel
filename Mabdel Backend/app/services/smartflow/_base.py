@@ -1613,12 +1613,13 @@ class SmartFlowBase:
     # ------------------------------------------------------------------
     # Group helpers
     # ------------------------------------------------------------------
-    async def _serialize_group(self, group: dict, *, include_members: bool = True) -> dict:
+    async def _serialize_group(self, group: dict, *, include_members: bool = True, viewer_user_id: str | None = None) -> dict:
         safe = self._to_public(group)
+        owner_id = str(safe.get("owner_user_id") or safe.get("user_id") or "")
         member_ids = list(dict.fromkeys(safe.get("member_ids", [])))
         admin_ids = list(dict.fromkeys(safe.get("admin_ids", [])))
         is_global_chat = bool(safe.get("is_global_chat"))
-        members = await self._serialize_group_members(safe.get("user_id", ""), member_ids, admin_ids, is_global_chat=is_global_chat) if include_members else []
+        members = await self._serialize_group_members(owner_id, member_ids, admin_ids, is_global_chat=is_global_chat) if include_members else []
         pending_invites = [
             {
                 "id": invite.get("id"),
@@ -1636,8 +1637,11 @@ class SmartFlowBase:
         safe["member_count"] = len(member_ids)
         safe["pending_invite_count"] = len(pending_invites)
         safe["admin_count"] = len(admin_ids) + 1
-        safe["can_manage"] = False if is_global_chat else True
-        safe["can_leave"] = False
+        # Only the owner can change a group; anyone else in it can leave it. Without a
+        # viewer (internal callers) keep the old "owner view".
+        is_owner = viewer_user_id is None or str(viewer_user_id) == owner_id
+        safe["can_manage"] = bool(is_owner and not is_global_chat)
+        safe["can_leave"] = bool(not is_owner and not is_global_chat and str(viewer_user_id) in member_ids)
         safe["is_system_managed"] = is_global_chat
         safe.pop("user_id", None)
         return safe
@@ -1669,8 +1673,24 @@ class SmartFlowBase:
                     }
                 )
             else:
-                contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": user_id})
+                team_ids = await self._resolve_team_user_ids(user_id)
+                contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": {"$in": team_ids}})
                 if not contact:
+                    colleague = await self.db.users.find_one({"_id": ObjectId(member_id)})
+                    if colleague and str(colleague["_id"]) in team_ids:
+                        members.append(
+                            {
+                                "id": str(colleague["_id"]),
+                                "name": colleague.get("full_name") or colleague.get("email") or "Unknown",
+                                "email": colleague.get("email"),
+                                "phone": colleague.get("phone_no") or colleague.get("phone_number"),
+                                "avatar_url": colleague.get("avatar_url"),
+                                "presence": colleague.get("presence", "offline"),
+                                "role": "admin" if str(colleague["_id"]) in admin_ids else "member",
+                                "status": colleague.get("status", "active"),
+                                "is_self": False,
+                            }
+                        )
                     continue
                 safe_contact = self._to_public(contact)
                 members.append(
@@ -1737,14 +1757,21 @@ class SmartFlowBase:
 
     async def _normalize_group_member_ids(self, user_id: str, member_ids: list[str]) -> list[str]:
         normalized: list[str] = []
+        team_ids = await self._resolve_team_user_ids(user_id)
         for member_id in list(dict.fromkeys(member_ids or [])):
             if not ObjectId.is_valid(member_id):
                 raise AppException(status_code=400, code="GROUP_MEMBER_INVALID", message="One or more group members are invalid.")
-            contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": user_id})
+            contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": {"$in": team_ids}})
             if not contact:
                 user = await self.db.users.find_one({"_id": ObjectId(member_id)})
                 if not user:
                     raise AppException(status_code=404, code="GROUP_MEMBER_NOT_FOUND", message="One or more group members were not found.")
+                if member_id != user_id and member_id not in team_ids:
+                    raise AppException(
+                        status_code=403,
+                        code="GROUP_MEMBER_OUTSIDE_ORGANIZATION",
+                        message="Only your contacts and colleagues can be added to a group.",
+                    )
             normalized.append(member_id)
         return normalized
 

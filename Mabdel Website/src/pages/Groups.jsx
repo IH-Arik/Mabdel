@@ -5,7 +5,6 @@ import {
   Loader2,
   Mail,
   MessageSquare,
-  MoreVertical,
   Plus,
   Search,
   Send,
@@ -177,6 +176,8 @@ export default function Groups() {
   const [changingRoleId, setChangingRoleId] = useState('');
   const [inviteSaving, setInviteSaving] = useState(false);
   const chatBottomRef = useRef(null);
+  const selectedGroupIdRef = useRef(null);
+  const threadRequestRef = useRef(null);
   const threadSocketRef = useRef(null);
 
   const activeGroup = useMemo(() => {
@@ -185,10 +186,12 @@ export default function Groups() {
     return normalizeGroup({ ...(fromList || {}), ...(fromDetails || {}) });
   }, [groupDetails, groups, selectedGroupId]);
 
+  const canManage = activeGroup.can_manage && !activeGroup.is_system_managed;
+
   const availableContacts = useMemo(() => {
-    const existingIds = new Set((activeGroup?.members || []).map((member) => String(member.id)));
+    const existingIds = new Set(activeGroup.members.map((member) => String(member.id)));
     return contacts.filter((contact) => !existingIds.has(String(contact.id)));
-  }, [activeGroup?.members, contacts]);
+  }, [activeGroup.members, contacts]);
 
   const filteredContacts = useMemo(() => {
     const query = memberSearchQuery.trim().toLowerCase();
@@ -224,9 +227,14 @@ export default function Groups() {
   const fetchContacts = useCallback(async () => {
     setContactsLoading(true);
     try {
-      const response = await smartflowApi.getContacts({ page: 1, page_size: 100 });
-      const data = getApiData(response);
-      setContacts(toItems(data));
+      // The backend caps a page at 100; pulling only page 1 left everyone after the
+      // first 100 contacts impossible to add to a group.
+      const firstPage = getApiData(await smartflowApi.getContacts({ page: 1, page_size: 100 }));
+      const totalPages = Number(firstPage?.pagination?.pages || 1);
+      const restPages = await Promise.all(
+        Array.from({ length: Math.max(totalPages - 1, 0) }, (_, index) => smartflowApi.getContacts({ page: index + 2, page_size: 100 })),
+      );
+      setContacts([...toItems(firstPage), ...restPages.flatMap((response) => toItems(getApiData(response)))]);
     } catch (contactError) {
       setContacts([]);
       setError(contactError?.response?.data?.message || t('grp_err_load_contacts'));
@@ -235,6 +243,10 @@ export default function Groups() {
     }
   }, [t]);
 
+  useEffect(() => {
+    selectedGroupIdRef.current = selectedGroupId;
+  }, [selectedGroupId]);
+
   const fetchGroups = useCallback(async (search = '') => {
     setLoading(true);
     try {
@@ -242,9 +254,10 @@ export default function Groups() {
       const data = getApiData(response);
       const items = toItems(data).map(normalizeGroup);
       setGroups(items);
-      if (!selectedGroupId && items.length) {
+      const currentId = selectedGroupIdRef.current;
+      if (!currentId && items.length) {
         setSelectedGroupId(items[0].id);
-      } else if (selectedGroupId && !items.some((group) => group.id === selectedGroupId)) {
+      } else if (currentId && !items.some((group) => group.id === currentId)) {
         setSelectedGroupId(items[0]?.id || null);
       }
       setError('');
@@ -255,7 +268,7 @@ export default function Groups() {
     } finally {
       setLoading(false);
     }
-  }, [selectedGroupId, t]);
+  }, [t]);
 
   const fetchGroupDetail = useCallback(async (groupId) => {
     if (!groupId) return;
@@ -280,9 +293,11 @@ export default function Groups() {
       return;
     }
 
+    threadRequestRef.current = conversationId;
     setThreadLoading(true);
     try {
       const response = await smartflowApi.getMessages(conversationId, { page: 1, page_size: 100 });
+      if (threadRequestRef.current !== conversationId) return;
       const data = getApiData(response);
       const nextMessages = toMessages(data)
         .map((m) => normalizeMessage(m, t))
@@ -290,10 +305,11 @@ export default function Groups() {
       setMessages(nextMessages);
       setError('');
     } catch (messageError) {
+      if (threadRequestRef.current !== conversationId) return;
       setMessages([]);
       setError(messageError?.response?.data?.message || t('grp_err_load_thread'));
     } finally {
-      setThreadLoading(false);
+      if (threadRequestRef.current === conversationId) setThreadLoading(false);
     }
   }, [t]);
 
@@ -310,6 +326,7 @@ export default function Groups() {
       name: prefill.group_name || prefill.groupName || prefill.name || prefill.title || '',
       description: prefill.description || '',
       avatar_url: prefill.avatar_url || '',
+      role_slug: '',
     });
     setViewMode('create');
     window.history.replaceState({}, '');
@@ -352,7 +369,6 @@ export default function Groups() {
             (left, right) => new Date(left.timestamp || 0).getTime() - new Date(right.timestamp || 0).getTime(),
           );
         });
-        await fetchMessages(activeGroup.conversation_id);
       } catch {
         // Ignore malformed realtime payloads and keep the thread usable.
       }
@@ -491,6 +507,17 @@ export default function Groups() {
       setError(inviteError?.response?.data?.message || t('grp_err_create_invite'));
     } finally {
       setInviteSaving(false);
+    }
+  };
+
+  const handleCancelInvite = async (inviteId) => {
+    if (!activeGroup?.id || !inviteId) return;
+    try {
+      const response = await smartflowApi.deleteGroupInvite(activeGroup.id, inviteId);
+      syncListGroup(getApiData(response));
+      setError('');
+    } catch (cancelError) {
+      setError(cancelError?.response?.data?.message || t('grp_err_cancel_invite'));
     }
   };
 
@@ -788,7 +815,7 @@ export default function Groups() {
                     type="text"
                     value={settingsForm.name}
                     onChange={(event) => setSettingsForm((current) => ({ ...current, name: event.target.value }))}
-                    readOnly={activeGroup.is_system_managed}
+                    readOnly={!canManage}
                     className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                   />
                 </div>
@@ -798,7 +825,7 @@ export default function Groups() {
                     type="url"
                     value={settingsForm.avatar_url}
                     onChange={(event) => setSettingsForm((current) => ({ ...current, avatar_url: event.target.value }))}
-                    readOnly={activeGroup.is_system_managed}
+                    readOnly={!canManage}
                     className="w-full px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                   />
                 </div>
@@ -809,14 +836,14 @@ export default function Groups() {
                 <textarea
                   value={settingsForm.description}
                   onChange={(event) => setSettingsForm((current) => ({ ...current, description: event.target.value }))}
-                  readOnly={activeGroup.is_system_managed}
+                  readOnly={!canManage}
                   className="w-full min-h-24 px-4 py-3 bg-slate-950 border border-slate-900 rounded-xl text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40"
                 />
               </div>
 
 
               <div className="flex items-center gap-3">
-                {!activeGroup.is_system_managed ? (
+                {canManage ? (
                   <button
                     type="submit"
                     disabled={saving}
@@ -858,7 +885,7 @@ export default function Groups() {
                         {member.role === 'admin' ? <Shield size={11} /> : <User size={11} />}
                         {member.role}
                       </span>
-                      {!activeGroup.is_system_managed ? (
+                      {canManage ? (
                         <>
                           <select
                             value={member.role === 'admin' ? 'admin' : 'member'}
@@ -898,6 +925,20 @@ export default function Groups() {
                 <p className="mt-3 text-xs leading-relaxed text-slate-400">
                   {t('grp_owner_controlled_desc')}
                 </p>
+              </div>
+            ) : !canManage ? (
+              <div className="bg-[#0c101b] border border-slate-900 rounded-3xl p-6">
+                <h3 className="text-sm font-extrabold text-white">{t('grp_danger_zone')}</h3>
+                <p className="mt-3 text-xs leading-relaxed text-slate-400">{t('grp_member_view_hint')}</p>
+                {activeGroup.can_leave ? (
+                  <button
+                    type="button"
+                    onClick={handleLeaveGroup}
+                    className="mt-4 w-full py-3 rounded-xl border border-rose-500/30 text-rose-300 text-xs font-black hover:bg-rose-950/20 cursor-pointer"
+                  >
+                    {t('grp_btn_leave_group')}
+                  </button>
+                ) : null}
               </div>
             ) : (
               <>
@@ -988,9 +1029,20 @@ export default function Groups() {
                         {t('grp_pending_invites_count', { n: activeGroup.pending_invites.length })}
                       </p>
                       {activeGroup.pending_invites.map((invite) => (
-                        <div key={invite.id} className="rounded-2xl border border-slate-900 bg-slate-950/40 px-3 py-2">
-                          <p className="text-xs font-bold text-white">{invite.name || invite.email || invite.phone}</p>
-                          <p className="text-[10px] text-slate-500">{invite.email || invite.phone}</p>
+                        <div key={invite.id} className="flex items-center justify-between gap-2 rounded-2xl border border-slate-900 bg-slate-950/40 px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-bold text-white">{invite.name || invite.email || invite.phone}</p>
+                            <p className="truncate text-[10px] text-slate-500">{invite.email || invite.phone}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCancelInvite(invite.id)}
+                            title={t('grp_title_cancel_invite')}
+                            aria-label={t('grp_title_cancel_invite')}
+                            className="shrink-0 cursor-pointer rounded-lg p-1.5 text-slate-500 hover:text-rose-400"
+                          >
+                            <X size={13} />
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -1117,7 +1169,7 @@ export default function Groups() {
               </div>
               <button
                 onClick={() => {
-                  setCreateForm({ name: '', description: '', avatar_url: '' });
+                  setCreateForm({ name: '', description: '', avatar_url: '', role_slug: '' });
                   setSelectedMemberIds([]);
                   setMemberSearchQuery('');
                   setViewMode('create');
@@ -1160,9 +1212,6 @@ export default function Groups() {
                       >
                         <div className="flex items-center justify-between">
                           <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size="w-10 h-10 text-sm" />
-                          <button className="p-1 text-slate-600 hover:text-white rounded-lg hover:bg-slate-950 transition-colors cursor-pointer" title={t('grp_actions')}>
-                            <MoreVertical size={14} />
-                          </button>
                         </div>
 
                         <div>
@@ -1212,13 +1261,15 @@ export default function Groups() {
                   <div className="space-y-6">
                     <div className="flex items-center justify-between pb-4 border-b border-slate-900/60">
                       <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">{t('grp_preview_title')}</span>
-                      <button
-                        onClick={handleDeleteGroup}
-                        className="p-2 bg-slate-950/60 hover:bg-red-950/20 border border-slate-900 text-slate-400 hover:text-red-400 rounded-xl transition-all cursor-pointer"
-                        title={t('grp_btn_delete_group')}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {canManage ? (
+                        <button
+                          onClick={handleDeleteGroup}
+                          className="p-2 bg-slate-950/60 hover:bg-red-950/20 border border-slate-900 text-slate-400 hover:text-red-400 rounded-xl transition-all cursor-pointer"
+                          title={t('grp_btn_delete_group')}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-col items-center space-y-3.5 text-center">
