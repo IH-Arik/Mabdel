@@ -8,7 +8,7 @@ import logging
 import re
 import secrets
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 from math import ceil
 from urllib.parse import quote_plus
@@ -2559,10 +2559,11 @@ class SmartFlowBase:
 
     async def _hydrate_calendar_attendees(self, user_id: str, contact_ids: list[str]) -> list[dict]:
         attendees: list[dict] = []
+        team_ids = await self._resolve_team_user_ids(user_id) if contact_ids else []
         for contact_id in contact_ids:
             if not ObjectId.is_valid(contact_id):
                 continue
-            contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
+            contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": {"$in": team_ids}})
             if not contact:
                 continue
             attendees.append(
@@ -2594,14 +2595,14 @@ class SmartFlowBase:
         ends_at: datetime,
         exclude_event_id: str | None = None,
     ) -> None:
-        filters: dict = {
-            "user_id": user_id,
+        clashing: dict = {
             "starts_at": {"$lt": ends_at},
             "ends_at": {"$gt": starts_at},
             "status": {"$ne": "cancelled"},
         }
         if exclude_event_id and ObjectId.is_valid(exclude_event_id):
-            filters["_id"] = {"$ne": ObjectId(exclude_event_id)}
+            clashing["_id"] = {"$ne": ObjectId(exclude_event_id)}
+        filters: dict = {"$and": [await self._calendar_visibility_filter(user_id), clashing]}
         existing = await self.db.calendar_events.find_one(filters)
         if existing:
             raise AppException(
@@ -2628,8 +2629,21 @@ class SmartFlowBase:
         base = settings.PUBLIC_BACKEND_URL.rstrip("/")
         return f"{base}/calendar/share/{share_token}"
 
+    @staticmethod
+    def _format_event_time(event: dict) -> str:
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        value = event["starts_at"]
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        try:
+            zone = ZoneInfo(event.get("timezone") or "UTC")
+        except (ZoneInfoNotFoundError, ValueError):
+            zone = ZoneInfo("UTC")
+        return value.astimezone(zone).strftime("%b %d, %Y %I:%M %p %Z")
+
     def _calendar_share_text(self, event: dict, message: str | None, share_url: str) -> str:
-        starts_at = event["starts_at"].strftime("%b %d, %Y %I:%M %p")
+        starts_at = self._format_event_time(event)
         lines = [f"You're invited to {event['title']}.", f"Starts: {starts_at}"]
         if event.get("meeting_link"):
             lines.append(f"Join link: {event['meeting_link']}")
@@ -2643,27 +2657,26 @@ class SmartFlowBase:
         return "\n".join(lines)
 
     def _calendar_share_html(self, event: dict, message: str | None, share_url: str) -> str:
-        starts_at = event["starts_at"].strftime("%b %d, %Y %I:%M %p")
-        location_html = f"<p><strong>Location:</strong> {event['location']}</p>" if event.get("location") else ""
-        meeting_link_html = (
-            f"<p><strong>Join link:</strong> <a href=\"{event['meeting_link']}\">{event['meeting_link']}</a></p>"
-            if event.get("meeting_link")
-            else ""
-        )
-        note_html = f"<p>{message}</p>" if message else ""
+        from html import escape
+
+        starts_at = escape(self._format_event_time(event))
+        location_html = f"<p><strong>Location:</strong> {escape(str(event['location']))}</p>" if event.get("location") else ""
+        link = escape(str(event["meeting_link"]), quote=True) if event.get("meeting_link") else ""
+        meeting_link_html = f'<p><strong>Join link:</strong> <a href="{link}">{link}</a></p>' if link else ""
+        note_html = f"<p>{escape(message)}</p>" if message else ""
         return (
-            f"<h2>{event['title']}</h2>"
+            f"<h2>{escape(str(event['title']))}</h2>"
             f"<p><strong>Starts:</strong> {starts_at}</p>"
             f"{location_html}"
             f"{meeting_link_html}"
             f"{note_html}"
-            f"<p><a href=\"{share_url}\">View meeting details</a></p>"
+            f'<p><a href="{escape(share_url, quote=True)}">View meeting details</a></p>'
         )
 
     async def _create_calendar_event_notifications(self, user_id: str, event: dict, *, action: str) -> None:
         if not event.get("notify_via_push", True):
             return
-        starts_at = event["starts_at"].strftime("%b %d, %Y %I:%M %p")
+        starts_at = self._format_event_time(event)
         action_map = {
             "created": ("Meeting scheduled", f"{event['title']} is scheduled for {starts_at}."),
             "updated": ("Meeting updated", f"{event['title']} was updated. Starts at {starts_at}."),

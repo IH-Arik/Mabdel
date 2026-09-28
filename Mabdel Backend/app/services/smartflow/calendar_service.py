@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import re
+
 import asyncio
 import secrets
 from datetime import date, datetime, timedelta, timezone
@@ -17,6 +20,9 @@ from .caldav_service import CalDAVService
 from .google_calendar_service import GoogleCalendarService
 from .microsoft_calendar_service import MicrosoftCalendarService
 from .zoom_calendar_service import ZoomCalendarService
+
+
+logger = logging.getLogger(__name__)
 
 
 class CalendarService(SmartFlowBase):
@@ -132,7 +138,7 @@ class CalendarService(SmartFlowBase):
         await self._maybe_opportunistic_caldav_sync(user_id)
         filters: dict = await self._calendar_visibility_filter(user_id)
         if search:
-            filters["title"] = {"$regex": search, "$options": "i"}
+            filters["title"] = {"$regex": re.escape(search.strip()), "$options": "i"}
         if upcoming_only:
             filters["starts_at"] = {"$gte": utc_now()}
         if date_from or date_to:
@@ -674,14 +680,19 @@ class CalendarService(SmartFlowBase):
     async def delete_calendar_event(self, user_id: str, event_id: str, *, notify_customer: bool = True) -> None:
         event = await self._get_editable_event(user_id, event_id)
         user_id = str(event["user_id"])
-        if event.get("google_event_id"):
-            await self.google_calendar_service.delete_remote_event(user_id, event.get("google_event_id"))
-        if event.get("zoom_meeting_id"):
-            await self.zoom_calendar_service.delete_remote_event(user_id, event.get("zoom_meeting_id"))
-        if event.get("microsoft_event_id"):
-            await self.microsoft_calendar_service.delete_remote_event(user_id, event.get("microsoft_event_id"))
-        if event.get("caldav_uid"):
-            await self.caldav_service.delete_event(user_id, event.get("caldav_uid"))
+        remote_deletes = [
+            ("google", event.get("google_event_id"), self.google_calendar_service.delete_remote_event),
+            ("zoom", event.get("zoom_meeting_id"), self.zoom_calendar_service.delete_remote_event),
+            ("microsoft", event.get("microsoft_event_id"), self.microsoft_calendar_service.delete_remote_event),
+            ("caldav", event.get("caldav_uid"), self.caldav_service.delete_event),
+        ]
+        for provider, remote_id, delete_remote in remote_deletes:
+            if not remote_id:
+                continue
+            try:
+                await delete_remote(user_id, remote_id)
+            except AppException as exc:
+                logger.warning("Could not delete the %s copy of calendar event %s: %s", provider, event["_id"], exc.message)
         await self.db.calendar_events.delete_one({"_id": event["_id"]})
         if notify_customer and event.get("customer"):
             await self._after_customer_appointment_change(event, None)
