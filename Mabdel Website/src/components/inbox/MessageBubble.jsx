@@ -1,7 +1,7 @@
 import { AlertCircle, Check, CheckCheck, FileText, Forward, Loader2, Reply, RotateCcw } from 'lucide-react';
 import { formatBubbleTime } from './inboxUtils';
 
-function Attachment({ attachment, outbound, t }) {
+export function Attachment({ attachment, outbound, t }) {
   const url = attachment?.url;
   if (!url) return null;
   const hint = `${attachment.type || ''} ${attachment.mime_type || ''} ${url}`.toLowerCase();
