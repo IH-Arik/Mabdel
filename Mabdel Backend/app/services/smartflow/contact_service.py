@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import re
 
+from datetime import datetime, timedelta, timezone
+
 from bson import ObjectId
 from pymongo import ReturnDocument
 
+from app.core.exceptions import AppException
 from app.utils.helpers import utc_now
 
 from ._base import SmartFlowBase
@@ -23,8 +26,25 @@ class ContactService(SmartFlowBase):
         filters = self._build_contact_filters(team_ids, search=search, company=company)
         page_result = await self._paginate(self.db.contacts, filters, page, page_size, "updated_at")
         page_result["items"] = await self._attach_membership_flags([self._serialize_contact(item) for item in page_result["items"]])
+        await self._attach_last_interaction(page_result["items"])
         page_result["summary"] = await self._contact_summary(team_ids)
         return page_result
+
+    async def _attach_last_interaction(self, items: list[dict]) -> None:
+        """When each listed contact was last in a conversation with the business."""
+        ids = [item["id"] for item in items if item.get("id")]
+        if not ids:
+            return
+        latest: dict[str, datetime] = {}
+        async for thread in self.db.conversations.find(
+            {"contact_id": {"$in": ids}, "is_global_chat": {"$ne": True}}, {"contact_id": 1, "last_message_at": 1}
+        ):
+            moment = self._as_utc(thread.get("last_message_at"))
+            if moment and (thread["contact_id"] not in latest or moment > latest[thread["contact_id"]]):
+                latest[thread["contact_id"]] = moment
+        for item in items:
+            moment = latest.get(item.get("id"))
+            item["last_interaction_at"] = moment.isoformat() if moment else None
 
     async def export_contacts_csv(
         self,
@@ -52,15 +72,16 @@ class ContactService(SmartFlowBase):
     def _build_contact_filters(team_ids: list[str], *, search: str | None, company: str | None) -> dict:
         filters: dict = {"user_id": {"$in": team_ids}}
         if search:
+            needle = re.escape(search.strip())
             filters["$or"] = [
-                {"name": {"$regex": search, "$options": "i"}},
-                {"first_name": {"$regex": search, "$options": "i"}},
-                {"last_name": {"$regex": search, "$options": "i"}},
-                {"email": {"$regex": search, "$options": "i"}},
-                {"phone": {"$regex": search, "$options": "i"}},
-                {"address": {"$regex": search, "$options": "i"}},
-                {"notes": {"$regex": search, "$options": "i"}},
-                {"identities.handle": {"$regex": search, "$options": "i"}},
+                {"name": {"$regex": needle, "$options": "i"}},
+                {"first_name": {"$regex": needle, "$options": "i"}},
+                {"last_name": {"$regex": needle, "$options": "i"}},
+                {"email": {"$regex": needle, "$options": "i"}},
+                {"phone": {"$regex": needle, "$options": "i"}},
+                {"address": {"$regex": needle, "$options": "i"}},
+                {"notes": {"$regex": needle, "$options": "i"}},
+                {"identities.handle": {"$regex": needle, "$options": "i"}},
             ]
         if company:
             filters["company"] = {"$regex": re.escape(company), "$options": "i"}
@@ -127,11 +148,110 @@ class ContactService(SmartFlowBase):
     async def get_contact(self, user_id: str, contact_id: str) -> dict:
         contact = await self._get_team_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
         items = await self._attach_membership_flags([self._serialize_contact(contact)])
+        items[0].update(await self._contact_activity(user_id, contact))
         return items[0]
+
+    @staticmethod
+    def _as_utc(value) -> datetime | None:
+        """Timestamps are stored both as datetimes and as ISO strings."""
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+        if not isinstance(value, datetime):
+            return None
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+    async def _contact_activity(self, user_id: str, contact: dict) -> dict:
+        """What the profile's "quick stats" show, from real records: calls with this
+        person, when we last talked (call or message), and calls per week."""
+        team_ids = await self._resolve_team_user_ids(user_id)
+        contact_id = str(contact["_id"])
+        matches: list[dict] = [{"contact_id": contact_id}]
+        phone = self._normalize_phone(contact.get("phone"))
+        if phone:
+            matches.extend([{"phone_number": phone}, {"from_number": phone}])
+        call_filter = {"user_id": {"$in": team_ids}, "$or": matches}
+        total_calls = await self.db.call_logs.count_documents(call_filter)
+        call_times = []
+        async for call in self.db.call_logs.find(call_filter, {"timestamp": 1, "created_at": 1}).sort("created_at", -1).limit(500):
+            moment = self._as_utc(call.get("created_at")) or self._as_utc(call.get("timestamp"))
+            if moment:
+                call_times.append(moment)
+
+        latest = list(call_times[:1])
+        thread = await self.db.conversations.find_one(
+            {"contact_id": contact_id, "is_global_chat": {"$ne": True}}, sort=[("last_message_at", -1)]
+        )
+        if thread:
+            moment = self._as_utc(thread.get("last_message_at"))
+            if moment:
+                latest.append(moment)
+
+        now = utc_now()
+        now = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
+        weeks = [0] * 5
+        for moment in call_times:
+            age = (now - moment).days // 7
+            if 0 <= age < 5:
+                weeks[4 - age] += 1
+        return {
+            "total_calls": total_calls,
+            "last_interaction_at": max(latest).isoformat() if latest else None,
+            "activity_chart": weeks,
+        }
+
+    async def list_contact_conversations(self, user_id: str, contact_id: str) -> dict:
+        """The customer threads (WhatsApp, SMS, email...) of this contact, and of any
+        duplicate of it with the same phone or email, most recent first."""
+        contact = await self._get_team_document(self.db.contacts, user_id, contact_id, "CONTACT_NOT_FOUND")
+        team_ids = await self._resolve_team_user_ids(user_id)
+        keys = []
+        if contact.get("phone"):
+            keys.append({"phone": contact["phone"]})
+        if contact.get("email"):
+            keys.append({"email": contact["email"]})
+        ids = {contact_id}
+        if keys:
+            async for twin in self.db.contacts.find({"user_id": {"$in": team_ids}, "$or": keys}, {"_id": 1}):
+                ids.add(str(twin["_id"]))
+        query = {
+            "$and": [
+                {"contact_id": {"$in": sorted(ids)}, "is_global_chat": {"$ne": True}},
+                self._customer_conversation_clause(),
+            ]
+        }
+        items = []
+        async for thread in self.db.conversations.find(query).sort("last_message_at", -1).limit(20):
+            items.append(await self._serialize_conversation(thread, viewer_user_id=user_id))
+        return {"items": items}
+
+    async def _find_duplicate_contact(self, team_ids: list[str], email: str | None, phone: str | None) -> dict | None:
+        matches: list[dict] = []
+        if email:
+            matches.append({"email": email})
+        key = self._phone_dedupe_key(phone)
+        if key:
+            matches.append({"phone": {"$regex": re.escape(key) + "$"}})
+        if not matches:
+            return None
+        return await self.db.contacts.find_one({"user_id": {"$in": team_ids}, "$or": matches})
 
     async def create_contact(self, user_id: str, payload: dict) -> dict:
         now = utc_now()
         names = self._normalize_contact_names(payload)
+        duplicate = await self._find_duplicate_contact(
+            await self._resolve_team_user_ids(user_id),
+            self._normalize_email(payload.get("email")),
+            self._normalize_phone(payload.get("phone")),
+        )
+        if duplicate:
+            raise AppException(
+                status_code=409,
+                code="CONTACT_ALREADY_EXISTS",
+                message=f"{duplicate.get('name') or 'A contact'} already has this phone number or email.",
+            )
         document = {
             "user_id": user_id,
             "name": names["name"],

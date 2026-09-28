@@ -140,6 +140,9 @@ class SmartFlowService(SmartFlowBase):
     async def get_contact(self, user_id, contact_id):
         return await self.contact_service.get_contact(user_id, contact_id)
 
+    async def list_contact_conversations(self, user_id, contact_id):
+        return await self.contact_service.list_contact_conversations(user_id, contact_id)
+
     async def create_contact(self, user_id, payload):
         return await self.contact_service.create_contact(user_id, payload)
 

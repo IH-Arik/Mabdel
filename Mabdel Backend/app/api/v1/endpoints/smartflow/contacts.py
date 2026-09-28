@@ -90,6 +90,16 @@ async def get_contact(
     return success_response(data=data, message="Contact fetched successfully.")
 
 
+@router.get("/contacts/{contact_id}/conversations")
+async def list_contact_conversations(
+    contact_id: str,
+    current_user: dict = Depends(require_permission("messages", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.list_contact_conversations(str(current_user["_id"]), contact_id)
+    return success_response(data=data, message="Contact conversations fetched successfully.")
+
+
 @router.patch("/contacts/{contact_id}")
 async def update_contact(
     contact_id: str,
