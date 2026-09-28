@@ -31,6 +31,9 @@ PCMU_BYTES_PER_MS = 8  # 8 kHz, one byte per sample
 MAX_KNOWLEDGE_CHARS = 8000
 HANGUP_AFTER_GOODBYE_PAD_SECONDS = 0.6
 SESSION_HANDSHAKE_SECONDS = 4.0
+GREETING_MAX_SECONDS = 30.0  # a greeting that never reports done must not mute the caller all call
+WATCH_INTERVAL_SECONDS = 2.0
+HARD_STOP_GRACE_SECONDS = 20.0
 
 TOOLS: list[dict] = [
     {
@@ -123,6 +126,16 @@ TOOLS: list[dict] = [
 ]
 
 
+LANGUAGE_PROPERTY = {
+    "type": "string",
+    "enum": list(call_phrases.SUPPORTED_LANGUAGES),
+    "description": "ISO code of the language the caller has been speaking on this call; the confirmation text is sent in it.",
+}
+for _tool in TOOLS:
+    if _tool["name"] in ("book_appointment", "reschedule_appointment", "cancel_appointment"):
+        _tool["parameters"]["properties"]["language"] = LANGUAGE_PROPERTY
+
+
 def _email_or_none(value: str | None) -> str | None:
     cleaned = _clean_spoken_email(value or "")
     return cleaned if cleaned and _looks_like_valid_email(cleaned) else None
@@ -139,6 +152,9 @@ def audio_session_config(voice: str) -> dict:
             "format": pcmu,
             "turn_detection": {"type": "semantic_vad", "eagerness": "auto", "create_response": True, "interrupt_response": True},
             "transcription": {"model": settings.OPENAI_REALTIME_TRANSCRIBE_MODEL},
+            # Phone handsets: trims line noise and echo that would otherwise trip the
+            # "caller is speaking" detector and cut the AI off.
+            "noise_reduction": {"type": "near_field"},
         },
         "output": {"format": pcmu, "voice": voice},
     }
@@ -198,6 +214,20 @@ class RealtimeReceptionist(AIPhoneAgent):
         self.transferring = False
         self.closed = False
         self.sim_history: list[dict] = []
+        # Only one response may be in flight: a second response.create is rejected, so
+        # requests made while one is active wait for it to finish.
+        self.response_active = False
+        self._queued_response: tuple[dict, bool] | None = None
+        self._last_dispatched: tuple[dict, bool] | None = None
+        self._expect_greeting_response = False
+        self.greeting_response_id: str | None = None
+        self.greeting_started_at = 0.0
+        self.call_started_at = self.last_activity = time.monotonic()
+        self.idle_prompted = False
+        self._goodbye_requested = False
+        self._hangup_scheduled = False
+        self.watch_task: asyncio.Task | None = None
+        self._tasks: set[asyncio.Task] = set()
 
     # ── state the classic media loop also reads ───────────────────────────────
     @property
@@ -333,7 +363,10 @@ class RealtimeReceptionist(AIPhoneAgent):
             "- To move or cancel, first use find_my_appointments; you may only change appointments it returns for this caller.\n"
             "- If a tool says the result is pending, tell them the team will confirm by text message. After booking, moving or cancelling, tell them they will get a text confirmation.\n"
             "- If you do not know something, say so honestly and offer take_message or transfer_to_human. Never guess.\n"
-            "- When the caller is done, say a short goodbye, then call end_call.\n",
+            "- If booking, moving or cancelling comes back unavailable or not possible, say so plainly and offer other times with check_availability.\n"
+            "- Pass the language field (the language the caller is speaking) when you book, move or cancel, so the confirmation text matches.\n"
+            "- Before calling transfer_to_human, tell the caller you are connecting them to a person.\n"
+            "- When the caller is done, say a short goodbye in that same turn, then call end_call.\n",
         ]
         if call_settings.get("custom_instructions"):
             safe = call_settings["custom_instructions"].replace(self.OWNER_BLOCK_START, "").replace(self.OWNER_BLOCK_END, "")
@@ -373,25 +406,36 @@ class RealtimeReceptionist(AIPhoneAgent):
         return ("\nCALLER:\n" + "\n".join(lines) + "\n") if lines else ""
 
     # ── call flow ─────────────────────────────────────────────────────────────
+    def _spawn(self, coro) -> asyncio.Task:
+        task = asyncio.create_task(coro)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return task
+
     async def start(self, send_callback: Callable[[dict], Awaitable[None]]) -> None:
         self.send_callback = send_callback
+        self.call_started_at = self.last_activity = time.monotonic()
         self.reader_task = asyncio.create_task(self._read_openai())
+        self.watch_task = asyncio.create_task(self._watch_call())
         await self._say_greeting()
 
     async def _say_greeting(self, *, use_custom: bool = True) -> None:
         text = await self._compose_greeting_text(use_custom=use_custom)
-        self.greeting_in_progress = True
         self.transcript_log.append({"speaker": "ai", "text": text})
         # The greeting carries the legally required recording disclosure, so it is
         # spoken word for word rather than paraphrased by the model.
-        await self._send_openai(
+        await self._request_response(
             {
                 "type": "response.create",
                 "response": {"instructions": f'Say exactly the following, naturally and warmly, then stop and listen: "{text}"'},
-            }
+            },
+            greeting=True,
         )
 
     async def on_caller_audio(self, payload_base64: str) -> None:
+        if self.greeting_in_progress and time.monotonic() - self.greeting_started_at > GREETING_MAX_SECONDS:
+            logger.warning("Call %s: greeting never finished; listening to the caller anyway", self.call_id)
+            self.greeting_in_progress = False
         # The caller's "Hello?" while the greeting (with its disclosure) is playing is
         # not a request; letting it through made the model cut its own disclosure short.
         if self.greeting_in_progress or self.transferring or self.closed:
@@ -403,21 +447,51 @@ class RealtimeReceptionist(AIPhoneAgent):
         if self.openai is None or self.send_callback is None:
             return
         await self._interrupt_playback()
-        await self._send_openai({"type": "response.cancel"})
+        if self.response_active:
+            await self._send_openai({"type": "response.cancel"})
         await self._send_openai({"type": "session.update", "session": {"type": "realtime", "instructions": await self.build_instructions()}})
         await self._say_greeting(use_custom=False)
 
-    async def _send_openai(self, event: dict) -> None:
+    async def _send_openai(self, event: dict) -> bool:
         if self.openai is None or self.closed:
-            return
+            return False
         try:
             await self.openai.send(json.dumps(event))
+            return True
         except Exception:
             logger.warning("Call %s: could not send %s to OpenAI", self.call_id, event.get("type"), exc_info=True)
+            return False
 
     async def _send_telnyx(self, message: dict) -> None:
         if self.send_callback is not None:
             await self.send_callback(message)
+
+    async def _request_response(self, payload: dict | None = None, *, greeting: bool = False) -> None:
+        """Ask the model to speak - now if it is idle, otherwise as soon as it is."""
+        if greeting:
+            self.greeting_in_progress = True
+            self.greeting_started_at = time.monotonic()
+            self.greeting_response_id = None
+        request = (payload or {"type": "response.create"}, greeting)
+        if self.response_active:
+            queued = self._queued_response
+            if queued is None or greeting or (payload is not None and not queued[1]):
+                self._queued_response = request
+            return
+        # A request that was waiting (e.g. the greeting in a newly chosen language)
+        # outranks a plain "carry on".
+        if self._queued_response is not None and not greeting and payload is None:
+            request = self._queued_response
+        self._queued_response = None
+        await self._dispatch_response(*request)
+
+    async def _dispatch_response(self, payload: dict, greeting: bool) -> None:
+        self._expect_greeting_response = greeting
+        self.response_active = True
+        self._last_dispatched = (payload, greeting)
+        if not await self._send_openai(payload):
+            self.response_active = False
+            self._expect_greeting_response = False
 
     async def _interrupt_playback(self) -> None:
         """Caller started talking: stop what Telnyx still has queued (it plays in real
@@ -448,9 +522,18 @@ class RealtimeReceptionist(AIPhoneAgent):
             if not self.closed:
                 logger.warning("Call %s: Realtime session ended unexpectedly", self.call_id, exc_info=True)
 
+    def _note_caller_activity(self) -> None:
+        self.last_activity = time.monotonic()
+        self.idle_prompted = False
+
     async def _handle_event(self, event: dict) -> None:
         kind = event.get("type")
-        if kind == "response.output_audio.delta":
+        if kind == "response.created":
+            self.response_active = True
+            if self._expect_greeting_response:
+                self.greeting_response_id = (event.get("response") or {}).get("id") or ""
+                self._expect_greeting_response = False
+        elif kind == "response.output_audio.delta":
             delta = event.get("delta") or ""
             if not delta:
                 return
@@ -465,8 +548,10 @@ class RealtimeReceptionist(AIPhoneAgent):
             # Only "event" and "media" - Telnyx drops the stream on any extra key.
             await self._send_telnyx({"event": "media", "media": {"payload": delta}})
         elif kind == "input_audio_buffer.speech_started":
+            self._note_caller_activity()
             await self._interrupt_playback()
         elif kind == "conversation.item.input_audio_transcription.completed":
+            self._note_caller_activity()
             text = (event.get("transcript") or "").strip()
             if text:
                 self.transcript_log.append({"speaker": "customer", "text": text})
@@ -479,30 +564,107 @@ class RealtimeReceptionist(AIPhoneAgent):
         elif kind == "response.done":
             await self._on_response_done(event.get("response") or {})
         elif kind == "error":
-            logger.warning("Call %s: Realtime error: %s", self.call_id, (event.get("error") or {}).get("message"))
+            error = event.get("error") or {}
+            if error.get("code") == "conversation_already_has_active_response" and self._last_dispatched:
+                # Our request crossed a response the server had already started (the
+                # caller spoke during a tool call): run it once that one ends.
+                self.response_active = True
+                self._expect_greeting_response = False
+                if self._queued_response is None:
+                    self._queued_response = self._last_dispatched
+            logger.warning("Call %s: Realtime error: %s", self.call_id, error.get("message"))
 
     async def _on_response_done(self, response: dict) -> None:
-        if self.greeting_in_progress:
+        self.response_active = False
+        if self.greeting_in_progress and self.greeting_response_id is not None and response.get("id") == self.greeting_response_id:
             self.greeting_in_progress = False
             # Drop anything captured while the greeting played.
             await self._send_openai({"type": "input_audio_buffer.clear"})
         calls = [item for item in response.get("output") or [] if item.get("type") == "function_call"]
+        if calls:
+            # Tools touch the database; run them beside the reader so caller speech and
+            # interruptions keep being processed while they work.
+            self._spawn(self._run_tool_calls(calls))
+            return
+        await self._after_response()
+
+    async def _run_tool_calls(self, calls: list[dict]) -> None:
         for item in calls:
             result = await self.run_tool(item.get("name") or "", item.get("arguments") or "{}")
             await self._send_openai(
                 {"type": "conversation.item.create", "item": {"type": "function_call_output", "call_id": item.get("call_id"), "output": json.dumps(result)}}
             )
-        if calls and not self.transferring:
-            await self._send_openai({"type": "response.create"})
+        if self.transferring:
             return
-        if self.pending_hangup and not calls:
-            # The goodbye is queued at Telnyx; hang up once it has played.
-            delay = max(0.0, self.playout_ends_at - time.monotonic()) + HANGUP_AFTER_GOODBYE_PAD_SECONDS
-            asyncio.create_task(self._hangup_after(delay))
+        await self._after_response(reply_to_tools=True)
+
+    async def _after_response(self, *, reply_to_tools: bool = False) -> None:
+        if self.pending_hangup:
+            await self._finish_call()
+            return
+        if reply_to_tools or self._queued_response is not None:
+            await self._request_response()
+
+    async def _finish_call(self) -> None:
+        """Hang up - but only after the goodbye has been said and has finished playing."""
+        if self._hangup_scheduled:
+            return
+        if self.is_speaking:
+            self._schedule_hangup()
+        elif not self._goodbye_requested:
+            self._goodbye_requested = True
+            await self._request_response(
+                {"type": "response.create", "response": {"instructions": "Say a short, warm goodbye in the caller's language."}}
+            )
+        else:
+            self._schedule_hangup()
+
+    def _schedule_hangup(self) -> None:
+        self._hangup_scheduled = True
+        delay = max(0.0, self.playout_ends_at - time.monotonic()) + HANGUP_AFTER_GOODBYE_PAD_SECONDS
+        self._spawn(self._hangup_after(delay))
 
     async def _hangup_after(self, delay: float) -> None:
         await asyncio.sleep(delay)
         await self.call_control.hangup_call(self.call_id)
+
+    async def _watch_call(self) -> None:
+        """Ends calls we would otherwise pay for forever: one that runs past the time
+        limit, or where the caller has gone quiet (a voicemail, someone who walked away)."""
+        try:
+            while not self.closed:
+                await asyncio.sleep(WATCH_INTERVAL_SECONDS)
+                now = time.monotonic()
+                if now - self.call_started_at > settings.AI_CALL_MAX_SECONDS:
+                    await self._end_for_time_limit()
+                    return
+                busy = self.transferring or self.pending_hangup or self.greeting_in_progress or self.response_active or self.is_speaking
+                if busy:
+                    continue
+                quiet = now - max(self.last_activity, self.playout_ends_at)
+                if not self.idle_prompted and quiet > settings.AI_CALL_IDLE_PROMPT_SECONDS:
+                    self.idle_prompted = True
+                    await self._request_response(
+                        {"type": "response.create", "response": {"instructions": "The caller has gone quiet. Ask briefly, in their language, whether they are still there."}}
+                    )
+                elif self.idle_prompted and quiet > settings.AI_CALL_IDLE_HANGUP_SECONDS:
+                    self.pending_hangup = True
+                    self._goodbye_requested = True
+                    await self._request_response(
+                        {"type": "response.create", "response": {"instructions": "You cannot hear the caller. Say one short goodbye, mention they are welcome to call back, and stop."}}
+                    )
+        except asyncio.CancelledError:
+            raise
+
+    async def _end_for_time_limit(self) -> None:
+        self.pending_hangup = True
+        self._goodbye_requested = True
+        await self._request_response(
+            {"type": "response.create", "response": {"instructions": "The call has reached its time limit. Politely say so, say the team will follow up on anything left, and say goodbye."}}
+        )
+        await asyncio.sleep(HARD_STOP_GRACE_SECONDS)
+        if not self._hangup_scheduled and not self.closed:
+            await self.call_control.hangup_call(self.call_id)
 
     # ── tools ─────────────────────────────────────────────────────────────────
     async def run_tool(self, name: str, arguments: str) -> dict:
@@ -534,7 +696,19 @@ class RealtimeReceptionist(AIPhoneAgent):
     async def _tool_check_availability(self, date: str | None = None, part_of_day: str | None = None) -> dict:
         return await self._appointments().available_slots(self.user_id, day=date, part_of_day=part_of_day)
 
-    async def _tool_book_appointment(self, date: str, time: str, first_name: str, last_name: str = "", email: str | None = None, phone: str | None = None) -> dict:
+    def _adopt_language(self, language: str | None) -> str:
+        """The realtime model hears the caller; Whisper-style detection does not run
+        here, so the model tells us which language the call is in."""
+        code = (language or "").strip().lower()
+        if code in call_phrases.SUPPORTED_LANGUAGES:
+            self.language = code
+            self.language_locked = True
+        return self.language
+
+    async def _tool_book_appointment(
+        self, date: str, time: str, first_name: str, last_name: str = "", email: str | None = None,
+        phone: str | None = None, language: str | None = None,
+    ) -> dict:
         name = f"{first_name} {last_name}".strip()
         self.caller_name = name
         return await self._appointments().book(
@@ -545,20 +719,24 @@ class RealtimeReceptionist(AIPhoneAgent):
             day=date,
             time=time,
             call_sid=self.call_id,
-            language=self.language,
+            language=self._adopt_language(language),
         )
 
     async def _tool_find_my_appointments(self, phone: str | None = None) -> dict:
         return await self._appointments().find_upcoming(self.user_id, phone or self.caller_phone)
 
-    async def _tool_reschedule_appointment(self, appointment_id: str, date: str, time: str, phone: str | None = None) -> dict:
+    async def _tool_reschedule_appointment(
+        self, appointment_id: str, date: str, time: str, phone: str | None = None, language: str | None = None
+    ) -> dict:
         return await self._appointments().reschedule(
             self.user_id, appointment_id=appointment_id, phone=phone or self.caller_phone, day=date, time=time,
-            call_sid=self.call_id, language=self.language,
+            call_sid=self.call_id, language=self._adopt_language(language),
         )
 
-    async def _tool_cancel_appointment(self, appointment_id: str, phone: str | None = None) -> dict:
-        return await self._appointments().cancel(self.user_id, appointment_id=appointment_id, phone=phone or self.caller_phone)
+    async def _tool_cancel_appointment(self, appointment_id: str, phone: str | None = None, language: str | None = None) -> dict:
+        return await self._appointments().cancel(
+            self.user_id, appointment_id=appointment_id, phone=phone or self.caller_phone, language=self._adopt_language(language)
+        )
 
     async def _tool_take_message(self, message: str, caller_name: str | None = None, callback_number: str | None = None, urgent: bool = False) -> dict:
         from app.utils.helpers import resolve_organization_user_ids
@@ -598,16 +776,24 @@ class RealtimeReceptionist(AIPhoneAgent):
         if not target:
             return {"transferred": False, "note": "Nobody is available to take the call. Offer to take a message instead."}
         self.transferring = True
-        await self._interrupt_playback()
-        ok = await self.call_control.transfer_call(self.call_id, to_number=target)
-        if not ok:
-            self.transferring = False
-            return {"transferred": False, "note": "The transfer failed. Apologise and offer to take a message."}
+        # "One moment, I'll connect you" is already queued at Telnyx; let it finish
+        # before the line changes hands (clearing it would leave the caller in silence).
+        delay = max(0.0, self.playout_ends_at - time.monotonic()) + HANGUP_AFTER_GOODBYE_PAD_SECONDS
+        self._spawn(self._transfer_after(delay, target))
         return {"transferred": True}
+
+    async def _transfer_after(self, delay: float, target: str) -> None:
+        await asyncio.sleep(delay)
+        if await self.call_control.transfer_call(self.call_id, to_number=target):
+            return
+        self.transferring = False
+        await self._request_response(
+            {"type": "response.create", "response": {"instructions": "The transfer did not go through. Apologise briefly and offer to take a message for the team."}}
+        )
 
     async def _tool_end_call(self) -> dict:
         self.pending_hangup = True
-        return {"ok": True, "note": "Say one short goodbye sentence now."}
+        return {"ok": True}
 
     # ── Test AI (text) ────────────────────────────────────────────────────────
     async def simulate_turn(self, text: str) -> str:
@@ -641,7 +827,12 @@ class RealtimeReceptionist(AIPhoneAgent):
         return response.choices[0].message.model_dump(exclude_none=True)
 
     async def _sim_book_appointment(self, date: str, time: str, first_name: str, last_name: str = "", **_: Any) -> dict:
-        start = await self._appointments().calendar.localize_business_slot(self.user_id, date, time)
+        from app.core.exceptions import AppException
+
+        try:
+            start, _end = await self._appointments()._slot_bounds(self.user_id, date, time)
+        except AppException as exc:
+            return {"outcome": "unavailable", "reason": exc.message, "test_mode": "nothing was booked"}
         hours = await self.flow_service.get_business_hours(self.user_id)
         from app.services.smartflow.appointment_notifications import format_when
 
@@ -649,6 +840,8 @@ class RealtimeReceptionist(AIPhoneAgent):
 
     async def _sim_reschedule_appointment(self, appointment_id: str, date: str, time: str, **_: Any) -> dict:
         booked = await self._sim_book_appointment(date, time, "")
+        if booked["outcome"] != "booked":
+            return booked
         return {"outcome": "rescheduled", "when": booked["when"], "test_mode": "nothing was changed"}
 
     async def _sim_cancel_appointment(self, appointment_id: str, **_: Any) -> dict:
@@ -682,8 +875,9 @@ class RealtimeReceptionist(AIPhoneAgent):
 
     async def close(self) -> None:
         self.closed = True
-        if self.reader_task:
-            self.reader_task.cancel()
+        for task in (self.reader_task, self.watch_task, *self._tasks):
+            if task:
+                task.cancel()
         if self.openai is not None:
             try:
                 await self.openai.close()

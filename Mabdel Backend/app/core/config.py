@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_URL: str = "wss://api.openai.com/v1/realtime"
     OPENAI_REALTIME_MODEL: str = "gpt-realtime"
     OPENAI_REALTIME_TRANSCRIBE_MODEL: str = "gpt-4o-mini-transcribe"
+    # Realtime bills by the minute, so a call that never ends (a voicemail, a caller who
+    # walked away) has to be ended by us. A session also caps at 60 minutes and its
+    # context window at ~18 minutes of conversation.
+    AI_CALL_MAX_SECONDS: int = 900
+    AI_CALL_IDLE_PROMPT_SECONDS: int = 25
+    AI_CALL_IDLE_HANGUP_SECONDS: int = 20
     OAUTH_STATE_EXPIRE_MINUTES: int = 10
 
     GOOGLE_CLIENT_ID: str | None = None

@@ -21,6 +21,7 @@ from .calendar_service import CalendarService
 from .call_meeting_request_service import CallMeetingRequestService
 
 PARTS_OF_DAY = {"morning": (0, 12), "afternoon": (12, 17), "evening": (17, 24)}
+MAX_BOOKING_DAYS_AHEAD = 180
 
 
 class AppointmentService(SmartFlowBase):
@@ -73,8 +74,16 @@ class AppointmentService(SmartFlowBase):
         }
 
     async def _slot_bounds(self, owner_id: str, day: str, time: str) -> tuple[datetime, datetime]:
-        hours, _ = await self._hours(owner_id)
+        hours, tz = await self._hours(owner_id)
         wanted = self._parse_day(day)
+        if wanted is None:
+            raise AppException(status_code=400, code="APPOINTMENT_BAD_DATE", message="Use a date like 2026-09-29.")
+        # The model supplies the date; find_free_slots would happily call a past day free.
+        today = self.calendar._now(tz).date()
+        if wanted < today:
+            raise AppException(status_code=409, code="APPOINTMENT_DATE_PASSED", message="That date has already passed.")
+        if wanted > today + timedelta(days=MAX_BOOKING_DAYS_AHEAD):
+            raise AppException(status_code=409, code="APPOINTMENT_TOO_FAR", message="That is too far ahead to book by phone.")
         if time not in await self.calendar.find_free_slots(owner_id, wanted):
             raise AppException(status_code=409, code="APPOINTMENT_SLOT_UNAVAILABLE", message="That time is not available.")
         start = await self.calendar.localize_business_slot(owner_id, wanted.isoformat(), time)
@@ -127,6 +136,11 @@ class AppointmentService(SmartFlowBase):
             "pending_requests": [format_when(item["requested_start"], hours.get("timezone")) for item in pending],
         }
 
+    async def _remember_language(self, event: dict, language: str | None) -> None:
+        """The customer texts are written in the language the caller spoke on this call."""
+        if language and (event.get("customer") or {}).get("language") != language:
+            await self.db.calendar_events.update_one({"_id": event["_id"]}, {"$set": {"customer.language": language}})
+
     async def _callers_event(self, owner_id: str, appointment_id: str, phone: str | None) -> dict:
         number = self._normalize_phone_value(phone or "")
         if not number or not ObjectId.is_valid(appointment_id or ""):
@@ -150,6 +164,7 @@ class AppointmentService(SmartFlowBase):
             return {"outcome": "not_possible", "reason": exc.message}
         hours, _ = await self._hours(owner_id)
         when = format_when(start, hours.get("timezone"))
+        await self._remember_language(event, language)
         organization_id = await self._resolve_organization_id(owner_id)
         if await self.requests.approval_required(organization_id):
             customer = event.get("customer") or {}
@@ -169,7 +184,7 @@ class AppointmentService(SmartFlowBase):
         await self.calendar.update_calendar_event(str(event["user_id"]), str(event["_id"]), {"starts_at": start, "ends_at": end})
         return {"outcome": "rescheduled", "when": when}
 
-    async def cancel(self, owner_id: str, *, appointment_id: str, phone: str | None) -> dict:
+    async def cancel(self, owner_id: str, *, appointment_id: str, phone: str | None, language: str | None = None) -> dict:
         """Cancelling is always immediate - customers never need approval to cancel."""
         try:
             event = await self._callers_event(owner_id, appointment_id, phone)
@@ -177,6 +192,7 @@ class AppointmentService(SmartFlowBase):
             return {"outcome": "not_possible", "reason": exc.message}
         hours, _ = await self._hours(owner_id)
         when = format_when(event["starts_at"], hours.get("timezone"))
+        await self._remember_language(event, language)
         await self.calendar.delete_calendar_event(str(event["user_id"]), str(event["_id"]))
         return {"outcome": "cancelled", "when": when}
 
