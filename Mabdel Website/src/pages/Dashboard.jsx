@@ -10,7 +10,6 @@ import {
   PhoneCall,
   Plus,
   ReceiptText,
-  TrendingUp,
   Clock,
   Users,
 } from 'lucide-react';
@@ -36,7 +35,34 @@ const PLATFORM_BADGE_CONFIG = {
   telegram: { label: 'TG', backgroundColor: '#2AABEE', color: '#FFFFFF' },
   google_business: { label: 'G', backgroundColor: '#F4F4F4', color: '#EA4335' },
   linkedin: { label: 'in', backgroundColor: '#0A66C2', color: '#FFFFFF' },
+  // The keys the backend actually uses (the aliases above never matched them).
+  facebook_messenger: { label: 'f', backgroundColor: '#1877F2', color: '#FFFFFF' },
+  twitter_x: { label: 'X', backgroundColor: '#FFFFFF', color: '#000000' },
+  snapchat: { label: 'SC', backgroundColor: '#FFFC00', color: '#000000' },
+  threads: { label: '@', backgroundColor: '#101010', color: '#FFFFFF' },
+  zoom: { label: 'Z', backgroundColor: '#2D8CFF', color: '#FFFFFF' },
+  zoho: { label: 'Zo', backgroundColor: '#C8202B', color: '#FFFFFF' },
+  microsoft: { label: 'M', backgroundColor: '#00A4EF', color: '#FFFFFF' },
 };
+
+// Outside the components so the clock reads aren't mistaken for render-time impurity.
+const timestampMs = () => Date.now();
+const greetingKey = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'dash_good_morning';
+  return hour < 18 ? 'dash_good_afternoon' : 'dash_good_evening';
+};
+
+const CALL_STATUS_LABEL_KEYS = {
+  completed: 'dash_call_done',
+  missed: 'dash_call_missed',
+  failed: 'dash_call_not_connected',
+  busy: 'dash_call_not_connected',
+  no_answer: 'dash_call_not_connected',
+  canceled: 'dash_call_not_connected',
+  in_progress: 'dash_call_in_progress',
+};
+const CALL_STATUS_PROBLEMS = ['missed', 'failed', 'busy', 'no_answer', 'canceled'];
 
 function getDisplayName(user, t) {
   const emailPrefix = String(user?.email || user?.client_email || '')
@@ -217,12 +243,12 @@ function SectionCard({ children, className = '', onClick }) {
 }
 
 /* Memoized sub-components to eliminate unnecessary re-renders */
-const KpiMetricsRow = memo(function KpiMetricsRow({ totalChats, totalContacts, totalCalls, minutesSaved }) {
+const KpiMetricsRow = memo(function KpiMetricsRow({ totalChats, totalContacts, totalCalls, minutesSaved, t }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-4 flex items-center justify-between shadow-md">
         <div>
-          <span className="text-[11px] font-bold text-[#A4B0B7] uppercase tracking-wider block">Conversations</span>
+          <span className="text-[11px] font-bold text-[#A4B0B7] uppercase tracking-wider block">{t('dash_kpi_conversations')}</span>
           <span className="text-2xl font-black text-white mt-1 block">{totalChats}</span>
         </div>
         <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
@@ -232,7 +258,7 @@ const KpiMetricsRow = memo(function KpiMetricsRow({ totalChats, totalContacts, t
 
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-4 flex items-center justify-between shadow-md">
         <div>
-          <span className="text-[11px] font-bold text-[#A4B0B7] uppercase tracking-wider block">Contacts</span>
+          <span className="text-[11px] font-bold text-[#A4B0B7] uppercase tracking-wider block">{t('dash_kpi_contacts')}</span>
           <span className="text-2xl font-black text-white mt-1 block">{totalContacts}</span>
         </div>
         <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
@@ -242,7 +268,7 @@ const KpiMetricsRow = memo(function KpiMetricsRow({ totalChats, totalContacts, t
 
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-4 flex items-center justify-between shadow-md">
         <div>
-          <span className="text-[11px] font-bold text-[#A4B0B7] uppercase tracking-wider block">AI Calls</span>
+          <span className="text-[11px] font-bold text-[#A4B0B7] uppercase tracking-wider block">{t('dash_kpi_ai_calls')}</span>
           <span className="text-2xl font-black text-white mt-1 block">{totalCalls}</span>
         </div>
         <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
@@ -252,7 +278,7 @@ const KpiMetricsRow = memo(function KpiMetricsRow({ totalChats, totalContacts, t
 
       <div className="bg-[#131A24] border border-[#243041] rounded-2xl p-4 flex items-center justify-between shadow-md">
         <div>
-          <span className="text-[11px] font-bold text-[#A4B0B7] uppercase tracking-wider block">Mins Saved</span>
+          <span className="text-[11px] font-bold text-[#A4B0B7] uppercase tracking-wider block">{t('dash_kpi_minutes_saved')}</span>
           <span className="text-2xl font-black text-[#9333ea] mt-1 block">{minutesSaved}m</span>
         </div>
         <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -265,6 +291,7 @@ const KpiMetricsRow = memo(function KpiMetricsRow({ totalChats, totalContacts, t
 
 const UnifiedConversationsCard = memo(function UnifiedConversationsCard({
   totalChats,
+  unreadCount,
   latestPeerName,
   truncatedLatestMessage,
   inboxAvatars,
@@ -279,6 +306,11 @@ const UnifiedConversationsCard = memo(function UnifiedConversationsCard({
           {t('dash_inbox')}
         </div>
         <span className="text-xs text-[#CBD5E1] font-semibold">
+          {unreadCount > 0 ? (
+            <span className="mr-2 rounded-full bg-[#9333ea] px-2 py-0.5 text-[10px] font-extrabold text-white">
+              {t('dash_unread_count', { n: unreadCount })}
+            </span>
+          ) : null}
           {t('dash_chats_count', { n: totalChats })}
         </span>
       </div>
@@ -338,7 +370,7 @@ const ContactsCard = memo(function ContactsCard({
 
 const CalendarWidget = memo(function CalendarWidget({
   nextUpcomingEvent,
-  upcomingEvents,
+  upcomingCount,
   upcomingEventLabel,
   openScheduleMeeting,
   t,
@@ -355,7 +387,7 @@ const CalendarWidget = memo(function CalendarWidget({
           <>
             <p className="text-sm font-bold text-white truncate">{nextUpcomingEvent.title || t('dash_untitled_meeting')}</p>
             <p className="text-xs text-[#CBD5E1] mt-1">
-              {t('dash_upcoming_meetings_count', { n: upcomingEvents.length })}
+              {t('dash_upcoming_meetings_count', { n: upcomingCount })}
             </p>
             <p className="text-xs text-[#CBD5E1] mt-1">{upcomingEventLabel}</p>
           </>
@@ -368,7 +400,7 @@ const CalendarWidget = memo(function CalendarWidget({
         onClick={openScheduleMeeting}
         className="mt-5 px-6 py-2.5 bg-[#9333ea] hover:bg-[#a855f7] text-[#02080B] font-extrabold text-xs rounded-full active:scale-95 transition-all shadow-md shadow-[#9333ea]/10 cursor-pointer"
       >
-        {t('dash_add_your_calendar')}
+        {nextUpcomingEvent ? t('dash_open_calendar') : t('dash_add_your_calendar')}
       </button>
     </SectionCard>
   );
@@ -388,7 +420,7 @@ const IntegrationsWidget = memo(function IntegrationsWidget({
             key={item.id}
             className="w-8 h-8 rounded-full border border-[#243041] flex items-center justify-center text-[10px] font-bold"
             style={{ backgroundColor: item.backgroundColor, color: item.color }}
-            title={item.id}
+            title={item.title}
           >
             {item.label}
           </div>
@@ -468,7 +500,11 @@ const AiCallAnalyticsCard = memo(function AiCallAnalyticsCard({
                 </div>
               </div>
               {item.rightType === 'badge' ? (
-                <div className="text-[10px] font-bold rounded-full px-3 py-1 bg-[#184833] text-[#3ADF87] uppercase tracking-wider shrink-0">
+                <div
+                  className={`text-[10px] font-bold rounded-full px-3 py-1 uppercase tracking-wider shrink-0 ${
+                    CALL_STATUS_PROBLEMS.includes(item.status) ? 'bg-rose-950/50 text-rose-300' : 'bg-[#184833] text-[#3ADF87]'
+                  }`}
+                >
                   {item.rightText}
                 </div>
               ) : (
@@ -496,85 +532,80 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(!dashboardCache);
   const [threads, setThreads] = useState(() => dashboardCache?.threads || []);
   const [totalConversationsCount, setTotalConversationsCount] = useState(() => dashboardCache?.totalConversationsCount || 0);
+  const [unreadChatsCount, setUnreadChatsCount] = useState(() => dashboardCache?.unreadChatsCount || 0);
   const [contacts, setContacts] = useState(() => dashboardCache?.contacts || []);
   const [totalContactsCount, setTotalContactsCount] = useState(() => dashboardCache?.totalContactsCount || 0);
   const [callSummary, setCallSummary] = useState(() => dashboardCache?.callSummary || null);
   const [recentCalls, setRecentCalls] = useState(() => dashboardCache?.recentCalls || []);
   const [integrationItems, setIntegrationItems] = useState(() => dashboardCache?.integrationItems || []);
   const [calendarEvents, setCalendarEvents] = useState(() => dashboardCache?.calendarEvents || []);
+  const [upcomingCount, setUpcomingCount] = useState(() => dashboardCache?.upcomingCount || 0);
 
   const fetchAll = useCallback(async () => {
     try {
-      const [conversationsRes, contactsRes, callSummaryRes, callsRes, integrationsRes, calendarEventsRes] =
-        await Promise.allSettled([
-          smartflowApi.getConversations({ page: 1, page_size: 100 }),
-          smartflowApi.getContacts({ page: 1, page_size: 100 }),
-          smartflowApi.getCallSummary(),
-          smartflowApi.getCalls({ page: 1, page_size: 5 }),
-          smartflowApi.getIntegrationStatus(),
-          smartflowApi.getCalendarEvents({ page: 1, page_size: 25, upcoming_only: true }),
-        ]);
+      // Integrations can be slow (the server checks the WhatsApp gateway), so they fill in
+      // when ready instead of holding the whole page on its skeleton.
+      smartflowApi
+        .getIntegrationStatus()
+        .then((response) => {
+          const items = normalizeIntegrationItems(response);
+          setIntegrationItems(items);
+          dashboardCache = { ...(dashboardCache || {}), integrationItems: items };
+        })
+        .catch(() => {});
 
-      let nextThreads = threads;
-      let nextTotalConversations = totalConversationsCount;
-      let nextContacts = contacts;
-      let nextTotalContacts = totalContactsCount;
-      let nextCallSummary = callSummary;
-      let nextRecentCalls = recentCalls;
-      let nextIntegrations = integrationItems;
-      let nextCalendarEvents = calendarEvents;
+      const [conversationsRes, contactsRes, callSummaryRes, callsRes, calendarEventsRes] = await Promise.allSettled([
+        // Customer conversations only, not archived: this card is the Unified inbox. Unscoped, it
+        // counted AI-assistant chats, team chats and archived threads too.
+        smartflowApi.getConversations({ page: 1, page_size: 100, archived: false, scope: 'customer' }),
+        smartflowApi.getContacts({ page: 1, page_size: 100 }),
+        smartflowApi.getCallSummary(),
+        smartflowApi.getCalls({ page: 1, page_size: 5 }),
+        smartflowApi.getCalendarEvents({ page: 1, page_size: 25, upcoming_only: true }),
+      ]);
+
+      // A request that fails keeps the last good value (from the cache) instead of blanking it.
+      const next = { ...(dashboardCache || {}) };
 
       if (conversationsRes.status === 'fulfilled') {
         const payload = conversationsRes.value?.data?.data || conversationsRes.value?.data || conversationsRes.value;
-        nextThreads = normalizeConversationList(conversationsRes.value);
-        nextTotalConversations = payload?.pagination?.total ?? payload?.total ?? nextThreads.length;
-        setThreads(nextThreads);
-        setTotalConversationsCount(nextTotalConversations);
+        next.threads = normalizeConversationList(conversationsRes.value);
+        next.totalConversationsCount = payload?.pagination?.total ?? payload?.total ?? next.threads.length;
+        next.unreadChatsCount = next.threads.filter((thread) => Number(thread?.unread_count) > 0).length;
+        setThreads(next.threads);
+        setTotalConversationsCount(next.totalConversationsCount);
+        setUnreadChatsCount(next.unreadChatsCount);
       }
 
       if (contactsRes.status === 'fulfilled') {
-        // The backend caps page_size at 100, so with 400+ real contacts,
-        // contacts.length here is only ever "how many fit on page 1" — never
-        // the real total. Same bug as the Contacts page had; fixed the same
-        // way, by reading the backend's own pagination.total instead of
-        // counting the (necessarily incomplete) fetched page.
+        // The backend caps page_size at 100, so with 400+ real contacts, contacts.length is only
+        // ever "how many fit on page 1" - read the backend's own pagination.total instead.
         const contactsPayload = contactsRes.value?.data?.data || contactsRes.value?.data || contactsRes.value;
-        nextContacts = normalizeContacts(contactsRes.value);
-        nextTotalContacts = contactsPayload?.pagination?.total ?? nextContacts.length;
-        setContacts(nextContacts);
-        setTotalContactsCount(nextTotalContacts);
+        next.contacts = normalizeContacts(contactsRes.value);
+        next.totalContactsCount = contactsPayload?.pagination?.total ?? next.contacts.length;
+        setContacts(next.contacts);
+        setTotalContactsCount(next.totalContactsCount);
       }
 
       if (callSummaryRes.status === 'fulfilled') {
-        nextCallSummary = callSummaryRes.value?.data?.data || callSummaryRes.value?.data || null;
-        setCallSummary(nextCallSummary);
+        next.callSummary = callSummaryRes.value?.data?.data || callSummaryRes.value?.data || null;
+        setCallSummary(next.callSummary);
       }
 
       if (callsRes.status === 'fulfilled') {
-        nextRecentCalls = normalizeCalls(callsRes.value);
-        setRecentCalls(nextRecentCalls);
-      }
-
-      if (integrationsRes.status === 'fulfilled') {
-        nextIntegrations = normalizeIntegrationItems(integrationsRes.value);
-        setIntegrationItems(nextIntegrations);
+        next.recentCalls = normalizeCalls(callsRes.value);
+        setRecentCalls(next.recentCalls);
       }
 
       if (calendarEventsRes.status === 'fulfilled') {
-        nextCalendarEvents = normalizeCalendarEvents(calendarEventsRes.value);
-        setCalendarEvents(nextCalendarEvents);
+        const calendarPayload = calendarEventsRes.value?.data?.data || calendarEventsRes.value?.data || calendarEventsRes.value;
+        next.calendarEvents = normalizeCalendarEvents(calendarEventsRes.value);
+        next.upcomingCount = calendarPayload?.pagination?.total ?? next.calendarEvents.length;
+        setCalendarEvents(next.calendarEvents);
+        setUpcomingCount(next.upcomingCount);
       }
 
-      dashboardCache = {
-        threads: nextThreads,
-        totalConversationsCount: nextTotalConversations,
-        contacts: nextContacts,
-        totalContactsCount: nextTotalContacts,
-        callSummary: nextCallSummary,
-        recentCalls: nextRecentCalls,
-        integrationItems: nextIntegrations,
-        calendarEvents: nextCalendarEvents,
-      };
+      dashboardCache = next;
     } finally {
       setIsLoading(false);
     }
@@ -663,13 +694,14 @@ export default function Dashboard() {
         backgroundColor: '#1D2A38',
         color: '#FFFFFF',
       };
-      return { id: platform, ...cfg };
+      return { id: platform, title: item?.platform_label || platform, ...cfg };
     });
 
   const totalCallsCount = callSummary?.total_calls ?? 0;
+  const aiCallsCount = callSummary?.ai_calls ?? totalCallsCount;
   const minutesSavedCount = callSummary?.total_minutes_saved ?? 0;
   const upcomingEvents = calendarEvents
-    .filter((item) => item?.starts_at && new Date(item.starts_at).getTime() > Date.now())
+    .filter((item) => item?.starts_at && new Date(item.starts_at).getTime() > timestampMs())
     .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime());
   const nextUpcomingEvent = upcomingEvents[0] ?? null;
   const upcomingEventLabel = nextUpcomingEvent
@@ -683,11 +715,7 @@ export default function Dashboard() {
       name: call?.contact_name || call?.caller_name || call?.phone_number || t('dash_unknown_caller'),
       subtitle: call?.ai_summary?.purpose || call?.summary || call?.status || '',
       rightType: durationMinutes ? 'text' : 'badge',
-      rightText: durationMinutes
-        ? `${durationMinutes}m`
-        : call?.status === 'completed'
-          ? t('dash_call_done')
-          : t('dash_ai_ready'),
+      rightText: durationMinutes ? `${durationMinutes}m` : t(CALL_STATUS_LABEL_KEYS[call?.status] || 'dash_ai_ready'),
       status: call?.status,
     };
   });
@@ -696,7 +724,7 @@ export default function Dashboard() {
     <div className="max-w-7xl mx-auto space-y-5 pb-12 text-white">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[30px] leading-tight font-bold tracking-tight text-[#F3F8FF]">
-          {t('dash_good_morning', { name: displayName })}
+          {t(greetingKey(), { name: displayName })}
         </h1>
       </div>
 
@@ -730,12 +758,14 @@ export default function Dashboard() {
       <KpiMetricsRow
         totalChats={totalChats}
         totalContacts={totalContacts}
-        totalCalls={totalCallsCount}
+        totalCalls={aiCallsCount}
         minutesSaved={minutesSavedCount}
+        t={t}
       />
 
       <UnifiedConversationsCard
         totalChats={totalChats}
+        unreadCount={unreadChatsCount}
         latestPeerName={latestPeerName}
         truncatedLatestMessage={truncatedLatestMessage}
         inboxAvatars={inboxAvatars}
@@ -756,7 +786,7 @@ export default function Dashboard() {
         <div className="space-y-5">
           <CalendarWidget
             nextUpcomingEvent={nextUpcomingEvent}
-            upcomingEvents={upcomingEvents}
+            upcomingCount={upcomingCount}
             upcomingEventLabel={upcomingEventLabel}
             openScheduleMeeting={openScheduleMeeting}
             t={t}

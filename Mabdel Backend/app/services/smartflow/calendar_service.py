@@ -130,7 +130,7 @@ class CalendarService(SmartFlowBase):
         contact_id: str | None = None,
     ) -> dict:
         await self._maybe_opportunistic_caldav_sync(user_id)
-        filters: dict = {"user_id": user_id}
+        filters: dict = await self._calendar_visibility_filter(user_id)
         if search:
             filters["title"] = {"$regex": search, "$options": "i"}
         if upcoming_only:
@@ -320,7 +320,7 @@ class CalendarService(SmartFlowBase):
         return None
 
     async def get_calendar_event(self, user_id: str, event_id: str) -> dict:
-        event = await self._get_owned_document(self.db.calendar_events, user_id, event_id, "EVENT_NOT_FOUND")
+        event = await self._get_editable_event(user_id, event_id)
         return await self._serialize_calendar_event(event)
 
     async def create_calendar_event(self, user_id: str, payload: dict) -> dict:
