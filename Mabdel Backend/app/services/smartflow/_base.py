@@ -2727,6 +2727,30 @@ class SmartFlowBase:
             return f"{message} {provider_error}"
         return message
 
+    @staticmethod
+    def _fill_bulk_variables(text: str, recipient: dict, today_label: str) -> str:
+        """{name}, {phone} and {date} - the composer promises them, so fill them per recipient."""
+        raw = recipient.get("source") in {"raw_email", "raw_phone"}
+        values = {
+            "name": ("" if raw else (recipient.get("name") or "").strip()) or "there",
+            "phone": recipient.get("phone") or "",
+            "date": today_label,
+        }
+        return re.sub(r"\{(name|phone|date)\}", lambda match: values[match.group(1).lower()], text or "", flags=re.IGNORECASE)
+
+    async def _bulk_today_label(self, user_id: str) -> str:
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        zone_name = "America/Chicago"  # the zone the whole app displays
+        try:
+            organization_id = await self._resolve_organization_id(user_id)
+            org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+            zone_name = ((org or {}).get("business_hours") or {}).get("timezone") or zone_name
+            zone = ZoneInfo(zone_name)
+        except (ZoneInfoNotFoundError, ValueError):
+            zone = ZoneInfo("America/Chicago")
+        return datetime.now(zone).strftime("%b %d, %Y")
+
     async def _dispatch_bulk_message(self, document: dict) -> dict:
         now = utc_now()
         deliveries: list[dict] = []
@@ -2748,84 +2772,67 @@ class SmartFlowBase:
                 sms_from_number = await self._resolve_org_sms_from_number(document["user_id"])
             except Exception:
                 logger.warning("Could not resolve business SMS from-number for bulk message", exc_info=True)
-        for recipient in document.get("recipients", []):
+        today_label = await self._bulk_today_label(document["user_id"])
+        semaphore = asyncio.Semaphore(8)  # a few at a time: hundreds of recipients must not take minutes
+
+        async def deliver(recipient: dict) -> dict:
             target = recipient.get("email") if document["channel"] == "email" else recipient.get("phone")
             if not target:
-                deliveries.append(
-                    {
-                        "target": "",
-                        "contact_id": recipient.get("id"),
-                        "name": recipient.get("name"),
-                        "status": "failed",
-                        "error": "Recipient does not have a valid delivery target.",
-                        "sent_at": None,
-                    }
-                )
-                failed_count += 1
-                continue
-
-            if document["channel"] == "email":
-                text_body = document["content"]
-                html_body = f"<p>{html_lib.escape(document['content'])}</p>"
-                attachments = document.get("attachments") or []
-                if attachments:
-                    text_body += "\n\nAttachments:\n" + "\n".join(
-                        f"- {attachment.get('label') or attachment.get('url')}: {attachment.get('url')}"
-                        for attachment in attachments
-                    )
-                    html_body += "<p><strong>Attachments:</strong></p><ul>" + "".join(
-                        f'<li><a href="{html_lib.escape(attachment.get("url") or "")}">{html_lib.escape(attachment.get("label") or attachment.get("url") or "")}</a></li>'
-                        for attachment in attachments
-                    ) + "</ul>"
-                try:
-                    await EmailService().send_business_email(
-                        email=target,
-                        subject=document.get("subject") or "GoCustify bulk message",
-                        text=text_body,
-                        html=html_body,
-                        from_email=(sender or {}).get("email"),
-                        from_name=(sender or {}).get("name"),
-                        reply_to=(sender or {}).get("email"),
-                        sender_provider=(sender or {}).get("provider"),
-                        sender_user_id=document["user_id"],
-                        db=self.db,
-                    )
-                    status = "sent"
-                    error = None
-                    sent_count += 1
-                except Exception as exc:
-                    status = "failed"
-                    error = self._delivery_error_text(exc)
-                    failed_count += 1
-            elif document["channel"] == "sms":
-                try:
-                    await self.call_service.send_sms(
-                        to_number=target,
-                        message=document["content"],
-                        from_number=sms_from_number,
-                    )
-                    status = "sent"
-                    error = None
-                    sent_count += 1
-                except Exception as exc:
-                    status = "failed"
-                    error = self._delivery_error_text(exc)
-                    failed_count += 1
-            else:
-                status = "failed"
-                error = f"Unsupported bulk channel: {document['channel']}"
-                failed_count += 1
-
-            deliveries.append(
-                {
-                    "target": target,
+                return {
+                    "target": "",
                     "contact_id": recipient.get("id"),
                     "name": recipient.get("name"),
-                    "status": status,
-                    "error": error,
-                    "sent_at": now if status == "sent" else None,
+                    "status": "failed",
+                    "error": "Recipient does not have a valid delivery target.",
+                    "sent_at": None,
                 }
-            )
+            content = self._fill_bulk_variables(document["content"], recipient, today_label)
+            status, error = "sent", None
+            async with semaphore:
+                try:
+                    if document["channel"] == "email":
+                        text_body = content
+                        html_body = f"<p>{html_lib.escape(content).replace(chr(10), '<br>')}</p>"
+                        attachments = document.get("attachments") or []
+                        if attachments:
+                            text_body += "\n\nAttachments:\n" + "\n".join(
+                                f"- {attachment.get('label') or attachment.get('url')}: {attachment.get('url')}"
+                                for attachment in attachments
+                            )
+                            html_body += "<p><strong>Attachments:</strong></p><ul>" + "".join(
+                                f'<li><a href="{html_lib.escape(attachment.get("url") or "")}">{html_lib.escape(attachment.get("label") or attachment.get("url") or "")}</a></li>'
+                                for attachment in attachments
+                            ) + "</ul>"
+                        await EmailService().send_business_email(
+                            email=target,
+                            subject=self._fill_bulk_variables(document.get("subject") or "GoCustify bulk message", recipient, today_label),
+                            text=text_body,
+                            html=html_body,
+                            from_email=(sender or {}).get("email"),
+                            from_name=(sender or {}).get("name"),
+                            reply_to=(sender or {}).get("email"),
+                            sender_provider=(sender or {}).get("provider"),
+                            sender_user_id=document["user_id"],
+                            db=self.db,
+                        )
+                    elif document["channel"] == "sms":
+                        await self.call_service.send_sms(to_number=target, message=content, from_number=sms_from_number)
+                    else:
+                        status, error = "failed", f"Unsupported bulk channel: {document['channel']}"
+                except Exception as exc:
+                    status, error = "failed", self._delivery_error_text(exc)
+            return {
+                "target": target,
+                "contact_id": recipient.get("id"),
+                "name": recipient.get("name"),
+                "status": status,
+                "error": error,
+                "sent_at": now if status == "sent" else None,
+            }
+
+        deliveries = list(await asyncio.gather(*(deliver(recipient) for recipient in document.get("recipients", []))))
+        sent_count = sum(1 for delivery in deliveries if delivery["status"] == "sent")
+        failed_count = len(deliveries) - sent_count
 
         final_status = "sent"
         if sent_count and failed_count:
@@ -2949,11 +2956,12 @@ class SmartFlowBase:
                 raw_key=normalized_phone,
             )
 
+        team_ids = await self._resolve_team_user_ids(user_id) if (payload.get("contact_ids") or payload.get("group_ids")) else [user_id]
         for contact_id in list(dict.fromkeys(payload.get("contact_ids", []))):
             if not ObjectId.is_valid(contact_id):
                 unavailable_contact_ids.append(contact_id)
                 continue
-            contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
+            contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": {"$in": team_ids}})
             if not contact:
                 unavailable_contact_ids.append(contact_id)
                 continue
@@ -2974,14 +2982,14 @@ class SmartFlowBase:
             if not ObjectId.is_valid(group_id):
                 unavailable_group_ids.append(group_id)
                 continue
-            group = await self.db.groups.find_one({"_id": ObjectId(group_id), "user_id": user_id})
+            group = await self.db.groups.find_one({"_id": ObjectId(group_id), "$or": [{"user_id": user_id}, {"member_ids": user_id}]})
             if not group:
                 unavailable_group_ids.append(group_id)
                 continue
             for member_id in group.get("member_ids", []):
                 if not ObjectId.is_valid(member_id):
                     continue
-                contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": user_id})
+                contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": {"$in": team_ids}})
                 if not contact:
                     continue
                 add_recipient(
@@ -3029,7 +3037,8 @@ class SmartFlowBase:
     @staticmethod
     def _bulk_segment_count(channel: str, content: str) -> int:
         if channel == "sms":
-            return max(1, ceil(len(content) / 160))
+            single, multi = (160, 153) if content.isascii() else (70, 67)
+            return 1 if len(content) <= single else ceil(len(content) / multi)
         return 1
 
     @staticmethod
