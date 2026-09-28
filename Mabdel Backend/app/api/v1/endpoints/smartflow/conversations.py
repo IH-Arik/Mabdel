@@ -110,12 +110,13 @@ async def list_conversations(
     unread_only: bool = False,
     type_filter: str | None = Query(default=None, alias="type"),
     assignee: str | None = Query(default=None, pattern="^(me|unassigned|all)$"),
+    scope: str | None = Query(default=None, pattern="^(team|customer)$"),
     current_user: dict = Depends(require_permission("messages", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     platform_list = [value.strip() for value in (platforms or "").split(",") if value.strip()] or None
     data = await service.list_conversations(
-        str(current_user["_id"]), page, page_size, search, platform, platform_list, archived, unread_only, type_filter, assignee
+        str(current_user["_id"]), page, page_size, search, platform, platform_list, archived, unread_only, type_filter, assignee, scope
     )
     return success_response(data=data, message="Conversations fetched successfully.")
 

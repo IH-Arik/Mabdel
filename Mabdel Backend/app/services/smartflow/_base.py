@@ -326,14 +326,18 @@ class SmartFlowBase:
         )
 
     @classmethod
-    def _org_customer_inbox_filter(cls, organization_id: str) -> dict:
+    def _customer_conversation_clause(cls) -> dict:
+        """Mongo form of _is_customer_conversation."""
         return {
-            "organization_id": organization_id,
             "platform": {"$in": sorted(cls.CUSTOMER_PLATFORMS)},
             "contact_id": {"$nin": [None, ""]},
             "is_global_chat": {"$ne": True},
             "type": {"$in": ["direct", None]},
         }
+
+    @classmethod
+    def _org_customer_inbox_filter(cls, organization_id: str) -> dict:
+        return {"organization_id": organization_id, **cls._customer_conversation_clause()}
 
     async def _conversation_organization_id(self, conversation: dict) -> str | None:
         """Stamped on every customer thread since the shared inbox; older threads fall
@@ -887,6 +891,10 @@ class SmartFlowBase:
         safe["last_message_at"] = safe.get("last_message_at") or (latest_message or {}).get("timestamp") or safe.get("updated_at")
         safe["assigned_to"] = safe.get("assigned_to")
         safe["is_customer_conversation"] = self._is_customer_conversation(conversation)
+        # Team chats belong to whoever started them; the whole team manages customer threads.
+        safe["can_manage"] = (not is_global_chat) and (
+            conversation.get("user_id") == viewer_id or safe["is_customer_conversation"]
+        )
         safe["unread_count"] = unread_total
         safe["has_unread"] = safe["unread_count"] > 0
         safe["is_ai_assistant"] = safe.get("type") == "ai"
@@ -991,6 +999,15 @@ class SmartFlowBase:
             else:
                 safe["is_read"] = safe.get("status") == "read" or safe.get("read_at") is not None
                 safe["read_receipt_label"] = self._format_read_receipt_label(safe.get("read_at")) if safe["is_read"] else None
+                # A team chat is stored from its creator's side ("outbound" for whoever
+                # wrote), so every teammate saw every message as their own. Say it from the
+                # viewer's side instead, like global chat does. Customer threads (they have
+                # a contact) and the owner's own messages keep their stored direction.
+                if not safe.get("contact_id"):
+                    if safe.get("user_id") != viewer_id:
+                        safe["direction"] = "outbound" if safe["sender_is_self"] else "inbound"
+                    elif not safe["sender_is_self"]:
+                        safe["direction"] = "inbound"
         elif is_global_chat and viewer_id:
             safe["sender_is_self"] = safe.get("sender_user_id") == viewer_id
             safe["direction"] = "outbound" if safe["sender_is_self"] else "inbound"

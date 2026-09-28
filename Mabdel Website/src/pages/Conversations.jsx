@@ -2,34 +2,31 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import { formatCstTime } from '../utils/dateUtils';
-import { buildWebSocketUrl } from '../api/client';
 import {
   AlertTriangle,
   Archive,
   ArchiveRestore,
   CheckCheck,
-  Info,
   Loader2,
   MessageSquare,
   Mic,
   MicOff,
   Paperclip,
-  Phone,
   Reply,
   Forward,
   Search,
   Send,
   Sparkles,
   Trash2,
-  Bell,
-  BellOff,
-  Video,
   X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLanguage } from '../context/LanguageContext';
 import { ConversationSkeletonList, MessagesThreadSkeleton } from '../components/Skeletons/MessageSkeleton';
+import { Attachment } from '../components/inbox/MessageBubble';
+import useReconnectingSocket from '../components/inbox/useReconnectingSocket';
+import { dayLabel, sameDay } from '../components/inbox/inboxUtils';
 
 const PLATFORM_COLORS = {
   ai: '#9333ea',
@@ -45,15 +42,10 @@ const PLATFORM_COLORS = {
 const FILTER_OPTION_DEFS = [
   { key: 'all', labelKey: 'conv_filter_all' },
   { key: 'unread', labelKey: 'notif_filter_unread' },
-  { key: 'archived', label: 'Archived' },
+  { key: 'archived', labelKey: 'conv_filter_archived' },
 ];
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
-
-const getStoredAccessToken = () => {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem('access_token');
-};
 
 const getCurrentUserId = () => useAuthStore.getState().user?.id || useAuthStore.getState().user?._id || null;
 
@@ -88,6 +80,11 @@ const normalizePlatform = (value) => {
   if (lower.includes('ai')) return 'ai';
   return lower || 'ai';
 };
+
+// The server flags customer threads (any channel, incl. Telegram/LinkedIn/...); the platform
+// list is only a fallback for older payloads.
+const isExternalConversation = (conversation) =>
+  Boolean(conversation?.is_customer_conversation) || HIDDEN_INBOX_PLATFORMS.includes(normalizePlatform(conversation?.platform));
 
 const getConversationName = (conversation, t) =>
   conversation?.contact_name ||
@@ -139,17 +136,6 @@ const normalizeConversation = (conversation, t) => {
   };
 };
 
-const mergeConversationIntoList = (list, conversation, t) => {
-  const normalized = normalizeConversation(conversation, t);
-  if (HIDDEN_INBOX_PLATFORMS.includes(normalizePlatform(normalized.platform)) || isAiAssistantConversation(normalized)) {
-    return list;
-  }
-  const withoutCurrent = list.filter((item) => item.id !== normalized.id);
-  return [normalized, ...withoutCurrent].sort(
-    (left, right) => new Date(right.last_message_time || 0).getTime() - new Date(left.last_message_time || 0).getTime(),
-  );
-};
-
 const normalizeMessage = (message) => ({
   ...message,
   id: message?.id || message?._id || `${Date.now()}-${Math.random()}`,
@@ -168,18 +154,6 @@ const normalizeMessage = (message) => ({
   attachments: Array.isArray(message?.attachments) ? message.attachments : [],
   media_url: message?.media_url || message?.attachment_url || null,
 });
-
-const getPrimaryAttachment = (message) => {
-  if (Array.isArray(message?.attachments) && message.attachments.length) return message.attachments[0];
-  if (message?.media_url) return { type: 'file', url: message.media_url };
-  return null;
-};
-
-const isAudioAttachment = (attachment) => {
-  if (!attachment?.url) return false;
-  const hint = `${attachment.type || ''} ${attachment.mime_type || ''} ${attachment.url}`.toLowerCase();
-  return hint.includes('audio') || hint.includes('.mp3') || hint.includes('.wav') || hint.includes('.m4a') || hint.includes('.webm') || hint.includes('.ogg');
-};
 
 const mergeMessages = (current, incoming) => {
   const byId = new Map(current.map((item) => [item.id, item]));
@@ -210,19 +184,6 @@ const formatMessageTime = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   return formatCstTime(date, { hour: '2-digit', hour12: false });
-};
-
-const formatMessageDateLabel = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  if (date.toDateString() === today.toDateString()) return 'Today';
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 const formatConversationTime = (value) => {
@@ -346,7 +307,9 @@ const ConvItem = memo(function ConvItem({ conversation, selected, onClick, t }) 
       <div className="flex gap-3">
         <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-black uppercase text-[#9333ea]">
           {conversation.contact_name?.[0] || 'C'}
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0c101b]" />
+          {conversation.presence === 'online' ? (
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0c101b]" />
+          ) : null}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
@@ -382,10 +345,9 @@ function MessagePreview({ label, preview }) {
   );
 }
 
-const MsgBubble = memo(function MsgBubble({ message, onReply, onForward, t }) {
+const MsgBubble = memo(function MsgBubble({ message, onReply, onForward, showSenderName, t }) {
   const outbound = message.direction === 'outbound';
-  const attachment = getPrimaryAttachment(message);
-  const audioAttachment = isAudioAttachment(attachment) ? attachment : null;
+  const attachments = message.attachments?.length ? message.attachments : message.media_url ? [{ url: message.media_url }] : [];
 
   return (
     <motion.div
@@ -419,25 +381,13 @@ const MsgBubble = memo(function MsgBubble({ message, onReply, onForward, t }) {
       >
         <MessagePreview label={t('conv_reply_label')} preview={message.reply_to_message_preview} />
         <MessagePreview label={t('conv_forwarded_label')} preview={message.forward_from_message_preview} />
-        {message.content ? <p className="whitespace-pre-wrap text-left">{message.content}</p> : null}
-        {audioAttachment ? (
-          <audio
-            controls
-            preload="metadata"
-            src={audioAttachment.url}
-            className="mt-2 max-w-full"
-          />
+        {showSenderName && !outbound && message.sender_name ? (
+          <p className="mb-1 text-[10px] font-extrabold text-[#c084fc]">{message.sender_name}</p>
         ) : null}
-        {!audioAttachment && message.media_url ? (
-          <a
-            href={message.media_url}
-            target="_blank"
-            rel="noreferrer"
-            className={`mt-2 block text-[11px] underline ${outbound ? 'text-[#031218]' : 'text-purple-300'}`}
-          >
-            {t('conv_open_attachment')}
-          </a>
-        ) : null}
+        {message.content ? <p className="whitespace-pre-wrap break-words text-left">{message.content}</p> : null}
+        {attachments.map((attachment, index) => (
+          <Attachment key={`${attachment.url}-${index}`} attachment={attachment} outbound={outbound} t={t} />
+        ))}
         <div className={`mt-1.5 flex items-center justify-end gap-1 ${outbound ? 'text-[#070a13]/50' : 'text-slate-500'}`}>
           <span className="text-[8px] font-bold uppercase tracking-wider">{formatMessageTime(message.timestamp)}</span>
           {outbound ? <CheckCheck size={10} /> : null}
@@ -459,26 +409,17 @@ const MsgBubble = memo(function MsgBubble({ message, onReply, onForward, t }) {
 });
 
 function AISuggestion({ conversationId, onUse, t }) {
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestion, setSuggestion] = useState('');
   const [loading, setLoading] = useState(false);
 
   const generate = async () => {
     setLoading(true);
-    const fallback = [t('conv_fallback_reply_1'), t('conv_fallback_reply_2'), t('conv_fallback_reply_3')];
     try {
-      const response = await smartflowApi.aiChat('Suggest 3 short reply options for this conversation', {
-        response_mode: 'text',
-      });
-      const data = getApiData(response);
-      const text = data?.ai_message?.content || data?.response || '';
-      const lines = text
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .slice(0, 3);
-      setSuggestions(lines.length ? lines : fallback);
+      // Written from this conversation's actual messages; never lands in the AI assistant's chat history.
+      const data = getApiData(await smartflowApi.composeMessage({ action: 'draft_reply', conversation_id: conversationId }));
+      setSuggestion(data?.text || t('conv_fallback_reply_1'));
     } catch {
-      setSuggestions(fallback);
+      setSuggestion(t('conv_fallback_reply_1'));
     } finally {
       setLoading(false);
     }
@@ -488,8 +429,9 @@ function AISuggestion({ conversationId, onUse, t }) {
 
   return (
     <div className="px-4 pb-2">
-      {suggestions.length === 0 ? (
+      {!suggestion ? (
         <button
+          type="button"
           onClick={generate}
           disabled={loading}
           className="flex cursor-pointer items-center gap-1.5 text-xs font-bold text-[#9333ea] hover:underline disabled:opacity-60"
@@ -504,24 +446,20 @@ function AISuggestion({ conversationId, onUse, t }) {
               <Sparkles size={11} />
               {t('conv_ai_suggestions')}
             </span>
-            <button onClick={() => setSuggestions([])} className="cursor-pointer text-[#A4B0B7] hover:text-white">
+            <button type="button" onClick={() => setSuggestion('')} aria-label={t('conv_close')} className="cursor-pointer text-[#A4B0B7] hover:text-white">
               <X size={12} />
             </button>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {suggestions.map((suggestion, index) => (
-              <button
-                key={`${suggestion}-${index}`}
-                onClick={() => {
-                  onUse(suggestion.replace(/^[0-9]+[.)]\s*/, ''));
-                  setSuggestions([]);
-                }}
-                className="cursor-pointer rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-3 py-1.5 text-left text-xs font-semibold text-[#9333ea] transition-colors hover:bg-[#9333ea]/20"
-              >
-                {suggestion.replace(/^[0-9]+[.)]\s*/, '')}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onUse(suggestion);
+              setSuggestion('');
+            }}
+            className="cursor-pointer rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 px-3 py-1.5 text-left text-xs font-semibold text-[#9333ea] transition-colors hover:bg-[#9333ea]/20"
+          >
+            {suggestion}
+          </button>
         </div>
       )}
     </div>
@@ -530,17 +468,31 @@ function AISuggestion({ conversationId, onUse, t }) {
 
 let conversationsListCache = null;
 
+// Outside the component so the compiler doesn't mistake event-handler clocks for render-time impurity.
+const timestampMs = () => Date.now();
+
+const MESSAGE_PAGE_SIZE = 40;
+const TYPING_PING_MS = 3000;
+
+const byMostRecent = (list) =>
+  [...list].sort((left, right) => new Date(right.last_message_time || 0).getTime() - new Date(left.last_message_time || 0).getTime());
+
 export default function Conversations() {
   const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
-  const [allConversations, setAllConversations] = useState(() => conversationsListCache?.allConversations || []);
-  const [conversations, setConversations] = useState(() => conversationsListCache?.conversations || []);
-  const [summary, setSummary] = useState({});
+  // One list per tab is the single source of truth; what is on screen is derived from
+  // them, so a realtime update can never leave the list, the counts and the open tab
+  // disagreeing (they used to, e.g. active chats popping into the Archived tab).
+  const [activeList, setActiveList] = useState(() => conversationsListCache?.activeList || []);
+  const [archivedList, setArchivedList] = useState(() => conversationsListCache?.archivedList || []);
   // A contact's "Message" button can deep-link straight into its conversation
   // instead of landing on the generic inbox with nothing selected.
   const [selectedId, setSelectedId] = useState(location.state?.conversationId || null);
   const [messages, setMessages] = useState([]);
+  const [messagesPage, setMessagesPage] = useState(1);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(!conversationsListCache);
   const [threadLoading, setThreadLoading] = useState(false);
@@ -548,8 +500,6 @@ export default function Conversations() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
-  const activeFilterRef = useRef('all');
-  activeFilterRef.current = activeFilter;
   const [archiving, setArchiving] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [forwardMessage, setForwardMessage] = useState(null);
@@ -557,12 +507,20 @@ export default function Conversations() {
   const [typingState, setTypingState] = useState({ is_typing: false, actor_name: null, preview_text: null });
   const [audioSending, setAudioSending] = useState(false);
   const bottomRef = useRef(null);
+  const scrollRef = useRef(null);
+  const stickToBottomRef = useRef(true);
+  const selectedIdRef = useRef(selectedId);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const lastTypingPingRef = useRef(0);
   const searchTimeoutRef = useRef(null);
-  const conversationSocketRef = useRef(null);
-  const inboxSocketRef = useRef(null);
   const messagesCacheRef = useRef({});
+
+  const conversations = useMemo(() => {
+    if (activeFilter === 'archived') return archivedList;
+    if (activeFilter === 'unread') return activeList.filter((item) => item.unread_count > 0);
+    return activeList;
+  }, [activeFilter, activeList, archivedList]);
 
   const handleFileSelect = async (event) => {
     const file = event.target.files?.[0];
@@ -613,48 +571,26 @@ export default function Conversations() {
     setLoading: setVoiceLoading,
   } = useVoiceRecorder(setComposerError);
 
-  const [archivedList, setArchivedList] = useState([]);
-  const [activeList, setActiveList] = useState([]);
-
   const fetchConversationCollections = useCallback(
     async (options = {}) => {
       const searchValue = (options.search ?? search).trim();
-      const filterValue = options.filter ?? activeFilter;
-
-      const paramsActive = { page: 1, page_size: 100, archived: false };
-      const paramsArchived = { page: 1, page_size: 100, archived: true };
-      if (searchValue) {
-        paramsActive.search = searchValue;
-        paramsArchived.search = searchValue;
-      }
+      // scope=team: this page is the team's own chats. Customer threads live in Unified
+      // and would otherwise fill the 100-item page and push team chats out of it.
+      const params = { page: 1, page_size: 100, scope: 'team' };
+      if (searchValue) params.search = searchValue;
 
       const [activeRes, archivedRes] = await Promise.all([
-        smartflowApi.getConversations(paramsActive),
-        smartflowApi.getConversations(paramsArchived),
+        smartflowApi.getConversations({ ...params, archived: false }),
+        smartflowApi.getConversations({ ...params, archived: true }),
       ]);
 
-      const parsedActive = toArray(getApiData(activeRes))
-        .map((item) => normalizeConversation(item, t))
-        .filter((item) => !HIDDEN_INBOX_PLATFORMS.includes(normalizePlatform(item.platform)) && !isAiAssistantConversation(item));
-
-      const parsedArchived = toArray(getApiData(archivedRes))
-        .map((item) => normalizeConversation(item, t))
-        .filter((item) => !HIDDEN_INBOX_PLATFORMS.includes(normalizePlatform(item.platform)) && !isAiAssistantConversation(item));
+      const keep = (item) => !isExternalConversation(item) && !isAiAssistantConversation(item);
+      const parsedActive = toArray(getApiData(activeRes)).map((item) => normalizeConversation(item, t)).filter(keep);
+      const parsedArchived = toArray(getApiData(archivedRes)).map((item) => normalizeConversation(item, t)).filter(keep);
 
       setActiveList(parsedActive);
       setArchivedList(parsedArchived);
-
-      let visibleItems = parsedActive;
-      if (filterValue === 'archived') {
-        visibleItems = parsedArchived;
-      } else if (filterValue === 'unread') {
-        visibleItems = parsedActive.filter((item) => item.unread_count > 0);
-      }
-
-      setAllConversations(parsedActive);
-      setConversations(visibleItems);
       setLoading(false);
-      conversationsListCache = { activeList: parsedActive, archivedList: parsedArchived, allConversations: parsedActive, conversations: visibleItems };
 
       const combined = [...parsedActive, ...parsedArchived];
       if (selectedId && !combined.some((item) => item.id === selectedId)) {
@@ -662,24 +598,16 @@ export default function Conversations() {
         setMessages([]);
       }
     },
-    [activeFilter, search, selectedId, t],
+    [search, selectedId, t],
   );
 
   const handleFilterSelect = (key) => {
     setActiveFilter(key);
-    let instant = activeList;
-    if (key === 'archived') {
-      instant = archivedList;
-    } else if (key === 'unread') {
-      instant = activeList.filter((item) => item.unread_count > 0);
-    }
-    setConversations(instant);
   };
 
   const fetchMessages = useCallback(async (conversationId, forceRefresh = false) => {
     if (!conversationId) return;
 
-    // Check cache
     const cached = messagesCacheRef.current[conversationId];
     if (cached) {
       setMessages(cached);
@@ -692,16 +620,22 @@ export default function Conversations() {
     }
 
     try {
-      const response = await smartflowApi.getMessages(conversationId);
-      const data = getApiData(response);
-      const nextMessages = toMessageArray(data)
-        .map(normalizeMessage)
-        .sort((left, right) => new Date(left.timestamp || 0).getTime() - new Date(right.timestamp || 0).getTime());
-      
-      messagesCacheRef.current[conversationId] = nextMessages;
-      setMessages(nextMessages);
+      // Newest page first; older pages are loaded on demand (this used to fetch only
+      // the newest 20 messages and offer no way to see the rest of a long chat).
+      const data = getApiData(await smartflowApi.getMessages(conversationId, { page: 1, page_size: MESSAGE_PAGE_SIZE }));
+      if (selectedIdRef.current !== conversationId) return; // the user moved on to another chat
+      const latest = toMessageArray(data).map(normalizeMessage);
+      setMessages((previous) => {
+        // Keep older pages already loaded; drop the optimistic copies the server now has.
+        const merged = mergeMessages(previous.filter((item) => !String(item.id).startsWith('temp-')), latest);
+        messagesCacheRef.current[conversationId] = merged;
+        return merged;
+      });
+      if (!forceRefresh) {
+        setMessagesPage(1);
+        setHasOlder(Number(data?.pagination?.pages || 1) > 1);
+      }
       setError('');
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80);
     } catch (threadError) {
       if (!messagesCacheRef.current[conversationId]) {
         setMessages([]);
@@ -711,6 +645,33 @@ export default function Conversations() {
       setThreadLoading(false);
     }
   }, [t]);
+
+  const loadOlderMessages = async () => {
+    if (!selectedId || loadingOlder) return;
+    const container = scrollRef.current;
+    const previousHeight = container?.scrollHeight || 0;
+    const nextPage = messagesPage + 1;
+    setLoadingOlder(true);
+    stickToBottomRef.current = false;
+    try {
+      const data = getApiData(await smartflowApi.getMessages(selectedId, { page: nextPage, page_size: MESSAGE_PAGE_SIZE }));
+      const older = toMessageArray(data).map(normalizeMessage);
+      setMessages((previous) => {
+        const merged = mergeMessages(previous, older);
+        messagesCacheRef.current[selectedId] = merged;
+        return merged;
+      });
+      setMessagesPage(nextPage);
+      setHasOlder(nextPage < Number(data?.pagination?.pages || nextPage));
+      requestAnimationFrame(() => {
+        if (container) container.scrollTop = container.scrollHeight - previousHeight; // stay where the reader was
+      });
+    } catch (olderError) {
+      setError(olderError?.response?.data?.message || t('conv_err_load_thread'));
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   const fetchTypingState = useCallback(async (conversationId) => {
     if (!conversationId) return;
@@ -733,13 +694,21 @@ export default function Conversations() {
   }, []);
 
   useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
+  useEffect(() => {
+    conversationsListCache = { activeList, archivedList };
+  }, [activeList, archivedList]);
+
+  useEffect(() => {
     let active = true;
 
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        await fetchConversationCollections({ search, filter: activeFilter });
+        await fetchConversationCollections({ search });
         if (active) setError('');
       } catch (loadError) {
         if (active) setError(loadError?.response?.data?.message || t('conv_err_load_list'));
@@ -752,131 +721,79 @@ export default function Conversations() {
       active = false;
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, [activeFilter, fetchConversationCollections, search, t]);
+  }, [fetchConversationCollections, search, t]);
+
+  useReconnectingSocket('/api/v1/smartflow/ws/inbox', (payload) => {
+    if (payload?.event !== 'inbox.updated' || !payload?.data?.conversation) return;
+    const incoming = normalizeConversation(payload.data.conversation, t);
+    if (isExternalConversation(incoming) || isAiAssistantConversation(incoming)) return;
+    // The open chat is being read right now; don't let a stale count flash back.
+    const conversation = incoming.id === selectedIdRef.current ? { ...incoming, unread_count: 0 } : incoming;
+    const upsert = (list) => byMostRecent([conversation, ...list.filter((item) => item.id !== conversation.id)]);
+    const drop = (list) => list.filter((item) => item.id !== conversation.id);
+    setActiveList((previous) => (conversation.archived ? drop(previous) : upsert(previous)));
+    setArchivedList((previous) => (conversation.archived ? upsert(previous) : drop(previous)));
+  });
 
   useEffect(() => {
-    const token = getStoredAccessToken();
-    if (!token) return undefined;
-
-    const socket = new WebSocket(buildWebSocketUrl('/api/v1/smartflow/ws/inbox', token));
-    inboxSocketRef.current = socket;
-
-    socket.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload?.event !== 'inbox.updated') return;
-
-        const nextConversation = payload?.data?.conversation;
-        const nextSummary = payload?.data?.summary;
-
-        if (nextConversation) {
-          setAllConversations((previous) => mergeConversationIntoList(previous, nextConversation, t));
-          setConversations((previous) => {
-            const merged = mergeConversationIntoList(previous, nextConversation, t);
-            return activeFilter === 'unread'
-              ? merged.filter((item) => item.unread_count > 0)
-              : merged;
-          });
-        }
-
-        if (nextSummary) {
-          setSummary(nextSummary);
-        }
-      } catch {
-        // Ignore malformed realtime payloads and keep the page usable.
-      }
-    };
-
-    return () => {
-      socket.close();
-      inboxSocketRef.current = null;
-    };
-  }, [activeFilter, t]);
-
-  useEffect(() => {
-    if (!selectedId && conversations.length > 0 && !loading) {
+    // Open the newest chat when there is nothing unread there; with unread messages waiting,
+    // leave them unread until the user chooses to open them.
+    if (!selectedId && !loading && conversations.length > 0 && !conversations[0].unread_count) {
       setSelectedId(conversations[0].id);
     }
   }, [conversations, selectedId, loading]);
 
   useEffect(() => {
-    if (!selectedId) return;
+    stickToBottomRef.current = true;
+    setMessagesPage(1);
+    setHasOlder(false);
+    setReplyToMessage(null);
+    if (!selectedId) return undefined;
     fetchMessages(selectedId);
     smartflowApi.markConversationRead(selectedId).catch(() => {});
     const markRead = (item) => (item.id === selectedId ? { ...item, unread_count: 0 } : item);
-    setAllConversations((previous) => previous.map(markRead));
     setActiveList((previous) => previous.map(markRead));
-    setConversations((previous) => {
-      const updated = previous.map(markRead);
-      // On the "Unread" tab, a conversation that just got marked read must
-      // drop out of the visible list immediately — otherwise it lingers
-      // with its unread badge gone but still sitting in the Unread filter
-      // until the next full refetch, which reads as "Read not rendering".
-      return activeFilterRef.current === 'unread' ? updated.filter((item) => item.unread_count > 0) : updated;
-    });
-    if (conversationsListCache) {
-      conversationsListCache.allConversations = conversationsListCache.allConversations.map(markRead);
-      conversationsListCache.activeList = (conversationsListCache.activeList || []).map(markRead);
-      conversationsListCache.conversations =
-        activeFilterRef.current === 'unread'
-          ? conversationsListCache.conversations.map(markRead).filter((item) => item.unread_count > 0)
-          : conversationsListCache.conversations.map(markRead);
-    }
+    setArchivedList((previous) => previous.map(markRead));
     fetchTypingState(selectedId);
 
     const interval = window.setInterval(() => fetchTypingState(selectedId), 3000);
-    const token = getStoredAccessToken();
-    let socket = null;
-
-    if (token) {
-      socket = new WebSocket(buildWebSocketUrl(`/api/v1/smartflow/ws/conversations/${selectedId}`, token));
-      conversationSocketRef.current = socket;
-      socket.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload?.event === 'message.created' || payload?.event === 'message.updated') {
-            setMessages((previous) => {
-              const updated = mergeMessages(previous, [payload.data]);
-              messagesCacheRef.current[selectedId] = updated;
-              return updated;
-            });
-          }
-          if (payload?.event === 'typing.updated') {
-            setTypingState(payload.data || { is_typing: false, actor_name: null, preview_text: null });
-          }
-        } catch {
-          // Ignore malformed realtime payloads and keep polling fallback active.
-        }
-      };
-    }
-
-    return () => {
-      window.clearInterval(interval);
-      if (socket) socket.close();
-      conversationSocketRef.current = null;
-    };
+    return () => window.clearInterval(interval);
   }, [fetchMessages, fetchTypingState, selectedId]);
 
+  useReconnectingSocket(selectedId ? `/api/v1/smartflow/ws/conversations/${selectedId}` : null, (payload) => {
+    if (payload?.event === 'message.created' || payload?.event === 'message.updated') {
+      setMessages((previous) => {
+        const updated = mergeMessages(previous, [payload.data]);
+        messagesCacheRef.current[selectedId] = updated;
+        return updated;
+      });
+      if (payload.event === 'message.created' && payload.data?.direction === 'inbound') {
+        smartflowApi.markConversationRead(selectedId).catch(() => {});
+      }
+    }
+    if (payload?.event === 'typing.updated') {
+      setTypingState(payload.data || { is_typing: false, actor_name: null, preview_text: null });
+    }
+  });
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Follow new messages only while the reader is already at the bottom; loading older
+    // history or scrolling up must not be yanked back down.
+    if (stickToBottomRef.current) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingState]);
 
-  const selectedConversation = useMemo(
-    () => allConversations.find((item) => item.id === selectedId) || conversations.find((item) => item.id === selectedId),
-    [allConversations, conversations, selectedId],
-  );
+  const handleThreadScroll = (event) => {
+    const element = event.currentTarget;
+    stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 150;
+  };
 
-
+  const selectedConversation = activeList.find((item) => item.id === selectedId) || archivedList.find((item) => item.id === selectedId);
 
   const filterCounts = useMemo(() => {
     const counts = Object.fromEntries(filterOptions.map((option) => [option.key, 0]));
     counts.all = activeList.length;
     counts.unread = activeList.filter((item) => item.unread_count > 0).length;
     counts.archived = archivedList.length;
-    activeList.forEach((conversation) => {
-      const platform = normalizePlatform(conversation.platform);
-      counts[platform] = (counts[platform] || 0) + 1;
-    });
     return counts;
   }, [activeList, archivedList, filterOptions]);
 
@@ -888,7 +805,8 @@ export default function Conversations() {
     setSending(true);
     setError('');
     const replyContext = replyToMessage;
-    const optimisticId = `temp-${Date.now()}`;
+    const optimisticId = `temp-${timestampMs()}`;
+    stickToBottomRef.current = true;
 
     if (!isAiAssistantConversation(selectedConversation)) {
       setMessages((previous) => {
@@ -998,7 +916,7 @@ export default function Conversations() {
 
   const handleDelete = async () => {
     if (!selectedId) return;
-    if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) return;
+    if (!window.confirm(t('conv_confirm_delete'))) return;
     try {
       await smartflowApi.deleteConversation(selectedId);
       setSelectedId(null);
@@ -1006,7 +924,7 @@ export default function Conversations() {
       delete messagesCacheRef.current[selectedId];
       await fetchConversationCollections();
     } catch (deleteError) {
-      setError(deleteError?.response?.data?.message || 'Failed to delete conversation');
+      setError(deleteError?.response?.data?.message || t('conv_err_delete_failed'));
     }
   };
 
@@ -1017,7 +935,7 @@ export default function Conversations() {
     setError('');
     try {
       const formData = new FormData();
-      formData.append('attachment_file', audioBlob, `voice-message-${Date.now()}.webm`);
+      formData.append('attachment_file', audioBlob, `voice-message-${timestampMs()}.webm`);
       setVoiceLoading(true);
       const uploadResponse = await smartflowApi.uploadConversationAttachment(selectedId, formData);
       const attachment = getApiData(uploadResponse);
@@ -1044,14 +962,20 @@ export default function Conversations() {
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-    smartflowApi.setTypingStatus(selectedId, {
-      is_typing: Boolean(value.trim()),
-      actor_name: 'You',
-      actor_type: 'user',
-      preview_text: value.trim() ? 'Typing...' : null,
-    }).catch(() => {});
+    // One "typing" signal every few seconds is plenty; one per keystroke floods the API.
+    const now = Date.now();
+    if (value.trim() && now - lastTypingPingRef.current > TYPING_PING_MS) {
+      lastTypingPingRef.current = now;
+      smartflowApi.setTypingStatus(selectedId, {
+        is_typing: true,
+        actor_name: 'You',
+        actor_type: 'user',
+        preview_text: 'Typing...',
+      }).catch(() => {});
+    }
 
     typingTimeoutRef.current = setTimeout(() => {
+      lastTypingPingRef.current = 0;
       smartflowApi.setTypingStatus(selectedId, {
         is_typing: false,
         actor_name: 'You',
@@ -1065,6 +989,9 @@ export default function Conversations() {
   const isLiveSupport = headerName.toLowerCase() === 'live support';
 
   const isGlobalChat = Boolean(selectedConversation?.is_global_chat);
+  // Only whoever started a team chat can archive or delete it; the API refuses anyone else.
+  const cannotManage = isGlobalChat || selectedConversation?.can_manage === false;
+  const manageHint = selectedConversation?.can_manage === false ? t('conv_only_starter_can_manage') : undefined;
 
   return (
     <div className="flex h-[calc(100vh-10rem)] overflow-hidden rounded-3xl border border-[#243041]/60 bg-[#0c101b] shadow-xl">
@@ -1144,28 +1071,31 @@ export default function Conversations() {
               <div className="flex items-center gap-3">
                 <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-[#9333ea]/20 bg-[#9333ea]/10 text-sm font-black text-[#9333ea]">
                   {selectedConversation?.contact_name?.[0] || 'C'}
-                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0c101b]" />
+                  {selectedConversation?.presence === 'online' ? (
+                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0c101b]" />
+                  ) : null}
                 </div>
                 <div className="text-left">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-extrabold text-white">{headerName}</h3>
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      Active
-                    </span>
+                    {selectedConversation?.presence === 'online' ? (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        {t('conv_active')}
+                      </span>
+                    ) : null}
                   </div>
                   <PLATFORM_BADGE platform={selectedConversation?.platformBadge ?? selectedConversation?.platform} />
                 </div>
               </div>
               <div className="flex items-center gap-2 text-slate-400">
-                <button title={t('conv_info')} className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea]">
-                  <Info size={16} />
-                </button>
                 <button
-                  title={selectedConversation?.archived ? 'Unarchive Conversation' : t('conv_archive')}
-                  disabled={archiving || isGlobalChat}
+                  type="button"
+                  title={manageHint || (selectedConversation?.archived ? t('conv_unarchive') : t('conv_archive'))}
+                  aria-label={selectedConversation?.archived ? t('conv_unarchive') : t('conv_archive')}
+                  disabled={archiving || cannotManage}
                   onClick={handleArchive}
-                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea] disabled:opacity-60"
+                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-slate-900 hover:text-[#9333ea] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {archiving ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -1176,28 +1106,41 @@ export default function Conversations() {
                   )}
                 </button>
                 <button
-                  title="Delete Conversation"
-                  disabled={isGlobalChat}
+                  type="button"
+                  title={manageHint || t('conv_delete')}
+                  aria-label={t('conv_delete')}
+                  disabled={cannotManage}
                   onClick={handleDelete}
-                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-rose-950/30 hover:text-rose-400 disabled:opacity-40"
+                  className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-rose-950/30 hover:text-rose-400 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Trash2 size={16} />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div ref={scrollRef} onScroll={handleThreadScroll} className="flex-1 overflow-y-auto p-6 custom-scrollbar">
               {threadLoading ? (
                 <MessagesThreadSkeleton />
               ) : (
                 <div className="space-y-4">
+                  {hasOlder ? (
+                    <div className="flex justify-center">
+                      <button
+                        type="button"
+                        onClick={loadOlderMessages}
+                        disabled={loadingOlder}
+                        className="cursor-pointer rounded-full border border-slate-800 px-4 py-1.5 text-[11px] font-bold text-slate-300 hover:border-[#9333ea]/40 disabled:opacity-60"
+                      >
+                        {loadingOlder ? <Loader2 size={12} className="inline animate-spin" /> : t('conv_load_older')}
+                      </button>
+                    </div>
+                  ) : null}
                   <AnimatePresence initial={false}>
                     {messages.length ? (
                       messages.map((message, index) => {
                         const prevMsg = messages[index - 1];
-                        const currentDateLabel = formatMessageDateLabel(message.timestamp);
-                        const prevDateLabel = prevMsg ? formatMessageDateLabel(prevMsg.timestamp) : null;
-                        const showDateDivider = currentDateLabel && currentDateLabel !== prevDateLabel;
+                        const showDateDivider = Boolean(message.timestamp) && (!prevMsg || !sameDay(prevMsg.timestamp, message.timestamp));
+                        const currentDateLabel = showDateDivider ? dayLabel(message.timestamp, t) : '';
 
                         return (
                           <div key={message.id} className="space-y-3">
@@ -1215,6 +1158,7 @@ export default function Conversations() {
                                 setForwardMessage(item);
                                 setForwardModalVisible(true);
                               }}
+                              showSenderName={Boolean(selectedConversation?.is_group)}
                               t={t}
                             />
                           </div>
@@ -1242,7 +1186,7 @@ export default function Conversations() {
               )}
             </div>
 
-            <AISuggestion conversationId={selectedId} onUse={setNewMessage} t={t} />
+            <AISuggestion key={selectedId} conversationId={selectedId} onUse={setNewMessage} t={t} />
 
             {isLiveSupport ? (
               <div className="flex flex-wrap gap-2 px-4 pb-2">
@@ -1380,8 +1324,8 @@ export default function Conversations() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
-              {allConversations.filter((item) => item.id !== selectedId).length ? (
-                allConversations
+              {activeList.filter((item) => item.id !== selectedId).length ? (
+                activeList
                   .filter((item) => item.id !== selectedId)
                   .map((conversation) => (
                     <button

@@ -157,9 +157,9 @@ class SmartFlowService(SmartFlowBase):
     async def get_conversation(self, user_id, conversation_id):
         return await self.conversation_service.get_conversation(user_id, conversation_id)
 
-    async def list_conversations(self, user_id, page, page_size, search, platform, platforms, archived, unread_only=False, type_filter=None, assignee=None):
+    async def list_conversations(self, user_id, page, page_size, search, platform, platforms, archived, unread_only=False, type_filter=None, assignee=None, scope=None):
         return await self.conversation_service.list_conversations(
-            user_id, page, page_size, search, platform, platforms, archived, unread_only=unread_only, type_filter=type_filter, assignee=assignee
+            user_id, page, page_size, search, platform, platforms, archived, unread_only=unread_only, type_filter=type_filter, assignee=assignee, scope=scope
         )
 
     async def compose_reply(self, user_id, **kwargs):

@@ -187,12 +187,21 @@ class ConversationService(SmartFlowBase):
         unread_only: bool = False,
         type_filter: str | None = None,
         assignee: str | None = None,
+        scope: str | None = None,
     ) -> dict:
+        """``scope="team"`` is the internal Messages page (team chats, groups, global chat -
+        never customer threads, which would also crowd them out of a 100-item page);
+        ``scope="customer"`` is the shared customer inbox; no scope returns both."""
         user = await self._get_user_document(user_id)
         access: list[dict] = [{"user_id": user_id}, {"member_ids": user_id, "is_global_chat": {"$ne": True}}]
-        if user.get("organization_id"):
+        if user.get("organization_id") and scope != "team":
             access.append(self._org_customer_inbox_filter(user["organization_id"]))
-        filters: dict = {"$or": access}
+        scope_filter: dict = {}
+        if scope == "team":
+            scope_filter["$nor"] = [self._customer_conversation_clause()]
+        elif scope == "customer":
+            scope_filter.update(self._customer_conversation_clause())
+        filters: dict = {"$or": access, **scope_filter}
         if assignee == "me":
             filters["assigned_to"] = user_id
         elif assignee == "unassigned":
@@ -217,7 +226,12 @@ class ConversationService(SmartFlowBase):
             [("last_message_at", -1), ("updated_at", -1)]
         ).to_list(length=2000)
 
-        if self._user_has_global_chat_access(user) and user.get("organization_id") and assignee not in ("me", "unassigned"):
+        if (
+            self._user_has_global_chat_access(user)
+            and user.get("organization_id")
+            and assignee not in ("me", "unassigned")
+            and scope != "customer"
+        ):
             global_chat_filters: dict = {
                 "organization_id": user.get("organization_id"),
                 "is_global_chat": True,
@@ -286,8 +300,8 @@ class ConversationService(SmartFlowBase):
                 )
                 for item in page_slice
             ]))
-            archived_count = await self.db.conversations.count_documents({"$or": access, "archived": True})
-            active_count = await self.db.conversations.count_documents({"$or": access, "archived": {"$ne": True}})
+            archived_count = await self.db.conversations.count_documents({"$or": access, **scope_filter, "archived": True})
+            active_count = await self.db.conversations.count_documents({"$or": access, **scope_filter, "archived": {"$ne": True}})
             summary = {"total_unread": 0, "archived_count": archived_count, "active_count": active_count, "by_platform": {}}
             for conversation in conversations:
                 unread_count = unread_counts.get(str(conversation.get("_id") or conversation.get("id")), 0)
