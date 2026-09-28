@@ -1,41 +1,71 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { 
-  Search, MoreVertical, Mail, Phone, User, 
+  Search, Mail, Phone, User, 
   Trash2, Filter, Download, UserPlus, ArrowLeft, 
-  Check, Calendar, MapPin, Building, ChevronLeft, 
+  Calendar, MapPin, Building, ChevronLeft, 
   ChevronRight, Plus, ShieldCheck, Sparkles, MessageSquare, Upload,
   PhoneCall, Pencil, Grid, List, Activity, FileText
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
-import { formatCalendarDate } from '../utils/dateUtils';
+import { formatCalendarDate, formatCstDate } from '../utils/dateUtils';
 import { DatePickerInput } from '../components/ui/DateTimeInputs';
 import { useLanguage } from '../context/LanguageContext';
 
 const IMPORT_HEADERS = ['name', 'first_name', 'last_name', 'email', 'phone', 'address', 'notes', 'company', 'job_title'];
 
+function readCsvRows(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let quoted = false;
+  const source = String(text || '').replace(/^\uFEFF/, '');
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (quoted) {
+      if (char === '"' && source[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        cell += char;
+      }
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === ',') {
+      row.push(cell.trim());
+      cell = '';
+    } else if (char === '\n' || char === '\r') {
+      if (char === '\r' && source[index + 1] === '\n') index += 1;
+      row.push(cell.trim());
+      rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+  row.push(cell.trim());
+  rows.push(row);
+  return rows.filter((cells) => cells.some(Boolean));
+}
+
 function parseContactCsv(text) {
-  const lines = String(text || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const rows = readCsvRows(text);
+  if (!rows.length) return [];
 
-  if (!lines.length) return [];
-
-  const firstRow = lines[0].split(',').map((cell) => cell.trim().toLowerCase());
+  const firstRow = rows[0].map((cell) => cell.toLowerCase());
   const hasHeader = firstRow.some((cell) => IMPORT_HEADERS.includes(cell));
   const headers = hasHeader ? firstRow : ['name', 'email', 'phone', 'address', 'notes'];
-  const dataLines = hasHeader ? lines.slice(1) : lines;
+  const dataRows = hasHeader ? rows.slice(1) : rows;
 
-  return dataLines
-    .map((line) => line.split(',').map((cell) => cell.trim()))
-    .filter((cells) => cells.some(Boolean))
-    .map((cells) =>
-      headers.reduce((entry, header, index) => {
-        entry[header] = cells[index] || '';
-        return entry;
-      }, {})
-    );
+  return dataRows.map((cells) =>
+    headers.reduce((entry, header, index) => {
+      entry[header] = cells[index] || '';
+      return entry;
+    }, {})
+  );
 }
 
 function mapPickerContacts(entries) {
@@ -160,12 +190,8 @@ export default function Contacts() {
           is_app_user: isAppUser,
           status: item.status || (isAppUser ? 'active' : 'pending'),
           online: item.online !== undefined ? item.online : (item.presence === 'online'),
-          location: item.location || item.address || 'Remote',
-          company: item.company || 'Individual',
-          last_interaction: item.last_interaction || 'Active',
-          last_contact_days: item.last_contact_days || 'Today',
-          total_calls: item.total_calls !== undefined ? item.total_calls : 0,
-          activity_chart: item.activity_chart || [0, 0, 0, 0, 0],
+          location: item.location || item.address || '',
+          company: item.company || '',
           dob: item.dob || item.date_of_birth || null,
         };
       });
@@ -187,7 +213,6 @@ export default function Contacts() {
       });
     } catch (error) {
       console.error('Error fetching contacts from backend:', error);
-      setContacts([]);
       setError(error?.response?.data?.message || t('contacts_err_load'));
     } finally {
       setLoading(false);
@@ -272,6 +297,28 @@ export default function Contacts() {
 
   // Selected Contact
   const activeContact = contacts.find(c => c.id === selectedContactId) || contacts[0];
+
+  // Calls, last conversation and weekly calls come from the records, fetched for the open profile only.
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    if (viewMode !== 'detail' || !selectedContactId) return undefined;
+    let cancelled = false;
+    smartflowApi
+      .getContact(selectedContactId)
+      .then((response) => {
+        if (!cancelled) setStats({ id: selectedContactId, ...(response.data?.data || {}) });
+      })
+      .catch(() => {
+        if (!cancelled) setStats(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, selectedContactId]);
+  const detailStats = activeContact && stats?.id === activeContact.id ? stats : null;
+  const lastContactLabel = detailStats?.last_interaction_at ? formatCstDate(detailStats.last_interaction_at) : '—';
+  const activityChart = detailStats?.activity_chart || [0, 0, 0, 0, 0];
+  const activityMax = Math.max(1, ...activityChart);
 
   // Save Contact trigger (Create / Update)
   const handleSaveContact = async (e) => {
@@ -503,38 +550,29 @@ export default function Contacts() {
   };
 
   const handleMessageContact = async (contact) => {
-    // Open (or create) this contact's own conversation and jump straight into it —
-    // previously this just dumped the user on the generic inbox with no way to tell
-    // which thread belonged to the contact they were looking at.
+    // Customers are messaged from the shared inbox, on the channel they already use. A
+    // contact with no thread yet starts one by SMS (or email when there is no phone).
     try {
       setError('');
       setMessagingId(contact.id);
-      const response = await smartflowApi.getConversations({ page: 1, page_size: 100, archived: false });
-      const items = response.data?.data?.items || [];
-      const existing = items.find((item) => item.contact_id === contact.id);
-
-      let conversationId = existing?.id;
+      const found = await smartflowApi.getContactConversations(contact.id);
+      let conversationId = (found.data?.data?.items || [])[0]?.id;
       if (!conversationId) {
+        const platform = contact.phone ? 'sms' : contact.email ? 'email' : null;
+        if (!platform) {
+          setError(t('contacts_err_no_channel'));
+          return;
+        }
         const created = await smartflowApi.createConversation({
           contact_id: contact.id,
           title: contact.name || null,
           type: 'direct',
-          // "ai" here isn't an AI chat — it's the same internal-conversation
-          // filler value the backend uses for team groups, since the schema
-          // has no dedicated "internal message" platform. This button starts a
-          // plain internal message, not a WhatsApp one, so it must NOT use a
-          // real external-channel platform value (that would silently route it
-          // through an actual WhatsApp/SMS/etc. send).
-          platform: 'ai',
+          platform,
           member_ids: [],
         });
         conversationId = created.data?.data?.id;
       }
-
-      // /conversations (not /unified-conversation) — that inbox is for external
-      // channel threads (WhatsApp/SMS/email/etc.); this is a plain internal
-      // message to a contact, so it belongs in the internal Messages view.
-      navigate('/conversations', { state: { conversationId } });
+      navigate('/unified-conversation', { state: { conversationId } });
     } catch (err) {
       setError(err?.response?.data?.message || t('contacts_err_message_failed'));
     } finally {
@@ -691,7 +729,7 @@ export default function Contacts() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Team ({teamMembers.length})
+                {t('contacts_tab_team', { n: teamMembers.length })}
               </button>
             </div>
 
@@ -819,7 +857,13 @@ export default function Contacts() {
             <div className="lg:col-span-8 bg-[#0c101b]/90 border border-slate-900 rounded-3xl p-6 text-left flex flex-col justify-between space-y-4">
               <div className="flex justify-between items-center pb-2">
                 <h3 className="text-xs font-bold text-slate-500 tracking-widest uppercase">{t('contacts_top_prospects')}</h3>
-                <button className="text-[10px] font-bold text-purple-400 hover:underline">{t('contacts_view_all')}</button>
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('contacts-directory')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="text-[10px] font-bold text-purple-400 hover:underline cursor-pointer"
+                >
+                  {t('contacts_view_all')}
+                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -878,8 +922,8 @@ export default function Contacts() {
                 </span>
               </div>
               <div>
-                <p className="text-4xl font-extrabold tracking-tight">94.2k</p>
-                <p className="text-[10px] font-bold opacity-80 mt-1">{t('contacts_vs_last_month')}</p>
+                <p className="text-4xl font-extrabold tracking-tight">{contacts.length}</p>
+                <p className="text-[10px] font-bold opacity-80 mt-1">{t('contacts_tab_on_mabdel', { n: onMabdelContacts.length })}</p>
               </div>
               <div className="flex items-center -space-x-2 pt-2">
                 {showcasedContacts.map((item, idx) => (
@@ -888,7 +932,7 @@ export default function Contacts() {
                   </div>
                 ))}
                 <div className="w-6 h-6 rounded-full border border-[#070a13] bg-[#070a13] flex items-center justify-center text-[7px] text-white font-extrabold shadow-md">
-                  +25
+                  +{Math.max(0, contacts.length - showcasedContacts.length)}
                 </div>
               </div>
             </div>
@@ -896,7 +940,7 @@ export default function Contacts() {
           </div>
 
           {/* Directory section (Full-width list layout) */}
-          <div className="bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 flex flex-col space-y-4 text-left">
+          <div id="contacts-directory" className="bg-[#0c101b]/95 border border-slate-900 rounded-3xl p-6 flex flex-col space-y-4 text-left">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-900/60">
               <div className="flex items-center gap-3">
                 <h3 className="text-sm font-extrabold text-white">{t('contacts_directory')}</h3>
@@ -997,9 +1041,9 @@ export default function Contacts() {
                             {item.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-xs text-slate-300 font-semibold">{item.company}</td>
-                        <td className="px-6 py-4 text-xs text-slate-400">{item.location}</td>
-                        <td className="px-6 py-4 text-xs text-slate-400">{item.last_interaction}</td>
+                        <td className="px-6 py-4 text-xs text-slate-300 font-semibold">{item.company || '—'}</td>
+                        <td className="px-6 py-4 text-xs text-slate-400">{item.location || '—'}</td>
+                        <td className="px-6 py-4 text-xs text-slate-400">{item.last_interaction_at ? formatCstDate(item.last_interaction_at) : '—'}</td>
                         <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
                             {activeTab === 'team' ? (
@@ -1089,7 +1133,7 @@ export default function Contacts() {
                         </div>
                         <div className="text-left">
                           <p className="text-xs font-bold text-white">{item.name}</p>
-                          <p className="text-[10px] text-slate-500 mt-1">{item.company}</p>
+                          <p className="text-[10px] text-slate-500 mt-1">{item.company || '—'}</p>
                         </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[8px] font-bold border uppercase tracking-wide ${getStatusBadgeStyle(item.status)}`}>
@@ -1231,21 +1275,21 @@ export default function Contacts() {
               <div className="space-y-4 mt-6">
                 <div>
                   <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{t('contacts_last_contact')}</span>
-                  <p className="text-base font-extrabold text-white mt-0.5">{activeContact.last_contact_days}</p>
+                  <p className="text-base font-extrabold text-white mt-0.5">{lastContactLabel}</p>
                 </div>
                 <div>
                   <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{t('contacts_total_calls')}</span>
-                  <p className="text-2xl font-extrabold text-white tracking-tight mt-0.5">{activeContact.total_calls}</p>
+                  <p className="text-2xl font-extrabold text-white tracking-tight mt-0.5">{detailStats ? detailStats.total_calls : '—'}</p>
                 </div>
               </div>
 
               {/* mini bar chart */}
               <div className="flex items-end gap-1.5 h-10 mt-6 pt-2 w-full justify-start">
-                {(activeContact.activity_chart || [4, 2, 8, 12, 5]).map((val, idx) => (
+                {activityChart.map((val, idx) => (
                   <div
                     key={idx}
                     className="flex-1 bg-purple-950/40 border border-purple-500/20 rounded-md transition-all hover:bg-purple-500/50 hover:border-purple-400"
-                    style={{ height: `${(val / 15) * 100}%` }}
+                    style={{ height: `${Math.max(6, (val / activityMax) * 100)}%` }}
                     title={t('contacts_calls_count', { n: val })}
                   />
                 ))}
@@ -1301,8 +1345,8 @@ export default function Contacts() {
               </div>
 
               <div className="pt-2 flex justify-between items-center text-[10px] text-slate-500">
-                <span>{t('contacts_account_company')} <strong className="text-slate-350 font-bold">{activeContact.company}</strong></span>
-                <span>{t('contacts_location_area')} <strong className="text-slate-350 font-bold">{activeContact.location}</strong></span>
+                <span>{t('contacts_account_company')} <strong className="text-slate-350 font-bold">{activeContact.company || '—'}</strong></span>
+                <span>{t('contacts_location_area')} <strong className="text-slate-350 font-bold">{activeContact.location || '—'}</strong></span>
               </div>
             </div>
 

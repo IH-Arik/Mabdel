@@ -49,7 +49,10 @@ def _auth_headers(client, mock_db, email: str = "bulk@example.com") -> dict[str,
     return {"Authorization": f"Bearer {access_token}"}
 
 
-def _create_contact(client, headers: dict[str, str], *, name: str, email: str, phone: str = "+8801700000000") -> str:
+def _create_contact(client, headers: dict[str, str], *, name: str, email: str, phone: str | None = None) -> str:
+    import zlib
+
+    phone = phone or "+880" + str(zlib.crc32(email.encode()) % 900000000 + 100000000)
     response = client.post(
         "/api/v1/smartflow/contacts",
         headers=headers,

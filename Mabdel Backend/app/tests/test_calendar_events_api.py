@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import zlib
+
 import asyncio
 
 
@@ -46,7 +48,7 @@ def _create_contact(client, headers: dict[str, str], *, name: str, email: str) -
     response = client.post(
         "/api/v1/smartflow/contacts",
         headers=headers,
-        json={"name": name, "email": email, "phone": "+8801700000000"},
+        json={"name": name, "email": email, "phone": "+880" + str(zlib.crc32(email.encode()) % 900000000 + 100000000)},
     )
     assert response.status_code == 201
     return response.json()["data"]["id"]

@@ -52,11 +52,18 @@ def _create_conversation(client, headers: dict[str, str], *, title: str, platfor
     return response.json()["data"]["id"]
 
 
+def _phone_for(email: str) -> str:
+    """A stable, different phone per contact - a business cannot hold two contacts with one number."""
+    import zlib
+
+    return f"+880{zlib.crc32(email.encode()) % 900000000 + 100000000}"
+
+
 def _create_contact(client, headers: dict[str, str], *, name: str, email: str, presence: str = "offline") -> str:
     response = client.post(
         "/api/v1/smartflow/contacts",
         headers=headers,
-        json={"name": name, "email": email, "phone": "+8801700000000"},
+        json={"name": name, "email": email, "phone": _phone_for(email)},
     )
     assert response.status_code == 201
     contact_id = response.json()["data"]["id"]
