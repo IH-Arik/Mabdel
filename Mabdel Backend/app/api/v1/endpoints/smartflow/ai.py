@@ -200,7 +200,9 @@ async def ai_voice_chat_upload(
     current_user: dict = Depends(require_permission("ai_tools", "use")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> Any:
-    audio_bytes = await audio_file.read()
+    audio_bytes = await audio_file.read(25 * 1024 * 1024 + 1)
+    if len(audio_bytes) > 25 * 1024 * 1024:
+        raise AppException(status_code=413, code="AUDIO_TOO_LARGE", message="The recording is too long.")
     audio_base64 = base64.b64encode(audio_bytes).decode("utf-8") if audio_bytes else None
     data = await service.process_voice_command(
         str(current_user["_id"]),
