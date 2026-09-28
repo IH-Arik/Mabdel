@@ -6,7 +6,7 @@ import {
   Loader2, Mail, Mic, Paperclip, Phone, Play, Plus, Sparkles, Square, Upload, Users, X,
 } from 'lucide-react';
 import { smartflowApi } from '../api/services';
-import { formatCstDate, formatCstDateTime } from '../utils/dateUtils';
+import { CST_TIME_ZONE, cstWallTimeToDate, formatCstDate, formatCstDateTime } from '../utils/dateUtils';
 import { DateTimePickerInput } from '../components/ui/DateTimeInputs';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -14,6 +14,25 @@ const INPUT = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white 
 const LABEL = 'block text-[#A4B0B7] text-xs font-semibold uppercase tracking-wider mb-1.5';
 
 const NOISY_TRANSCRIPTS = new Set(['you', 'yeah', 'ya', 'yo', 'uh', 'um', 'hmm', 'hm', 'thank you', 'thanks for watching']);
+
+// The picker gives "YYYY-MM-DDTHH:mm" on the clock the app shows (CST/CDT), not the browser's own.
+function scheduleInstant(value) {
+  const [day, time] = String(value || '').split('T');
+  return cstWallTimeToDate(day, time);
+}
+
+// The backend serves 100 contacts a page; the picker needs all of them, not the first 20.
+async function fetchAllContacts() {
+  const readPage = (response) => {
+    const body = response?.data?.data ?? response?.data ?? {};
+    return { items: Array.isArray(body?.items) ? body.items : Array.isArray(body) ? body : [], pages: Number(body?.pagination?.pages || 1) };
+  };
+  const first = readPage(await smartflowApi.getContacts({ page: 1, page_size: 100 }));
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(first.pages - 1, 0) }, (_, index) => smartflowApi.getContacts({ page: index + 2, page_size: 100 })),
+  );
+  return [...first.items, ...rest.flatMap((response) => readPage(response).items)];
+}
 
 function getRecipientTarget(contact, channel) {
   return channel === 'sms' ? contact?.phone : contact?.email;
@@ -639,7 +658,7 @@ function ComposeSection({
         {scheduleDate && (
           <p className="text-[#9333ea] text-xs mt-1 flex items-center gap-1.5">
             <CalendarClock size={12} />
-            {t('bulk_scheduled_for', { time: formatCstDateTime(scheduleDate) })}
+            {t('bulk_scheduled_for', { time: formatCstDateTime(scheduleInstant(scheduleDate)) })}
           </p>
         )}
       </div>
@@ -708,7 +727,8 @@ function BroadcastHistory({ refreshKey = 0 }) {
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-white text-sm truncate">{item.subject || item.content?.slice(0, 60) || t('bulk_default_subject')}</p>
               <p className="text-[#A4B0B7] text-xs mt-0.5">
-                {(item.recipients || []).length || item.recipient_emails?.length || 0} recipients • {item.channel} • {item.created_at ? formatCstDate(item.created_at) : ''}
+                {t('bulk_history_recipients', { count: (item.recipients || []).length || item.recipient_emails?.length || 0 })} • {item.channel} • {item.created_at ? formatCstDate(item.created_at) : ''}
+                {item.sent_count || item.failed_count ? ` • ${t('bulk_lbl_delivered_failed', { sent: item.sent_count || 0, failed: item.failed_count || 0 })}` : ''}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -716,7 +736,8 @@ function BroadcastHistory({ refreshKey = 0 }) {
                 item.status === 'sent' ? 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400' :
                 item.status === 'scheduled' ? 'bg-amber-950/40 border-amber-500/20 text-amber-400' :
                 item.status === 'draft' ? 'bg-[#243041] border-[#2A3550] text-[#A4B0B7]' :
-                item.status === 'cancelled' ? 'bg-rose-950/40 border-rose-500/20 text-rose-400' :
+                (item.status === 'cancelled' || item.status === 'failed') ? 'bg-rose-950/40 border-rose-500/20 text-rose-400' :
+                item.status === 'partial_failed' ? 'bg-amber-950/40 border-amber-500/20 text-amber-400' :
                 'bg-[#243041] border-[#2A3550] text-[#A4B0B7]'
               }`}>
                 {item.status}
@@ -753,6 +774,7 @@ export default function BulkMessaging() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [result, setResult] = useState(null);
 
   const channels = useMemo(() => [
     { id: 'email', label: t('bulk_lbl_email'), icon: Mail },
@@ -773,8 +795,8 @@ export default function BulkMessaging() {
   }, [channels, location, navigate]);
 
   useEffect(() => {
-    smartflowApi.getContacts()
-      .then((response) => setContacts(response.data?.data?.items || response.data?.data || []))
+    fetchAllContacts()
+      .then(setContacts)
       .catch(() => setContacts([]));
     smartflowApi.listGroups({ page_size: 100 })
       .then((response) => setGroups(response.data?.data?.items || response.data?.data || []))
@@ -810,7 +832,13 @@ export default function BulkMessaging() {
       }
       setChips(normalizedTargets);
 
-      await smartflowApi.createBulkMessage({
+      const scheduledAt = scheduleDate ? scheduleInstant(scheduleDate) : null;
+      if (scheduleDate && (!scheduledAt || scheduledAt.getTime() <= new Date().getTime())) {
+        setError(t('bulk_err_schedule_past'));
+        return;
+      }
+
+      const created = await smartflowApi.createBulkMessage({
         channel,
         recipient_emails: normalizedTargets,
         subject: channel === 'email' ? subject : undefined,
@@ -818,10 +846,19 @@ export default function BulkMessaging() {
         content: message,
         attachments: attachments.length ? attachments : undefined,
         send_now: !scheduleDate,
-        scheduled_at: scheduleDate ? new Date(scheduleDate).toISOString() : undefined,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        scheduled_at: scheduledAt ? scheduledAt.toISOString() : undefined,
+        timezone: CST_TIME_ZONE,
       });
       setHistoryVersion((current) => current + 1);
+      // Sending happens inside the request: say what really happened, not just "sent".
+      const saved = created?.data?.data || {};
+      if (!scheduleDate) {
+        if (saved.status === 'failed') {
+          setError((saved.deliveries || []).find((delivery) => delivery.error)?.error || t('bulk_err_all_failed'));
+          return;
+        }
+        setResult({ sent: saved.sent_count ?? normalizedTargets.length, failed: saved.failed_count ?? 0 });
+      }
       setSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.message || t('bulk_err_send_failed'));
@@ -838,6 +875,7 @@ export default function BulkMessaging() {
     setAttachments([]);
     setScheduleDate('');
     setError('');
+    setResult(null);
   }
 
   return (
@@ -923,8 +961,10 @@ export default function BulkMessaging() {
                 </h2>
                 <p className="text-[#A4B0B7] text-sm mt-2 max-w-md mx-auto">
                   {scheduleDate
-                    ? t('bulk_done_scheduled_sub', { time: formatCstDateTime(scheduleDate) })
-                    : t('bulk_done_sent_sub', { count: chips.length })}
+                    ? t('bulk_done_scheduled_sub', { time: formatCstDateTime(scheduleInstant(scheduleDate)) })
+                    : result?.failed
+                      ? t('bulk_lbl_delivered_failed', { sent: result.sent, failed: result.failed })
+                      : t('bulk_done_sent_sub', { count: result?.sent ?? chips.length })}
                 </p>
               </div>
               <button onClick={reset} className="px-8 py-3 bg-[#9333ea] text-[#02080B] rounded-xl font-extrabold hover:bg-[#a855f7] active:scale-95 transition-all cursor-pointer">

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from pymongo import ReturnDocument
@@ -79,9 +80,10 @@ class BulkMessageService(SmartFlowBase):
         team_ids = await self._resolve_team_user_ids(user_id)
         filters: dict = {"user_id": {"$in": team_ids}}
         if search:
+            needle = re.escape(search.strip())
             filters["$or"] = [
-                {"content": {"$regex": search, "$options": "i"}},
-                {"subject": {"$regex": search, "$options": "i"}},
+                {"content": {"$regex": needle, "$options": "i"}},
+                {"subject": {"$regex": needle, "$options": "i"}},
             ]
         if status_filter:
             filters["status"] = status_filter
@@ -213,13 +215,16 @@ class BulkMessageService(SmartFlowBase):
         document = await self._get_team_document(self.db.bulk_messages, user_id, bulk_message_id, "BULK_MESSAGE_NOT_FOUND")
         if document.get("status") == "cancelled":
             raise AppException(status_code=409, code="BULK_MESSAGE_CANCELLED", message="Cancelled bulk messages cannot be sent.")
-        if document.get("status") in {"sent", "partial_failed", "failed"}:
+        if document.get("status") in {"sent", "partial_failed", "failed", "processing"}:
             return self._serialize_bulk_message(document)
         updated = await self.db.bulk_messages.find_one_and_update(
-            {"_id": document["_id"]},
+            {"_id": document["_id"], "status": {"$in": ["draft", "scheduled"]}},
             {"$set": {"status": "processing", "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
+        if not updated:  # someone else just started it
+            current = await self.db.bulk_messages.find_one({"_id": document["_id"]})
+            return self._serialize_bulk_message(current)
         dispatched = await self._dispatch_bulk_message(updated)
         return self._serialize_bulk_message(dispatched)
 
@@ -252,10 +257,12 @@ class BulkMessageService(SmartFlowBase):
         if document.get("status") not in {"draft", "scheduled"}:
             raise AppException(status_code=409, code="BULK_MESSAGE_CANNOT_CANCEL", message="Only draft or scheduled bulk messages can be cancelled.")
         updated = await self.db.bulk_messages.find_one_and_update(
-            {"_id": document["_id"]},
+            {"_id": document["_id"], "status": {"$in": ["draft", "scheduled"]}},
             {"$set": {"status": "cancelled", "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
+        if not updated:  # it was picked up for sending a moment ago
+            raise AppException(status_code=409, code="BULK_MESSAGE_CANNOT_CANCEL", message="This message has already started sending.")
         await self.log_ai_command(
             user_id=user_id,
             command_text=f"Cancel bulk {updated['channel']} message",
