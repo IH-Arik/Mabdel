@@ -22,6 +22,9 @@ dist/
 *.tgz
 
 # Environment files
+.env
+.env.*
+.claude/
 !.env.example
 
 # OS
