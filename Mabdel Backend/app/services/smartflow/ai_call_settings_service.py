@@ -35,6 +35,7 @@ class AICallSettingsService(SmartFlowBase):
         "knowledge_base": None,
         "transfer_number": None,
         "voice_engine": "realtime",
+        "sms_confirmations_enabled": True,
     }
 
     async def get_settings(self, user_id: str) -> dict:

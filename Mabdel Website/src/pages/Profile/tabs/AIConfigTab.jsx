@@ -140,6 +140,7 @@ function AIConfigTab() {
         transfer_number: callSettings.transfer_number || null,
         voice_engine: callSettings.voice_engine === 'classic' ? 'classic' : 'realtime',
         require_meeting_approval: Boolean(callSettings.require_meeting_approval),
+        sms_confirmations_enabled: callSettings.sms_confirmations_enabled !== false,
       });
       setCallSettings(response.data?.data || callSettings);
       setSaved(true);
@@ -343,6 +344,19 @@ function AIConfigTab() {
               <span>
                 <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_approval')}</span>
                 <span className="text-[#A4B0B7] text-xs">{t('aiprof_approval_hint')}</span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2 cursor-pointer mt-4 pt-4 border-t border-[#243041]">
+              <input
+                type="checkbox"
+                checked={callSettings?.sms_confirmations_enabled !== false}
+                onChange={(event) => updateField('sms_confirmations_enabled', event.target.checked)}
+                className="w-4 h-4 mt-0.5 accent-[#9333ea]"
+              />
+              <span>
+                <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_sms_confirmations')}</span>
+                <span className="text-[#A4B0B7] text-xs">{t('aiprof_sms_confirmations_hint')}</span>
               </span>
             </label>
           </SectionCard>
