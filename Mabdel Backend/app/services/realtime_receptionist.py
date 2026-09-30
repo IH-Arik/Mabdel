@@ -118,6 +118,19 @@ TOOLS: list[dict] = [
     },
     {
         "type": "function",
+        "name": "notify_team",
+        "description": "Alert the business's team about something from this call - only when a PLAYBOOK above names who to notify (e.g. dispatch an on-call technician, flag a new client lead). Not for a caller wanting a callback; use take_message for that.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "note": {"type": "string", "description": "What the team needs to know: the situation, address, issue, requested by."},
+                "playbook": {"type": "string", "description": "The playbook name this came from."},
+            },
+            "required": ["note"],
+        },
+    },
+    {
+        "type": "function",
         "name": "transfer_to_human",
         "description": "Connect the caller to a person on the team, when they ask for one or you cannot help.",
         "parameters": {"type": "object", "properties": {"reason": {"type": "string"}}},
@@ -346,6 +359,7 @@ class RealtimeReceptionist(AIPhoneAgent):
         )
         providers_block = ""
         ask_provider_line = ""
+        playbooks_block = ""
         if self.user_id and self.user_id != "guest":
             providers = await self._providers().list_providers(self.user_id, active_only=True)
             appointment_types = await self._providers().list_appointment_types(self.user_id, active_only=True)
@@ -359,6 +373,37 @@ class RealtimeReceptionist(AIPhoneAgent):
                 ask_provider_line = (
                     "- This business has named providers and/or appointment types listed above. Ask which one the caller wants "
                     "(or offer the choices) before check_availability, and pass the exact name through.\n"
+                )
+
+            # Named playbooks the owner set up: guidance the model follows with judgement,
+            # not a rigid script it recites - same spirit as a written office procedure.
+            rules = [rule for rule in (call_settings.get("call_routing_rules") or []) if rule.get("active", True)]
+            if rules:
+                provider_names = {p["id"]: p["name"] for p in providers}
+                type_names = {t["id"]: t["name"] for t in appointment_types}
+                playbook_lines = []
+                for index, rule in enumerate(rules, start=1):
+                    parts = [f"{index}. {rule.get('name')} - when: {rule.get('trigger_description')}"]
+                    questions = rule.get("questions_to_ask") or []
+                    if questions:
+                        parts.append("   Ask: " + " | ".join(questions))
+                    booking_bits = []
+                    if provider_names.get(rule.get("provider_id")):
+                        booking_bits.append(f"provider {provider_names[rule['provider_id']]}")
+                    if type_names.get(rule.get("appointment_type_id")):
+                        booking_bits.append(f"type {type_names[rule['appointment_type_id']]}")
+                    if booking_bits:
+                        parts.append("   Book with: " + ", ".join(booking_bits))
+                    if rule.get("notify_target"):
+                        parts.append(f"   Notify: {rule['notify_target']} (use notify_team)")
+                    if rule.get("crm_note"):
+                        parts.append(f"   Note: {rule['crm_note']}")
+                    playbook_lines.append("\n".join(parts))
+                playbooks_block = (
+                    "\nCALL PLAYBOOKS - match what the caller needs to one of these. Ask its questions before booking, "
+                    "use its provider/appointment type with check_availability and book_appointment, and call notify_team "
+                    "if it names someone to notify. If nothing matches, use your own judgement as usual.\n"
+                    + "\n".join(playbook_lines) + "\n"
                 )
         caller = await self._caller_context()
         if self.is_outbound:
@@ -383,6 +428,7 @@ class RealtimeReceptionist(AIPhoneAgent):
             caller,
             f"\nVERIFIED BUSINESS FACTS:\n{facts}\n",
             providers_block,
+            playbooks_block,
             knowledge_block,
             policy_block,
             "\nHOW TO BEHAVE:\n"
@@ -806,6 +852,31 @@ class RealtimeReceptionist(AIPhoneAgent):
             except Exception:
                 continue
         return {"saved": True, "note": "Tell the caller the team has the message and will get back to them."}
+
+    async def _tool_notify_team(self, note: str, playbook: str | None = None) -> dict:
+        from app.utils.helpers import resolve_organization_user_ids
+
+        entry = {
+            "intent": "playbook_notify",
+            "playbook": playbook,
+            "transcript": note[:1000],
+            "timestamp": utc_now().isoformat(),
+        }
+        self.captured_requests.append(entry)
+        organization_id = await self.flow_service._resolve_organization_id(self.user_id) if self.user_id != "guest" else None
+        recipients = await resolve_organization_user_ids(self.flow_service.db, organization_id) if organization_id else [self.user_id]
+        for member_id in recipients or []:
+            try:
+                await self.flow_service.create_notification(
+                    user_id=member_id,
+                    notification_type="call",
+                    title=f"Team notified: {playbook}" if playbook else "Team notified",
+                    body=note[:300],
+                    metadata={"call_sid": self.call_id, "playbook": playbook},
+                )
+            except Exception:
+                continue
+        return {"notified": True}
 
     async def _tool_transfer_to_human(self, reason: str | None = None) -> dict:
         call_settings = await self._get_call_settings()
