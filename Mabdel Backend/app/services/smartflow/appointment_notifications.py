@@ -141,6 +141,10 @@ class AppointmentNotifier(ConversationService):
             owner = await self._get_user_document(owner_user_id)
             organization_id = owner.get("organization_id")
             org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+            # The owner can turn this off in AI Settings - default stays on so every
+            # business gets it unless they choose otherwise.
+            if not ((org or {}).get("ai_call_settings") or {}).get("sms_confirmations_enabled", True):
+                return None
             business = (org or {}).get("business_name") or owner.get("business_name") or owner.get("full_name") or "Your appointment"
             tz_name = ((org or {}).get("business_hours") or {}).get("timezone")
             templates = TEMPLATES.get(language or "en", TEMPLATES["en"])

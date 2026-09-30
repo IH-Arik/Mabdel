@@ -462,6 +462,7 @@ class AICallSettingsResponse(BaseModel):
     transfer_number: str | None = None
     voice_engine: str = "realtime"
     require_meeting_approval: bool = False
+    sms_confirmations_enabled: bool = True
 
 
 class AICallSettingsUpdateRequest(BaseModel):
@@ -487,6 +488,7 @@ class AICallSettingsUpdateRequest(BaseModel):
     transfer_number: str | None = Field(default=None, max_length=32)
     voice_engine: Literal["realtime", "classic"] | None = None
     require_meeting_approval: bool | None = None
+    sms_confirmations_enabled: bool | None = None
 
     @field_validator(
         "assistant_name", "business_type", "custom_instructions",
