@@ -38,6 +38,8 @@ class AICallSettingsService(SmartFlowBase):
         "sms_confirmations_enabled": True,
         "appointment_reminders_enabled": False,
         "appointment_reminder_hours_before": 24,
+        "sms_wording": {},
+        "cancellation_policy": None,
     }
 
     async def get_settings(self, user_id: str) -> dict:

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Save, Send, Sparkles, Trash2, X, Zap,
+  Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Save, Send, Sparkles, Trash2, X, Zap,
 } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
 import { LABEL } from '../shared';
@@ -27,6 +27,17 @@ const PHONE_LANGUAGE_OPTIONS = [
 ];
 const MAX_MENU_OPTIONS = 4;
 const DIGIT_CHOICES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+// The kind's built-in text, shown as the field's placeholder so leaving it blank is a
+// clearly reversible choice, not a mystery.
+const SMS_WORDING_KINDS = [
+  { key: 'booked', label: 'When an appointment is booked', builtIn: '{business}: your appointment is confirmed for {when}.' },
+  { key: 'rescheduled', label: 'When an appointment is moved', builtIn: '{business}: your appointment has been moved to {when}.' },
+  { key: 'cancelled', label: 'When an appointment is cancelled', builtIn: '{business}: your appointment on {when} has been cancelled. Call us any time to book a new one.' },
+  { key: 'reminder', label: 'Reminder before the appointment', builtIn: '{business}: reminder - your appointment is {when}. Call us if you need to change it.' },
+  { key: 'pending', label: 'When a request needs approval', builtIn: "{business}: we received your request for {when}. We'll confirm by text shortly." },
+  { key: 'declined', label: "When a time can't be confirmed", builtIn: "{business}: sorry, we can't confirm {when}. Please call us to find another time." },
+];
 
 // A curated starting list, not an enum enforced server-side — the field stays a
 // free string so a business whose type isn't listed can still type it via "Other".
@@ -93,6 +104,10 @@ function AIConfigTab() {
     setCallSettings((prev) => ({ ...(prev || {}), [field]: value }));
   };
 
+  const updateWordingField = (kind, value) => {
+    setCallSettings((prev) => ({ ...(prev || {}), sms_wording: { ...(prev?.sms_wording || {}), [kind]: value } }));
+  };
+
   const updateMenuOption = (index, field, value) => {
     setCallSettings((prev) => {
       const menu = [...(prev?.language_menu || [])];
@@ -143,6 +158,8 @@ function AIConfigTab() {
         sms_confirmations_enabled: callSettings.sms_confirmations_enabled !== false,
         appointment_reminders_enabled: Boolean(callSettings.appointment_reminders_enabled),
         appointment_reminder_hours_before: Math.min(168, Math.max(1, Number(callSettings.appointment_reminder_hours_before) || 24)),
+        sms_wording: SMS_WORDING_KINDS.reduce((acc, kind) => ({ ...acc, [kind.key]: callSettings.sms_wording?.[kind.key] || null }), {}),
+        cancellation_policy: callSettings.cancellation_policy || null,
       });
       setCallSettings(response.data?.data || callSettings);
       setSaved(true);
@@ -390,6 +407,38 @@ function AIConfigTab() {
                 />
               </div>
             ) : null}
+          </SectionCard>
+
+          <SectionCard icon={Ban} title={t('aiprof_hdr_cancellation_policy')} description={t('aiprof_cancellation_policy_desc')}>
+            <textarea
+              rows={2}
+              maxLength={500}
+              placeholder={t('aiprof_ph_cancellation_policy')}
+              value={callSettings?.cancellation_policy || ''}
+              onChange={(event) => updateField('cancellation_policy', event.target.value)}
+              aria-label={t('aiprof_hdr_cancellation_policy')}
+              className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-none"
+            />
+          </SectionCard>
+
+          <SectionCard icon={MessageSquare} title={t('aiprof_hdr_sms_wording')} description={t('aiprof_sms_wording_desc')}>
+            <div className="space-y-3">
+              {SMS_WORDING_KINDS.map((kind) => (
+                <div key={kind.key}>
+                  <label className={LABEL} htmlFor={`aiprof-wording-${kind.key}`}>{kind.label}</label>
+                  <input
+                    id={`aiprof-wording-${kind.key}`}
+                    type="text"
+                    maxLength={300}
+                    placeholder={kind.builtIn}
+                    value={callSettings?.sms_wording?.[kind.key] || ''}
+                    onChange={(event) => updateWordingField(kind.key, event.target.value)}
+                    className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-2.5 outline-none focus:border-[#9333ea]/50"
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-[#4A5568] text-xs mt-3">{t('aiprof_sms_wording_placeholders_hint')}</p>
           </SectionCard>
 
           <SectionCard icon={PhoneForwarded} title={t('aiprof_hdr_transfer')} description={t('aiprof_transfer_desc')}>
