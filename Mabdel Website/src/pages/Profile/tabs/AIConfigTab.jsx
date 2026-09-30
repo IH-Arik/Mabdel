@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Plus, Save, Send, Sparkles, Trash2, Users, X, Zap,
+  Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Plus, Save, Send, Sparkles, Trash2, Users, Workflow, X, Zap,
 } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
 import { LABEL } from '../shared';
@@ -219,6 +219,61 @@ function AIConfigTab() {
     setCallSettings((prev) => ({ ...(prev || {}), sms_wording: { ...(prev?.sms_wording || {}), [kind]: value } }));
   };
 
+  const updatePlaybook = (id, field, value) => {
+    setCallSettings((prev) => ({
+      ...(prev || {}),
+      call_routing_rules: (prev?.call_routing_rules || []).map((rule) => (rule.id === id ? { ...rule, [field]: value } : rule)),
+    }));
+  };
+
+  const addPlaybook = () => {
+    const id = `rule-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setCallSettings((prev) => ({
+      ...(prev || {}),
+      call_routing_rules: [
+        ...(prev?.call_routing_rules || []),
+        { id, name: '', trigger_description: '', questions_to_ask: [], provider_id: '', appointment_type_id: '', notify_target: '', crm_note: '', active: true },
+      ],
+    }));
+  };
+
+  const removePlaybook = (id) => {
+    setCallSettings((prev) => ({ ...(prev || {}), call_routing_rules: (prev?.call_routing_rules || []).filter((rule) => rule.id !== id) }));
+  };
+
+  const addPlaybookQuestion = (id) => {
+    setCallSettings((prev) => ({
+      ...(prev || {}),
+      call_routing_rules: (prev?.call_routing_rules || []).map((rule) =>
+        rule.id === id && (rule.questions_to_ask || []).length < 8 ? { ...rule, questions_to_ask: [...(rule.questions_to_ask || []), ''] } : rule
+      ),
+    }));
+  };
+
+  const updatePlaybookQuestion = (id, index, value) => {
+    setCallSettings((prev) => ({
+      ...(prev || {}),
+      call_routing_rules: (prev?.call_routing_rules || []).map((rule) => {
+        if (rule.id !== id) return rule;
+        const questions = [...(rule.questions_to_ask || [])];
+        questions[index] = value;
+        return { ...rule, questions_to_ask: questions };
+      }),
+    }));
+  };
+
+  const removePlaybookQuestion = (id, index) => {
+    setCallSettings((prev) => ({
+      ...(prev || {}),
+      call_routing_rules: (prev?.call_routing_rules || []).map((rule) => {
+        if (rule.id !== id) return rule;
+        const questions = [...(rule.questions_to_ask || [])];
+        questions.splice(index, 1);
+        return { ...rule, questions_to_ask: questions };
+      }),
+    }));
+  };
+
   const updateMenuOption = (index, field, value) => {
     setCallSettings((prev) => {
       const menu = [...(prev?.language_menu || [])];
@@ -271,6 +326,19 @@ function AIConfigTab() {
         appointment_reminder_hours_before: Math.min(168, Math.max(1, Number(callSettings.appointment_reminder_hours_before) || 24)),
         sms_wording: SMS_WORDING_KINDS.reduce((acc, kind) => ({ ...acc, [kind.key]: callSettings.sms_wording?.[kind.key] || null }), {}),
         cancellation_policy: callSettings.cancellation_policy || null,
+        call_routing_rules: (callSettings.call_routing_rules || [])
+          .filter((rule) => rule.name?.trim() && rule.trigger_description?.trim())
+          .map((rule) => ({
+            id: rule.id,
+            name: rule.name.trim(),
+            trigger_description: rule.trigger_description.trim(),
+            questions_to_ask: (rule.questions_to_ask || []).map((q) => q.trim()).filter(Boolean),
+            provider_id: rule.provider_id || null,
+            appointment_type_id: rule.appointment_type_id || null,
+            notify_target: rule.notify_target?.trim() || null,
+            crm_note: rule.crm_note?.trim() || null,
+            active: rule.active !== false,
+          })),
       });
       setCallSettings(response.data?.data || callSettings);
       setSaved(true);
@@ -669,6 +737,146 @@ function AIConfigTab() {
               ))}
             </div>
             <p className="text-[#4A5568] text-xs mt-3">{t('aiprof_sms_wording_placeholders_hint')}</p>
+          </SectionCard>
+
+          <SectionCard icon={Workflow} title={t('aiprof_hdr_playbooks')} description={t('aiprof_playbooks_desc')}>
+            <div className="space-y-4">
+              {(callSettings?.call_routing_rules || []).map((rule) => (
+                <div key={rule.id} className="rounded-xl border border-[#243041] bg-[#131A24] p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      maxLength={80}
+                      placeholder={t('aiprof_ph_playbook_name')}
+                      value={rule.name}
+                      onChange={(event) => updatePlaybook(rule.id, 'name', event.target.value)}
+                      className="flex-1 bg-[#0A1019] border border-[#243246] rounded-lg text-sm text-white font-semibold px-3 py-2 outline-none focus:border-[#9333ea]/50"
+                    />
+                    <label className="flex items-center gap-1.5 shrink-0 cursor-pointer" title={t('aiprof_lbl_playbook_active')}>
+                      <input
+                        type="checkbox"
+                        checked={rule.active !== false}
+                        onChange={(event) => updatePlaybook(rule.id, 'active', event.target.checked)}
+                        className="w-4 h-4 accent-[#9333ea]"
+                      />
+                      <span className="text-[10px] font-bold text-[#A4B0B7] uppercase">{t('aiprof_lbl_playbook_active')}</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removePlaybook(rule.id)}
+                      className="shrink-0 p-2 text-[#A4B0B7] hover:text-rose-400 cursor-pointer"
+                      title={t('aiprof_btn_remove')}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className={LABEL}>{t('aiprof_lbl_playbook_trigger')}</label>
+                    <input
+                      type="text"
+                      maxLength={200}
+                      placeholder={t('aiprof_ph_playbook_trigger')}
+                      value={rule.trigger_description}
+                      onChange={(event) => updatePlaybook(rule.id, 'trigger_description', event.target.value)}
+                      className="w-full bg-[#0A1019] border border-[#243246] rounded-lg text-sm text-white px-3 py-2 outline-none focus:border-[#9333ea]/50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className={LABEL}>{t('aiprof_lbl_playbook_questions')}</label>
+                    <div className="space-y-1.5">
+                      {(rule.questions_to_ask || []).map((question, index) => (
+                        <div key={index} className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            maxLength={200}
+                            placeholder={t('aiprof_ph_playbook_question')}
+                            value={question}
+                            onChange={(event) => updatePlaybookQuestion(rule.id, index, event.target.value)}
+                            className="flex-1 bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-1.5 outline-none focus:border-[#9333ea]/50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePlaybookQuestion(rule.id, index)}
+                            className="shrink-0 p-1.5 text-[#A4B0B7] hover:text-rose-400 cursor-pointer"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {(rule.questions_to_ask || []).length < 8 ? (
+                      <button
+                        type="button"
+                        onClick={() => addPlaybookQuestion(rule.id)}
+                        className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-[#9333ea] cursor-pointer"
+                      >
+                        <Plus size={11} /> {t('aiprof_btn_add_question')}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {(providers.length || appointmentTypes.length) ? (
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {providers.length ? (
+                        <select
+                          aria-label={t('aiprof_lbl_playbook_provider')}
+                          value={rule.provider_id || ''}
+                          onChange={(event) => updatePlaybook(rule.id, 'provider_id', event.target.value)}
+                          className="bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-2 outline-none"
+                        >
+                          <option value="">{t('cal_opt_no_provider')}</option>
+                          {providers.map((provider) => (
+                            <option key={provider.id} value={provider.id}>{provider.name}</option>
+                          ))}
+                        </select>
+                      ) : null}
+                      {appointmentTypes.length ? (
+                        <select
+                          aria-label={t('aiprof_lbl_playbook_appointment_type')}
+                          value={rule.appointment_type_id || ''}
+                          onChange={(event) => updatePlaybook(rule.id, 'appointment_type_id', event.target.value)}
+                          className="bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-2 outline-none"
+                        >
+                          <option value="">{t('cal_opt_no_appointment_type')}</option>
+                          {appointmentTypes.map((type) => (
+                            <option key={type.id} value={type.id}>{type.name}</option>
+                          ))}
+                        </select>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <input
+                    type="text"
+                    maxLength={120}
+                    placeholder={t('aiprof_ph_playbook_notify')}
+                    value={rule.notify_target || ''}
+                    onChange={(event) => updatePlaybook(rule.id, 'notify_target', event.target.value)}
+                    className="w-full bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
+                  />
+                  <input
+                    type="text"
+                    maxLength={200}
+                    placeholder={t('aiprof_ph_playbook_note')}
+                    value={rule.crm_note || ''}
+                    onChange={(event) => updatePlaybook(rule.id, 'crm_note', event.target.value)}
+                    className="w-full bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
+                  />
+                </div>
+              ))}
+              {!(callSettings?.call_routing_rules || []).length ? (
+                <p className="text-[#4A5568] text-xs">{t('aiprof_no_playbooks')}</p>
+              ) : null}
+              <button
+                type="button"
+                onClick={addPlaybook}
+                className="w-full py-2.5 bg-[#9333ea]/10 border border-[#9333ea]/30 text-[#9333ea] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Plus size={13} /> {t('aiprof_btn_add_playbook')}
+              </button>
+            </div>
           </SectionCard>
 
           <SectionCard icon={PhoneForwarded} title={t('aiprof_hdr_transfer')} description={t('aiprof_transfer_desc')}>

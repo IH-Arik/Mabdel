@@ -448,6 +448,28 @@ class AICallLanguageMenuOption(BaseModel):
     language: str = Field(min_length=2, max_length=5)
 
 
+class CallRoutingRule(BaseModel):
+    """A named playbook: 'when a caller wants X, ask these, book with this provider/
+    type, notify this'. The receptionist reads these as guidance, not a rigid script -
+    it still uses judgement, the same way a real receptionist would follow a written
+    procedure rather than recite it word for word."""
+
+    id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=80)
+    trigger_description: str = Field(min_length=1, max_length=200)
+    questions_to_ask: list[str] = Field(default_factory=list, max_length=8)
+    provider_id: str | None = None
+    appointment_type_id: str | None = None
+    notify_target: str | None = Field(default=None, max_length=120)
+    crm_note: str | None = Field(default=None, max_length=200)
+    active: bool = True
+
+    @field_validator("questions_to_ask")
+    @classmethod
+    def _clean_questions(cls, value: list[str]) -> list[str]:
+        return [item.strip()[:200] for item in value if item and item.strip()][:8]
+
+
 class SmsWordingOverrides(BaseModel):
     """The owner's own text for each appointment SMS, in place of the built-in one.
     {business} and {when} are filled in when present; a kind left blank keeps using
@@ -489,6 +511,7 @@ class AICallSettingsResponse(BaseModel):
     appointment_reminder_hours_before: int = 24
     sms_wording: SmsWordingOverrides = Field(default_factory=SmsWordingOverrides)
     cancellation_policy: str | None = None
+    call_routing_rules: list[CallRoutingRule] = Field(default_factory=list)
 
 
 class AICallSettingsUpdateRequest(BaseModel):
@@ -521,6 +544,8 @@ class AICallSettingsUpdateRequest(BaseModel):
     sms_wording: SmsWordingOverrides | None = None
     # What the AI tells a caller who wants to cancel (notice period, fees, etc).
     cancellation_policy: str | None = Field(default=None, max_length=500)
+    # Named playbooks: "when a caller wants X, ask these, book with this, notify this".
+    call_routing_rules: list[CallRoutingRule] | None = Field(default=None, max_length=20)
 
     @field_validator(
         "assistant_name", "business_type", "custom_instructions",
