@@ -141,6 +141,8 @@ function AIConfigTab() {
         voice_engine: callSettings.voice_engine === 'classic' ? 'classic' : 'realtime',
         require_meeting_approval: Boolean(callSettings.require_meeting_approval),
         sms_confirmations_enabled: callSettings.sms_confirmations_enabled !== false,
+        appointment_reminders_enabled: Boolean(callSettings.appointment_reminders_enabled),
+        appointment_reminder_hours_before: Math.min(168, Math.max(1, Number(callSettings.appointment_reminder_hours_before) || 24)),
       });
       setCallSettings(response.data?.data || callSettings);
       setSaved(true);
@@ -359,6 +361,35 @@ function AIConfigTab() {
                 <span className="text-[#A4B0B7] text-xs">{t('aiprof_sms_confirmations_hint')}</span>
               </span>
             </label>
+
+            <label className="flex items-start gap-2 cursor-pointer mt-4 pt-4 border-t border-[#243041]">
+              <input
+                type="checkbox"
+                checked={Boolean(callSettings?.appointment_reminders_enabled)}
+                onChange={(event) => updateField('appointment_reminders_enabled', event.target.checked)}
+                className="w-4 h-4 mt-0.5 accent-[#9333ea]"
+              />
+              <span className="flex-1">
+                <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_reminders')}</span>
+                <span className="text-[#A4B0B7] text-xs">{t('aiprof_reminders_hint')}</span>
+              </span>
+            </label>
+            {callSettings?.appointment_reminders_enabled ? (
+              <div className="mt-3 flex items-center gap-2 pl-6">
+                <label className="text-[#A4B0B7] text-xs shrink-0" htmlFor="aiprof-reminder-hours">
+                  {t('aiprof_lbl_reminder_hours')}
+                </label>
+                <input
+                  id="aiprof-reminder-hours"
+                  type="number"
+                  min={1}
+                  max={168}
+                  value={callSettings?.appointment_reminder_hours_before ?? 24}
+                  onChange={(event) => updateField('appointment_reminder_hours_before', Math.min(168, Math.max(1, Number(event.target.value) || 1)))}
+                  className="w-20 bg-[#131A24] border border-[#243041] rounded-lg text-sm text-white px-2 py-1.5 outline-none focus:border-[#9333ea]/50"
+                />
+              </div>
+            ) : null}
           </SectionCard>
 
           <SectionCard icon={PhoneForwarded} title={t('aiprof_hdr_transfer')} description={t('aiprof_transfer_desc')}>

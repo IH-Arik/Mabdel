@@ -504,6 +504,10 @@ class CalendarService(SmartFlowBase):
         user_id = str(event["user_id"])
         clean_updates = {key: value for key, value in updates.items() if value is not None}
         merged = {**event, **clean_updates}
+        # A moved appointment needs its own fresh reminder for the new time, not silence
+        # because the old time already sent one.
+        if "starts_at" in clean_updates and not self._same_instant(event.get("starts_at"), clean_updates["starts_at"]):
+            clean_updates["reminder_sent_at"] = None
         self._validate_calendar_event_payload(merged)
         await self._assert_calendar_slot_available(
             user_id,

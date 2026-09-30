@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta, timezone
 from bson import ObjectId
 
 from app.core.exceptions import AppException
+from app.utils.helpers import utc_now
 
 from ._base import SmartFlowBase
 from .appointment_notifications import format_when
@@ -195,4 +196,48 @@ class AppointmentService(SmartFlowBase):
         await self._remember_language(event, language)
         await self.calendar.delete_calendar_event(str(event["user_id"]), str(event["_id"]))
         return {"outcome": "cancelled", "when": when}
+
+    async def send_due_reminders(self, *, now: datetime | None = None, window_minutes: int = 15) -> int:
+        """Texts customers whose appointment is now inside their business's configured
+        reminder window (e.g. 24h before) and hasn't been reminded yet. Meant to be
+        called by a periodic job every ``window_minutes`` - a wider poll interval than
+        the window would skip appointments landing in the gap between runs."""
+        from .appointment_notifications import AppointmentNotifier
+
+        now = now or utc_now()
+        sent = 0
+        async for org in self.db.organizations.find({"ai_call_settings.appointment_reminders_enabled": True}):
+            settings = org.get("ai_call_settings") or {}
+            hours_before = settings.get("appointment_reminder_hours_before") or 24
+            window_start = now + timedelta(hours=hours_before)
+            window_end = window_start + timedelta(minutes=window_minutes)
+            team_ids = [
+                str(user["_id"])
+                async for user in self.db.users.find({"organization_id": org["organization_id"]}, {"_id": 1})
+            ]
+            if not team_ids:
+                continue
+            async for event in self.db.calendar_events.find(
+                {
+                    "user_id": {"$in": team_ids},
+                    "status": {"$ne": "cancelled"},
+                    "starts_at": {"$gte": window_start, "$lt": window_end},
+                    "customer.phone": {"$exists": True, "$ne": None},
+                    "reminder_sent_at": None,
+                }
+            ):
+                customer = event.get("customer") or {}
+                message_id = await AppointmentNotifier(self.db).notify(
+                    str(event["user_id"]),
+                    kind="reminder",
+                    phone=customer.get("phone"),
+                    name=customer.get("name"),
+                    starts_at=event["starts_at"],
+                    language=customer.get("language"),
+                    meeting_link=event.get("meeting_link"),
+                )
+                if message_id:
+                    await self.db.calendar_events.update_one({"_id": event["_id"]}, {"$set": {"reminder_sent_at": now}})
+                    sent += 1
+        return sent
 
