@@ -118,6 +118,16 @@ function formatRelativeMeta(event) {
   return parts.filter(Boolean).join(' • ');
 }
 
+function historyActionLabel(entry, t) {
+  if (entry.action === 'created') return t('cal_hist_created');
+  if (entry.action === 'cancelled') return t('cal_hist_cancelled');
+  if (entry.action === 'rescheduled') {
+    const newStart = parseDate(entry.after?.starts_at);
+    return newStart ? t('cal_hist_rescheduled_to', { when: formatCstDateTime(newStart) }) : t('cal_hist_rescheduled');
+  }
+  return t('cal_hist_updated');
+}
+
 function getInitialFormState(prefill) {
   const now = new Date();
   const defaultStart = new Date(now.getTime() - (now.getTime() % 3600000) + 3600000); // the next full hour
@@ -563,18 +573,23 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
   const [sharing, setSharing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [contacts, setContacts] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const fetchDetails = useCallback(async () => {
     if (!eventId) return;
     setLoading(true);
     setError('');
     try {
-      const [eventResponse, contactsResponse] = await Promise.all([
+      const [eventResponse, contactsResponse, historyResponse] = await Promise.all([
         smartflowApi.getCalendarEvent(eventId),
         fetchAllContacts().catch(() => []),
+        smartflowApi.getCalendarEventHistory(eventId).catch(() => ({ data: { data: [] } })),
       ]);
       setEvent(normalizeEventPayload(eventResponse));
       setContacts(contactsResponse);
+      const historyData = historyResponse.data?.data;
+      setHistory(Array.isArray(historyData) ? historyData : []);
     } catch (err) {
       setError(err.response?.data?.message || t('cal_err_load_details'));
     } finally {
@@ -826,6 +841,32 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
                 <p className="text-white font-semibold mb-2">{t('cal_lbl_description')}</p>
                 <p className="text-[#A4B0B7] text-sm whitespace-pre-wrap">{event.description || t('cal_no_description')}</p>
               </div>
+
+              {history.length ? (
+                <div className={`${PANEL} p-4`}>
+                  <button
+                    type="button"
+                    onClick={() => setShowHistory((value) => !value)}
+                    className="w-full flex items-center justify-between text-left cursor-pointer"
+                  >
+                    <span className="text-white font-semibold">{t('cal_lbl_history')}</span>
+                    {showHistory ? <ChevronUp size={16} className="text-[#A4B0B7]" /> : <ChevronDown size={16} className="text-[#A4B0B7]" />}
+                  </button>
+                  {showHistory ? (
+                    <div className="mt-3 space-y-2.5">
+                      {history.map((entry) => (
+                        <div key={entry.id} className="flex items-start gap-2.5 text-sm">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#9333ea] shrink-0" />
+                          <p className="text-[#A4B0B7]">
+                            <span className="text-white font-semibold">{historyActionLabel(entry, t)}</span>
+                            {' '}{t('cal_hist_by', { actor: entry.actor })} · {formatCstDateTime(entry.at)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="text-[#A4B0B7]">{t('cal_meeting_not_found')}</div>

@@ -1090,7 +1090,7 @@ def test_accept_notifies_caller_by_sms(client, mock_db, monkeypatch):
 
     monkeypatch.setattr("app.services.call_service.CallService.send_sms", fake_send_sms)
 
-    async def fake_create_event(self, user_id, payload):
+    async def fake_create_event(self, user_id, payload, **kwargs):
         return {"id": str(ObjectId()), "meeting_link": "https://meet.example.com/test"}
 
     monkeypatch.setattr(

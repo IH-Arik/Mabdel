@@ -348,7 +348,7 @@ class CalendarService(SmartFlowBase):
         event = await self._get_editable_event(user_id, event_id)
         return await self._serialize_calendar_event(event)
 
-    async def create_calendar_event(self, user_id: str, payload: dict) -> dict:
+    async def create_calendar_event(self, user_id: str, payload: dict, *, actor: str | None = None) -> dict:
         self._validate_calendar_event_payload(payload)
         await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"], provider_id=payload.get("provider_id"))
         provider_settings = await self.get_calendar_provider_settings(user_id)
@@ -465,6 +465,7 @@ class CalendarService(SmartFlowBase):
         result = await self.db.calendar_events.insert_one(document)
         document["_id"] = result.inserted_id
         await self._create_calendar_event_notifications(user_id, document, action="created")
+        await self._record_appointment_history(document, action="created", actor=actor or user_id, after=self._appointment_snapshot(document))
         return await self._serialize_calendar_event(document)
 
     async def _get_editable_event(self, user_id: str, event_id: str) -> dict:
@@ -516,8 +517,11 @@ class CalendarService(SmartFlowBase):
                 meeting_link=None if cancelled else after.get("meeting_link"),
             )
 
-    async def update_calendar_event(self, user_id: str, event_id: str, updates: dict, *, notify_customer: bool = True) -> dict:
+    async def update_calendar_event(
+        self, user_id: str, event_id: str, updates: dict, *, notify_customer: bool = True, actor: str | None = None
+    ) -> dict:
         event = await self._get_editable_event(user_id, event_id)
+        caller_id = actor or user_id  # who is actually making this change, for the audit log
         # Provider sync (Google/Zoom/Microsoft/CalDAV) runs on the calendar the event
         # was created on - the owner's - even when a teammate makes the change.
         user_id = str(event["user_id"])
@@ -672,6 +676,14 @@ class CalendarService(SmartFlowBase):
         )
         if updated:
             await self._create_calendar_event_notifications(user_id, updated, action="updated")
+            changed_time = "starts_at" in clean_updates and not self._same_instant(event.get("starts_at"), clean_updates["starts_at"])
+            await self._record_appointment_history(
+                updated,
+                action="rescheduled" if changed_time else "updated",
+                actor=caller_id,
+                before=self._appointment_snapshot(event),
+                after=self._appointment_snapshot(updated),
+            )
         if notify_customer and event.get("customer") and updated:
             await self._after_customer_appointment_change(event, updated)
         return await self._serialize_calendar_event(updated)
@@ -701,8 +713,9 @@ class CalendarService(SmartFlowBase):
             "share_url": share_url,
         }
 
-    async def delete_calendar_event(self, user_id: str, event_id: str, *, notify_customer: bool = True) -> None:
+    async def delete_calendar_event(self, user_id: str, event_id: str, *, notify_customer: bool = True, actor: str | None = None) -> None:
         event = await self._get_editable_event(user_id, event_id)
+        caller_id = actor or user_id
         user_id = str(event["user_id"])
         remote_deletes = [
             ("google", event.get("google_event_id"), self.google_calendar_service.delete_remote_event),
@@ -718,5 +731,6 @@ class CalendarService(SmartFlowBase):
             except AppException as exc:
                 logger.warning("Could not delete the %s copy of calendar event %s: %s", provider, event["_id"], exc.message)
         await self.db.calendar_events.delete_one({"_id": event["_id"]})
+        await self._record_appointment_history(event, action="cancelled", actor=caller_id, before=self._appointment_snapshot(event))
         if notify_customer and event.get("customer"):
             await self._after_customer_appointment_change(event, None)

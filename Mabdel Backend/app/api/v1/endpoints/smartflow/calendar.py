@@ -95,6 +95,16 @@ async def get_calendar_event(
     return success_response(data=data, message="Calendar event fetched successfully.")
 
 
+@router.get("/calendar/events/{event_id}/history")
+async def get_calendar_event_history(
+    event_id: str,
+    current_user: dict = Depends(require_permission("appointments", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.get_calendar_event_history(str(current_user["_id"]), event_id)
+    return success_response(data=data, message="Appointment history fetched successfully.")
+
+
 @router.post("/calendar/events", status_code=status.HTTP_201_CREATED)
 async def create_calendar_event(
     payload: CalendarEventCreateRequest,

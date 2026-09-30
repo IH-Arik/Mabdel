@@ -265,6 +265,7 @@ export const smartflowApi = {
   // ── Calendar extras ───────────────────────────────────────────────────────────
   shareCalendarEvent: (id, data) => client.post(`/api/v1/smartflow/calendar/events/${id}/share`, data),
   getCalendarEvent: (id) => client.get(`/api/v1/smartflow/calendar/events/${id}`),
+  getCalendarEventHistory: (id) => client.get(`/api/v1/smartflow/calendar/events/${id}/history`),
 
   // ── Bulk messaging extras ─────────────────────────────────────────────────────
   getBulkMessage: (id) => client.get(`/api/v1/smartflow/bulk-messages/${id}`),

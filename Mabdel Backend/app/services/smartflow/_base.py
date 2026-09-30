@@ -2708,6 +2708,74 @@ class SmartFlowBase:
         title, body = action_map.get(action, ("Meeting update", event["title"]))
         await self.create_notification(user_id=user_id, notification_type="calendar", title=title, body=body)
 
+    @staticmethod
+    def _appointment_snapshot(document: dict) -> dict:
+        """What actually matters in an audit trail: when it is, who it's with, whether
+        it's still on. Not the whole document - sync metadata and the like would just
+        be noise here."""
+        return {
+            "starts_at": document.get("starts_at"),
+            "ends_at": document.get("ends_at"),
+            "status": document.get("status", "scheduled"),
+            "provider_id": document.get("provider_id"),
+            "appointment_type_id": document.get("appointment_type_id"),
+        }
+
+    async def _record_appointment_history(
+        self,
+        event: dict,
+        *,
+        action: str,
+        actor: str,
+        before: dict | None = None,
+        after: dict | None = None,
+    ) -> None:
+        """A durable log of every create/reschedule/cancel on an appointment - kept in
+        its own collection (not embedded on the event) so it survives the event being
+        deleted, and one document per change instead of an ever-growing array."""
+        await self.db.calendar_history.insert_one(
+            {
+                "event_id": str(event["_id"]),
+                "owner_user_id": str(event.get("user_id")),
+                "title": event.get("title"),
+                "action": action,
+                "actor": actor,
+                "before": before,
+                "after": after,
+                "at": utc_now(),
+            }
+        )
+
+    async def get_calendar_event_history(self, user_id: str, event_id: str) -> list[dict]:
+        """Org-wide, like the event itself - and works even after the appointment was
+        cancelled and the event document is gone, since this never depends on it."""
+        team_ids = await self._resolve_team_user_ids(user_id)
+        entries = await self.db.calendar_history.find(
+            {"event_id": event_id, "owner_user_id": {"$in": team_ids}}
+        ).sort("at", 1).to_list(length=200)
+        if not entries:
+            return []
+        actor_names: dict[str, str] = {}
+        for entry in entries:
+            actor = entry.get("actor")
+            if actor and actor != "ai_agent" and actor not in actor_names and ObjectId.is_valid(actor):
+                user = await self.db.users.find_one({"_id": ObjectId(actor)}, {"full_name": 1, "email": 1})
+                actor_names[actor] = (user or {}).get("full_name") or (user or {}).get("email") or "A team member"
+        results = []
+        for entry in entries:
+            actor = entry.get("actor")
+            results.append(
+                {
+                    "id": str(entry["_id"]),
+                    "action": entry.get("action"),
+                    "actor": "AI Receptionist" if actor == "ai_agent" else actor_names.get(actor, "A team member"),
+                    "before": entry.get("before"),
+                    "after": entry.get("after"),
+                    "at": entry.get("at"),
+                }
+            )
+        return results
+
     # ------------------------------------------------------------------
     # Bulk message helpers
     # ------------------------------------------------------------------
