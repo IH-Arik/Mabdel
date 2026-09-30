@@ -40,12 +40,14 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "name": "check_availability",
-        "description": "Find open appointment times. Use the caller's words: a specific date if they gave one, and/or a part of the day.",
+        "description": "Find open appointment times. Use the caller's words: a specific date if they gave one, and/or a part of the day. If the business has named providers or appointment types (see PROVIDERS/APPOINTMENT TYPES above), ask which one and pass it here.",
         "parameters": {
             "type": "object",
             "properties": {
                 "date": {"type": "string", "description": "YYYY-MM-DD in the business's timezone; omit for the next open days."},
                 "part_of_day": {"type": "string", "enum": ["morning", "afternoon", "evening"]},
+                "provider": {"type": "string", "description": "Exactly one name from PROVIDERS above, if the caller named or chose one."},
+                "appointment_type": {"type": "string", "description": "Exactly one name from APPOINTMENT TYPES above, if the caller said what kind of visit."},
             },
         },
     },
@@ -62,6 +64,8 @@ TOOLS: list[dict] = [
                 "last_name": {"type": "string"},
                 "email": {"type": "string", "description": "Only if the caller offered it."},
                 "phone": {"type": "string", "description": "Only if they want a number other than the one they are calling from."},
+                "provider": {"type": "string", "description": "Same provider name used in check_availability, if any."},
+                "appointment_type": {"type": "string", "description": "Same appointment type used in check_availability, if any."},
             },
             "required": ["date", "time", "first_name"],
         },
@@ -340,6 +344,22 @@ class RealtimeReceptionist(AIPhoneAgent):
             if policy
             else ""
         )
+        providers_block = ""
+        ask_provider_line = ""
+        if self.user_id and self.user_id != "guest":
+            providers = await self._providers().list_providers(self.user_id, active_only=True)
+            appointment_types = await self._providers().list_appointment_types(self.user_id, active_only=True)
+            lines = []
+            if providers:
+                lines.append("PROVIDERS: " + ", ".join(p["name"] + (f" ({p['role_title']})" if p.get("role_title") else "") for p in providers))
+            if appointment_types:
+                lines.append("APPOINTMENT TYPES: " + ", ".join(f"{t['name']} ({t['duration_minutes']} min)" for t in appointment_types))
+            if lines:
+                providers_block = "\n" + "\n".join(lines) + "\n"
+                ask_provider_line = (
+                    "- This business has named providers and/or appointment types listed above. Ask which one the caller wants "
+                    "(or offer the choices) before check_availability, and pass the exact name through.\n"
+                )
         caller = await self._caller_context()
         if self.is_outbound:
             purpose = self.call_log.get("purpose") or "follow_up"
@@ -362,6 +382,7 @@ class RealtimeReceptionist(AIPhoneAgent):
             direction,
             caller,
             f"\nVERIFIED BUSINESS FACTS:\n{facts}\n",
+            providers_block,
             knowledge_block,
             policy_block,
             "\nHOW TO BEHAVE:\n"
@@ -369,6 +390,7 @@ class RealtimeReceptionist(AIPhoneAgent):
             "- Answer in the caller's language. Reply in one to three sentences unless they ask for detail.\n"
             "- You can book, move and cancel appointments yourself with the tools. Always check_availability before offering times and offer at most two or three options. "
             "Read the chosen day and time back and get a clear yes before booking, moving or cancelling.\n"
+            f"{ask_provider_line}"
             "- To move or cancel, first use find_my_appointments; you may only change appointments it returns for this caller.\n"
             "- If a tool says the result is pending, tell them the team will confirm by text message. After booking, moving or cancelling, tell them they will get a text confirmation.\n"
             "- If you do not know something, say so honestly and offer take_message or transfer_to_human. Never guess.\n"
@@ -702,8 +724,17 @@ class RealtimeReceptionist(AIPhoneAgent):
 
         return AppointmentService(self.flow_service.db)
 
-    async def _tool_check_availability(self, date: str | None = None, part_of_day: str | None = None) -> dict:
-        return await self._appointments().available_slots(self.user_id, day=date, part_of_day=part_of_day)
+    def _providers(self):
+        from app.services.smartflow.provider_service import ProviderService
+
+        return ProviderService(self.flow_service.db)
+
+    async def _tool_check_availability(
+        self, date: str | None = None, part_of_day: str | None = None, provider: str | None = None, appointment_type: str | None = None
+    ) -> dict:
+        return await self._appointments().available_slots(
+            self.user_id, day=date, part_of_day=part_of_day, provider_name=provider, appointment_type_name=appointment_type
+        )
 
     def _adopt_language(self, language: str | None) -> str:
         """The realtime model hears the caller; Whisper-style detection does not run
@@ -716,7 +747,7 @@ class RealtimeReceptionist(AIPhoneAgent):
 
     async def _tool_book_appointment(
         self, date: str, time: str, first_name: str, last_name: str = "", email: str | None = None,
-        phone: str | None = None, language: str | None = None,
+        phone: str | None = None, language: str | None = None, provider: str | None = None, appointment_type: str | None = None,
     ) -> dict:
         name = f"{first_name} {last_name}".strip()
         self.caller_name = name
@@ -729,6 +760,8 @@ class RealtimeReceptionist(AIPhoneAgent):
             time=time,
             call_sid=self.call_id,
             language=self._adopt_language(language),
+            provider_name=provider,
+            appointment_type_name=appointment_type,
         )
 
     async def _tool_find_my_appointments(self, phone: str | None = None) -> dict:

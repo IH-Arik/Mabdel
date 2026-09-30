@@ -24,6 +24,7 @@ from .history_service import HistoryService
 from .integration_service import IntegrationService
 from .lease_service import LeaseService
 from .notification_service import NotificationService
+from .provider_service import ProviderService
 from .workflow_service import WorkflowService
 
 
@@ -55,6 +56,7 @@ class SmartFlowService(SmartFlowBase):
         self.workflow_service = WorkflowService(db, conversation_service=self.conversation_service)
         self.document_service = DocumentService(db)
         self.history_service = HistoryService(db, conversation_service=self.conversation_service)
+        self.provider_service = ProviderService(db)
 
     # ==================================================================
     # Home dashboard
@@ -300,6 +302,33 @@ class SmartFlowService(SmartFlowBase):
 
     async def backfill_global_chats(self):
         return await self.conversation_service.backfill_global_chats()
+
+    # ==================================================================
+    # Providers / appointment types
+    # ==================================================================
+    async def list_providers(self, user_id):
+        return await self.provider_service.list_providers(user_id)
+
+    async def create_provider(self, user_id, payload):
+        return await self.provider_service.create_provider(user_id, payload)
+
+    async def update_provider(self, user_id, provider_id, updates):
+        return await self.provider_service.update_provider(user_id, provider_id, updates)
+
+    async def delete_provider(self, user_id, provider_id):
+        return await self.provider_service.delete_provider(user_id, provider_id)
+
+    async def list_appointment_types(self, user_id):
+        return await self.provider_service.list_appointment_types(user_id)
+
+    async def create_appointment_type(self, user_id, payload):
+        return await self.provider_service.create_appointment_type(user_id, payload)
+
+    async def update_appointment_type(self, user_id, type_id, updates):
+        return await self.provider_service.update_appointment_type(user_id, type_id, updates)
+
+    async def delete_appointment_type(self, user_id, type_id):
+        return await self.provider_service.delete_appointment_type(user_id, type_id)
 
     # ==================================================================
     # AI history / voice / workflow prefill (delegated)

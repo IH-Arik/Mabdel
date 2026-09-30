@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Save, Send, Sparkles, Trash2, X, Zap,
+  Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Plus, Save, Send, Sparkles, Trash2, Users, X, Zap,
 } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
 import { LABEL } from '../shared';
@@ -78,6 +78,42 @@ function AIConfigTab() {
   const [error, setError] = useState('');
   const [testModalOpen, setTestModalOpen] = useState(false);
 
+  // Providers & appointment types — separate resources, saved immediately per action
+  // (like team members on a group), not part of the call-settings Save button.
+  const [providers, setProviders] = useState([]);
+  const [appointmentTypes, setAppointmentTypes] = useState([]);
+  const [loadingScheduling, setLoadingScheduling] = useState(true);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [newProviderName, setNewProviderName] = useState('');
+  const [newProviderRole, setNewProviderRole] = useState('');
+  const [newProviderLinkedId, setNewProviderLinkedId] = useState('');
+  const [newTypeName, setNewTypeName] = useState('');
+  const [newTypeMinutes, setNewTypeMinutes] = useState(30);
+  const [schedulingError, setSchedulingError] = useState('');
+  const [savingProvider, setSavingProvider] = useState(false);
+  const [savingType, setSavingType] = useState(false);
+
+  const fetchScheduling = useCallback(async () => {
+    setLoadingScheduling(true);
+    try {
+      const [providersRes, typesRes, teamRes] = await Promise.all([
+        smartflowApi.getProviders(),
+        smartflowApi.getAppointmentTypes(),
+        smartflowApi.getTeamMembers().catch(() => ({ data: { data: { items: [] } } })),
+      ]);
+      const providersData = providersRes.data?.data;
+      setProviders(Array.isArray(providersData) ? providersData : providersData?.items || []);
+      const typesData = typesRes.data?.data;
+      setAppointmentTypes(Array.isArray(typesData) ? typesData : typesData?.items || []);
+      const teamData = teamRes.data?.data;
+      setTeamMembers(Array.isArray(teamData) ? teamData : teamData?.items || []);
+    } catch {
+      setSchedulingError(t('aiprof_err_scheduling_load_failed'));
+    } finally {
+      setLoadingScheduling(false);
+    }
+  }, [t]);
+
   const fetchCallSettings = useCallback(async () => {
     try {
       setLoadingSettings(true);
@@ -98,7 +134,82 @@ function AIConfigTab() {
       .catch(() => setVoices([]))
       .finally(() => setLoadingVoices(false));
     fetchCallSettings();
-  }, [fetchCallSettings]);
+    fetchScheduling();
+  }, [fetchCallSettings, fetchScheduling]);
+
+  const handleAddProvider = async () => {
+    if (!newProviderName.trim() || savingProvider) return;
+    setSavingProvider(true);
+    setSchedulingError('');
+    try {
+      const response = await smartflowApi.createProvider({
+        name: newProviderName.trim(),
+        role_title: newProviderRole.trim() || null,
+        linked_user_id: newProviderLinkedId || null,
+      });
+      setProviders((current) => [...current, response.data?.data]);
+      setNewProviderName('');
+      setNewProviderRole('');
+      setNewProviderLinkedId('');
+    } catch (err) {
+      setSchedulingError(err?.response?.data?.message || t('aiprof_err_provider_save_failed'));
+    } finally {
+      setSavingProvider(false);
+    }
+  };
+
+  const handleToggleProvider = async (provider) => {
+    try {
+      const response = await smartflowApi.updateProvider(provider.id, { active: !provider.active });
+      setProviders((current) => current.map((item) => (item.id === provider.id ? response.data?.data : item)));
+    } catch (err) {
+      setSchedulingError(err?.response?.data?.message || t('aiprof_err_provider_save_failed'));
+    }
+  };
+
+  const handleDeleteProvider = async (provider) => {
+    try {
+      await smartflowApi.deleteProvider(provider.id);
+      setProviders((current) => current.filter((item) => item.id !== provider.id));
+    } catch (err) {
+      setSchedulingError(err?.response?.data?.message || t('aiprof_err_provider_save_failed'));
+    }
+  };
+
+  const handleAddType = async () => {
+    const minutes = Math.min(480, Math.max(5, Number(newTypeMinutes) || 30));
+    if (!newTypeName.trim() || savingType) return;
+    setSavingType(true);
+    setSchedulingError('');
+    try {
+      const response = await smartflowApi.createAppointmentType({ name: newTypeName.trim(), duration_minutes: minutes });
+      setAppointmentTypes((current) => [...current, response.data?.data]);
+      setNewTypeName('');
+      setNewTypeMinutes(30);
+    } catch (err) {
+      setSchedulingError(err?.response?.data?.message || t('aiprof_err_type_save_failed'));
+    } finally {
+      setSavingType(false);
+    }
+  };
+
+  const handleToggleType = async (type) => {
+    try {
+      const response = await smartflowApi.updateAppointmentType(type.id, { active: !type.active });
+      setAppointmentTypes((current) => current.map((item) => (item.id === type.id ? response.data?.data : item)));
+    } catch (err) {
+      setSchedulingError(err?.response?.data?.message || t('aiprof_err_type_save_failed'));
+    }
+  };
+
+  const handleDeleteType = async (type) => {
+    try {
+      await smartflowApi.deleteAppointmentType(type.id);
+      setAppointmentTypes((current) => current.filter((item) => item.id !== type.id));
+    } catch (err) {
+      setSchedulingError(err?.response?.data?.message || t('aiprof_err_type_save_failed'));
+    }
+  };
 
   const updateField = (field, value) => {
     setCallSettings((prev) => ({ ...(prev || {}), [field]: value }));
@@ -407,6 +518,125 @@ function AIConfigTab() {
                 />
               </div>
             ) : null}
+          </SectionCard>
+
+          <SectionCard icon={Users} title={t('aiprof_hdr_scheduling')} description={t('aiprof_scheduling_desc')}>
+            {schedulingError ? (
+              <p className="text-rose-300 text-xs mb-3 flex items-center gap-1.5"><Ban size={12} />{schedulingError}</p>
+            ) : null}
+            {loadingScheduling ? (
+              <div className="flex items-center justify-center h-16"><Loader2 className="animate-spin text-[#9333ea]" size={18} /></div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className={LABEL}>{t('aiprof_lbl_providers')}</label>
+                  <div className="space-y-1.5 mb-3">
+                    {providers.map((provider) => (
+                      <div key={provider.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${provider.active ? 'bg-[#131A24] border-[#243041]' : 'bg-[#131A24]/40 border-[#243041]/60 opacity-60'}`}>
+                        <span className="flex-1 min-w-0 text-white text-xs font-semibold truncate">
+                          {provider.name}{provider.role_title ? <span className="text-[#A4B0B7] font-normal"> · {provider.role_title}</span> : null}
+                        </span>
+                        <button type="button" onClick={() => handleToggleProvider(provider)} className="text-[10px] font-bold text-[#9333ea] cursor-pointer">
+                          {provider.active ? t('aiprof_btn_pause') : t('aiprof_btn_resume')}
+                        </button>
+                        <button type="button" onClick={() => handleDeleteProvider(provider)} className="text-[#A4B0B7] hover:text-rose-400 cursor-pointer" title={t('aiprof_btn_remove')}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                    {!providers.length ? <p className="text-[#4A5568] text-xs">{t('aiprof_no_providers')}</p> : null}
+                  </div>
+                  <div className="space-y-1.5">
+                    <input
+                      type="text"
+                      maxLength={80}
+                      placeholder={t('aiprof_ph_provider_name')}
+                      value={newProviderName}
+                      onChange={(event) => setNewProviderName(event.target.value)}
+                      className="w-full bg-[#131A24] border border-[#243041] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
+                    />
+                    <input
+                      type="text"
+                      maxLength={60}
+                      placeholder={t('aiprof_ph_provider_role')}
+                      value={newProviderRole}
+                      onChange={(event) => setNewProviderRole(event.target.value)}
+                      className="w-full bg-[#131A24] border border-[#243041] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
+                    />
+                    {teamMembers.length ? (
+                      <select
+                        aria-label={t('aiprof_lbl_providers')}
+                        value={newProviderLinkedId}
+                        onChange={(event) => setNewProviderLinkedId(event.target.value)}
+                        className="w-full bg-[#131A24] border border-[#243041] rounded-lg text-xs text-white px-2.5 py-2 outline-none"
+                      >
+                        <option value="">{t('aiprof_opt_no_login')}</option>
+                        {teamMembers.map((member) => (
+                          <option key={member.id} value={member.id}>{member.name}</option>
+                        ))}
+                      </select>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={handleAddProvider}
+                      disabled={savingProvider || !newProviderName.trim()}
+                      className="w-full py-2 bg-[#9333ea]/10 border border-[#9333ea]/30 text-[#9333ea] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                    >
+                      {savingProvider ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                      {t('aiprof_btn_add_provider')}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={LABEL}>{t('aiprof_lbl_appointment_types')}</label>
+                  <div className="space-y-1.5 mb-3">
+                    {appointmentTypes.map((type) => (
+                      <div key={type.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${type.active ? 'bg-[#131A24] border-[#243041]' : 'bg-[#131A24]/40 border-[#243041]/60 opacity-60'}`}>
+                        <span className="flex-1 min-w-0 text-white text-xs font-semibold truncate">
+                          {type.name} <span className="text-[#A4B0B7] font-normal">· {type.duration_minutes} min</span>
+                        </span>
+                        <button type="button" onClick={() => handleToggleType(type)} className="text-[10px] font-bold text-[#9333ea] cursor-pointer">
+                          {type.active ? t('aiprof_btn_pause') : t('aiprof_btn_resume')}
+                        </button>
+                        <button type="button" onClick={() => handleDeleteType(type)} className="text-[#A4B0B7] hover:text-rose-400 cursor-pointer" title={t('aiprof_btn_remove')}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                    {!appointmentTypes.length ? <p className="text-[#4A5568] text-xs">{t('aiprof_no_types')}</p> : null}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      maxLength={80}
+                      placeholder={t('aiprof_ph_type_name')}
+                      value={newTypeName}
+                      onChange={(event) => setNewTypeName(event.target.value)}
+                      className="flex-1 min-w-0 bg-[#131A24] border border-[#243041] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
+                    />
+                    <input
+                      type="number"
+                      min={5}
+                      max={480}
+                      value={newTypeMinutes}
+                      onChange={(event) => setNewTypeMinutes(event.target.value)}
+                      title={t('aiprof_lbl_minutes')}
+                      className="w-16 bg-[#131A24] border border-[#243041] rounded-lg text-xs text-white px-2 py-2 outline-none focus:border-[#9333ea]/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddType}
+                      disabled={savingType || !newTypeName.trim()}
+                      className="px-3 bg-[#9333ea]/10 border border-[#9333ea]/30 text-[#9333ea] rounded-lg cursor-pointer disabled:opacity-60"
+                      title={t('aiprof_btn_add_type')}
+                    >
+                      {savingType ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard icon={Ban} title={t('aiprof_hdr_cancellation_policy')} description={t('aiprof_cancellation_policy_desc')}>

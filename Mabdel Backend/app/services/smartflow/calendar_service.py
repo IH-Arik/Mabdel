@@ -190,7 +190,15 @@ class CalendarService(SmartFlowBase):
         )
         return merged
 
-    async def find_free_slots(self, user_id: str, day: date, *, exclude_datetimes: set[str] | None = None) -> list[str]:
+    async def find_free_slots(
+        self,
+        user_id: str,
+        day: date,
+        *,
+        exclude_datetimes: set[str] | None = None,
+        provider_id: str | None = None,
+        duration_minutes: int | None = None,
+    ) -> list[str]:
         """Real free/busy: the organization's declared business hours for that weekday
         (in the business's own timezone, at its configured slot size), minus anything
         already on any team member's calendar AND minus any of this organization's own
@@ -200,12 +208,21 @@ class CalendarService(SmartFlowBase):
         the platform's own sales team booking widget, unrelated to individual businesses).
         ``exclude_datetimes`` is a set of "YYYY-MM-DD HH:MM" strings to skip regardless
         of availability — used to avoid re-offering a slot the caller already turned
-        down (date-qualified, so declining 9am today doesn't also hide 9am next week)."""
+        down (date-qualified, so declining 9am today doesn't also hide 9am next week).
+
+        ``provider_id``, when the business has set up providers, narrows the busy check
+        to that one provider's own bookings instead of pooling the whole team — two
+        different providers can then be booked for the same time. ``duration_minutes``
+        (from the appointment type, when set) is how long each offered slot actually
+        reserves; the grid itself still steps by the business's own slot size, so a
+        90-minute service offered on a 30-minute grid still starts at :00/:30, each
+        holding 90 minutes of that provider's day."""
         hours = await self.get_business_hours(user_id)
         if day.weekday() not in hours["days"]:
             return []
 
         slot_minutes = max(15, int(hours.get("slot_minutes") or 60))
+        reserve_minutes = max(15, int(duration_minutes)) if duration_minutes else slot_minutes
         tz = self._resolve_zoneinfo(hours.get("timezone"))
 
         # Business hours are defined in local time; calendar_events are stored in UTC
@@ -220,7 +237,7 @@ class CalendarService(SmartFlowBase):
 
         candidates: list[datetime] = []
         cursor = local_start
-        while cursor + timedelta(minutes=slot_minutes) <= local_end:
+        while cursor + timedelta(minutes=reserve_minutes) <= local_end:
             candidates.append(cursor)
             cursor += timedelta(minutes=slot_minutes)
         if not candidates:
@@ -229,16 +246,17 @@ class CalendarService(SmartFlowBase):
         organization_id = await self._resolve_organization_id(user_id)
         team_ids = await self._resolve_team_user_ids(user_id)
         window_start_utc = candidates[0].astimezone(timezone.utc).replace(tzinfo=None)
-        window_end_utc = (candidates[-1] + timedelta(minutes=slot_minutes)).astimezone(timezone.utc).replace(tzinfo=None)
+        window_end_utc = (candidates[-1] + timedelta(minutes=reserve_minutes)).astimezone(timezone.utc).replace(tzinfo=None)
 
-        events = await self.db.calendar_events.find(
-            {
-                "user_id": {"$in": team_ids},
-                "status": {"$ne": "cancelled"},
-                "starts_at": {"$lt": window_end_utc},
-                "ends_at": {"$gt": window_start_utc},
-            }
-        ).to_list(length=200)
+        event_filter: dict = {
+            "user_id": {"$in": team_ids},
+            "status": {"$ne": "cancelled"},
+            "starts_at": {"$lt": window_end_utc},
+            "ends_at": {"$gt": window_start_utc},
+        }
+        if provider_id:
+            event_filter["provider_id"] = provider_id
+        events = await self.db.calendar_events.find(event_filter).to_list(length=200)
         busy_ranges = [
             (event["starts_at"].replace(tzinfo=timezone.utc), event["ends_at"].replace(tzinfo=timezone.utc))
             for event in events
@@ -246,14 +264,15 @@ class CalendarService(SmartFlowBase):
         ]
 
         if organization_id:
-            pending = await self.db.call_meeting_requests.find(
-                {
-                    "organization_id": organization_id,
-                    "status": "pending",
-                    "requested_start": {"$lt": window_end_utc},
-                    "requested_end": {"$gt": window_start_utc},
-                }
-            ).to_list(length=200)
+            pending_filter: dict = {
+                "organization_id": organization_id,
+                "status": "pending",
+                "requested_start": {"$lt": window_end_utc},
+                "requested_end": {"$gt": window_start_utc},
+            }
+            if provider_id:
+                pending_filter["provider_id"] = provider_id
+            pending = await self.db.call_meeting_requests.find(pending_filter).to_list(length=200)
             busy_ranges.extend(
                 (item["requested_start"].replace(tzinfo=timezone.utc), item["requested_end"].replace(tzinfo=timezone.utc))
                 for item in pending
@@ -275,7 +294,7 @@ class CalendarService(SmartFlowBase):
             label = slot_start.strftime("%H:%M")
             if f"{day.isoformat()} {label}" in exclude_datetimes:
                 continue
-            slot_end = slot_start + timedelta(minutes=slot_minutes)
+            slot_end = slot_start + timedelta(minutes=reserve_minutes)
             slot_start_utc = slot_start.astimezone(timezone.utc)
             slot_end_utc = slot_end.astimezone(timezone.utc)
             if any(busy_start < slot_end_utc and busy_end > slot_start_utc for busy_start, busy_end in busy_ranges):
