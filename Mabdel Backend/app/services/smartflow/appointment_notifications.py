@@ -160,7 +160,16 @@ class AppointmentNotifier(ConversationService):
             business = (org or {}).get("business_name") or owner.get("business_name") or owner.get("full_name") or "Your appointment"
             tz_name = ((org or {}).get("business_hours") or {}).get("timezone")
             templates = TEMPLATES.get(language or "en", TEMPLATES["en"])
-            text = templates[kind].format(business=business, when=format_when(starts_at, tz_name, language if language in TEMPLATES else "en"))
+            when = format_when(starts_at, tz_name, language if language in TEMPLATES else "en")
+            # The owner's own wording, if they set one for this kind, in place of the
+            # built-in translated text - never in more than one language, by design.
+            custom_wording = ((org or {}).get("ai_call_settings") or {}).get("sms_wording") or {}
+            template_text = custom_wording.get(kind) or templates[kind]
+            try:
+                text = template_text.format(business=business, when=when)
+            except (KeyError, IndexError, ValueError):
+                logger.warning("Owner's SMS wording for %s had a bad placeholder; using the built-in text", kind)
+                text = templates[kind].format(business=business, when=when)
             if meeting_link and kind in ("booked", "rescheduled"):
                 text += f" {meeting_link}"
 

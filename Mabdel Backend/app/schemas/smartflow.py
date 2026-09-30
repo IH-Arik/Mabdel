@@ -448,6 +448,28 @@ class AICallLanguageMenuOption(BaseModel):
     language: str = Field(min_length=2, max_length=5)
 
 
+class SmsWordingOverrides(BaseModel):
+    """The owner's own text for each appointment SMS, in place of the built-in one.
+    {business} and {when} are filled in when present; a kind left blank keeps using
+    the built-in (translated) wording."""
+
+    booked: str | None = Field(default=None, max_length=300)
+    pending: str | None = Field(default=None, max_length=300)
+    rescheduled: str | None = Field(default=None, max_length=300)
+    cancelled: str | None = Field(default=None, max_length=300)
+    declined: str | None = Field(default=None, max_length=300)
+    reminder: str | None = Field(default=None, max_length=300)
+
+    @field_validator("booked", "pending", "rescheduled", "cancelled", "declined", "reminder")
+    @classmethod
+    def _clean(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = "".join(char for char in value if char == "\n" or not (ord(char) < 32 or ord(char) == 127))
+        cleaned = cleaned.strip()
+        return cleaned or None
+
+
 class AICallSettingsResponse(BaseModel):
     assistant_name: str | None = None
     voice_id: str = "female_warm"
@@ -465,6 +487,8 @@ class AICallSettingsResponse(BaseModel):
     sms_confirmations_enabled: bool = True
     appointment_reminders_enabled: bool = False
     appointment_reminder_hours_before: int = 24
+    sms_wording: SmsWordingOverrides = Field(default_factory=SmsWordingOverrides)
+    cancellation_policy: str | None = None
 
 
 class AICallSettingsUpdateRequest(BaseModel):
@@ -494,10 +518,13 @@ class AICallSettingsUpdateRequest(BaseModel):
     appointment_reminders_enabled: bool | None = None
     # 1 hour to 7 days ahead - outside that range a "reminder" stops meaning anything.
     appointment_reminder_hours_before: int | None = Field(default=None, ge=1, le=168)
+    sms_wording: SmsWordingOverrides | None = None
+    # What the AI tells a caller who wants to cancel (notice period, fees, etc).
+    cancellation_policy: str | None = Field(default=None, max_length=500)
 
     @field_validator(
         "assistant_name", "business_type", "custom_instructions",
-        "greeting_inbound", "greeting_outbound", "closing_message", "knowledge_base",
+        "greeting_inbound", "greeting_outbound", "closing_message", "knowledge_base", "cancellation_policy",
     )
     @classmethod
     def _clean_free_text(cls, value: str | None) -> str | None:

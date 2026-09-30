@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 PCMU_BYTES_PER_MS = 8  # 8 kHz, one byte per sample
 MAX_KNOWLEDGE_CHARS = 8000
+MAX_POLICY_CHARS = 500
 HANGUP_AFTER_GOODBYE_PAD_SECONDS = 0.6
 SESSION_HANDSHAKE_SECONDS = 4.0
 GREETING_MAX_SECONDS = 30.0  # a greeting that never reports done must not mute the caller all call
@@ -332,6 +333,13 @@ class RealtimeReceptionist(AIPhoneAgent):
             if knowledge
             else ""
         )
+        policy = (call_settings.get("cancellation_policy") or "").strip()[:MAX_POLICY_CHARS]
+        policy_block = (
+            f"\nCANCELLATION POLICY - tell the caller this if they ask to cancel, before you cancel for them:\n"
+            f"{self.OWNER_BLOCK_START}\n{policy.replace(self.OWNER_BLOCK_START, '').replace(self.OWNER_BLOCK_END, '')}\n{self.OWNER_BLOCK_END}\n"
+            if policy
+            else ""
+        )
         caller = await self._caller_context()
         if self.is_outbound:
             purpose = self.call_log.get("purpose") or "follow_up"
@@ -355,6 +363,7 @@ class RealtimeReceptionist(AIPhoneAgent):
             caller,
             f"\nVERIFIED BUSINESS FACTS:\n{facts}\n",
             knowledge_block,
+            policy_block,
             "\nHOW TO BEHAVE:\n"
             "- Sound like a warm, capable person at the front desk: short spoken sentences, one question at a time, natural acknowledgements. Never read lists or long menus.\n"
             "- Answer in the caller's language. Reply in one to three sentences unless they ask for detail.\n"
