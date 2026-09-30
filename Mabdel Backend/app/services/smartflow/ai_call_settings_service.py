@@ -36,6 +36,8 @@ class AICallSettingsService(SmartFlowBase):
         "transfer_number": None,
         "voice_engine": "realtime",
         "sms_confirmations_enabled": True,
+        "appointment_reminders_enabled": False,
+        "appointment_reminder_hours_before": 24,
     }
 
     async def get_settings(self, user_id: str) -> dict:

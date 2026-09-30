@@ -463,6 +463,8 @@ class AICallSettingsResponse(BaseModel):
     voice_engine: str = "realtime"
     require_meeting_approval: bool = False
     sms_confirmations_enabled: bool = True
+    appointment_reminders_enabled: bool = False
+    appointment_reminder_hours_before: int = 24
 
 
 class AICallSettingsUpdateRequest(BaseModel):
@@ -489,6 +491,9 @@ class AICallSettingsUpdateRequest(BaseModel):
     voice_engine: Literal["realtime", "classic"] | None = None
     require_meeting_approval: bool | None = None
     sms_confirmations_enabled: bool | None = None
+    appointment_reminders_enabled: bool | None = None
+    # 1 hour to 7 days ahead - outside that range a "reminder" stops meaning anything.
+    appointment_reminder_hours_before: int | None = Field(default=None, ge=1, le=168)
 
     @field_validator(
         "assistant_name", "business_type", "custom_instructions",

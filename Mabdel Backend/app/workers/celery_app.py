@@ -47,5 +47,9 @@ celery_app.conf.update(
             "task": "caldav.sync_connections",
             "schedule": 300.0,  # 5 minutes
         },
+        "appointment-reminders-every-15-minutes": {
+            "task": "appointments.send_reminders",
+            "schedule": 900.0,  # 15 minutes - matches AppointmentService.send_due_reminders' window
+        },
     },
 )

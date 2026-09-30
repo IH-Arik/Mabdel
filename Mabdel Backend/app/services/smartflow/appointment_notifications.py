@@ -19,7 +19,7 @@ from .conversation_service import ConversationService
 
 logger = logging.getLogger(__name__)
 
-KINDS = ("booked", "pending", "rescheduled", "cancelled", "declined")
+KINDS = ("booked", "pending", "rescheduled", "cancelled", "declined", "reminder")
 
 TEMPLATES: dict[str, dict[str, str]] = {
     "en": {
@@ -28,6 +28,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: your appointment has been moved to {when}.",
         "cancelled": "{business}: your appointment on {when} has been cancelled. Call us any time to book a new one.",
         "declined": "{business}: sorry, we can't confirm {when}. Please call us to find another time.",
+        "reminder": "{business}: reminder - your appointment is {when}. Call us if you need to change it.",
     },
     "es": {
         "booked": "{business}: tu cita está confirmada para el {when}.",
@@ -35,6 +36,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: tu cita se ha cambiado al {when}.",
         "cancelled": "{business}: tu cita del {when} ha sido cancelada. Llámanos cuando quieras para reservar otra.",
         "declined": "{business}: lo sentimos, no podemos confirmar el {when}. Llámanos para buscar otra hora.",
+        "reminder": "{business}: recordatorio - tu cita es el {when}. Llámanos si necesitas cambiarla.",
     },
     "fr": {
         "booked": "{business} : votre rendez-vous est confirmé pour le {when}.",
@@ -42,6 +44,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business} : votre rendez-vous a été déplacé au {when}.",
         "cancelled": "{business} : votre rendez-vous du {when} est annulé. Appelez-nous pour en prendre un autre.",
         "declined": "{business} : désolé, nous ne pouvons pas confirmer le {when}. Appelez-nous pour trouver un autre créneau.",
+        "reminder": "{business} : rappel - votre rendez-vous est le {when}. Appelez-nous pour tout changement.",
     },
     "pt": {
         "booked": "{business}: sua consulta está confirmada para {when}.",
@@ -49,6 +52,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: sua consulta foi remarcada para {when}.",
         "cancelled": "{business}: sua consulta de {when} foi cancelada. Ligue quando quiser para marcar outra.",
         "declined": "{business}: desculpe, não conseguimos confirmar {when}. Ligue para encontrarmos outro horário.",
+        "reminder": "{business}: lembrete - sua consulta é {when}. Ligue se precisar alterar.",
     },
     "hi": {
         "booked": "{business}: आपका अपॉइंटमेंट {when} के लिए पक्का है।",
@@ -56,6 +60,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: आपका अपॉइंटमेंट अब {when} पर है।",
         "cancelled": "{business}: {when} का आपका अपॉइंटमेंट रद्द कर दिया गया है। नया समय लेने के लिए कभी भी कॉल करें।",
         "declined": "{business}: माफ़ कीजिए, {when} की पुष्टि नहीं हो सकी। दूसरा समय तय करने के लिए कॉल करें।",
+        "reminder": "{business}: याद दिलाना - आपका अपॉइंटमेंट {when} को है। बदलना हो तो कॉल करें।",
     },
     "ur": {
         "booked": "{business}: آپ کی اپائنٹمنٹ {when} کے لیے کنفرم ہے۔",
@@ -63,6 +68,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: آپ کی اپائنٹمنٹ اب {when} پر ہے۔",
         "cancelled": "{business}: {when} کی آپ کی اپائنٹمنٹ منسوخ کر دی گئی ہے۔ نیا وقت لینے کے لیے کسی بھی وقت کال کریں۔",
         "declined": "{business}: معذرت، ہم {when} کی تصدیق نہیں کر سکے۔ دوسرا وقت طے کرنے کے لیے کال کریں۔",
+        "reminder": "{business}: یاد دہانی - آپ کی اپائنٹمنٹ {when} کو ہے۔ تبدیل کرنی ہو تو کال کریں۔",
     },
     "ar": {
         "booked": "{business}: تم تأكيد موعدك في {when}.",
@@ -70,6 +76,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: تم نقل موعدك إلى {when}.",
         "cancelled": "{business}: تم إلغاء موعدك في {when}. اتصل بنا في أي وقت لحجز موعد جديد.",
         "declined": "{business}: عذرًا، لا يمكننا تأكيد موعد {when}. اتصل بنا لاختيار وقت آخر.",
+        "reminder": "{business}: تذكير - موعدك في {when}. اتصل بنا إذا أردت تغييره.",
     },
     "ru": {
         "booked": "{business}: ваша запись подтверждена на {when}.",
@@ -77,6 +84,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: ваша запись перенесена на {when}.",
         "cancelled": "{business}: ваша запись на {when} отменена. Звоните в любое время, чтобы записаться снова.",
         "declined": "{business}: к сожалению, мы не можем подтвердить {when}. Позвоните нам, чтобы выбрать другое время.",
+        "reminder": "{business}: напоминание - ваша запись {when}. Позвоните, если нужно изменить.",
     },
     "tr": {
         "booked": "{business}: randevunuz {when} için onaylandı.",
@@ -84,6 +92,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: randevunuz {when} tarihine taşındı.",
         "cancelled": "{business}: {when} tarihli randevunuz iptal edildi. Yeni randevu için dilediğiniz zaman arayın.",
         "declined": "{business}: üzgünüz, {when} için onay veremiyoruz. Başka bir saat için bizi arayın.",
+        "reminder": "{business}: hatırlatma - randevunuz {when}. Değiştirmek isterseniz arayın.",
     },
     "zh": {
         "booked": "{business}：您的预约已确认，时间为 {when}。",
@@ -91,6 +100,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}：您的预约已改到 {when}。",
         "cancelled": "{business}：您 {when} 的预约已取消。欢迎随时来电重新预约。",
         "declined": "{business}：抱歉，无法确认 {when} 的预约。请来电另约时间。",
+        "reminder": "{business}：提醒 - 您的预约时间为 {when}。如需更改请致电。",
     },
     "ja": {
         "booked": "{business}：ご予約を {when} で確定しました。",
@@ -98,6 +108,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}：ご予約を {when} に変更しました。",
         "cancelled": "{business}：{when} のご予約はキャンセルされました。新しいご予約はいつでもお電話ください。",
         "declined": "{business}：申し訳ありませんが、{when} のご予約は確定できませんでした。別の日時をお電話でご相談ください。",
+        "reminder": "{business}：リマインダー - ご予約は {when} です。変更はお電話でご連絡ください。",
     },
 }
 
@@ -142,8 +153,9 @@ class AppointmentNotifier(ConversationService):
             organization_id = owner.get("organization_id")
             org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
             # The owner can turn this off in AI Settings - default stays on so every
-            # business gets it unless they choose otherwise.
-            if not ((org or {}).get("ai_call_settings") or {}).get("sms_confirmations_enabled", True):
+            # business gets it unless they choose otherwise. Reminders are a separate
+            # opt-in (send_due_reminders only ever queries businesses that turned it on).
+            if kind != "reminder" and not ((org or {}).get("ai_call_settings") or {}).get("sms_confirmations_enabled", True):
                 return None
             business = (org or {}).get("business_name") or owner.get("business_name") or owner.get("full_name") or "Your appointment"
             tz_name = ((org or {}).get("business_hours") or {}).get("timezone")

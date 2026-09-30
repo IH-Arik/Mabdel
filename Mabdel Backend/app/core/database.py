@@ -107,6 +107,7 @@ class MongoConnectionManager:
         await self.database.signature_requests.create_index([("agreement_id", 1), ("user_id", 1)], unique=True)
         await self.database.signature_requests.create_index([("user_id", 1), ("status", 1), ("updated_at", -1)])
         await self.database.calendar_events.create_index([("user_id", 1), ("starts_at", 1)])
+        await self.database.calendar_events.create_index([("starts_at", 1), ("reminder_sent_at", 1)])
         await self.database.notifications.create_index([("user_id", 1), ("created_at", -1)])
         await self.database.typing_states.create_index([("user_id", 1), ("conversation_id", 1)], unique=True)
         await self.database.typing_states.create_index("expires_at", expireAfterSeconds=0)
