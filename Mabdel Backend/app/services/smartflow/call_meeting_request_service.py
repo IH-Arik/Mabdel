@@ -107,6 +107,7 @@ class CallMeetingRequestService(SmartFlowBase):
                     note="Booked by the AI receptionist during a call.",
                     provider=provider,
                     appointment_type=appointment_type,
+                    actor="ai_agent",
                 )
                 now = utc_now()
                 doc = {
@@ -180,6 +181,7 @@ class CallMeetingRequestService(SmartFlowBase):
         note: str,
         provider: dict | None = None,
         appointment_type: dict | None = None,
+        actor: str | None = None,
     ) -> dict:
         """A calendar event that knows who the customer is - so a later change or
         cancellation, by the AI or a team member, can text them."""
@@ -212,6 +214,7 @@ class CallMeetingRequestService(SmartFlowBase):
                     "language": language,
                 },
             },
+            actor=actor,
         )
 
     async def create_pending_request(

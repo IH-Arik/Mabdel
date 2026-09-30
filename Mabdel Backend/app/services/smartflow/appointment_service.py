@@ -226,7 +226,7 @@ class AppointmentService(SmartFlowBase):
                 appointment_type_id=event.get("appointment_type_id"),
             )
             return {"outcome": "pending", "when": when}
-        await self.calendar.update_calendar_event(str(event["user_id"]), str(event["_id"]), {"starts_at": start, "ends_at": end})
+        await self.calendar.update_calendar_event(str(event["user_id"]), str(event["_id"]), {"starts_at": start, "ends_at": end}, actor="ai_agent")
         return {"outcome": "rescheduled", "when": when}
 
     async def cancel(self, owner_id: str, *, appointment_id: str, phone: str | None, language: str | None = None) -> dict:
@@ -238,7 +238,7 @@ class AppointmentService(SmartFlowBase):
         hours, _ = await self._hours(owner_id)
         when = format_when(event["starts_at"], hours.get("timezone"))
         await self._remember_language(event, language)
-        await self.calendar.delete_calendar_event(str(event["user_id"]), str(event["_id"]))
+        await self.calendar.delete_calendar_event(str(event["user_id"]), str(event["_id"]), actor="ai_agent")
         return {"outcome": "cancelled", "when": when}
 
     async def send_due_reminders(self, *, now: datetime | None = None, window_minutes: int = 15) -> int:

@@ -109,6 +109,7 @@ class MongoConnectionManager:
         await self.database.calendar_events.create_index([("user_id", 1), ("starts_at", 1)])
         await self.database.calendar_events.create_index([("starts_at", 1), ("reminder_sent_at", 1)])
         await self.database.calendar_events.create_index([("user_id", 1), ("provider_id", 1), ("starts_at", 1)])
+        await self.database.calendar_history.create_index([("event_id", 1), ("at", 1)])
         await self.database.providers.create_index([("user_id", 1), ("active", 1)])
         await self.database.appointment_types.create_index([("user_id", 1), ("active", 1)])
         await self.database.notifications.create_index([("user_id", 1), ("created_at", -1)])
