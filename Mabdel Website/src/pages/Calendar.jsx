@@ -19,6 +19,7 @@ import {
   Share2,
   Sparkles,
   Trash2,
+  Tag,
   UserRound,
   Users,
   Video,
@@ -136,6 +137,8 @@ function getInitialFormState(prefill) {
     notifyEmail: prefill?.notify_via_email ?? false,
     notifySMS: prefill?.notify_via_sms ?? false,
     recipientIds: Array.isArray(prefill?.contact_ids) ? prefill.contact_ids : [],
+    providerId: prefill?.provider_id || '',
+    appointmentTypeId: prefill?.appointment_type_id || '',
   };
 }
 
@@ -156,7 +159,7 @@ function Toggle({ label, value, onChange }) {
   );
 }
 
-function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConnected = false }) {
+function MeetingEditor({ contacts, providers = [], appointmentTypes = [], event, prefill, onSaved, onCancel, googleConnected = false }) {
   const { t } = useLanguage();
   const isEditing = Boolean(event?.id);
   const seed = useMemo(() => getInitialFormState(event || prefill || {}), [event, prefill]);
@@ -173,6 +176,8 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
   const [notifyEmail, setNotifyEmail] = useState(seed.notifyEmail);
   const [notifySMS, setNotifySMS] = useState(seed.notifySMS);
   const [recipientIds, setRecipientIds] = useState(seed.recipientIds);
+  const [providerId, setProviderId] = useState(seed.providerId);
+  const [appointmentTypeId, setAppointmentTypeId] = useState(seed.appointmentTypeId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -190,7 +195,20 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
     setNotifyEmail(seed.notifyEmail);
     setNotifySMS(seed.notifySMS);
     setRecipientIds(seed.recipientIds);
+    setProviderId(seed.providerId);
+    setAppointmentTypeId(seed.appointmentTypeId);
   }, [seed]);
+
+  // Picking a type sets how long the meeting is, straight from that type's own length -
+  // still just a starting point the person can change afterwards.
+  const selectAppointmentType = (nextTypeId) => {
+    setAppointmentTypeId(nextTypeId);
+    const type = appointmentTypes.find((item) => item.id === nextTypeId);
+    if (type && startTime) {
+      const start = combineLocalDateTime(date, startTime);
+      if (start) setEndTime(toTimeInput(new Date(start.getTime() + type.duration_minutes * 60000)));
+    }
+  };
 
   const toggleRecipient = (id) => {
     setRecipientIds((current) => (
@@ -237,6 +255,8 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
       notify_via_sms: notifySMS,
       reminder_minutes: REMINDER_MIN[reminder] || 10,
       timezone: CST_TIME_ZONE,
+      provider_id: providerId || null,
+      appointment_type_id: appointmentTypeId || null,
     };
 
     setError('');
@@ -284,6 +304,33 @@ function MeetingEditor({ contacts, event, prefill, onSaved, onCancel, googleConn
       <Field label={t('cal_lbl_description')}>
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('cal_ph_description')} className={`${INPUT} min-h-20 resize-none`} />
       </Field>
+
+      {providers.length || appointmentTypes.length ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {providers.length ? (
+            <Field label={t('cal_lbl_provider')}>
+              <select value={providerId} onChange={(e) => setProviderId(e.target.value)} className={INPUT}>
+                <option value="">{t('cal_opt_no_provider')}</option>
+                {providers.map((provider) => (
+                  <option key={provider.id} value={provider.id}>
+                    {provider.name}{provider.role_title ? ` (${provider.role_title})` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+          {appointmentTypes.length ? (
+            <Field label={t('cal_lbl_appointment_type')}>
+              <select value={appointmentTypeId} onChange={(e) => selectAppointmentType(e.target.value)} className={INPUT}>
+                <option value="">{t('cal_opt_no_appointment_type')}</option>
+                {appointmentTypes.map((type) => (
+                  <option key={type.id} value={type.id}>{type.name} ({type.duration_minutes} min)</option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Field label={t('cal_lbl_date')}>
@@ -507,7 +554,7 @@ function buildICSFile(event) {
   ].filter(Boolean).join('\r\n');
 }
 
-function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnected = false }) {
+function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnected = false, providers = [], appointmentTypes = [] }) {
   const { t } = useLanguage();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -629,6 +676,8 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
           ) : editing ? (
             <MeetingEditor
               contacts={contacts}
+              providers={providers}
+              appointmentTypes={appointmentTypes}
               event={event}
               googleConnected={googleConnected}
               onCancel={() => setEditing(false)}
@@ -695,6 +744,24 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
                       <p className="text-[#A4B0B7] text-sm">{event.reminder_minutes ? t('cal_min_before', { n: event.reminder_minutes }) : t('cal_no_reminder')}</p>
                     </div>
                   </div>
+                  {event.provider_name ? (
+                    <div className="flex items-start gap-3">
+                      <UserRound size={16} className="text-[#9333ea] mt-1" />
+                      <div>
+                        <p className="text-white font-semibold">{t('cal_lbl_provider')}</p>
+                        <p className="text-[#A4B0B7] text-sm">{event.provider_name}</p>
+                      </div>
+                    </div>
+                  ) : null}
+                  {event.appointment_type_name ? (
+                    <div className="flex items-start gap-3">
+                      <Tag size={16} className="text-[#9333ea] mt-1" />
+                      <div>
+                        <p className="text-white font-semibold">{t('cal_lbl_appointment_type')}</p>
+                        <p className="text-[#A4B0B7] text-sm">{event.appointment_type_name}</p>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="flex items-start gap-3">
                     <Link2 size={16} className="text-[#9333ea] mt-1" />
                     <div>
@@ -1067,6 +1134,10 @@ export default function Calendar() {
   const [eventsPage, setEventsPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadedOnceRef = useRef(false);
+  // "Provider" here means a dentist/technician/etc a booking is with - unrelated to
+  // primaryProvider above (Google/Zoom/CalDAV, the calendar-sync provider).
+  const [providers, setProviders] = useState([]);
+  const [appointmentTypes, setAppointmentTypes] = useState([]);
 
   useEffect(() => {
     if (location.state?.prefill) {
@@ -1194,6 +1265,17 @@ export default function Calendar() {
   );
 
   useEffect(() => {
+    Promise.all([smartflowApi.getProviders(), smartflowApi.getAppointmentTypes()])
+      .then(([providersRes, typesRes]) => {
+        const providersData = providersRes.data?.data;
+        setProviders((Array.isArray(providersData) ? providersData : providersData?.items || []).filter((item) => item.active));
+        const typesData = typesRes.data?.data;
+        setAppointmentTypes((Array.isArray(typesData) ? typesData : typesData?.items || []).filter((item) => item.active));
+      })
+      .catch(() => {
+        setProviders([]);
+        setAppointmentTypes([]);
+      });
     fetchAll();
     fetchIntegrationState();
     fetchAppleState();
@@ -1534,6 +1616,8 @@ export default function Calendar() {
               </div>
               <MeetingEditor
                 contacts={contacts}
+                providers={providers}
+                appointmentTypes={appointmentTypes}
                 prefill={prefillData}
                 googleConnected={googleConnected}
                 onCancel={() => {
@@ -1552,6 +1636,8 @@ export default function Calendar() {
           <EventDetailsModal
             eventId={selectedEventId}
             googleConnected={googleConnected}
+            providers={providers}
+            appointmentTypes={appointmentTypes}
             onClose={() => setSelectedEventId(null)}
             onDeleted={handleEventDeleted}
             onSaved={handleEventSaved}

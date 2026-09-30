@@ -761,6 +761,8 @@ class CalendarEventCreateRequest(BaseModel):
     reminder_minutes: int = Field(default=15, ge=0, le=10080)
     google_event_id: str | None = None
     status: MeetingStatus = "scheduled"
+    provider_id: str | None = None
+    appointment_type_id: str | None = None
 
 
 class CalendarEventUpdateRequest(BaseModel):
@@ -779,6 +781,8 @@ class CalendarEventUpdateRequest(BaseModel):
     reminder_minutes: int | None = Field(default=None, ge=0, le=10080)
     google_event_id: str | None = None
     status: MeetingStatus | None = None
+    provider_id: str | None = None
+    appointment_type_id: str | None = None
 
 
 class CalendarAttendeeResponse(BaseModel):
@@ -811,6 +815,10 @@ class CalendarEventResponse(BaseModel):
     sync_status: str = "local"
     status: MeetingStatus = "scheduled"
     share_url: str | None = None
+    provider_id: str | None = None
+    provider_name: str | None = None
+    appointment_type_id: str | None = None
+    appointment_type_name: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

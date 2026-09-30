@@ -2553,9 +2553,23 @@ class SmartFlowBase:
         safe["google_calendar_name"] = safe.get("google_calendar_name")
         safe["zoom_meeting_id"] = safe.get("zoom_meeting_id")
         safe["share_url"] = self._calendar_share_url(safe["share_token"]) if safe.get("share_token") else None
+        safe["provider_id"] = safe.get("provider_id")
+        safe["provider_name"] = await self._name_for_id(self.db.providers, safe["provider_id"])
+        safe["appointment_type_id"] = safe.get("appointment_type_id")
+        safe["appointment_type_name"] = await self._name_for_id(self.db.appointment_types, safe["appointment_type_id"])
         safe.pop("share_token", None)
         safe.pop("user_id", None)
         return safe
+
+    @staticmethod
+    async def _name_for_id(collection, document_id: str | None) -> str | None:
+        """A provider's or appointment type's current name, for display - the event
+        keeps working even after the provider is renamed or removed (the id just stops
+        resolving to a name, the booking itself is untouched)."""
+        if not document_id or not ObjectId.is_valid(document_id):
+            return None
+        document = await collection.find_one({"_id": ObjectId(document_id)}, {"name": 1})
+        return document.get("name") if document else None
 
     async def _hydrate_calendar_attendees(self, user_id: str, contact_ids: list[str]) -> list[dict]:
         attendees: list[dict] = []
@@ -2594,6 +2608,7 @@ class SmartFlowBase:
         starts_at: datetime,
         ends_at: datetime,
         exclude_event_id: str | None = None,
+        provider_id: str | None = None,
     ) -> None:
         clashing: dict = {
             "starts_at": {"$lt": ends_at},
@@ -2602,7 +2617,15 @@ class SmartFlowBase:
         }
         if exclude_event_id and ObjectId.is_valid(exclude_event_id):
             clashing["_id"] = {"$ne": ObjectId(exclude_event_id)}
-        filters: dict = {"$and": [await self._calendar_visibility_filter(user_id), clashing]}
+        # A provider named on the event only clashes with that same provider's own
+        # bookings - two different providers can be booked for the same time, same as
+        # the AI receptionist's own availability check. No provider named: the old
+        # org-wide pooled check (every teammate's calendar as one shared block).
+        if provider_id:
+            scope: dict = {"user_id": {"$in": await self._resolve_team_user_ids(user_id)}, "provider_id": provider_id}
+        else:
+            scope = await self._calendar_visibility_filter(user_id)
+        filters: dict = {"$and": [scope, clashing]}
         existing = await self.db.calendar_events.find_one(filters)
         if existing:
             raise AppException(

@@ -489,7 +489,8 @@ def test_ai_workflow_prefill_resolves_contact_and_overwrites_stale_email(client,
     assert data["prefill"]["items"][0]["unit_price"] == 250
 
 
-def test_ai_workflow_prefill_dynamic_quantity_and_date(client, mock_db):
+def test_ai_workflow_prefill_dynamic_quantity_and_date(client, mock_db, monkeypatch):
+    _without_real_ai(monkeypatch)
     headers = _auth_headers(client, mock_db, email="dynamic-prefill@example.com")
     
     # Test case 1: Explicit quantity, description, unit price and due tomorrow

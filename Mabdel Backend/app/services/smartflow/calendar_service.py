@@ -350,7 +350,7 @@ class CalendarService(SmartFlowBase):
 
     async def create_calendar_event(self, user_id: str, payload: dict) -> dict:
         self._validate_calendar_event_payload(payload)
-        await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"])
+        await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"], provider_id=payload.get("provider_id"))
         provider_settings = await self.get_calendar_provider_settings(user_id)
         primary = provider_settings["primary_calendar_provider"]
         connected = provider_settings["connected"]
@@ -533,6 +533,7 @@ class CalendarService(SmartFlowBase):
             merged["starts_at"],
             merged["ends_at"],
             exclude_event_id=str(event["_id"]),
+            provider_id=merged.get("provider_id"),
         )
         provider_settings = await self.get_calendar_provider_settings(user_id)
         primary = provider_settings["primary_calendar_provider"]
