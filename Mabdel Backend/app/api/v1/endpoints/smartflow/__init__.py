@@ -16,6 +16,7 @@ from . import (  # noqa: F401
     agreements,
     call_meeting_requests,
     calls,
+    providers,
     integrations,
     notifications,
     groups,

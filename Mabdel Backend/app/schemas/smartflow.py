@@ -538,6 +538,32 @@ class AICallSettingsUpdateRequest(BaseModel):
         return cleaned or None
 
 
+class ProviderCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    role_title: str | None = Field(default=None, max_length=60)
+    # A real team member's user id, when this provider is a colleague and not a
+    # login-less named resource (a chair, a technician with no account).
+    linked_user_id: str | None = None
+
+
+class ProviderUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    role_title: str | None = Field(default=None, max_length=60)
+    linked_user_id: str | None = None
+    active: bool | None = None
+
+
+class AppointmentTypeCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    duration_minutes: int = Field(ge=5, le=480)
+
+
+class AppointmentTypeUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    duration_minutes: int | None = Field(default=None, ge=5, le=480)
+    active: bool | None = None
+
+
 class AICallTestStartResponse(BaseModel):
     session_id: str
     greeting: str

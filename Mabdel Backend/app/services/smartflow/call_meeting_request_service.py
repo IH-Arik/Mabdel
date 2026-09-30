@@ -29,6 +29,10 @@ def _serialize(doc: dict) -> dict:
         "confirmed_by_user_id": doc.get("confirmed_by_user_id"),
         "kind": doc.get("kind", "new"),
         "calendar_event_id": doc.get("calendar_event_id"),
+        "provider_id": doc.get("provider_id"),
+        "provider_name": doc.get("provider_name"),
+        "appointment_type_id": doc.get("appointment_type_id"),
+        "appointment_type_name": doc.get("appointment_type_name"),
         "created_at": doc.get("created_at"),
         "updated_at": doc.get("updated_at"),
     }
@@ -82,6 +86,8 @@ class CallMeetingRequestService(SmartFlowBase):
         requested_start: datetime,
         requested_end: datetime,
         language: str | None = None,
+        provider: dict | None = None,
+        appointment_type: dict | None = None,
     ) -> dict:
         """Attempts direct calendar booking when available, falling back to creating
         a pending request if manual approval is required or missing details."""
@@ -99,6 +105,8 @@ class CallMeetingRequestService(SmartFlowBase):
                     ends_at=requested_end,
                     language=language,
                     note="Booked by the AI receptionist during a call.",
+                    provider=provider,
+                    appointment_type=appointment_type,
                 )
                 now = utc_now()
                 doc = {
@@ -115,6 +123,10 @@ class CallMeetingRequestService(SmartFlowBase):
                     "meeting_link": event.get("meeting_link"),
                     "calendar_event_id": event["id"],
                     "confirmed_by_user_id": "ai_agent",
+                    "provider_id": (provider or {}).get("id"),
+                    "provider_name": (provider or {}).get("name"),
+                    "appointment_type_id": (appointment_type or {}).get("id"),
+                    "appointment_type_name": (appointment_type or {}).get("name"),
                     "created_at": now,
                     "updated_at": now,
                 }
@@ -143,6 +155,10 @@ class CallMeetingRequestService(SmartFlowBase):
             requested_start=requested_start,
             requested_end=requested_end,
             language=language,
+            provider_id=(provider or {}).get("id"),
+            provider_name=(provider or {}).get("name"),
+            appointment_type_id=(appointment_type or {}).get("id"),
+            appointment_type_name=(appointment_type or {}).get("name"),
         )
         pending_doc["booking_outcome"] = "pending"
         return pending_doc
@@ -162,6 +178,8 @@ class CallMeetingRequestService(SmartFlowBase):
         ends_at: datetime,
         language: str | None,
         note: str,
+        provider: dict | None = None,
+        appointment_type: dict | None = None,
     ) -> dict:
         """A calendar event that knows who the customer is - so a later change or
         cancellation, by the AI or a team member, can text them."""
@@ -169,16 +187,23 @@ class CallMeetingRequestService(SmartFlowBase):
 
         phone = self._normalize_phone_value(caller_phone or "") or None
         contact_id = await AppointmentNotifier(self.db).sms_contact_id(user_id, phone, caller_name) if phone else None
+        title = f"Appointment with {caller_name}"
+        if appointment_type:
+            title = f"{appointment_type['name']} with {caller_name}"
+        if provider:
+            title += f" ({provider['name']})"
         return await self.calendar_service.create_calendar_event(
             user_id,
             {
-                "title": f"Appointment with {caller_name}",
+                "title": title,
                 "description": f"{note} Caller: {caller_name}" + (f" ({phone})" if phone else ""),
                 "starts_at": starts_at,
                 "ends_at": ends_at,
                 "meeting_mode": "online",
                 "contact_ids": [contact_id] if contact_id else [],
                 "source": "ai_call",
+                "provider_id": (provider or {}).get("id"),
+                "appointment_type_id": (appointment_type or {}).get("id"),
                 "customer": {
                     "name": caller_name,
                     "phone": phone,
@@ -202,6 +227,10 @@ class CallMeetingRequestService(SmartFlowBase):
         language: str | None = None,
         kind: str = "new",
         calendar_event_id: str | None = None,
+        provider_id: str | None = None,
+        provider_name: str | None = None,
+        appointment_type_id: str | None = None,
+        appointment_type_name: str | None = None,
     ) -> dict:
         now = utc_now()
         document = {
@@ -216,6 +245,10 @@ class CallMeetingRequestService(SmartFlowBase):
             "kind": kind,
             "language": language,
             "calendar_event_id": calendar_event_id,
+            "provider_id": provider_id,
+            "provider_name": provider_name,
+            "appointment_type_id": appointment_type_id,
+            "appointment_type_name": appointment_type_name,
             "meeting_link": None,
             "confirmed_by_user_id": None,
             "created_at": now,
@@ -275,6 +308,10 @@ class CallMeetingRequestService(SmartFlowBase):
                     ends_at=doc["requested_end"],
                     language=doc.get("language"),
                     note="Booked from an AI phone call.",
+                    provider={"id": doc["provider_id"], "name": doc.get("provider_name")} if doc.get("provider_id") else None,
+                    appointment_type={"id": doc["appointment_type_id"], "name": doc.get("appointment_type_name")}
+                    if doc.get("appointment_type_id")
+                    else None,
                 )
         except AppException as exc:
             if exc.code == "CALENDAR_CONFLICT":

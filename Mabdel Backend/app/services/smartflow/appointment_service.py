@@ -20,6 +20,7 @@ from ._base import SmartFlowBase
 from .appointment_notifications import format_when
 from .calendar_service import CalendarService
 from .call_meeting_request_service import CallMeetingRequestService
+from .provider_service import ProviderService
 
 PARTS_OF_DAY = {"morning": (0, 12), "afternoon": (12, 17), "evening": (17, 24)}
 MAX_BOOKING_DAYS_AHEAD = 180
@@ -30,10 +31,25 @@ class AppointmentService(SmartFlowBase):
         super().__init__(db)
         self.calendar = CalendarService(db)
         self.requests = CallMeetingRequestService(db)
+        self.providers = ProviderService(db)
 
     async def _hours(self, owner_id: str) -> tuple[dict, object]:
         hours = await self.calendar.get_business_hours(owner_id)
         return hours, self.calendar._resolve_zoneinfo(hours.get("timezone"))
+
+    async def _resolve_provider_and_type(
+        self, owner_id: str, provider_name: str | None, appointment_type_name: str | None
+    ) -> tuple[dict | None, dict | None]:
+        """Matches what the caller (or the team, editing a booking) said against the
+        business's own providers/appointment types. A name that doesn't match anything
+        is treated the same as not naming one - the business may not have set these up,
+        or the model may have misheard; failing the whole booking over it would be worse
+        than just not narrowing by provider/duration."""
+        provider = await self.providers.resolve_provider_by_name(owner_id, provider_name) if provider_name else None
+        appointment_type = (
+            await self.providers.resolve_appointment_type_by_name(owner_id, appointment_type_name) if appointment_type_name else None
+        )
+        return provider, appointment_type
 
     @staticmethod
     def _parse_day(value: str | None) -> date | None:
@@ -44,9 +60,15 @@ class AppointmentService(SmartFlowBase):
         except ValueError:
             raise AppException(status_code=400, code="APPOINTMENT_BAD_DATE", message="Use a date like 2026-09-29.")
 
-    async def available_slots(self, owner_id: str, *, day: str | None = None, part_of_day: str | None = None, count: int = 3) -> dict:
+    async def available_slots(
+        self, owner_id: str, *, day: str | None = None, part_of_day: str | None = None, count: int = 3,
+        provider_name: str | None = None, appointment_type_name: str | None = None,
+    ) -> dict:
         """Open times on the day asked for, or the next days with space."""
         hours, tz = await self._hours(owner_id)
+        provider, appointment_type = await self._resolve_provider_and_type(owner_id, provider_name, appointment_type_name)
+        provider_id = provider["id"] if provider else None
+        duration_minutes = appointment_type["duration_minutes"] if appointment_type else None
         today = self.calendar._now(tz).date()
         wanted = self._parse_day(day)
         days = [wanted] if wanted else [today + timedelta(days=offset) for offset in range(14)]
@@ -55,7 +77,7 @@ class AppointmentService(SmartFlowBase):
         for current in days:
             if current < today:
                 continue
-            for label in await self.calendar.find_free_slots(owner_id, current):
+            for label in await self.calendar.find_free_slots(owner_id, current, provider_id=provider_id, duration_minutes=duration_minutes):
                 hour = int(label[:2])
                 if not (low <= hour < high):
                     continue
@@ -68,13 +90,20 @@ class AppointmentService(SmartFlowBase):
         open_days = [
             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][index] for index in sorted(hours["days"])
         ]
-        return {
+        result = {
             "slots": slots,
             "business_hours": f"{', '.join(open_days)} {hours['start_hour']:02d}:00-{hours['end_hour']:02d}:00 ({hours.get('timezone') or 'UTC'})",
             "today": today.isoformat(),
         }
+        if provider_name:
+            result["provider"] = provider["name"] if provider else None  # None: say so, don't pretend it matched
+        if appointment_type_name:
+            result["appointment_type"] = appointment_type["name"] if appointment_type else None
+        return result
 
-    async def _slot_bounds(self, owner_id: str, day: str, time: str) -> tuple[datetime, datetime]:
+    async def _slot_bounds(
+        self, owner_id: str, day: str, time: str, *, provider_id: str | None = None, duration_minutes: int | None = None
+    ) -> tuple[datetime, datetime]:
         hours, tz = await self._hours(owner_id)
         wanted = self._parse_day(day)
         if wanted is None:
@@ -85,17 +114,24 @@ class AppointmentService(SmartFlowBase):
             raise AppException(status_code=409, code="APPOINTMENT_DATE_PASSED", message="That date has already passed.")
         if wanted > today + timedelta(days=MAX_BOOKING_DAYS_AHEAD):
             raise AppException(status_code=409, code="APPOINTMENT_TOO_FAR", message="That is too far ahead to book by phone.")
-        if time not in await self.calendar.find_free_slots(owner_id, wanted):
+        if time not in await self.calendar.find_free_slots(owner_id, wanted, provider_id=provider_id, duration_minutes=duration_minutes):
             raise AppException(status_code=409, code="APPOINTMENT_SLOT_UNAVAILABLE", message="That time is not available.")
         start = await self.calendar.localize_business_slot(owner_id, wanted.isoformat(), time)
-        return start, start + timedelta(minutes=max(15, int(hours.get("slot_minutes") or 60)))
+        reserve_minutes = duration_minutes or max(15, int(hours.get("slot_minutes") or 60))
+        return start, start + timedelta(minutes=reserve_minutes)
 
     async def book(
         self, owner_id: str, *, name: str, phone: str | None, email: str | None, day: str, time: str,
         call_sid: str | None = None, language: str | None = None,
+        provider_name: str | None = None, appointment_type_name: str | None = None,
     ) -> dict:
+        provider, appointment_type = await self._resolve_provider_and_type(owner_id, provider_name, appointment_type_name)
         try:
-            start, end = await self._slot_bounds(owner_id, day, time)
+            start, end = await self._slot_bounds(
+                owner_id, day, time,
+                provider_id=provider["id"] if provider else None,
+                duration_minutes=appointment_type["duration_minutes"] if appointment_type else None,
+            )
         except AppException as exc:
             return {"outcome": "unavailable", "reason": exc.message}
         result = await self.requests.book_or_request_meeting_for_user(
@@ -107,6 +143,8 @@ class AppointmentService(SmartFlowBase):
             requested_start=start,
             requested_end=end,
             language=language,
+            provider=provider,
+            appointment_type=appointment_type,
         )
         hours, _ = await self._hours(owner_id)
         return {
@@ -160,7 +198,11 @@ class AppointmentService(SmartFlowBase):
     ) -> dict:
         try:
             event = await self._callers_event(owner_id, appointment_id, phone)
-            start, end = await self._slot_bounds(owner_id, day, time)
+            # Keep the same provider and the same length the appointment already had -
+            # a reschedule doesn't change who it's with or how long it takes.
+            provider_id = event.get("provider_id")
+            existing_minutes = int((event["ends_at"] - event["starts_at"]).total_seconds() // 60) if event.get("ends_at") and event.get("starts_at") else None
+            start, end = await self._slot_bounds(owner_id, day, time, provider_id=provider_id, duration_minutes=existing_minutes)
         except AppException as exc:
             return {"outcome": "not_possible", "reason": exc.message}
         hours, _ = await self._hours(owner_id)
@@ -180,6 +222,8 @@ class AppointmentService(SmartFlowBase):
                 language=language or customer.get("language"),
                 kind="reschedule",
                 calendar_event_id=str(event["_id"]),
+                provider_id=provider_id,
+                appointment_type_id=event.get("appointment_type_id"),
             )
             return {"outcome": "pending", "when": when}
         await self.calendar.update_calendar_event(str(event["user_id"]), str(event["_id"]), {"starts_at": start, "ends_at": end})
