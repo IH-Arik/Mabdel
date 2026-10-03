@@ -823,7 +823,8 @@ class RealtimeReceptionist(AIPhoneAgent):
 
     async def _tool_cancel_appointment(self, appointment_id: str, phone: str | None = None, language: str | None = None) -> dict:
         return await self._appointments().cancel(
-            self.user_id, appointment_id=appointment_id, phone=phone or self.caller_phone, language=self._adopt_language(language)
+            self.user_id, appointment_id=appointment_id, phone=phone or self.caller_phone,
+            call_sid=self.call_id, language=self._adopt_language(language),
         )
 
     async def _tool_take_message(self, message: str, caller_name: str | None = None, callback_number: str | None = None, urgent: bool = False) -> dict:
