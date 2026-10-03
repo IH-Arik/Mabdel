@@ -542,6 +542,8 @@ class SmartFlowBase:
         safe["repeat_count"] = await self._call_repeat_count(safe)
         safe["initials"] = self._contact_initials(contact_name or phone_number)
         safe["actions"] = self._call_actions(safe)
+        safe["disposition"] = safe.get("disposition")
+        safe["disposition_label"] = self._call_disposition_label(safe.get("disposition"))
         safe.setdefault("ai_ready", False)
         safe.setdefault("callback_requested", False)
         safe.pop("user_id", None)
@@ -623,6 +625,21 @@ class SmartFlowBase:
             actions.append("call_back")
             actions.append("message")
         return actions
+
+    _DISPOSITION_LABELS = {
+        "booked": "Booked",
+        "rescheduled": "Rescheduled",
+        "cancelled": "Cancelled",
+        "transferred": "Transferred",
+        "message_taken": "Message taken",
+        "faq_only": "Questions only",
+    }
+
+    @classmethod
+    def _call_disposition_label(cls, disposition: str | None) -> str | None:
+        if not disposition:
+            return None
+        return cls._DISPOSITION_LABELS.get(disposition, disposition.replace("_", " ").title())
 
     @staticmethod
     def _default_call_ai_summary(call: dict) -> dict:

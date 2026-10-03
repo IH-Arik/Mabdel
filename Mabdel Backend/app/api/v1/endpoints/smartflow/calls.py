@@ -51,10 +51,11 @@ async def list_calls(
     status_filter: str | None = Query(default=None, alias="status"),
     search: str | None = None,
     contact_id: str | None = None,
+    disposition: str | None = None,
     current_user: dict = Depends(require_permission("calls", "view")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
-    data = await service.list_call_logs(str(current_user["_id"]), page, page_size, status_filter, search, contact_id)
+    data = await service.list_call_logs(str(current_user["_id"]), page, page_size, status_filter, search, contact_id, disposition)
     return success_response(data=data, message="Call logs fetched successfully.")
 
 

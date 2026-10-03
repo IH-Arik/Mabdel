@@ -27,6 +27,46 @@ from app.utils.helpers import utc_now
 
 logger = logging.getLogger(__name__)
 
+DISPOSITIONS_BY_TOOL = {
+    "book_appointment": "booked",
+    "reschedule_appointment": "rescheduled",
+    "cancel_appointment": "cancelled",
+    "transfer_to_human": "transferred",
+    "take_message": "message_taken",
+    "notify_team": "message_taken",
+}
+# When a call did more than one of these, the most consequential one wins (e.g. a
+# caller who got transferred after a failed booking attempt is "transferred", not
+# "booked", since the booking never actually went through).
+DISPOSITION_PRIORITY = ["booked", "rescheduled", "cancelled", "transferred", "message_taken"]
+
+
+def _derive_call_disposition(ai_actions: list[dict] | None) -> str:
+    """A reportable outcome category for the call, derived from which tools actually
+    succeeded - not just which were called, since a failed booking attempt (slot taken,
+    no match found) shouldn't be reported as a booking. Falls back to "faq_only" (the
+    call connected and the AI talked, but took no recordable action) when nothing
+    qualifies, so every answered call gets a disposition."""
+    achieved: set[str] = set()
+    for action in ai_actions or []:
+        tool = action.get("tool")
+        disposition = DISPOSITIONS_BY_TOOL.get(tool)
+        if not disposition:
+            continue
+        result = action.get("result") or {}
+        if tool in ("book_appointment", "reschedule_appointment", "cancel_appointment"):
+            outcome = result.get("outcome")
+            if outcome not in ("booked", "rescheduled", "cancelled", "pending", "pending_cancellation"):
+                continue
+        elif tool == "transfer_to_human" and not result.get("transferred"):
+            continue
+        achieved.add(disposition)
+    for candidate in DISPOSITION_PRIORITY:
+        if candidate in achieved:
+            return candidate
+    return "faq_only"
+
+
 PCMU_BYTES_PER_MS = 8  # 8 kHz, one byte per sample
 MAX_KNOWLEDGE_CHARS = 8000
 MAX_POLICY_CHARS = 500
@@ -982,6 +1022,7 @@ class RealtimeReceptionist(AIPhoneAgent):
                 "speaker_segments": self.transcript_log,
                 "captured_requests": self.captured_requests,
                 "ai_actions": self.ai_actions,
+                "disposition": _derive_call_disposition(self.ai_actions),
                 "ai_ready": True,
                 "voice_engine": "realtime",
                 "updated_at": utc_now(),
