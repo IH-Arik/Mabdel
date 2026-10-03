@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Plus, Save, Send, Sparkles, Trash2, Users, Workflow, X, Zap,
+  AlertTriangle, Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Plus, Save, Send, Sparkles, Trash2, Users, Workflow, X, Zap,
 } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
 import { LABEL } from '../shared';
@@ -220,6 +220,26 @@ function AIConfigTab() {
     setCallSettings((prev) => ({ ...(prev || {}), sms_wording: { ...(prev?.sms_wording || {}), [kind]: value } }));
   };
 
+  const [newEmergencyKeyword, setNewEmergencyKeyword] = useState('');
+
+  const addEmergencyKeyword = () => {
+    const value = newEmergencyKeyword.trim();
+    if (!value) return;
+    setCallSettings((prev) => {
+      const existing = prev?.emergency_keywords || [];
+      if (existing.some((item) => item.toLowerCase() === value.toLowerCase())) return prev;
+      return { ...(prev || {}), emergency_keywords: [...existing, value] };
+    });
+    setNewEmergencyKeyword('');
+  };
+
+  const removeEmergencyKeyword = (value) => {
+    setCallSettings((prev) => ({
+      ...(prev || {}),
+      emergency_keywords: (prev?.emergency_keywords || []).filter((item) => item !== value),
+    }));
+  };
+
   const updatePlaybook = (id, field, value) => {
     setCallSettings((prev) => ({
       ...(prev || {}),
@@ -329,6 +349,7 @@ function AIConfigTab() {
         appointment_reminder_hours_before: Math.min(168, Math.max(1, Number(callSettings.appointment_reminder_hours_before) || 24)),
         sms_wording: SMS_WORDING_KINDS.reduce((acc, kind) => ({ ...acc, [kind.key]: callSettings.sms_wording?.[kind.key] || null }), {}),
         cancellation_policy: callSettings.cancellation_policy || null,
+        emergency_keywords: callSettings.emergency_keywords || [],
         call_routing_rules: (callSettings.call_routing_rules || [])
           .filter((rule) => rule.name?.trim() && rule.trigger_description?.trim())
           .map((rule) => ({
@@ -746,6 +767,52 @@ function AIConfigTab() {
               aria-label={t('aiprof_hdr_cancellation_policy')}
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-none"
             />
+          </SectionCard>
+
+          <SectionCard icon={AlertTriangle} title={t('aiprof_hdr_emergency_keywords')} description={t('aiprof_emergency_keywords_desc')}>
+            <p className="text-xs text-[#70829B] mb-2">{t('aiprof_emergency_keywords_builtin_hint')}</p>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                maxLength={80}
+                placeholder={t('aiprof_ph_emergency_keyword')}
+                value={newEmergencyKeyword}
+                onChange={(event) => setNewEmergencyKeyword(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addEmergencyKeyword();
+                  }
+                }}
+                className="flex-1 bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-2.5 outline-none focus:border-[#9333ea]/50"
+              />
+              <button
+                type="button"
+                id="aiprof-emergency-add"
+                onClick={addEmergencyKeyword}
+                className="px-3 rounded-xl bg-[#131A24] border border-[#243041] text-[#9BA7BB] hover:text-white flex items-center gap-1 text-xs font-semibold cursor-pointer"
+              >
+                <Plus size={14} />
+                {t('aiprof_btn_add_keyword')}
+              </button>
+            </div>
+            {(callSettings?.emergency_keywords || []).length === 0 ? (
+              <p className="text-xs text-[#70829B]">{t('aiprof_emergency_keywords_empty')}</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {(callSettings?.emergency_keywords || []).map((keyword) => (
+                  <span
+                    key={keyword}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#131A24] border border-[#243041] text-[#9BA7BB] flex items-center gap-1.5"
+                  >
+                    {keyword}
+                    <button type="button" onClick={() => removeEmergencyKeyword(keyword)} title={t('aiprof_btn_remove_keyword')} className="cursor-pointer hover:text-rose-400">
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard icon={MessageSquare} title={t('aiprof_hdr_sms_wording')} description={t('aiprof_sms_wording_desc')}>

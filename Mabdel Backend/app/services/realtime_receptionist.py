@@ -67,6 +67,18 @@ def _derive_call_disposition(ai_actions: list[dict] | None) -> str:
     return "faq_only"
 
 
+# A caller saying one of these means immediate escalation regardless of what the
+# model itself decides to do - the LLM's judgement is usually good, but a safety
+# escalation should not depend on it complying every time. Checked as substrings of
+# the caller's transcribed speech, case-insensitive. Deliberately English-only as a
+# baseline (transcription preserves the caller's own language); a business can add
+# its own phrases, in any language, via ai_call_settings.emergency_keywords.
+DEFAULT_EMERGENCY_KEYWORDS = [
+    "heart attack", "chest pain", "can't breathe", "cannot breathe", "not breathing",
+    "overdose", "suicide", "kill myself", "gas leak", "smell gas", "house is on fire",
+    "building is on fire", "unconscious", "severe bleeding", "stroke",
+]
+
 PCMU_BYTES_PER_MS = 8  # 8 kHz, one byte per sample
 MAX_KNOWLEDGE_CHARS = 8000
 MAX_POLICY_CHARS = 500
@@ -264,6 +276,7 @@ class RealtimeReceptionist(AIPhoneAgent):
         self._connect_lock = asyncio.Lock()
         self.reader_task: asyncio.Task | None = None
         self.ai_actions: list[dict] = []
+        self.emergency_escalated = False
         self.assistant_item_id: str | None = None
         self.audio_first_sent_at: float | None = None
         self.audio_ms_sent = 0
@@ -672,6 +685,10 @@ class RealtimeReceptionist(AIPhoneAgent):
             text = (event.get("transcript") or "").strip()
             if text:
                 self.transcript_log.append({"speaker": "customer", "text": text})
+                if not self.emergency_escalated:
+                    matched = await self._matched_emergency_keyword(text)
+                    if matched:
+                        self._spawn(self._escalate_emergency(matched, text))
                 await self._save_progress()
         elif kind == "response.output_audio_transcript.done":
             text = (event.get("transcript") or "").strip()
@@ -944,6 +961,55 @@ class RealtimeReceptionist(AIPhoneAgent):
         await self._request_response(
             {"type": "response.create", "response": {"instructions": "The transfer did not go through. Apologise briefly and offer to take a message for the team."}}
         )
+
+    async def _matched_emergency_keyword(self, text: str) -> str | None:
+        """Checked against every line the caller says, independent of the model's own
+        judgement. Built-in phrases always apply; a business can add its own on top."""
+        call_settings = await self._get_call_settings()
+        custom = [kw for kw in (call_settings.get("emergency_keywords") or []) if kw and kw.strip()]
+        lowered = text.lower()
+        for keyword in DEFAULT_EMERGENCY_KEYWORDS + custom:
+            if keyword.lower() in lowered:
+                return keyword
+        return None
+
+    async def _escalate_emergency(self, matched_keyword: str, text: str) -> None:
+        """A hardcoded safety net: the moment a caller says something matching an
+        emergency phrase, the team is notified and the call is transferred if a
+        number is configured - the model keeps talking in the meantime (it is never
+        told to stop), but this escalation does not wait on it to decide to transfer
+        or take a message itself. Runs once per call."""
+        if self.emergency_escalated:
+            return
+        self.emergency_escalated = True
+        from app.utils.helpers import resolve_organization_user_ids
+
+        entry = {
+            "intent": "emergency_escalation",
+            "matched_keyword": matched_keyword,
+            "transcript": text[:1000],
+            "timestamp": utc_now().isoformat(),
+        }
+        self.captured_requests.append(entry)
+        try:
+            organization_id = await self.flow_service._resolve_organization_id(self.user_id) if self.user_id != "guest" else None
+            recipients = await resolve_organization_user_ids(self.flow_service.db, organization_id) if organization_id else [self.user_id]
+            for member_id in recipients or []:
+                try:
+                    await self.flow_service.create_notification(
+                        user_id=member_id,
+                        notification_type="call",
+                        title=f"URGENT: possible emergency on a call ({self.caller_phone or 'unknown number'})",
+                        body=f'Caller said: "{text[:300]}"',
+                        metadata={"call_sid": self.call_id, "matched_keyword": matched_keyword},
+                    )
+                except Exception:
+                    continue
+        except Exception:
+            logger.warning("Call %s: could not notify the team of an emergency escalation", self.call_id, exc_info=True)
+        await self._save_progress()
+        if not self.transferring:
+            await self._tool_transfer_to_human(reason=f"emergency keyword detected: {matched_keyword}")
 
     async def _tool_end_call(self) -> dict:
         self.pending_hangup = True

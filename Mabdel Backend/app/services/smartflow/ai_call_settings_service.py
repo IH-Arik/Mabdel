@@ -41,6 +41,7 @@ class AICallSettingsService(SmartFlowBase):
         "sms_wording": {},
         "cancellation_policy": None,
         "call_routing_rules": [],
+        "emergency_keywords": [],
     }
 
     async def get_settings(self, user_id: str) -> dict:

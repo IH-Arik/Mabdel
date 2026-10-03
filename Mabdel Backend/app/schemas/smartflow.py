@@ -546,6 +546,7 @@ class AICallSettingsResponse(BaseModel):
     sms_wording: SmsWordingOverrides = Field(default_factory=SmsWordingOverrides)
     cancellation_policy: str | None = None
     call_routing_rules: list[CallRoutingRule] = Field(default_factory=list)
+    emergency_keywords: list[str] = Field(default_factory=list)
 
 
 class AICallSettingsUpdateRequest(BaseModel):
@@ -582,6 +583,9 @@ class AICallSettingsUpdateRequest(BaseModel):
     cancellation_policy: str | None = Field(default=None, max_length=500)
     # Named playbooks: "when a caller wants X, ask these, book with this, notify this".
     call_routing_rules: list[CallRoutingRule] | None = Field(default=None, max_length=20)
+    # Business-specific phrases that force an immediate transfer/notification, on top
+    # of the built-in universal ones (chest pain, gas leak, etc).
+    emergency_keywords: list[str] | None = Field(default=None, max_length=20)
 
     @field_validator(
         "assistant_name", "business_type", "custom_instructions",
@@ -597,6 +601,13 @@ class AICallSettingsUpdateRequest(BaseModel):
         cleaned = "".join(char for char in value if char == "\n" or not (ord(char) < 32 or ord(char) == 127))
         cleaned = cleaned.strip()
         return cleaned or None
+
+    @field_validator("emergency_keywords")
+    @classmethod
+    def _clean_emergency_keywords(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        return [item.strip()[:80] for item in value if item and item.strip()][:20]
 
 
 class ProviderCreateRequest(BaseModel):
