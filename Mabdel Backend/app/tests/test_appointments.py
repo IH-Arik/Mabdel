@@ -79,12 +79,15 @@ def test_caller_finds_moves_and_cancels_only_their_own_appointment(client, mock_
     stolen = asyncio.run(service.cancel(owner_id, appointment_id=appointment_id, phone="+15559990000"))
     assert stolen["outcome"] == "not_possible"
 
-    moved = asyncio.run(service.reschedule(owner_id, appointment_id=appointment_id, phone=CALLER, day=TUESDAY, time="15:00"))
+    wrong_name = asyncio.run(service.reschedule(owner_id, appointment_id=appointment_id, phone=CALLER, day=TUESDAY, time="15:00", caller_name="Someone Else"))
+    assert wrong_name["outcome"] == "not_possible"  # phone matched, but the name didn't - not enough to change the booking
+
+    moved = asyncio.run(service.reschedule(owner_id, appointment_id=appointment_id, phone=CALLER, day=TUESDAY, time="15:00", caller_name="Nadia"))
     assert moved == {"outcome": "rescheduled", "when": "Tue Aug 18 at 3:00 PM"}
     request = asyncio.run(mock_db.call_meeting_requests.find_one({"calendar_event_id": appointment_id}))
     assert request.get("rescheduled_at")
 
-    cancelled = asyncio.run(service.cancel(owner_id, appointment_id=appointment_id, phone=CALLER))
+    cancelled = asyncio.run(service.cancel(owner_id, appointment_id=appointment_id, phone=CALLER, caller_name="Nadia"))
     assert cancelled["outcome"] == "cancelled"
     assert asyncio.run(mock_db.calendar_events.count_documents({"_id": ObjectId(appointment_id)})) == 0
     assert asyncio.run(mock_db.call_meeting_requests.find_one({"_id": request["_id"]}))["status"] == "cancelled"
@@ -101,7 +104,7 @@ def test_with_approval_on_a_move_waits_for_the_team(client, mock_db, monkeypatch
     booked = asyncio.run(service.book(owner_id, name="Nadia", phone=CALLER, email=None, day=TUESDAY, time="10:00"))
     asyncio.run(mock_db.organizations.update_one({"organization_id": owner_id}, {"$set": {"require_meeting_approval": True}}))
 
-    moved = asyncio.run(service.reschedule(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, day=TUESDAY, time="14:00"))
+    moved = asyncio.run(service.reschedule(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, day=TUESDAY, time="14:00", caller_name="Nadia"))
     assert moved["outcome"] == "pending"
     event = asyncio.run(mock_db.calendar_events.find_one({"_id": ObjectId(booked["appointment_id"])}))
     assert event["starts_at"].hour == 15  # still 10:00 Chicago (15:00 UTC) until someone approves
