@@ -77,7 +77,7 @@ def test_an_ai_booked_and_ai_cancelled_appointment_shows_the_ai_as_the_actor(cli
     assert booked["outcome"] == "booked", booked
     event = asyncio.run(mock_db.calendar_events.find_one({}))
 
-    cancelled = asyncio.run(agent._tool_cancel_appointment(appointment_id=str(event["_id"])))
+    cancelled = asyncio.run(agent._tool_cancel_appointment(appointment_id=str(event["_id"]), caller_name="Karim"))
     assert cancelled["outcome"] == "cancelled", cancelled
 
     owner_login = client.post("/api/v1/auth/login", json={"email": "hist-ai@example.com", "password": "SecurePass2024!"})

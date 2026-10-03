@@ -45,7 +45,7 @@ def test_cancellations_are_immediate_by_default_even_with_global_approval_on(cli
     # exists, so it never interferes with placing the booking itself.
     asyncio.run(mock_db.organizations.update_one({"organization_id": owner_id}, {"$set": {"require_meeting_approval": True}}))
 
-    cancelled = asyncio.run(service.cancel(owner_id, appointment_id=booked["appointment_id"], phone=CALLER))
+    cancelled = asyncio.run(service.cancel(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, caller_name="Nadia"))
 
     assert cancelled["outcome"] == "cancelled"
     assert asyncio.run(mock_db.calendar_events.count_documents({"_id": ObjectId(booked["appointment_id"])})) == 0
@@ -57,7 +57,7 @@ def test_cancellation_approval_can_be_turned_on_independently(client, mock_db, m
     )
     booked = asyncio.run(service.book(owner_id, name="Nadia", phone=CALLER, email=None, day=TUESDAY, time="10:00"))
 
-    result = asyncio.run(service.cancel(owner_id, appointment_id=booked["appointment_id"], phone=CALLER))
+    result = asyncio.run(service.cancel(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, caller_name="Nadia"))
 
     assert result["outcome"] == "pending_cancellation"
     # The appointment is untouched until someone on the team acts on it.
@@ -71,7 +71,7 @@ def test_accepting_a_pending_cancellation_deletes_the_appointment(client, mock_d
         client, mock_db, monkeypatch, "approval-cancel-accept@example.com", org_overrides={"require_approval_for_cancellations": True}
     )
     booked = asyncio.run(service.book(owner_id, name="Nadia", phone=CALLER, email=None, day=TUESDAY, time="10:00"))
-    asyncio.run(service.cancel(owner_id, appointment_id=booked["appointment_id"], phone=CALLER))
+    asyncio.run(service.cancel(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, caller_name="Nadia"))
     request = asyncio.run(mock_db.call_meeting_requests.find_one({"kind": "cancel"}))
 
     response = client.post(f"/api/v1/smartflow/calls/meeting-requests/{request['_id']}/accept", headers=headers)
@@ -90,7 +90,7 @@ def test_declining_a_pending_cancellation_keeps_the_appointment_and_uses_distinc
         client, mock_db, monkeypatch, "approval-cancel-decline@example.com", org_overrides={"require_approval_for_cancellations": True}
     )
     booked = asyncio.run(service.book(owner_id, name="Nadia", phone=CALLER, email=None, day=TUESDAY, time="10:00"))
-    asyncio.run(service.cancel(owner_id, appointment_id=booked["appointment_id"], phone=CALLER))
+    asyncio.run(service.cancel(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, caller_name="Nadia"))
     request = asyncio.run(mock_db.call_meeting_requests.find_one({"kind": "cancel"}))
 
     response = client.post(f"/api/v1/smartflow/calls/meeting-requests/{request['_id']}/decline", headers=headers)
@@ -110,7 +110,7 @@ def test_reschedule_approval_is_independent_of_cancellation_approval(client, moc
     )
     booked = asyncio.run(service.book(owner_id, name="Nadia", phone=CALLER, email=None, day=TUESDAY, time="10:00"))
 
-    moved = asyncio.run(service.reschedule(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, day=TUESDAY, time="14:00"))
+    moved = asyncio.run(service.reschedule(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, day=TUESDAY, time="14:00", caller_name="Nadia"))
 
     assert moved["outcome"] == "rescheduled"
 

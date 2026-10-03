@@ -131,7 +131,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "name": "reschedule_appointment",
-        "description": "Move one of the caller's appointments (from find_my_appointments) to an open time (from check_availability).",
+        "description": "Move one of the caller's appointments (from find_my_appointments) to an open time (from check_availability). Before calling this, ask the caller to confirm the name on the appointment - never assume it just because the phone number matched.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -139,18 +139,23 @@ TOOLS: list[dict] = [
                 "date": {"type": "string", "description": "YYYY-MM-DD"},
                 "time": {"type": "string", "description": "HH:MM, 24-hour"},
                 "phone": {"type": "string"},
+                "caller_name": {"type": "string", "description": "The name the caller just gave you for whose appointment this is - say it back to them, don't guess it."},
             },
-            "required": ["appointment_id", "date", "time"],
+            "required": ["appointment_id", "date", "time", "caller_name"],
         },
     },
     {
         "type": "function",
         "name": "cancel_appointment",
-        "description": "Cancel one of the caller's appointments (from find_my_appointments), after they confirmed which one.",
+        "description": "Cancel one of the caller's appointments (from find_my_appointments), after they confirmed which one. Before calling this, ask the caller to confirm the name on the appointment - never assume it just because the phone number matched.",
         "parameters": {
             "type": "object",
-            "properties": {"appointment_id": {"type": "string"}, "phone": {"type": "string"}},
-            "required": ["appointment_id"],
+            "properties": {
+                "appointment_id": {"type": "string"},
+                "phone": {"type": "string"},
+                "caller_name": {"type": "string", "description": "The name the caller just gave you for whose appointment this is - say it back to them, don't guess it."},
+            },
+            "required": ["appointment_id", "caller_name"],
         },
     },
     {
@@ -871,17 +876,19 @@ class RealtimeReceptionist(AIPhoneAgent):
         return await self._appointments().find_upcoming(self.user_id, phone or self.caller_phone)
 
     async def _tool_reschedule_appointment(
-        self, appointment_id: str, date: str, time: str, phone: str | None = None, language: str | None = None
+        self, appointment_id: str, date: str, time: str, caller_name: str, phone: str | None = None, language: str | None = None
     ) -> dict:
         return await self._appointments().reschedule(
             self.user_id, appointment_id=appointment_id, phone=phone or self.caller_phone, day=date, time=time,
-            call_sid=self.call_id, language=self._adopt_language(language),
+            caller_name=caller_name, call_sid=self.call_id, language=self._adopt_language(language),
         )
 
-    async def _tool_cancel_appointment(self, appointment_id: str, phone: str | None = None, language: str | None = None) -> dict:
+    async def _tool_cancel_appointment(
+        self, appointment_id: str, caller_name: str, phone: str | None = None, language: str | None = None
+    ) -> dict:
         return await self._appointments().cancel(
             self.user_id, appointment_id=appointment_id, phone=phone or self.caller_phone,
-            call_sid=self.call_id, language=self._adopt_language(language),
+            caller_name=caller_name, call_sid=self.call_id, language=self._adopt_language(language),
         )
 
     async def _tool_take_message(self, message: str, caller_name: str | None = None, callback_number: str | None = None, urgent: bool = False) -> dict:
