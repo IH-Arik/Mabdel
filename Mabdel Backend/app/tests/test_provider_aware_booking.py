@@ -102,7 +102,7 @@ def test_rescheduling_keeps_the_same_provider_and_length(client, mock_db, monkey
     )
     appointment_id = booked["appointment_id"]
 
-    moved = asyncio.run(service.reschedule(owner_id, appointment_id=appointment_id, phone="+8801711111111", day="2026-09-22", time="11:00"))
+    moved = asyncio.run(service.reschedule(owner_id, appointment_id=appointment_id, phone="+8801711111111", day="2026-09-22", time="11:00", caller_name="Karim"))
     assert moved["outcome"] == "rescheduled", moved
     event = asyncio.run(mock_db.calendar_events.find_one({"_id": __import__("bson").ObjectId(appointment_id)}))
     assert event["provider_id"] == smith_id
