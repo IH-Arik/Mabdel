@@ -162,6 +162,8 @@ class CalendarService(SmartFlowBase):
         "start_hour": 9,
         "end_hour": 17,
         "slot_minutes": 60,
+        "blocked_dates": [],  # "YYYY-MM-DD" strings the business is fully closed (holidays, etc.)
+        "daily_breaks": [],  # [{"start_hour": 12, "end_hour": 13}, ...] excluded from every open day, e.g. lunch
     }
 
     async def get_business_hours(self, user_id: str) -> dict:
@@ -220,6 +222,8 @@ class CalendarService(SmartFlowBase):
         hours = await self.get_business_hours(user_id)
         if day.weekday() not in hours["days"]:
             return []
+        if day.isoformat() in (hours.get("blocked_dates") or []):
+            return []
 
         slot_minutes = max(15, int(hours.get("slot_minutes") or 60))
         reserve_minutes = max(15, int(duration_minutes)) if duration_minutes else slot_minutes
@@ -235,10 +239,21 @@ class CalendarService(SmartFlowBase):
         else:
             local_end = datetime(day.year, day.month, day.day, local_end_hour, tzinfo=tz)
 
+        breaks = hours.get("daily_breaks") or []
+
+        def _in_a_break(slot_start: datetime, slot_end: datetime) -> bool:
+            for brk in breaks:
+                break_start = datetime(day.year, day.month, day.day, int(brk["start_hour"]), tzinfo=tz)
+                break_end = datetime(day.year, day.month, day.day, int(brk["end_hour"]), tzinfo=tz)
+                if slot_start < break_end and slot_end > break_start:
+                    return True
+            return False
+
         candidates: list[datetime] = []
         cursor = local_start
         while cursor + timedelta(minutes=reserve_minutes) <= local_end:
-            candidates.append(cursor)
+            if not _in_a_break(cursor, cursor + timedelta(minutes=reserve_minutes)):
+                candidates.append(cursor)
             cursor += timedelta(minutes=slot_minutes)
         if not candidates:
             return []
