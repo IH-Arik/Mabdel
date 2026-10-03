@@ -564,7 +564,7 @@ def test_the_confirmation_text_uses_the_language_the_caller_spoke(client, mock_d
         agent = _receptionist(mock_db, owner_id, socket)
         booked = await agent.run_tool("book_appointment", json.dumps({"date": "2026-08-18", "time": "10:00", "first_name": "Nadia", "language": "es"}))
         assert booked["outcome"] == "booked" and agent.language == "es"
-        cancelled = await agent.run_tool("cancel_appointment", json.dumps({"appointment_id": booked["appointment_id"], "language": "fr"}))
+        cancelled = await agent.run_tool("cancel_appointment", json.dumps({"appointment_id": booked["appointment_id"], "caller_name": "Nadia", "language": "fr"}))
         assert cancelled["outcome"] == "cancelled"
 
     asyncio.run(run())

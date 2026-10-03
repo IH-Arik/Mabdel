@@ -9,6 +9,7 @@ own phone number.
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta, timezone
 
 from bson import ObjectId
@@ -169,7 +170,14 @@ class AppointmentService(SmartFlowBase):
         ).to_list(10)
         return {
             "appointments": [
-                {"appointment_id": str(event["_id"]), "when": format_when(event["starts_at"], hours.get("timezone")), "title": event.get("title")}
+                {
+                    "appointment_id": str(event["_id"]),
+                    "when": format_when(event["starts_at"], hours.get("timezone")),
+                    # Never the stored title - it's built as "{service} with {name}",
+                    # and handing the caller's own name back to the model here would
+                    # let it skip actually asking for it before a reschedule/cancel.
+                    "service": await self._name_for_id(self.db.appointment_types, event.get("appointment_type_id")) or "Appointment",
+                }
                 for event in events
             ],
             "pending_requests": [format_when(item["requested_start"], hours.get("timezone")) for item in pending],
@@ -180,7 +188,7 @@ class AppointmentService(SmartFlowBase):
         if language and (event.get("customer") or {}).get("language") != language:
             await self.db.calendar_events.update_one({"_id": event["_id"]}, {"$set": {"customer.language": language}})
 
-    async def _callers_event(self, owner_id: str, appointment_id: str, phone: str | None) -> dict:
+    async def _callers_event(self, owner_id: str, appointment_id: str, phone: str | None, caller_name: str | None = None) -> dict:
         number = self._normalize_phone_value(phone or "")
         if not number or not ObjectId.is_valid(appointment_id or ""):
             raise AppException(status_code=404, code="APPOINTMENT_NOT_FOUND", message="No appointment found for this caller.")
@@ -190,14 +198,36 @@ class AppointmentService(SmartFlowBase):
         )
         if not event:
             raise AppException(status_code=404, code="APPOINTMENT_NOT_FOUND", message="No appointment found for this caller.")
+        # Matching the caller's phone number is not identity verification on its own
+        # (forwarded calls, shared/family numbers, a caller-ID that doesn't belong to
+        # them) - the name on the booking has to be confirmed too before anything
+        # about it changes. Nothing on file to check against is not treated as a
+        # mismatch, since plenty of older bookings never captured a name.
+        stored_name = ((event.get("customer") or {}).get("name") or "").strip()
+        if stored_name and not self._names_match(caller_name, stored_name):
+            raise AppException(
+                status_code=403,
+                code="APPOINTMENT_IDENTITY_NOT_CONFIRMED",
+                message="The name on this appointment doesn't match. Ask the caller to confirm the name it was booked under before continuing.",
+            )
         return event
+
+    @staticmethod
+    def _names_match(given: str | None, stored: str) -> bool:
+        def tokens(value: str) -> set[str]:
+            return {token for token in re.sub(r"[^a-z0-9\s]", "", value.lower()).split() if token}
+
+        given_tokens = tokens(given or "")
+        if not given_tokens:
+            return False
+        return bool(given_tokens & tokens(stored))
 
     async def reschedule(
         self, owner_id: str, *, appointment_id: str, phone: str | None, day: str, time: str,
-        call_sid: str | None = None, language: str | None = None,
+        caller_name: str | None = None, call_sid: str | None = None, language: str | None = None,
     ) -> dict:
         try:
-            event = await self._callers_event(owner_id, appointment_id, phone)
+            event = await self._callers_event(owner_id, appointment_id, phone, caller_name)
             # Keep the same provider and the same length the appointment already had -
             # a reschedule doesn't change who it's with or how long it takes.
             provider_id = event.get("provider_id")
@@ -230,13 +260,14 @@ class AppointmentService(SmartFlowBase):
         return {"outcome": "rescheduled", "when": when}
 
     async def cancel(
-        self, owner_id: str, *, appointment_id: str, phone: str | None, call_sid: str | None = None, language: str | None = None
+        self, owner_id: str, *, appointment_id: str, phone: str | None, caller_name: str | None = None,
+        call_sid: str | None = None, language: str | None = None,
     ) -> dict:
         """Cancels immediately unless the business has turned on approval for
         cancellations specifically - most businesses want these instant, but some
         (e.g. a cancellation fee policy) want a human to confirm first."""
         try:
-            event = await self._callers_event(owner_id, appointment_id, phone)
+            event = await self._callers_event(owner_id, appointment_id, phone, caller_name)
         except AppException as exc:
             return {"outcome": "not_possible", "reason": exc.message}
         hours, _ = await self._hours(owner_id)
