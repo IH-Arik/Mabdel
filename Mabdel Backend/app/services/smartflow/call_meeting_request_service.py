@@ -94,7 +94,7 @@ class CallMeetingRequestService(SmartFlowBase):
         organization_id = await self._require_organization_id(user_id)
         has_contact_info = bool(caller_name and (caller_email or caller_phone))
 
-        if not await self.approval_required(organization_id) and has_contact_info:
+        if not await self.approval_required(organization_id, "new") and has_contact_info:
             try:
                 event = await self._create_customer_event(
                     user_id,
@@ -164,9 +164,24 @@ class CallMeetingRequestService(SmartFlowBase):
         pending_doc["booking_outcome"] = "pending"
         return pending_doc
 
-    async def approval_required(self, organization_id: str | None) -> bool:
+    async def approval_required(self, organization_id: str | None, action: str = "new") -> bool:
+        """Per-action approval gate. ``action`` is one of "new", "reschedule", "cancel".
+
+        Each action has its own org-level switch, so a business can e.g. auto-approve
+        reschedules while still reviewing new bookings. A business that has never set
+        the newer per-action switches keeps its old behavior exactly: new bookings and
+        reschedules both fall back to the original single ``require_meeting_approval``
+        flag, and cancellations default to immediate (their long-standing behavior,
+        since customers were never expected to need approval just to cancel).
+        """
         org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
-        return bool((org or {}).get("require_meeting_approval", False))
+        org = org or {}
+        legacy = bool(org.get("require_meeting_approval", False))
+        if action == "cancel":
+            return bool(org.get("require_approval_for_cancellations", False))
+        if action == "reschedule":
+            return bool(org.get("require_approval_for_reschedules", legacy))
+        return legacy
 
     async def _create_customer_event(
         self,
@@ -293,6 +308,18 @@ class CallMeetingRequestService(SmartFlowBase):
                 message="This request has already been handled.",
             )
 
+        if doc.get("kind") == "cancel" and doc.get("calendar_event_id"):
+            # Accepting a pending cancellation deletes the appointment outright -
+            # calendar_service's own _after_customer_appointment_change already
+            # texts the customer "cancelled", so there's nothing more to send here.
+            await self.calendar_service.delete_calendar_event(user_id, doc["calendar_event_id"], actor=user_id)
+            updated = await self.db.call_meeting_requests.find_one_and_update(
+                {"_id": doc["_id"]},
+                {"$set": {"status": "confirmed", "confirmed_by_user_id": user_id, "updated_at": utc_now()}},
+                return_document=ReturnDocument.AFTER,
+            )
+            return _serialize(updated)
+
         try:
             if doc.get("kind") == "reschedule" and doc.get("calendar_event_id"):
                 event = await self.calendar_service.update_calendar_event(
@@ -361,6 +388,14 @@ class CallMeetingRequestService(SmartFlowBase):
             {"$set": {"status": "declined", "confirmed_by_user_id": user_id, "updated_at": utc_now()}},
             return_document=ReturnDocument.AFTER,
         )
+        if doc.get("kind") == "cancel":
+            # Declining a cancellation request means keeping the appointment - the
+            # opposite situation from declining a new booking, so it gets its own
+            # wording instead of "sorry, we can't confirm {when}".
+            if updated.get("caller_email"):
+                await self._send_cancellation_kept_email(updated)
+            await self._text_customer(user_id, updated, "cancellation_declined")
+            return _serialize(updated)
         if updated.get("caller_email"):
             await self._send_decline_email(updated)
         await self._text_customer(user_id, updated, "declined")
@@ -417,6 +452,20 @@ class CallMeetingRequestService(SmartFlowBase):
         except Exception:
             # Confirmation already succeeded server-side; a failed courtesy email
             # shouldn't turn accept() into an error for the person clicking approve.
+            pass
+
+    async def _send_cancellation_kept_email(self, doc: dict) -> None:
+        try:
+            when = doc["requested_start"].strftime("%A, %B %d, %Y at %I:%M %p")
+            await self.email_service.send_invoice_email(
+                email=doc["caller_email"],
+                subject="About your cancellation request",
+                text=f"We were not able to cancel your appointment on {when}. It is still on the books - "
+                "please call us with any questions.",
+                html=f"<p>We were not able to cancel your appointment on <strong>{when}</strong>. "
+                "It is still on the books - please call us with any questions.</p>",
+            )
+        except Exception:
             pass
 
     async def _send_decline_email(self, doc: dict) -> None:

@@ -209,7 +209,7 @@ class AppointmentService(SmartFlowBase):
         when = format_when(start, hours.get("timezone"))
         await self._remember_language(event, language)
         organization_id = await self._resolve_organization_id(owner_id)
-        if await self.requests.approval_required(organization_id):
+        if await self.requests.approval_required(organization_id, "reschedule"):
             customer = event.get("customer") or {}
             await self.requests.create_pending_request(
                 organization_id=organization_id,
@@ -229,8 +229,12 @@ class AppointmentService(SmartFlowBase):
         await self.calendar.update_calendar_event(str(event["user_id"]), str(event["_id"]), {"starts_at": start, "ends_at": end}, actor="ai_agent")
         return {"outcome": "rescheduled", "when": when}
 
-    async def cancel(self, owner_id: str, *, appointment_id: str, phone: str | None, language: str | None = None) -> dict:
-        """Cancelling is always immediate - customers never need approval to cancel."""
+    async def cancel(
+        self, owner_id: str, *, appointment_id: str, phone: str | None, call_sid: str | None = None, language: str | None = None
+    ) -> dict:
+        """Cancels immediately unless the business has turned on approval for
+        cancellations specifically - most businesses want these instant, but some
+        (e.g. a cancellation fee policy) want a human to confirm first."""
         try:
             event = await self._callers_event(owner_id, appointment_id, phone)
         except AppException as exc:
@@ -238,6 +242,24 @@ class AppointmentService(SmartFlowBase):
         hours, _ = await self._hours(owner_id)
         when = format_when(event["starts_at"], hours.get("timezone"))
         await self._remember_language(event, language)
+        organization_id = await self._resolve_organization_id(owner_id)
+        if await self.requests.approval_required(organization_id, "cancel"):
+            customer = event.get("customer") or {}
+            await self.requests.create_pending_request(
+                organization_id=organization_id,
+                call_sid=call_sid,
+                caller_name=customer.get("name") or "Phone caller",
+                caller_email=customer.get("email"),
+                caller_phone=customer.get("phone"),
+                requested_start=event["starts_at"],
+                requested_end=event["ends_at"],
+                language=language or customer.get("language"),
+                kind="cancel",
+                calendar_event_id=str(event["_id"]),
+                provider_id=event.get("provider_id"),
+                appointment_type_id=event.get("appointment_type_id"),
+            )
+            return {"outcome": "pending_cancellation", "when": when}
         await self.calendar.delete_calendar_event(str(event["user_id"]), str(event["_id"]), actor="ai_agent")
         return {"outcome": "cancelled", "when": when}
 

@@ -512,6 +512,7 @@ class SmsWordingOverrides(BaseModel):
     cancelled: str | None = Field(default=None, max_length=300)
     declined: str | None = Field(default=None, max_length=300)
     reminder: str | None = Field(default=None, max_length=300)
+    cancellation_declined: str | None = Field(default=None, max_length=300)
 
     @field_validator("booked", "pending", "rescheduled", "cancelled", "declined", "reminder")
     @classmethod
@@ -537,6 +538,8 @@ class AICallSettingsResponse(BaseModel):
     transfer_number: str | None = None
     voice_engine: str = "realtime"
     require_meeting_approval: bool = False
+    require_approval_for_reschedules: bool = False
+    require_approval_for_cancellations: bool = False
     sms_confirmations_enabled: bool = True
     appointment_reminders_enabled: bool = False
     appointment_reminder_hours_before: int = 24
@@ -568,6 +571,8 @@ class AICallSettingsUpdateRequest(BaseModel):
     transfer_number: str | None = Field(default=None, max_length=32)
     voice_engine: Literal["realtime", "classic"] | None = None
     require_meeting_approval: bool | None = None
+    require_approval_for_reschedules: bool | None = None
+    require_approval_for_cancellations: bool | None = None
     sms_confirmations_enabled: bool | None = None
     appointment_reminders_enabled: bool | None = None
     # 1 hour to 7 days ahead - outside that range a "reminder" stops meaning anything.

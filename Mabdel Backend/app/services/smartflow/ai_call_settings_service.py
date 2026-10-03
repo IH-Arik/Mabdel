@@ -46,10 +46,19 @@ class AICallSettingsService(SmartFlowBase):
     async def get_settings(self, user_id: str) -> dict:
         organization_id = await self._resolve_organization_id(user_id)
         org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+        org = org or {}
+        # These three live on the organization itself (the booking service reads them
+        # there). require_meeting_approval covers new bookings; an org that has never
+        # touched the newer per-action switches keeps its old behavior exactly -
+        # reschedules fall back to that same flag, cancellations default to immediate
+        # (their long-standing behavior, since a cancellation never used to need
+        # approval at all).
+        require_meeting_approval = bool(org.get("require_meeting_approval", False))
         return {
-            **self.merge_settings((org or {}).get("ai_call_settings")),
-            # Lives on the organization itself (the booking service reads it there).
-            "require_meeting_approval": bool((org or {}).get("require_meeting_approval", False)),
+            **self.merge_settings(org.get("ai_call_settings")),
+            "require_meeting_approval": require_meeting_approval,
+            "require_approval_for_reschedules": bool(org.get("require_approval_for_reschedules", require_meeting_approval)),
+            "require_approval_for_cancellations": bool(org.get("require_approval_for_cancellations", False)),
         }
 
     @classmethod
@@ -83,16 +92,29 @@ class AICallSettingsService(SmartFlowBase):
         if merged.get("voice_engine") not in ("realtime", "classic"):
             merged["voice_engine"] = "realtime"
         require_approval = bool(merged.pop("require_meeting_approval", False))
+        require_approval_for_reschedules = bool(merged.pop("require_approval_for_reschedules", False))
+        require_approval_for_cancellations = bool(merged.pop("require_approval_for_cancellations", False))
 
         await self.db.organizations.update_one(
             {"organization_id": organization_id},
             {
-                "$set": {"ai_call_settings": merged, "require_meeting_approval": require_approval, "updated_at": utc_now()},
+                "$set": {
+                    "ai_call_settings": merged,
+                    "require_meeting_approval": require_approval,
+                    "require_approval_for_reschedules": require_approval_for_reschedules,
+                    "require_approval_for_cancellations": require_approval_for_cancellations,
+                    "updated_at": utc_now(),
+                },
                 "$setOnInsert": {"organization_id": organization_id, "created_at": utc_now()},
             },
             upsert=True,
         )
-        return {**merged, "require_meeting_approval": require_approval}
+        return {
+            **merged,
+            "require_meeting_approval": require_approval,
+            "require_approval_for_reschedules": require_approval_for_reschedules,
+            "require_approval_for_cancellations": require_approval_for_cancellations,
+        }
 
     @staticmethod
     def _validate_language_menu(menu: list | None) -> list[dict]:

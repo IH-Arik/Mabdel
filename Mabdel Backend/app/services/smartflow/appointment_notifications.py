@@ -19,7 +19,7 @@ from .conversation_service import ConversationService
 
 logger = logging.getLogger(__name__)
 
-KINDS = ("booked", "pending", "rescheduled", "cancelled", "declined", "reminder")
+KINDS = ("booked", "pending", "rescheduled", "cancelled", "declined", "reminder", "cancellation_declined")
 
 TEMPLATES: dict[str, dict[str, str]] = {
     "en": {
@@ -28,6 +28,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: your appointment has been moved to {when}.",
         "cancelled": "{business}: your appointment on {when} has been cancelled. Call us any time to book a new one.",
         "declined": "{business}: sorry, we can't confirm {when}. Please call us to find another time.",
+        "cancellation_declined": "{business}: we were not able to cancel your appointment on {when}. It is still on the books - call us with any questions.",
         "reminder": "{business}: reminder - your appointment is {when}. Call us if you need to change it.",
     },
     "es": {
@@ -36,6 +37,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: tu cita se ha cambiado al {when}.",
         "cancelled": "{business}: tu cita del {when} ha sido cancelada. Llámanos cuando quieras para reservar otra.",
         "declined": "{business}: lo sentimos, no podemos confirmar el {when}. Llámanos para buscar otra hora.",
+        "cancellation_declined": "{business}: no pudimos cancelar tu cita del {when}. Sigue reservada; llámanos si tienes dudas.",
         "reminder": "{business}: recordatorio - tu cita es el {when}. Llámanos si necesitas cambiarla.",
     },
     "fr": {
@@ -44,6 +46,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business} : votre rendez-vous a été déplacé au {when}.",
         "cancelled": "{business} : votre rendez-vous du {when} est annulé. Appelez-nous pour en prendre un autre.",
         "declined": "{business} : désolé, nous ne pouvons pas confirmer le {when}. Appelez-nous pour trouver un autre créneau.",
+        "cancellation_declined": "{business} : nous n'avons pas pu annuler votre rendez-vous du {when}. Il reste prévu - appelez-nous pour toute question.",
         "reminder": "{business} : rappel - votre rendez-vous est le {when}. Appelez-nous pour tout changement.",
     },
     "pt": {
@@ -52,6 +55,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: sua consulta foi remarcada para {when}.",
         "cancelled": "{business}: sua consulta de {when} foi cancelada. Ligue quando quiser para marcar outra.",
         "declined": "{business}: desculpe, não conseguimos confirmar {when}. Ligue para encontrarmos outro horário.",
+        "cancellation_declined": "{business}: não conseguimos cancelar sua consulta de {when}. Ela continua marcada - ligue se tiver dúvidas.",
         "reminder": "{business}: lembrete - sua consulta é {when}. Ligue se precisar alterar.",
     },
     "hi": {
@@ -60,6 +64,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: आपका अपॉइंटमेंट अब {when} पर है।",
         "cancelled": "{business}: {when} का आपका अपॉइंटमेंट रद्द कर दिया गया है। नया समय लेने के लिए कभी भी कॉल करें।",
         "declined": "{business}: माफ़ कीजिए, {when} की पुष्टि नहीं हो सकी। दूसरा समय तय करने के लिए कॉल करें।",
+        "cancellation_declined": "{business}: हम {when} की आपकी अपॉइंटमेंट रद्द नहीं कर सके। यह अभी भी तय है - सवाल हों तो कॉल करें।",
         "reminder": "{business}: याद दिलाना - आपका अपॉइंटमेंट {when} को है। बदलना हो तो कॉल करें।",
     },
     "ur": {
@@ -68,6 +73,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: آپ کی اپائنٹمنٹ اب {when} پر ہے۔",
         "cancelled": "{business}: {when} کی آپ کی اپائنٹمنٹ منسوخ کر دی گئی ہے۔ نیا وقت لینے کے لیے کسی بھی وقت کال کریں۔",
         "declined": "{business}: معذرت، ہم {when} کی تصدیق نہیں کر سکے۔ دوسرا وقت طے کرنے کے لیے کال کریں۔",
+        "cancellation_declined": "{business}: ہم {when} کی آپ کی اپائنٹمنٹ منسوخ نہیں کر سکے۔ یہ اب بھی طے ہے - سوال ہو تو کال کریں۔",
         "reminder": "{business}: یاد دہانی - آپ کی اپائنٹمنٹ {when} کو ہے۔ تبدیل کرنی ہو تو کال کریں۔",
     },
     "ar": {
@@ -76,6 +82,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: تم نقل موعدك إلى {when}.",
         "cancelled": "{business}: تم إلغاء موعدك في {when}. اتصل بنا في أي وقت لحجز موعد جديد.",
         "declined": "{business}: عذرًا، لا يمكننا تأكيد موعد {when}. اتصل بنا لاختيار وقت آخر.",
+        "cancellation_declined": "{business}: لم نتمكن من إلغاء موعدك في {when}. لا يزال الموعد قائمًا - اتصل بنا لأي استفسار.",
         "reminder": "{business}: تذكير - موعدك في {when}. اتصل بنا إذا أردت تغييره.",
     },
     "ru": {
@@ -84,6 +91,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: ваша запись перенесена на {when}.",
         "cancelled": "{business}: ваша запись на {when} отменена. Звоните в любое время, чтобы записаться снова.",
         "declined": "{business}: к сожалению, мы не можем подтвердить {when}. Позвоните нам, чтобы выбрать другое время.",
+        "cancellation_declined": "{business}: мы не смогли отменить вашу запись на {when}. Она остаётся в силе - звоните по любым вопросам.",
         "reminder": "{business}: напоминание - ваша запись {when}. Позвоните, если нужно изменить.",
     },
     "tr": {
@@ -92,6 +100,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}: randevunuz {when} tarihine taşındı.",
         "cancelled": "{business}: {when} tarihli randevunuz iptal edildi. Yeni randevu için dilediğiniz zaman arayın.",
         "declined": "{business}: üzgünüz, {when} için onay veremiyoruz. Başka bir saat için bizi arayın.",
+        "cancellation_declined": "{business}: {when} tarihli randevunuzu iptal edemedik. Randevunuz hâlâ geçerli - sorularınız için bizi arayın.",
         "reminder": "{business}: hatırlatma - randevunuz {when}. Değiştirmek isterseniz arayın.",
     },
     "zh": {
@@ -100,6 +109,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}：您的预约已改到 {when}。",
         "cancelled": "{business}：您 {when} 的预约已取消。欢迎随时来电重新预约。",
         "declined": "{business}：抱歉，无法确认 {when} 的预约。请来电另约时间。",
+        "cancellation_declined": "{business}：我们无法取消您 {when} 的预约，该预约仍然有效。如有疑问请致电。",
         "reminder": "{business}：提醒 - 您的预约时间为 {when}。如需更改请致电。",
     },
     "ja": {
@@ -108,6 +118,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "rescheduled": "{business}：ご予約を {when} に変更しました。",
         "cancelled": "{business}：{when} のご予約はキャンセルされました。新しいご予約はいつでもお電話ください。",
         "declined": "{business}：申し訳ありませんが、{when} のご予約は確定できませんでした。別の日時をお電話でご相談ください。",
+        "cancellation_declined": "{business}：{when} のご予約をキャンセルできませんでした。ご予約は有効のままです。ご不明点はお電話ください。",
         "reminder": "{business}：リマインダー - ご予約は {when} です。変更はお電話でご連絡ください。",
     },
 }

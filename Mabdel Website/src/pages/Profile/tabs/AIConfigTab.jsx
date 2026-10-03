@@ -37,6 +37,7 @@ const SMS_WORDING_KINDS = [
   { key: 'reminder', label: 'Reminder before the appointment', builtIn: '{business}: reminder - your appointment is {when}. Call us if you need to change it.' },
   { key: 'pending', label: 'When a request needs approval', builtIn: "{business}: we received your request for {when}. We'll confirm by text shortly." },
   { key: 'declined', label: "When a time can't be confirmed", builtIn: "{business}: sorry, we can't confirm {when}. Please call us to find another time." },
+  { key: 'cancellation_declined', label: 'When a cancellation request is turned down', builtIn: '{business}: we were not able to cancel your appointment on {when}. It is still on the books - call us with any questions.' },
 ];
 
 // A curated starting list, not an enum enforced server-side — the field stays a
@@ -321,6 +322,8 @@ function AIConfigTab() {
         transfer_number: callSettings.transfer_number || null,
         voice_engine: callSettings.voice_engine === 'classic' ? 'classic' : 'realtime',
         require_meeting_approval: Boolean(callSettings.require_meeting_approval),
+        require_approval_for_reschedules: Boolean(callSettings.require_approval_for_reschedules),
+        require_approval_for_cancellations: Boolean(callSettings.require_approval_for_cancellations),
         sms_confirmations_enabled: callSettings.sms_confirmations_enabled !== false,
         appointment_reminders_enabled: Boolean(callSettings.appointment_reminders_enabled),
         appointment_reminder_hours_before: Math.min(168, Math.max(1, Number(callSettings.appointment_reminder_hours_before) || 24)),
@@ -542,6 +545,32 @@ function AIConfigTab() {
               <span>
                 <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_approval')}</span>
                 <span className="text-[#A4B0B7] text-xs">{t('aiprof_approval_hint')}</span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2 cursor-pointer mt-4 pt-4 border-t border-[#243041]">
+              <input
+                type="checkbox"
+                checked={Boolean(callSettings?.require_approval_for_reschedules)}
+                onChange={(event) => updateField('require_approval_for_reschedules', event.target.checked)}
+                className="w-4 h-4 mt-0.5 accent-[#9333ea]"
+              />
+              <span>
+                <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_approval_reschedule')}</span>
+                <span className="text-[#A4B0B7] text-xs">{t('aiprof_approval_reschedule_hint')}</span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2 cursor-pointer mt-4 pt-4 border-t border-[#243041]">
+              <input
+                type="checkbox"
+                checked={Boolean(callSettings?.require_approval_for_cancellations)}
+                onChange={(event) => updateField('require_approval_for_cancellations', event.target.checked)}
+                className="w-4 h-4 mt-0.5 accent-[#9333ea]"
+              />
+              <span>
+                <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_approval_cancel')}</span>
+                <span className="text-[#A4B0B7] text-xs">{t('aiprof_approval_cancel_hint')}</span>
               </span>
             </label>
 
