@@ -612,8 +612,10 @@ class SmartFlowService(SmartFlowBase):
     # ==================================================================
     # Call history (delegated)
     # ==================================================================
-    async def list_call_logs(self, user_id, page, page_size, status, search=None, contact_id=None):
-        return await self.call_history_service.list_call_logs(user_id, page, page_size, status, search=search, contact_id=contact_id)
+    async def list_call_logs(self, user_id, page, page_size, status, search=None, contact_id=None, disposition=None):
+        return await self.call_history_service.list_call_logs(
+            user_id, page, page_size, status, search=search, contact_id=contact_id, disposition=disposition
+        )
 
     async def get_call_log(self, user_id, call_id):
         return await self.call_history_service.get_call_log(user_id, call_id)

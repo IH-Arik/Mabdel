@@ -30,6 +30,7 @@ class CallHistoryService(SmartFlowBase):
         status: str | None,
         search: str | None = None,
         contact_id: str | None = None,
+        disposition: str | None = None,
     ) -> dict:
         # Calls made or received on the business's shared number are visible to the
         # whole team, not just whoever the call_log happens to be attributed to.
@@ -39,6 +40,8 @@ class CallHistoryService(SmartFlowBase):
             filters["status"] = status
         if contact_id:
             filters["contact_id"] = contact_id
+        if disposition and disposition != "all":
+            filters["disposition"] = disposition
         if search:
             filters["$or"] = [
                 {"contact_name": {"$regex": search, "$options": "i"}},

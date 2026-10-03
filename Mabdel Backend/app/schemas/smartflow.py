@@ -1301,6 +1301,8 @@ class CallLogResponse(BaseModel):
     repeat_count: int = 1
     initials: str = "NA"
     actions: list[str] = Field(default_factory=list)
+    disposition: str | None = None
+    disposition_label: str | None = None
 
 
 class OutboundCallRequest(BaseModel):

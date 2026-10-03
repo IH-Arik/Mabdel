@@ -436,6 +436,12 @@ function CallRow({ item, onAnalyze, onDirectCall, onRequestCallback, onDownloadR
             {item.status_label || item.status}
           </span>
 
+          {item.disposition_label && (
+            <span className="rounded-full border border-[#2A3550] bg-[#1A2232] px-2 py-0.5 text-[10px] font-bold text-[#A4B0B7]">
+              {item.disposition_label}
+            </span>
+          )}
+
           {item.callback_available && (
             <>
               <button
