@@ -4,7 +4,7 @@ import asyncio
 import logging
 import time
 from typing import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import wave
 import io
 
@@ -130,7 +130,9 @@ def _format_hour_only(hour) -> str:
 def _format_business_hours_text(hours: dict, language: str) -> str:
     """Real business hours, spoken in the caller's language — e.g. "Monday, Tuesday,
     Wednesday, Thursday, Friday: 9:00 AM - 5:00 PM". Empty if no days are configured,
-    so the caller is never told a made-up schedule."""
+    so the caller is never told a made-up schedule. Any upcoming closures (holidays,
+    one-off blocked dates) within the next 90 days are appended, so the AI can tell a
+    caller "we're closed that day" instead of silently finding no slots and guessing why."""
     days = sorted(d for d in (hours.get("days") or []) if isinstance(d, int) and 0 <= d <= 6)
     if not days:
         return ""
@@ -138,9 +140,33 @@ def _format_business_hours_text(hours: dict, language: str) -> str:
     day_text = ", ".join(weekday_names[d] for d in days)
     start_text = _format_hour_only(hours.get("start_hour", 9))
     end_text = _format_hour_only(hours.get("end_hour", 17))
-    if not start_text or not end_text:
-        return day_text
-    return f"{day_text}: {start_text} - {end_text}"
+    base = day_text if not start_text or not end_text else f"{day_text}: {start_text} - {end_text}"
+
+    today = datetime.now(timezone.utc).date()
+    upcoming = sorted(
+        d for d in (hours.get("blocked_dates") or [])
+        if isinstance(d, str) and _is_within_90_days(d, today)
+    )
+    if upcoming:
+        base += ". Closed (holiday/blocked): " + ", ".join(upcoming)
+    breaks = hours.get("daily_breaks") or []
+    if breaks:
+        break_text = ", ".join(
+            f"{_format_hour_only(b.get('start_hour'))} - {_format_hour_only(b.get('end_hour'))}"
+            for b in breaks
+            if isinstance(b, dict)
+        )
+        if break_text:
+            base += f". Daily break: {break_text}"
+    return base
+
+
+def _is_within_90_days(date_str: str, today) -> bool:
+    try:
+        parsed = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return False
+    return today <= parsed <= today + timedelta(days=90)
 
 
 def _friendly_slot(date_str: str, time_str: str, language: str = "en") -> str:

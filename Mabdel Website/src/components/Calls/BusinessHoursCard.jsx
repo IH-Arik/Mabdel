@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { CheckCircle2, Clock, Loader2, Plus, X } from 'lucide-react';
 import { smartflowApi } from '../../api/services';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -19,6 +19,7 @@ export default function BusinessHoursCard() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [newBlockedDate, setNewBlockedDate] = useState('');
 
   useEffect(() => {
     smartflowApi
@@ -37,6 +38,44 @@ export default function BusinessHoursCard() {
     });
   }
 
+  function addBlockedDate() {
+    if (!newBlockedDate) return;
+    setHours((current) => {
+      const blockedDates = current.blocked_dates || [];
+      if (blockedDates.includes(newBlockedDate)) return current;
+      return { ...current, blocked_dates: [...blockedDates, newBlockedDate].sort() };
+    });
+    setNewBlockedDate('');
+  }
+
+  function removeBlockedDate(date) {
+    setHours((current) => ({
+      ...current,
+      blocked_dates: (current.blocked_dates || []).filter((value) => value !== date),
+    }));
+  }
+
+  function addBreak() {
+    setHours((current) => ({
+      ...current,
+      daily_breaks: [...(current.daily_breaks || []), { start_hour: 12, end_hour: 13 }],
+    }));
+  }
+
+  function updateBreak(index, field, value) {
+    setHours((current) => ({
+      ...current,
+      daily_breaks: (current.daily_breaks || []).map((brk, i) => (i === index ? { ...brk, [field]: Number(value) } : brk)),
+    }));
+  }
+
+  function removeBreak(index) {
+    setHours((current) => ({
+      ...current,
+      daily_breaks: (current.daily_breaks || []).filter((_, i) => i !== index),
+    }));
+  }
+
   async function handleSave() {
     setSaving(true);
     setError('');
@@ -47,6 +86,8 @@ export default function BusinessHoursCard() {
         start_hour: Number(hours.start_hour),
         end_hour: Number(hours.end_hour),
         slot_minutes: Number(hours.slot_minutes),
+        blocked_dates: hours.blocked_dates || [],
+        daily_breaks: hours.daily_breaks || [],
       });
       setHours(response?.data?.data || hours);
       setSaved(true);
@@ -124,6 +165,88 @@ export default function BusinessHoursCard() {
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="pt-2 border-t border-[#1E2530] space-y-2">
+        <p className="text-[#70829B] text-[11px] font-semibold uppercase tracking-wide">{t('bh_blocked_title')}</p>
+        <p className="text-xs text-[#A4B0B7]">{t('bh_blocked_subtitle')}</p>
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={newBlockedDate}
+            onChange={(e) => setNewBlockedDate(e.target.value)}
+            className="flex-1 px-3 py-2 bg-[#0C0E12] border border-[#1E2530] text-white rounded-lg text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={addBlockedDate}
+            className="px-3 rounded-lg bg-[#0C0E12] border border-[#1E2530] text-[#9BA7BB] hover:text-white flex items-center gap-1 text-xs font-semibold cursor-pointer"
+          >
+            <Plus size={14} />
+            {t('bh_blocked_add')}
+          </button>
+        </div>
+        {(hours.blocked_dates || []).length === 0 ? (
+          <p className="text-xs text-[#70829B]">{t('bh_blocked_empty')}</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {(hours.blocked_dates || []).map((date) => (
+              <span
+                key={date}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#0C0E12] border border-[#1E2530] text-[#9BA7BB] flex items-center gap-1.5"
+              >
+                {date}
+                <button type="button" onClick={() => removeBlockedDate(date)} title={t('bh_blocked_remove')} className="cursor-pointer hover:text-rose-400">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="pt-2 border-t border-[#1E2530] space-y-2">
+        <p className="text-[#70829B] text-[11px] font-semibold uppercase tracking-wide">{t('bh_breaks_title')}</p>
+        <p className="text-xs text-[#A4B0B7]">{t('bh_breaks_subtitle')}</p>
+        {(hours.daily_breaks || []).length === 0 ? (
+          <p className="text-xs text-[#70829B]">{t('bh_breaks_empty')}</p>
+        ) : (
+          <div className="space-y-2">
+            {(hours.daily_breaks || []).map((brk, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <select
+                  value={brk.start_hour}
+                  onChange={(e) => updateBreak(index, 'start_hour', e.target.value)}
+                  className="flex-1 px-3 py-2 bg-[#0C0E12] border border-[#1E2530] text-white rounded-lg text-sm outline-none"
+                >
+                  {HOUR_OPTIONS.slice(0, 24).map((hour) => (
+                    <option key={hour} value={hour}>{formatHour(hour)}</option>
+                  ))}
+                </select>
+                <select
+                  value={brk.end_hour}
+                  onChange={(e) => updateBreak(index, 'end_hour', e.target.value)}
+                  className="flex-1 px-3 py-2 bg-[#0C0E12] border border-[#1E2530] text-white rounded-lg text-sm outline-none"
+                >
+                  {HOUR_OPTIONS.slice(1).map((hour) => (
+                    <option key={hour} value={hour}>{formatHour(hour)}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => removeBreak(index)} title={t('bh_breaks_remove')} className="cursor-pointer text-[#9BA7BB] hover:text-rose-400">
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={addBreak}
+          className="w-full h-[36px] rounded-lg bg-[#0C0E12] border border-[#1E2530] text-[#9BA7BB] hover:text-white flex items-center justify-center gap-1 text-xs font-semibold cursor-pointer"
+        >
+          <Plus size={14} />
+          {t('bh_breaks_add')}
+        </button>
       </div>
 
       <button

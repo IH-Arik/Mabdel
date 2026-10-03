@@ -420,12 +420,27 @@ class EmailDomainAvailabilityResponse(BaseModel):
     available: bool
 
 
+class DailyBreak(BaseModel):
+    start_hour: int = Field(ge=0, le=23)
+    end_hour: int = Field(ge=1, le=24)
+
+    @field_validator("end_hour")
+    @classmethod
+    def _validate_order(cls, value: int, info) -> int:
+        start = info.data.get("start_hour")
+        if start is not None and value <= start:
+            raise ValueError("end_hour must be later than start_hour.")
+        return value
+
+
 class BusinessHoursResponse(BaseModel):
     timezone: str = "UTC"
     days: list[int] = Field(default_factory=lambda: [0, 1, 2, 3, 4])
     start_hour: int = Field(default=9, ge=0, le=23)
     end_hour: int = Field(default=17, ge=1, le=24)
     slot_minutes: int = Field(default=60, ge=15, le=240)
+    blocked_dates: list[str] = Field(default_factory=list)
+    daily_breaks: list[DailyBreak] = Field(default_factory=list)
 
 
 class BusinessHoursUpdateRequest(BaseModel):
@@ -434,6 +449,8 @@ class BusinessHoursUpdateRequest(BaseModel):
     start_hour: int | None = Field(default=None, ge=0, le=23)
     end_hour: int | None = Field(default=None, ge=1, le=24)
     slot_minutes: int | None = Field(default=None, ge=15, le=240)
+    blocked_dates: list[str] | None = Field(default=None, max_length=366)
+    daily_breaks: list[DailyBreak] | None = Field(default=None, max_length=10)
 
     @field_validator("days")
     @classmethod
@@ -441,6 +458,20 @@ class BusinessHoursUpdateRequest(BaseModel):
         if value is not None and any(day < 0 or day > 6 for day in value):
             raise ValueError("days must be 0 (Monday) through 6 (Sunday).")
         return value
+
+    @field_validator("blocked_dates")
+    @classmethod
+    def _validate_blocked_dates(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        cleaned = []
+        for raw in value:
+            try:
+                datetime.strptime(raw, "%Y-%m-%d")
+            except ValueError as exc:
+                raise ValueError(f"blocked_dates must be YYYY-MM-DD strings, got {raw!r}.") from exc
+            cleaned.append(raw)
+        return cleaned
 
 
 class AICallLanguageMenuOption(BaseModel):
