@@ -982,10 +982,13 @@ class RealtimeReceptionist(AIPhoneAgent):
 
     async def _escalate_emergency(self, matched_keyword: str, text: str) -> None:
         """A hardcoded safety net: the moment a caller says something matching an
-        emergency phrase, the team is notified and the call is transferred if a
-        number is configured - the model keeps talking in the meantime (it is never
-        told to stop), but this escalation does not wait on it to decide to transfer
-        or take a message itself. Runs once per call."""
+        emergency phrase, the team is alerted (in-app and by SMS, not just something
+        that depends on someone having the dashboard open) - the model keeps talking
+        in the meantime (it is never told to stop on its own), but this escalation
+        does not wait on it to decide to act. What happens next depends on
+        ``emergency_response_mode``: most businesses want a transfer, but a medical
+        practice wants the caller told to call 911 instead of waiting on hold. Runs
+        once per call."""
         if self.emergency_escalated:
             return
         self.emergency_escalated = True
@@ -998,6 +1001,7 @@ class RealtimeReceptionist(AIPhoneAgent):
             "timestamp": utc_now().isoformat(),
         }
         self.captured_requests.append(entry)
+        call_settings = await self._get_call_settings()
         try:
             organization_id = await self.flow_service._resolve_organization_id(self.user_id) if self.user_id != "guest" else None
             recipients = await resolve_organization_user_ids(self.flow_service.db, organization_id) if organization_id else [self.user_id]
@@ -1012,11 +1016,64 @@ class RealtimeReceptionist(AIPhoneAgent):
                     )
                 except Exception:
                     continue
+            await self._sms_team_about_emergency(call_settings, recipients, matched_keyword, text)
         except Exception:
             logger.warning("Call %s: could not notify the team of an emergency escalation", self.call_id, exc_info=True)
         await self._save_progress()
-        if not self.transferring:
+        if call_settings.get("emergency_response_mode") == "direct_to_911":
+            await self._announce_emergency_911()
+        elif not self.transferring:
             await self._tool_transfer_to_human(reason=f"emergency keyword detected: {matched_keyword}")
+
+    async def _sms_team_about_emergency(
+        self, call_settings: dict, recipients: list[str], matched_keyword: str, text: str
+    ) -> None:
+        """An in-app notification alone depends on someone having the dashboard open -
+        too weak for something urgent. Texts a configured alert number if the owner
+        set one, otherwise every team member's own phone number on file, from the
+        business's own Telnyx number."""
+        from bson import ObjectId
+
+        alert_phone = (call_settings.get("emergency_alert_phone") or "").strip()
+        if alert_phone:
+            targets = [alert_phone]
+        else:
+            member_ids = [ObjectId(uid) for uid in (recipients or []) if ObjectId.is_valid(uid)]
+            if not member_ids:
+                return
+            users = await self.flow_service.db.users.find({"_id": {"$in": member_ids}}, {"phone_number": 1}).to_list(length=50)
+            targets = [user["phone_number"] for user in users if user.get("phone_number")]
+        if not targets:
+            return
+        from_number = await self.flow_service._resolve_org_sms_from_number(self.user_id) if self.user_id != "guest" else None
+        message = f"URGENT: possible emergency on a call ({self.caller_phone or 'unknown number'}). Caller said: \"{text[:200]}\""
+        for target in targets:
+            try:
+                await self.call_control.send_sms(to_number=target, message=message, from_number=from_number)
+            except Exception:
+                logger.warning("Call %s: could not text %s about an emergency escalation", self.call_id, target, exc_info=True)
+
+    async def _announce_emergency_911(self) -> None:
+        """Interrupts whatever the AI was saying to deliver one thing immediately,
+        same pattern as a language-switch greeting: stop current playback, cancel an
+        in-flight response, then force a new one. The model phrases it in the
+        caller's own language rather than a hardcoded English line, since it already
+        knows what language this call is in."""
+        await self._interrupt_playback()
+        if self.response_active:
+            await self._send_openai({"type": "response.cancel"})
+        await self._request_response(
+            {
+                "type": "response.create",
+                "response": {
+                    "instructions": (
+                        "Stop whatever you were saying. This may be a medical emergency. In the caller's own "
+                        "language, say clearly and briefly: if this is a medical emergency, hang up right now and "
+                        "call 911 (or their local emergency number). One or two short sentences, then stop."
+                    )
+                },
+            }
+        )
 
     async def _tool_end_call(self) -> dict:
         self.pending_hangup = True

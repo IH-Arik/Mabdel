@@ -350,6 +350,8 @@ function AIConfigTab() {
         sms_wording: SMS_WORDING_KINDS.reduce((acc, kind) => ({ ...acc, [kind.key]: callSettings.sms_wording?.[kind.key] || null }), {}),
         cancellation_policy: callSettings.cancellation_policy || null,
         emergency_keywords: callSettings.emergency_keywords || [],
+        emergency_response_mode: callSettings.emergency_response_mode === 'direct_to_911' ? 'direct_to_911' : 'take_message',
+        emergency_alert_phone: callSettings.emergency_alert_phone || null,
         call_routing_rules: (callSettings.call_routing_rules || [])
           .filter((rule) => rule.name?.trim() && rule.trigger_description?.trim())
           .map((rule) => ({
@@ -813,6 +815,53 @@ function AIConfigTab() {
                 ))}
               </div>
             )}
+
+            <div className="pt-4 mt-4 border-t border-[#243041] space-y-3">
+              <div>
+                <label className={LABEL}>{t('aiprof_lbl_emergency_mode')}</label>
+                <div className="space-y-2 mt-1.5">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="emergency_response_mode"
+                      checked={(callSettings?.emergency_response_mode || 'take_message') === 'take_message'}
+                      onChange={() => updateField('emergency_response_mode', 'take_message')}
+                      className="w-4 h-4 mt-0.5 accent-[#9333ea]"
+                    />
+                    <span>
+                      <span className="text-white text-sm font-semibold block">{t('aiprof_emergency_mode_message_title')}</span>
+                      <span className="text-[#A4B0B7] text-xs">{t('aiprof_emergency_mode_message_hint')}</span>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="emergency_response_mode"
+                      checked={callSettings?.emergency_response_mode === 'direct_to_911'}
+                      onChange={() => updateField('emergency_response_mode', 'direct_to_911')}
+                      className="w-4 h-4 mt-0.5 accent-[#9333ea]"
+                    />
+                    <span>
+                      <span className="text-white text-sm font-semibold block">{t('aiprof_emergency_mode_911_title')}</span>
+                      <span className="text-[#A4B0B7] text-xs">{t('aiprof_emergency_mode_911_hint')}</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="aiprof-emergency-alert-phone">{t('aiprof_lbl_emergency_alert_phone')}</label>
+                <input
+                  id="aiprof-emergency-alert-phone"
+                  type="tel"
+                  maxLength={32}
+                  placeholder={t('aiprof_ph_emergency_alert_phone')}
+                  value={callSettings?.emergency_alert_phone || ''}
+                  onChange={(event) => updateField('emergency_alert_phone', event.target.value)}
+                  className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-2.5 outline-none focus:border-[#9333ea]/50"
+                />
+                <p className="text-[#70829B] text-xs mt-1">{t('aiprof_emergency_alert_phone_hint')}</p>
+              </div>
+            </div>
           </SectionCard>
 
           <SectionCard icon={MessageSquare} title={t('aiprof_hdr_sms_wording')} description={t('aiprof_sms_wording_desc')}>
