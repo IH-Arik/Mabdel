@@ -11,6 +11,7 @@ from app.utils.helpers import utc_now
 
 
 from app.tests.conftest import grant_owner_role
+from app.tests.test_team_direct_messaging import _same_org, _signup
 
 
 def _get_latest_otp(db, email: str, purpose: str) -> dict:
@@ -91,6 +92,39 @@ def test_bulk_recipient_validation_flow(client, mock_db):
     assert payload["invalid_count"] == 1
     assert payload["duplicate_count"] >= 1
     assert "wrong-email@" in payload["invalid_entries"]
+
+
+def test_bulk_recipient_validation_includes_a_colleague_group_member_not_just_contacts(client, mock_db):
+    # A group's members aren't always CRM contacts - a colleague/team member can be
+    # added directly (_normalize_group_member_ids explicitly allows this: "Only your
+    # contacts and colleagues can be added to a group"). The bulk-message recipient
+    # resolver used to only check the contacts collection for a group's members, so a
+    # colleague in the group was silently dropped from the send - no error, just fewer
+    # recipients than the group actually had.
+    headers, owner_id = _signup(client, mock_db, "bulk-owner@example.com", "Owner")
+    mate_headers, mate_id = _signup(client, mock_db, "bulk-mate@example.com", "Colleague Mate")
+    _same_org(mock_db, owner_id, mate_id)
+    alex_id = _create_contact(client, headers, name="Alex Johnson", email="alex@example.com")
+
+    group_response = client.post(
+        "/api/v1/smartflow/groups",
+        headers=headers,
+        json={"name": "Leadership", "member_ids": [alex_id, mate_id]},
+    )
+    assert group_response.status_code == 201, group_response.text
+    group_id = group_response.json()["data"]["id"]
+
+    response = client.post(
+        "/api/v1/smartflow/bulk-messages/recipients/validate",
+        headers=headers,
+        json={"channel": "email", "group_ids": [group_id]},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()["data"]
+    emails = {item["email"] for item in payload["recipients"]}
+    assert "alex@example.com" in emails
+    assert "bulk-mate@example.com" in emails, payload  # the colleague must not be dropped
+    assert payload["valid_count"] == 2
 
 
 def test_bulk_message_create_schedule_send_and_list_flow(client, mock_db, monkeypatch):

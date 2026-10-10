@@ -3098,19 +3098,41 @@ class SmartFlowBase:
                 if not ObjectId.is_valid(member_id):
                     continue
                 contact = await self.db.contacts.find_one({"_id": ObjectId(member_id), "user_id": {"$in": team_ids}})
-                if not contact:
+                if contact:
+                    add_recipient(
+                        {
+                            "id": str(contact["_id"]),
+                            "name": contact.get("name"),
+                            "email": contact.get("email"),
+                            "phone": contact.get("phone"),
+                            "avatar_url": contact.get("avatar_url"),
+                            "initials": self._contact_initials(contact.get("name")),
+                            "source": "group_member",
+                        },
+                        raw_key=(contact.get("email") if channel == "email" else contact.get("phone")) or member_id,
+                    )
                     continue
+                # A group member isn't always a CRM contact - a colleague/team member
+                # can be added to a group directly (same as _serialize_group_members
+                # already handles for the group chat UI). Without this fallback, a
+                # team-member group member was silently dropped from the recipient
+                # list - no error, just fewer recipients than the group actually has.
+                colleague = await self.db.users.find_one({"_id": ObjectId(member_id)})
+                if not colleague or str(colleague["_id"]) not in team_ids:
+                    continue
+                colleague_name = colleague.get("full_name") or colleague.get("email")
+                colleague_phone = colleague.get("phone_no") or colleague.get("phone_number")
                 add_recipient(
                     {
-                        "id": str(contact["_id"]),
-                        "name": contact.get("name"),
-                        "email": contact.get("email"),
-                        "phone": contact.get("phone"),
-                        "avatar_url": contact.get("avatar_url"),
-                        "initials": self._contact_initials(contact.get("name")),
+                        "id": str(colleague["_id"]),
+                        "name": colleague_name,
+                        "email": colleague.get("email"),
+                        "phone": colleague_phone,
+                        "avatar_url": colleague.get("avatar_url"),
+                        "initials": self._contact_initials(colleague_name),
                         "source": "group_member",
                     },
-                    raw_key=(contact.get("email") if channel == "email" else contact.get("phone")) or member_id,
+                    raw_key=(colleague.get("email") if channel == "email" else colleague_phone) or member_id,
                 )
 
         return {
