@@ -99,7 +99,10 @@ def test_a_teammate_can_message_the_owners_contacts_and_groups(client, mock_db, 
         headers=mate_headers,
         json={"channel": "email", "contact_ids": [karim], "group_ids": [group]},
     ).json()["data"]
-    assert checked["valid_count"] == 2 and not checked["unavailable_contact_ids"] and not checked["unavailable_group_ids"]
+    # karim (direct contact_id) + nadia (group's contact member) + the colleague
+    # (group's non-contact member) - a colleague in a group must not be dropped.
+    assert checked["valid_count"] == 3 and not checked["unavailable_contact_ids"] and not checked["unavailable_group_ids"]
+    assert "bulk-team-mate@example.com" in {item["email"] for item in checked["recipients"]}
 
 
 def test_two_sends_at_once_deliver_only_once(client, mock_db, monkeypatch):
