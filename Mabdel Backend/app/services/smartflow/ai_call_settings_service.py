@@ -42,6 +42,8 @@ class AICallSettingsService(SmartFlowBase):
         "cancellation_policy": None,
         "call_routing_rules": [],
         "emergency_keywords": [],
+        "emergency_response_mode": "take_message",
+        "emergency_alert_phone": None,
     }
 
     async def get_settings(self, user_id: str) -> dict:
@@ -90,6 +92,10 @@ class AICallSettingsService(SmartFlowBase):
         merged["language_menu"] = self._validate_language_menu(merged.get("language_menu"))
         if merged.get("transfer_number"):
             merged["transfer_number"] = self._normalize_phone_value(merged["transfer_number"]) or None
+        if merged.get("emergency_alert_phone"):
+            merged["emergency_alert_phone"] = self._normalize_phone_value(merged["emergency_alert_phone"]) or None
+        if merged.get("emergency_response_mode") not in ("take_message", "direct_to_911"):
+            merged["emergency_response_mode"] = "take_message"
         if merged.get("voice_engine") not in ("realtime", "classic"):
             merged["voice_engine"] = "realtime"
         require_approval = bool(merged.pop("require_meeting_approval", False))

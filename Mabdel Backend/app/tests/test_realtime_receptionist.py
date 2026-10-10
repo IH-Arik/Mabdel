@@ -72,6 +72,7 @@ class FakeCallControl:
     def __init__(self):
         self.hung_up: list[str] = []
         self.transfers: list[tuple[str, str]] = []
+        self.sms_sent: list[dict] = []
 
     async def hangup_call(self, call_id):
         self.hung_up.append(call_id)
@@ -80,6 +81,10 @@ class FakeCallControl:
     async def transfer_call(self, call_id, *, to_number):
         self.transfers.append((call_id, to_number))
         return True
+
+    async def send_sms(self, *, to_number, message, from_number=None):
+        self.sms_sent.append({"to_number": to_number, "message": message, "from_number": from_number})
+        return {"id": "sms-fake"}
 
 
 def _business(client, mock_db, monkeypatch, email, **settings_doc):

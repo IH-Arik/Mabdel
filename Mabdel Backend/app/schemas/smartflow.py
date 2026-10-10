@@ -547,6 +547,16 @@ class AICallSettingsResponse(BaseModel):
     cancellation_policy: str | None = None
     call_routing_rules: list[CallRoutingRule] = Field(default_factory=list)
     emergency_keywords: list[str] = Field(default_factory=list)
+    # "take_message": notify the team and transfer if a number is configured (the
+    # original behavior - right for a contractor, lawyer, or most other businesses).
+    # "direct_to_911": skip the transfer and have the AI tell the caller, in their own
+    # language, to hang up and call 911 - right for a medical practice, where waiting
+    # on a transfer could cost real time.
+    emergency_response_mode: Literal["take_message", "direct_to_911"] = "take_message"
+    # Who gets an SMS (not just an in-app notification) the moment an emergency
+    # phrase is detected. Falls back to every team member's own phone number on file
+    # when left blank, so a business gets this working without configuring anything.
+    emergency_alert_phone: str | None = None
 
 
 class AICallSettingsUpdateRequest(BaseModel):
@@ -586,6 +596,8 @@ class AICallSettingsUpdateRequest(BaseModel):
     # Business-specific phrases that force an immediate transfer/notification, on top
     # of the built-in universal ones (chest pain, gas leak, etc).
     emergency_keywords: list[str] | None = Field(default=None, max_length=20)
+    emergency_response_mode: Literal["take_message", "direct_to_911"] | None = None
+    emergency_alert_phone: str | None = Field(default=None, max_length=32)
 
     @field_validator(
         "assistant_name", "business_type", "custom_instructions",
