@@ -356,6 +356,14 @@ def test_no_transfer_number_means_offer_a_message(client, mock_db, monkeypatch):
     asyncio.run(run())
     note = asyncio.run(mock_db.notifications.find_one({"title": {"$regex": "Urgent message from Nadia"}}))
     assert note and "crown" in note["body"]
+    # The message also lands in its own "AI Receptionist" thread in Unified, not just
+    # the bell-icon notification.
+    conversation = asyncio.run(mock_db.conversations.find_one({"user_id": owner_id, "platform": "ai_receptionist"}))
+    assert conversation and conversation["contact_id"]
+    posted = asyncio.run(mock_db.messages.find_one({"conversation_id": str(conversation["_id"])}))
+    assert posted and posted["direction"] == "inbound" and "crown" in posted["content"]
+    contact = asyncio.run(mock_db.contacts.find_one({"_id": __import__("bson").ObjectId(conversation["contact_id"])}))
+    assert contact and contact["phone"] == "+15551230000"
 
 
 def test_call_stream_uses_realtime_and_refuses_unknown_calls(client, mock_db, monkeypatch):

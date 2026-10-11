@@ -211,8 +211,13 @@ class AppointmentNotifier(ConversationService):
         return contact_id
 
     async def _sms_thread(
-        self, owner_user_id: str, organization_id: str | None, number: str, name: str | None, *, create_conversation: bool = True
+        self, owner_user_id: str, organization_id: str | None, number: str, name: str | None, *,
+        create_conversation: bool = True, platform: str = "sms",
     ) -> tuple[str | None, str]:
+        """``platform`` only changes which *conversation* thread this lands in (e.g.
+        "ai_receptionist" for a message the AI receptionist took, vs the default "sms"
+        text thread) - the caller is still matched/created as a CRM contact by their
+        phone number either way, identified the same way regardless of platform."""
         now = utc_now()
         contact = await self.db.contacts.find_one(
             {"user_id": owner_user_id, "identities": {"$elemMatch": {"platform": "sms", "external_id": number}}}
@@ -240,7 +245,7 @@ class AppointmentNotifier(ConversationService):
         if not create_conversation:
             return None, contact_id
 
-        conversation = await self.db.conversations.find_one({"user_id": owner_user_id, "contact_id": contact_id, "platform": "sms"})
+        conversation = await self.db.conversations.find_one({"user_id": owner_user_id, "contact_id": contact_id, "platform": platform})
         if not conversation:
             conversation = {
                 "user_id": owner_user_id,
@@ -248,7 +253,7 @@ class AppointmentNotifier(ConversationService):
                 "title": contact.get("name"),
                 "contact_id": contact_id,
                 "type": "direct",
-                "platform": "sms",
+                "platform": platform,
                 "member_ids": [owner_user_id],
                 "assigned_to": None,
                 "archived": False,
