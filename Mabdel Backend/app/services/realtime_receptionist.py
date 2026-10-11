@@ -465,13 +465,7 @@ class RealtimeReceptionist(AIPhoneAgent):
                 )
         caller = await self._caller_context()
         if self.is_outbound:
-            purpose = self.call_log.get("purpose") or "follow_up"
-            notes = (self.call_log.get("script_notes") or "").strip()
-            direction = (
-                f"\nTHIS IS AN OUTBOUND CALL: the business called this person. Purpose: {purpose.replace('_', ' ')}."
-                + (f" Notes from the team: {notes}" if notes else "")
-                + " Get to the point politely; if it is a bad time, offer to call back or take a message.\n"
-            )
+            direction = self._outbound_direction_block(call_settings, self.call_log.get("purpose"), self.call_log.get("script_notes"))
         else:
             direction = "\nThis is an incoming call.\n"
         language_line = (
@@ -517,6 +511,42 @@ class RealtimeReceptionist(AIPhoneAgent):
             "Never claim an invoice, agreement or other document was created or sent; those requests go to the team with take_message.\n",
         ))
         return "".join(section for section in sections if section)
+
+    @staticmethod
+    def _outbound_direction_block(call_settings: dict, purpose_id: str | None, script_notes: str | None) -> str:
+        """Looks up the owner's own named purpose (see OutboundCallPurpose) by id and
+        renders its opening/objective/questions/allowed-actions/closing into the
+        prompt - same spirit as a CALL PLAYBOOKS block, guidance the model follows
+        with judgement, not a script read verbatim. An id that doesn't match anything
+        configured (a legacy call log, or a purpose since deleted) falls back to the
+        original generic one-liner rather than failing the call."""
+        purposes = call_settings.get("outbound_call_purposes") or []
+        purpose = next((item for item in purposes if item.get("id") == purpose_id and item.get("active", True)), None)
+        notes = (script_notes or "").strip()
+        if not purpose:
+            label = (purpose_id or "follow_up").replace("_", " ")
+            return (
+                f"\nTHIS IS AN OUTBOUND CALL: the business called this person. Purpose: {label}."
+                + (f" Notes from the team: {notes}" if notes else "")
+                + " Get to the point politely; if it is a bad time, offer to call back or take a message.\n"
+            )
+        lines = [f'\nTHIS IS AN OUTBOUND CALL: the business called this person. Purpose: "{purpose["name"]}".']
+        if purpose.get("objective"):
+            lines.append(f"What this call is about: {purpose['objective']}")
+        if purpose.get("opening_message"):
+            lines.append(f'Open with something like: "{purpose["opening_message"]}"')
+        questions = purpose.get("questions_to_ask") or []
+        if questions:
+            lines.append("Questions to ask: " + " | ".join(questions))
+        actions = purpose.get("allowed_actions") or []
+        if actions:
+            lines.append("What you can do on this call: " + ", ".join(actions))
+        if purpose.get("closing_message"):
+            lines.append(f'Close with something like: "{purpose["closing_message"]}"')
+        if notes:
+            lines.append(f"Notes from the team for this specific call: {notes}")
+        lines.append("Get to the point politely; if it is a bad time, offer to call back or take a message.\n")
+        return "\n".join(lines)
 
     async def _caller_context(self) -> str:
         """Greet a known customer by name and know their bookings before they ask."""

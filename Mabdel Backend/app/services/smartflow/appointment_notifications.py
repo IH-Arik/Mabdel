@@ -201,6 +201,48 @@ class AppointmentNotifier(ConversationService):
             logger.warning("Could not queue the %s appointment text", kind, exc_info=True)
             return None
 
+    async def notify_outbound_followup(
+        self, owner_user_id: str, *, phone: str | None, name: str | None, template: str
+    ) -> str | None:
+        """The optional follow-up text an OutboundCallPurpose can carry, sent after the
+        AI finishes an outbound call. Unlike ``notify()`` this isn't tied to a specific
+        appointment time - only the ``{business}`` placeholder is supported, nothing
+        resembling ``{when}``, since an outbound call isn't necessarily about one.
+        Same "never raises" contract as ``notify()`` - a failed courtesy text must
+        never surface as a call failure."""
+        number = self._normalize_phone_value(phone or "")
+        if not number or not ObjectId.is_valid(owner_user_id or "") or not template.strip():
+            return None
+        try:
+            owner = await self._get_user_document(owner_user_id)
+            organization_id = owner.get("organization_id")
+            org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+            if not ((org or {}).get("ai_call_settings") or {}).get("sms_confirmations_enabled", True):
+                return None
+            business = (org or {}).get("business_name") or owner.get("business_name") or owner.get("full_name") or "Your business"
+            try:
+                text = template.format(business=business)
+            except (KeyError, IndexError, ValueError):
+                logger.warning("An outbound call purpose's follow-up SMS had a bad placeholder; skipping it")
+                return None
+
+            conversation_id, contact_id = await self._sms_thread(owner_user_id, organization_id, number, name)
+            message = await self.create_message(
+                owner_user_id,
+                {
+                    "conversation_id": conversation_id,
+                    "contact_id": contact_id,
+                    "platform": "sms",
+                    "direction": "outbound",
+                    "content": text,
+                    "automated": True,
+                },
+            )
+            return message.get("id")
+        except Exception:
+            logger.warning("Could not queue the outbound-call follow-up text", exc_info=True)
+            return None
+
     async def sms_contact_id(self, owner_user_id: str, phone: str | None, name: str | None) -> str | None:
         """The CRM contact for a phone number (created if needed), for linking a booking."""
         number = self._normalize_phone_value(phone or "")

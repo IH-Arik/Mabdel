@@ -563,7 +563,38 @@ async def _handle_call_status(service: SmartFlowService, call_id: str, event_typ
         from_number=payload.from_number,
         to_number=payload.to_number,
     )
-    
+    if event_type == "call.hangup":
+        await _send_outbound_followup_sms(service, call)
+
+
+async def _send_outbound_followup_sms(service: SmartFlowService, call: dict) -> None:
+    """If this outbound AI call's purpose (see OutboundCallPurpose) carries its own
+    follow-up text, send it now that the call has ended - most purposes won't have
+    one configured, which is the common case and a silent no-op. Guards against
+    double-sending if the provider redelivers the hangup webhook."""
+    if call.get("call_type") != "outbound" or not call.get("ai_ready") or call.get("followup_sms_sent"):
+        return
+    purpose_id = call.get("purpose")
+    if not purpose_id:
+        return
+    try:
+        owner_id = str(call["user_id"])
+        organization_id = await service._resolve_organization_id(owner_id)
+        org = await service.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+        purposes = ((org or {}).get("ai_call_settings") or {}).get("outbound_call_purposes") or []
+        purpose = next((item for item in purposes if item.get("id") == purpose_id), None)
+        template = (purpose or {}).get("follow_up_sms")
+        if template:
+            from app.services.smartflow.appointment_notifications import AppointmentNotifier
+
+            await AppointmentNotifier(service.db).notify_outbound_followup(
+                owner_id, phone=other_party_number(call), name=call.get("contact_name"), template=template
+            )
+    except Exception:
+        logger.warning("Call %s: could not send the outbound-purpose follow-up SMS", call.get("twilio_call_sid"), exc_info=True)
+    finally:
+        await service.db.call_logs.update_one({"_id": call["_id"]}, {"$set": {"followup_sms_sent": True}})
+
 
 async def _process_recording(
     db,

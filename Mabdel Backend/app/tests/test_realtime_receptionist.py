@@ -426,8 +426,14 @@ def test_outbound_call_briefs_the_ai_with_its_purpose(client, mock_db, monkeypat
 
     asyncio.run(run())
     instructions = socket.of_type("session.update")[0]["session"]["instructions"]
-    assert "OUTBOUND CALL" in instructions and "appointment reminder" in instructions
-    assert "Remind them to bring their X-rays." in instructions
+    # purpose="appointment_reminder" matches the business's own configured
+    # "Appointment Reminder" purpose (the built-in default every business starts
+    # with) - its opening/objective/questions/actions/closing should all reach the
+    # prompt, not just a generic one-line label.
+    assert "OUTBOUND CALL" in instructions and 'Purpose: "Appointment Reminder"' in instructions
+    assert "Can you still make it at that time?" in instructions  # its question
+    assert "Reschedule the appointment if they can't make it" in instructions  # an allowed action
+    assert "Remind them to bring their X-rays." in instructions  # the call-specific note still comes through too
 
 
 def test_a_rejected_session_falls_back_instead_of_running_unconfigured(client, mock_db, monkeypatch):
