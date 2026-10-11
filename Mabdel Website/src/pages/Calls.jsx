@@ -499,10 +499,22 @@ function CallRow({ item, onAnalyze, onDirectCall, onRequestCallback, onDownloadR
 
 function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
   const [phone, setPhone] = useState(initialPhone);
+  const [purposes, setPurposes] = useState([]);
   const [purpose, setPurpose] = useState('follow_up');
   const [notes, setNotes] = useState('');
   const [calling, setCalling] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    smartflowApi
+      .getAICallSettings()
+      .then((response) => {
+        const active = (response.data?.data?.outbound_call_purposes || []).filter((item) => item.active !== false);
+        setPurposes(active);
+        if (active.length) setPurpose(active[0].id);
+      })
+      .catch(() => {});
+  }, []);
 
   async function call() {
     const normalized = normalizePhone(phone);
@@ -567,9 +579,15 @@ function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
             onChange={(event) => setPurpose(event.target.value)}
             className="w-full rounded-xl border border-[#243246] bg-[#0A1019] px-4 py-3 text-sm text-white outline-none focus:border-[#9333ea]/50"
           >
-            <option value="follow_up">{t('calls_purpose_follow_up')}</option>
-            <option value="appointment_reminder">{t('calls_purpose_reminder')}</option>
-            <option value="custom">{t('calls_purpose_custom')}</option>
+            {purposes.length ? (
+              purposes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)
+            ) : (
+              <>
+                <option value="follow_up">{t('calls_purpose_follow_up')}</option>
+                <option value="appointment_reminder">{t('calls_purpose_reminder')}</option>
+                <option value="custom">{t('calls_purpose_custom')}</option>
+              </>
+            )}
           </select>
         </div>
 
