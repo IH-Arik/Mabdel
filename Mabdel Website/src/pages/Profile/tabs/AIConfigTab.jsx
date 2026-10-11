@@ -6,6 +6,7 @@ import { smartflowApi } from '../../../api/services';
 import { LABEL } from '../shared';
 import { AI_LANGUAGE_OPTIONS, getStoredAiLanguage, setStoredAiLanguage } from '../../../utils/voiceAgentConfig';
 import { useLanguage } from '../../../context/LanguageContext';
+import useDictation from '../../../components/inbox/useDictation';
 
 // The phone agent's TTS/translation table (app/services/call_phrases.py) only covers
 // these eleven codes — notably no Bengali, unlike the web assistant's language list
@@ -48,6 +49,94 @@ const BUSINESS_TYPE_OPTIONS = [
   'Fitness Studio / Gym', 'Retail Store', 'Accounting / Bookkeeping Firm',
   'Insurance Agency', 'Veterinary Clinic', 'Photography Studio', 'Consulting Firm',
 ];
+
+// Every AI-writable field, in the same order they appear on the page - used to
+// generate everything at once when Business Type changes. sms_* keys map onto
+// callSettings.sms_wording[<key without the sms_ prefix>] rather than a top-level field.
+const RECEPTIONIST_FIELD_KEYS = [
+  'greeting_inbound', 'greeting_outbound', 'closing_message', 'custom_instructions', 'knowledge_base', 'cancellation_policy',
+  ...SMS_WORDING_KINDS.map((kind) => `sms_${kind.key}`),
+];
+
+function getReceptionistFieldValue(callSettings, fieldKey) {
+  if (fieldKey.startsWith('sms_')) {
+    return callSettings?.sms_wording?.[fieldKey.slice(4)] || '';
+  }
+  return callSettings?.[fieldKey] || '';
+}
+
+// The three AI tools (generate / dictate / improve) for one text field. Self-contained:
+// each instance owns its own recorder and loading state, so one field's "Generate" spinner
+// never affects the others.
+function AiFieldTools({ fieldKey, value, onChange, businessType, t }) {
+  const [busy, setBusy] = useState(null); // 'generate' | 'improve' | null
+  const [error, setError] = useState('');
+  const { recording, transcribing, toggle } = useDictation({
+    onText: (text) => onChange(value ? `${value} ${text}` : text),
+    onError: setError,
+    t,
+  });
+
+  async function runAction(kind) {
+    if (kind === 'generate' && value.trim() && !window.confirm(t('aiprof_confirm_overwrite_field'))) return;
+    if (kind === 'improve' && !value.trim()) return;
+    setBusy(kind);
+    setError('');
+    try {
+      const response = await smartflowApi.composeReceptionistFields({
+        fields: [fieldKey],
+        action: kind === 'generate' ? 'draft' : 'improve',
+        business_type: businessType || '',
+        current_texts: kind === 'improve' ? { [fieldKey]: value } : {},
+      });
+      const text = response?.data?.data?.[fieldKey];
+      if (text) onChange(text);
+      else setError(t('aiprof_ai_unavailable'));
+    } catch (err) {
+      setError(err?.response?.data?.message || t('aiprof_ai_unavailable'));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+      <button
+        type="button"
+        onClick={() => runAction('generate')}
+        disabled={busy !== null}
+        title={t('aiprof_btn_generate_hint')}
+        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131A24] border border-[#243041] text-[#A78BFA] hover:border-[#9333ea]/50 text-xs font-semibold cursor-pointer disabled:opacity-50"
+      >
+        {busy === 'generate' ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+        {t('aiprof_btn_generate')}
+      </button>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={transcribing}
+        title={t('aiprof_btn_dictate_hint')}
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-semibold cursor-pointer disabled:opacity-50 ${
+          recording ? 'bg-rose-500/10 border-rose-500/40 text-rose-400' : 'bg-[#131A24] border-[#243041] text-[#9BA7BB] hover:border-[#9333ea]/50'
+        }`}
+      >
+        {transcribing ? <Loader2 size={12} className="animate-spin" /> : <Mic size={12} />}
+        {recording ? t('aiprof_btn_dictate_stop') : t('aiprof_btn_dictate')}
+      </button>
+      <button
+        type="button"
+        onClick={() => runAction('improve')}
+        disabled={busy !== null || !value.trim()}
+        title={t('aiprof_btn_improve_hint')}
+        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131A24] border border-[#243041] text-[#9BA7BB] hover:border-[#9333ea]/50 text-xs font-semibold cursor-pointer disabled:opacity-50"
+      >
+        {busy === 'improve' ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+        {t('aiprof_btn_improve')}
+      </button>
+      {error ? <span className="text-rose-400 text-[11px]">{error}</span> : null}
+    </div>
+  );
+}
 
 function SectionCard({ icon: Icon, title, description, children }) {
   return (
@@ -218,6 +307,42 @@ function AIConfigTab() {
 
   const updateWordingField = (kind, value) => {
     setCallSettings((prev) => ({ ...(prev || {}), sms_wording: { ...(prev?.sms_wording || {}), [kind]: value } }));
+  };
+
+  const [generatingAll, setGeneratingAll] = useState(false);
+  const [generateAllError, setGenerateAllError] = useState('');
+
+  const generateAllFieldsForBusinessType = async (businessType) => {
+    if (!businessType || !businessType.trim()) return;
+    const hasExistingText = RECEPTIONIST_FIELD_KEYS.some((key) => getReceptionistFieldValue(callSettings, key).trim());
+    if (hasExistingText && !window.confirm(t('aiprof_confirm_overwrite_all'))) return;
+    setGeneratingAll(true);
+    setGenerateAllError('');
+    try {
+      const response = await smartflowApi.composeReceptionistFields({
+        fields: RECEPTIONIST_FIELD_KEYS,
+        action: 'draft',
+        business_type: businessType,
+      });
+      const results = response?.data?.data || {};
+      setCallSettings((prev) => {
+        let next = { ...(prev || {}) };
+        for (const key of RECEPTIONIST_FIELD_KEYS) {
+          const text = results[key];
+          if (!text) continue;
+          if (key.startsWith('sms_')) {
+            next = { ...next, sms_wording: { ...(next.sms_wording || {}), [key.slice(4)]: text } };
+          } else {
+            next = { ...next, [key]: text };
+          }
+        }
+        return next;
+      });
+    } catch (err) {
+      setGenerateAllError(err?.response?.data?.message || t('aiprof_ai_unavailable'));
+    } finally {
+      setGeneratingAll(false);
+    }
   };
 
   const [newEmergencyKeyword, setNewEmergencyKeyword] = useState('');
@@ -421,6 +546,7 @@ function AIConfigTab() {
                 const nextIsOther = event.target.value === 'Other';
                 setBusinessTypeIsOther(nextIsOther);
                 updateField('business_type', nextIsOther ? '' : event.target.value);
+                if (!nextIsOther && event.target.value) generateAllFieldsForBusinessType(event.target.value);
               }}
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50"
             >
@@ -437,9 +563,14 @@ function AIConfigTab() {
                 placeholder={t('aiprof_ph_business_type')}
                 value={callSettings?.business_type || ''}
                 onChange={(event) => updateField('business_type', event.target.value)}
+                onBlur={(event) => generateAllFieldsForBusinessType(event.target.value)}
                 className="w-full mt-2 bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50"
               />
             ) : null}
+            {generatingAll ? (
+              <p className="text-[#A78BFA] text-xs mt-2 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" />{t('aiprof_generating_all')}</p>
+            ) : null}
+            {generateAllError ? <p className="text-rose-400 text-xs mt-2">{generateAllError}</p> : null}
           </SectionCard>
 
           <SectionCard icon={Mic} title={t('aiprof_hdr_voices')}>
@@ -482,6 +613,7 @@ function AIConfigTab() {
               onChange={(event) => updateField('greeting_inbound', event.target.value)}
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-none"
             />
+            <AiFieldTools fieldKey="greeting_inbound" value={callSettings?.greeting_inbound || ''} onChange={(text) => updateField('greeting_inbound', text)} businessType={callSettings?.business_type} t={t} />
           </SectionCard>
 
           <SectionCard icon={PhoneOutgoing} title={t('aiprof_hdr_greeting_outbound')} description={t('aiprof_greeting_outbound_desc')}>
@@ -493,6 +625,7 @@ function AIConfigTab() {
               onChange={(event) => updateField('greeting_outbound', event.target.value)}
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-none"
             />
+            <AiFieldTools fieldKey="greeting_outbound" value={callSettings?.greeting_outbound || ''} onChange={(text) => updateField('greeting_outbound', text)} businessType={callSettings?.business_type} t={t} />
           </SectionCard>
 
           <SectionCard icon={PhoneOff} title={t('aiprof_hdr_closing_message')} description={t('aiprof_closing_message_desc')}>
@@ -504,6 +637,7 @@ function AIConfigTab() {
               onChange={(event) => updateField('closing_message', event.target.value)}
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-none"
             />
+            <AiFieldTools fieldKey="closing_message" value={callSettings?.closing_message || ''} onChange={(text) => updateField('closing_message', text)} businessType={callSettings?.business_type} t={t} />
           </SectionCard>
 
           <SectionCard icon={Sparkles} title={t('aiprof_hdr_instructions')} description={t('aiprof_instructions_desc')}>
@@ -516,6 +650,7 @@ function AIConfigTab() {
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-none"
             />
             <p className="text-[#4A5568] text-xs mt-1 text-right">{instructionsLength}/2000</p>
+            <AiFieldTools fieldKey="custom_instructions" value={callSettings?.custom_instructions || ''} onChange={(text) => updateField('custom_instructions', text)} businessType={callSettings?.business_type} t={t} />
           </SectionCard>
 
           <SectionCard icon={Zap} title={t('aiprof_hdr_engine')} description={t('aiprof_engine_desc')}>
@@ -555,6 +690,7 @@ function AIConfigTab() {
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-y"
             />
             <p className="text-[#4A5568] text-xs mt-1 text-right">{knowledgeLength}/8000</p>
+            <AiFieldTools fieldKey="knowledge_base" value={callSettings?.knowledge_base || ''} onChange={(text) => updateField('knowledge_base', text)} businessType={callSettings?.business_type} t={t} />
           </SectionCard>
 
           <SectionCard icon={CalendarCheck} title={t('aiprof_hdr_appointments')} description={t('aiprof_appointments_desc')}>
@@ -769,6 +905,7 @@ function AIConfigTab() {
               aria-label={t('aiprof_hdr_cancellation_policy')}
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-none"
             />
+            <AiFieldTools fieldKey="cancellation_policy" value={callSettings?.cancellation_policy || ''} onChange={(text) => updateField('cancellation_policy', text)} businessType={callSettings?.business_type} t={t} />
           </SectionCard>
 
           <SectionCard icon={AlertTriangle} title={t('aiprof_hdr_emergency_keywords')} description={t('aiprof_emergency_keywords_desc')}>
@@ -877,6 +1014,13 @@ function AIConfigTab() {
                     value={callSettings?.sms_wording?.[kind.key] || ''}
                     onChange={(event) => updateWordingField(kind.key, event.target.value)}
                     className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-2.5 outline-none focus:border-[#9333ea]/50"
+                  />
+                  <AiFieldTools
+                    fieldKey={`sms_${kind.key}`}
+                    value={callSettings?.sms_wording?.[kind.key] || ''}
+                    onChange={(text) => updateWordingField(kind.key, text)}
+                    businessType={callSettings?.business_type}
+                    t={t}
                   />
                 </div>
               ))}

@@ -1,10 +1,23 @@
 from __future__ import annotations
 
+import asyncio
+
 from app.core.exceptions import AppException
 from app.services.call_phrases import SUPPORTED_LANGUAGES
 from app.utils.helpers import utc_now
 
 from ._base import SmartFlowBase
+
+# Keys the Website's AI Config tab writes with - the 6 free-text fields plus one
+# per SMS-wording kind. Kept in one place so the endpoint, the batch "generate
+# everything for this business type" action, and GoCustifyAIService's per-field
+# instructions all agree on the same set.
+RECEPTIONIST_COMPOSABLE_FIELDS = (
+    "greeting_inbound", "greeting_outbound", "closing_message",
+    "custom_instructions", "knowledge_base", "cancellation_policy",
+    "sms_booked", "sms_pending", "sms_rescheduled", "sms_cancelled",
+    "sms_declined", "sms_cancellation_declined", "sms_reminder",
+)
 
 # Reading out eleven options would be absurd on a real call, and there are only so
 # many keys a caller will listen through before giving up.
@@ -147,3 +160,49 @@ class AICallSettingsService(SmartFlowBase):
             if len(cleaned) >= MAX_LANGUAGE_MENU_OPTIONS:
                 break
         return cleaned
+
+    async def _resolve_business_name(self, user_id: str) -> str:
+        profile = await self.db.business_profiles.find_one({"user_id": user_id}, {"business_name": 1})
+        if profile and profile.get("business_name"):
+            return profile["business_name"]
+        organization_id = await self._resolve_organization_id(user_id)
+        org = await self.db.organizations.find_one({"organization_id": organization_id}, {"business_name": 1}) if organization_id else None
+        if org and org.get("business_name"):
+            return org["business_name"]
+        return ""
+
+    async def compose_receptionist_fields(
+        self,
+        user_id: str,
+        *,
+        fields: list[str],
+        action: str,
+        business_type: str = "",
+        current_texts: dict[str, str] | None = None,
+    ) -> dict[str, str | None]:
+        """Draft or improve one or more AI Receptionist settings fields at once - a
+        single field for a per-field "Generate"/"Improve" button, or every field at
+        once when the owner changes Business Type. Fields the model couldn't write
+        (unavailable, or an "improve" on empty text) come back as None rather than
+        failing the whole batch, so one bad field doesn't block the others."""
+        wanted = [field for field in dict.fromkeys(fields) if field in RECEPTIONIST_COMPOSABLE_FIELDS]
+        if not wanted:
+            raise AppException(status_code=400, code="RECEPTIONIST_FIELD_INVALID", message="Unknown field(s) requested.")
+        if action not in ("draft", "improve"):
+            raise AppException(status_code=400, code="RECEPTIONIST_FIELD_ACTION_INVALID", message="Unknown action.")
+        business_name = await self._resolve_business_name(user_id)
+        current_texts = current_texts or {}
+
+        async def _one(field: str) -> tuple[str, str | None]:
+            text = await asyncio.to_thread(
+                self.ai_service.compose_receptionist_field,
+                field,
+                action=action,
+                business_type=business_type,
+                business_name=business_name,
+                current_text=current_texts.get(field, ""),
+            )
+            return field, text
+
+        results = await asyncio.gather(*(_one(field) for field in wanted))
+        return dict(results)

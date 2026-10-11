@@ -234,6 +234,32 @@ async def ai_compose(
     return success_response(data=data, message="Message written.")
 
 
+class ComposeReceptionistFieldsRequest(BaseModel):
+    fields: list[str] = Field(min_length=1, max_length=13)
+    action: Literal["draft", "improve"]
+    business_type: str = Field(default="", max_length=80)
+    current_texts: dict[str, str] = Field(default_factory=dict)
+
+
+@router.post("/ai/receptionist-fields")
+async def ai_compose_receptionist_fields(
+    payload: ComposeReceptionistFieldsRequest,
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """Draft or improve one or more AI Receptionist settings fields (greetings,
+    knowledge base, SMS wording, etc) in the business's own voice - one field for a
+    per-field button, or every field at once when Business Type changes."""
+    data = await service.compose_receptionist_fields(
+        str(current_user["_id"]),
+        fields=payload.fields,
+        action=payload.action,
+        business_type=payload.business_type,
+        current_texts=payload.current_texts,
+    )
+    return success_response(data=data, message="Receptionist text written.")
+
+
 @router.post("/ai/transcribe")
 async def ai_transcribe(
     audio_file: UploadFile = File(...),

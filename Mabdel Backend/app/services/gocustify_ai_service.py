@@ -400,6 +400,106 @@ class GoCustifyAIService:
         except Exception:
             return None
 
+    # Each AI Receptionist setting field, in the business's own voice - a plausible,
+    # editable starting point keyed to the business type, not a final answer the
+    # owner is expected to use verbatim. {business} is filled in below; the model is
+    # told explicitly these are examples so it doesn't invent real prices/policies
+    # and present them as fact.
+    RECEPTIONIST_FIELD_SPECS: dict[str, dict[str, object]] = {
+        "greeting_inbound": {
+            "instruction": "Write a short, warm phone greeting a receptionist would say when answering an inbound call for this business. One sentence, natural spoken style.",
+            "max_chars": 500,
+        },
+        "greeting_outbound": {
+            "instruction": "Write a short greeting the AI receptionist says when IT is calling a customer on the business's behalf (not answering an inbound call). One sentence, natural spoken style.",
+            "max_chars": 500,
+        },
+        "closing_message": {
+            "instruction": "Write a short, warm line said right before ending a call, e.g. after booking an appointment or logging a request. One short sentence.",
+            "max_chars": 500,
+        },
+        "custom_instructions": {
+            "instruction": "Write 2-4 short lines of tone/priority guidance for an AI phone receptionist at this business - guidance like 'always ask if it's an emergency first', not a script to recite word for word.",
+            "max_chars": 2000,
+        },
+        "knowledge_base": {
+            "instruction": "Write 3-5 short example lines (one per line) of the kind of facts a receptionist at this business would know - typical services, a plausible price range, a common policy, parking. Make clear by the content itself that these are realistic placeholder EXAMPLES the owner must replace with their business's real facts, not claims about this specific business.",
+            "max_chars": 8000,
+        },
+        "cancellation_policy": {
+            "instruction": "Write one short, typical cancellation policy sentence for this type of business (e.g. a notice period or fee) that a receptionist would tell a caller before cancelling - a realistic example the owner should edit to match their real policy.",
+            "max_chars": 500,
+        },
+        "sms_booked": {
+            "instruction": "Write a one-sentence SMS confirming a customer's appointment is booked. Must include the literal placeholders {business} and {when} exactly as written (they are filled in automatically) - do not replace them with real values.",
+            "max_chars": 300,
+        },
+        "sms_pending": {
+            "instruction": "Write a one-sentence SMS telling a customer their appointment request was received and will be confirmed shortly. Must include the literal placeholders {business} and {when} exactly as written.",
+            "max_chars": 300,
+        },
+        "sms_rescheduled": {
+            "instruction": "Write a one-sentence SMS telling a customer their appointment has been moved to a new time. Must include the literal placeholders {business} and {when} exactly as written.",
+            "max_chars": 300,
+        },
+        "sms_cancelled": {
+            "instruction": "Write a one-sentence SMS telling a customer their appointment was cancelled, inviting them to call back to rebook. Must include the literal placeholders {business} and {when} exactly as written.",
+            "max_chars": 300,
+        },
+        "sms_declined": {
+            "instruction": "Write a one-sentence SMS telling a customer a requested appointment time could not be confirmed, asking them to call to find another time. Must include the literal placeholders {business} and {when} exactly as written.",
+            "max_chars": 300,
+        },
+        "sms_cancellation_declined": {
+            "instruction": "Write a one-sentence SMS telling a customer their cancellation request was NOT approved and the appointment is still on the books. Must include the literal placeholders {business} and {when} exactly as written.",
+            "max_chars": 300,
+        },
+        "sms_reminder": {
+            "instruction": "Write a one-sentence SMS reminding a customer of their upcoming appointment, inviting them to call if they need to change it. Must include the literal placeholders {business} and {when} exactly as written.",
+            "max_chars": 300,
+        },
+    }
+
+    def compose_receptionist_field(
+        self,
+        field: str,
+        *,
+        action: str,
+        business_type: str = "",
+        business_name: str = "",
+        current_text: str = "",
+    ) -> str | None:
+        """Draft or improve one AI Receptionist setting field, in the voice of the
+        given business type. Returns only the field text, or None when the model is
+        unavailable or the field/action isn't recognised."""
+        spec = self.RECEPTIONIST_FIELD_SPECS.get(field)
+        if not spec or action not in ("draft", "improve") or not settings.OPENAI_API_KEY:
+            return None
+        if action == "improve" and not current_text.strip():
+            return None
+        business = business_name or "this business"
+        type_line = f" The business type is: {business_type}." if business_type.strip() else ""
+        if action == "draft":
+            task = f"{spec['instruction']}{type_line}"
+            user_content = "(write a fresh draft)"
+        else:
+            task = f"Rewrite the draft below so it is clearer, warmer and more professional, keeping its meaning. {spec['instruction']}{type_line}"
+            user_content = f"Draft:\n{current_text}"
+        system_prompt = (
+            f"You help {business} write settings for its AI phone receptionist. {task} "
+            f"Keep it under {spec['max_chars']} characters. "
+            "Return ONLY the text itself - no preamble, no quotes, no markdown, no explanation."
+        )
+        try:
+            response = _get_sync_openai_client().chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}],
+            )
+            text = (response.choices[0].message.content or "").strip().strip('"').strip()
+            return text[: int(spec["max_chars"])] or None
+        except Exception:
+            return None
+
     def improve_text(self, text: str) -> tuple[str | None, int]:
         if not settings.OPENAI_API_KEY:
             return None, 0

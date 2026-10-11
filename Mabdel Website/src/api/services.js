@@ -286,6 +286,7 @@ export const smartflowApi = {
   getConversationAssignees: () => client.get('/api/v1/smartflow/conversations/assignees'),
   getConversationContact: (id) => client.get(`/api/v1/smartflow/conversations/${id}/contact`),
   composeMessage: (data) => client.post('/api/v1/smartflow/ai/compose', data),
+  composeReceptionistFields: (data) => client.post('/api/v1/smartflow/ai/receptionist-fields', data),
   transcribeDictation: (blob) => {
     const fd = new FormData();
     fd.append('audio_file', blob, 'dictation.webm');
