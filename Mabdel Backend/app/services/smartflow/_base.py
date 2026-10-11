@@ -313,7 +313,7 @@ class SmartFlowBase:
     # organization's shared inbox, not to whoever happened to connect the channel.
     CUSTOMER_PLATFORMS = frozenset(
         {"whatsapp", "facebook_messenger", "instagram", "telegram", "email", "sms",
-         "google_business", "linkedin", "twitter_x", "snapchat", "threads"}
+         "google_business", "linkedin", "twitter_x", "snapchat", "threads", "ai_receptionist"}
     )
 
     @classmethod

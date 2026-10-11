@@ -1,4 +1,4 @@
-import { Mail, MessageSquareText } from 'lucide-react';
+import { Mail, MessageSquareText, Phone } from 'lucide-react';
 import { FaLinkedin } from 'react-icons/fa';
 import {
   SiGoogle,
@@ -15,6 +15,7 @@ import {
 // Keys are the backend's platform values - never shorten them (e.g. "facebook"), the
 // API filters and replies on the exact value.
 export const CHANNEL_META = {
+  ai_receptionist: { Icon: Phone, color: '#9333ea', label: 'AI Receptionist' },
   whatsapp: { Icon: SiWhatsapp, color: '#25D366', label: 'WhatsApp' },
   facebook_messenger: { Icon: SiMessenger, color: '#00B2FF', label: 'Messenger' },
   instagram: { Icon: SiInstagram, color: '#E4405F', label: 'Instagram' },
@@ -29,7 +30,7 @@ export const CHANNEL_META = {
 };
 
 // Channels that get their own tab in Unified, in display order.
-export const INBOX_CHANNELS = ['whatsapp', 'facebook_messenger', 'instagram', 'email', 'sms', 'telegram'];
+export const INBOX_CHANNELS = ['ai_receptionist', 'whatsapp', 'facebook_messenger', 'instagram', 'email', 'sms', 'telegram'];
 
 // Every channel whose threads belong in Unified (mirrors the backend's CUSTOMER_PLATFORMS).
 export const CUSTOMER_CHANNELS = Object.keys(CHANNEL_META);

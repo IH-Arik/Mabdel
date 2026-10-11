@@ -916,7 +916,42 @@ class RealtimeReceptionist(AIPhoneAgent):
                 )
             except Exception:
                 continue
+        await self._post_to_ai_receptionist_inbox(message, caller_name, entry["callback_number"])
         return {"saved": True, "note": "Tell the caller the team has the message and will get back to them."}
+
+    async def _post_to_ai_receptionist_inbox(self, message: str, caller_name: str | None, callback_number: str | None) -> None:
+        """Mirrors the message into its own "AI Receptionist" thread in Unified
+        Conversations, same as a WhatsApp/SMS message would land there - the
+        notifications write above is just the bell-icon alert, this is what lets the
+        team actually see and reply to it from the inbox. Never lets a failure here
+        break message-taking itself, which is why the bell notification above already
+        went out regardless."""
+        if self.user_id == "guest":
+            return
+        try:
+            from app.services.smartflow.appointment_notifications import AppointmentNotifier
+
+            notifier = AppointmentNotifier(self.flow_service.db)
+            number = notifier._normalize_phone_value(callback_number or "")
+            if not number:
+                return
+            organization_id = await self.flow_service._resolve_organization_id(self.user_id)
+            conversation_id, contact_id = await notifier._sms_thread(
+                self.user_id, organization_id, number, caller_name, platform="ai_receptionist"
+            )
+            await self.flow_service.create_message(
+                self.user_id,
+                {
+                    "conversation_id": conversation_id,
+                    "contact_id": contact_id,
+                    "platform": "ai_receptionist",
+                    "direction": "inbound",
+                    "content": message[:1000],
+                    "provider_message_id": None,
+                },
+            )
+        except Exception:
+            logger.warning("Call %s: could not post the message into the AI Receptionist inbox", self.call_id, exc_info=True)
 
     async def _tool_notify_team(self, note: str, playbook: str | None = None) -> dict:
         from app.utils.helpers import resolve_organization_user_ids
