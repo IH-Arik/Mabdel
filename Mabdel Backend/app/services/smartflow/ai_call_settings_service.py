@@ -26,6 +26,84 @@ MAX_CUSTOM_INSTRUCTIONS_CHARS = 2000
 MAX_GREETING_CHARS = 500
 MAX_CLOSING_MESSAGE_CHARS = 500
 
+# A starting point for every business - plain-language, editable, regeneratable, or
+# deletable. Every business gets these out of the box rather than an empty list, same
+# spirit as the built-in (but overridable) greeting/closing text.
+DEFAULT_OUTBOUND_CALL_PURPOSES = [
+    {
+        "id": "appointment_reminder", "name": "Appointment Reminder", "active": True,
+        "opening_message": "Hi, this is a quick reminder call about your upcoming appointment.",
+        "objective": "Make sure the customer knows their appointment is coming up and can still make it.",
+        "questions_to_ask": ["Can you still make it at that time?"],
+        "allowed_actions": ["Reschedule the appointment if they can't make it", "Confirm the appointment"],
+        "closing_message": "Great, we'll see you then. Thanks for your time!",
+        "follow_up_sms": "{business}: thanks for taking our call. Call us anytime if you need to reschedule.",
+    },
+    {
+        "id": "appointment_confirmation", "name": "Appointment Confirmation", "active": True,
+        "opening_message": "Hi, I'm calling to confirm your upcoming appointment with us.",
+        "objective": "Get a clear yes/no on whether the customer is still coming.",
+        "questions_to_ask": ["Are you still able to make this appointment?"],
+        "allowed_actions": ["Confirm the appointment", "Reschedule the appointment", "Cancel the appointment"],
+        "closing_message": "Thank you for confirming, we look forward to seeing you.",
+        "follow_up_sms": "{business}: thanks for confirming! We'll see you soon.",
+    },
+    {
+        "id": "missed_call_callback", "name": "Missed-Call Callback", "active": True,
+        "opening_message": "Hi, I'm calling you back - we noticed we missed your call earlier.",
+        "objective": "Find out what the customer originally needed and help with it, or get them to the right person.",
+        "questions_to_ask": ["What were you calling about earlier?"],
+        "allowed_actions": ["Answer questions", "Book an appointment", "Transfer to a team member", "Take a message"],
+        "closing_message": "Thanks for your patience, let us know if you need anything else.",
+        "follow_up_sms": None,
+    },
+    {
+        "id": "lead_follow_up", "name": "Lead Follow-Up", "active": True,
+        "opening_message": "Hi, I'm following up on your recent interest in our services.",
+        "objective": "Re-engage the lead, answer questions, and move them toward booking.",
+        "questions_to_ask": ["Are you still interested?", "Do you have any questions I can answer?"],
+        "allowed_actions": ["Answer pricing questions", "Book an appointment", "Take a message"],
+        "closing_message": "Thanks for your time, feel free to call us anytime with questions.",
+        "follow_up_sms": "{business}: thanks for your interest! Call us anytime with questions.",
+    },
+    {
+        "id": "estimate_follow_up", "name": "Estimate/Quote Follow-Up", "active": True,
+        "opening_message": "Hi, I'm calling to follow up on the estimate we sent over.",
+        "objective": "Check if the customer has questions about the estimate and help them decide.",
+        "questions_to_ask": ["Did you have a chance to review the estimate?", "Do you have any questions about it?"],
+        "allowed_actions": ["Answer pricing questions", "Book an appointment", "Take a message"],
+        "closing_message": "Thanks for considering us, let us know if you'd like to move forward.",
+        "follow_up_sms": "{business}: following up on your estimate - call us anytime with questions.",
+    },
+    {
+        "id": "customer_reactivation", "name": "Customer Reactivation", "active": True,
+        "opening_message": "Hi, it's been a while since your last visit and we wanted to check in.",
+        "objective": "Reconnect with a past customer and invite them back.",
+        "questions_to_ask": ["Would you like to book another appointment?"],
+        "allowed_actions": ["Book an appointment", "Answer pricing questions", "Take a message"],
+        "closing_message": "It was great reconnecting, hope to see you again soon.",
+        "follow_up_sms": "{business}: great to reconnect! Call us anytime to book.",
+    },
+    {
+        "id": "service_reminder", "name": "Service Reminder", "active": True,
+        "opening_message": "Hi, it's time for your regular service and we wanted to reach out.",
+        "objective": "Remind the customer their service is due and help them schedule it.",
+        "questions_to_ask": ["Would you like to schedule your service now?"],
+        "allowed_actions": ["Book an appointment", "Reschedule", "Take a message"],
+        "closing_message": "Thanks, we'll get that scheduled for you.",
+        "follow_up_sms": "{business}: reminder that your service is due - call us to schedule.",
+    },
+    {
+        "id": "custom_campaign", "name": "Custom Outbound Campaign", "active": True,
+        "opening_message": None,
+        "objective": None,
+        "questions_to_ask": [],
+        "allowed_actions": [],
+        "closing_message": None,
+        "follow_up_sms": None,
+    },
+]
+
 
 class AICallSettingsService(SmartFlowBase):
     """Per-business persona for the AI phone agent.
@@ -57,6 +135,7 @@ class AICallSettingsService(SmartFlowBase):
         "emergency_keywords": [],
         "emergency_response_mode": "take_message",
         "emergency_alert_phone": None,
+        "outbound_call_purposes": DEFAULT_OUTBOUND_CALL_PURPOSES,
     }
 
     async def get_settings(self, user_id: str) -> dict:

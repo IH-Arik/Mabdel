@@ -501,6 +501,35 @@ class CallRoutingRule(BaseModel):
         return [item.strip()[:200] for item in value if item and item.strip()][:8]
 
 
+class OutboundCallPurpose(BaseModel):
+    """A named reason the AI places an outbound call - its own opening line,
+    objective, questions, allowed actions, closing line, and optional follow-up SMS.
+    Replaces a single generic "purpose" dropdown so the owner can write real guidance
+    per call type (e.g. "Appointment Reminder" vs "Lead Follow-Up") without touching
+    any backend/API detail - the receptionist still uses judgement, same as a
+    CallRoutingRule, it isn't a script read verbatim."""
+
+    id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=80)
+    opening_message: str | None = Field(default=None, max_length=500)
+    objective: str | None = Field(default=None, max_length=300)
+    questions_to_ask: list[str] = Field(default_factory=list, max_length=8)
+    allowed_actions: list[str] = Field(default_factory=list, max_length=10)
+    closing_message: str | None = Field(default=None, max_length=500)
+    follow_up_sms: str | None = Field(default=None, max_length=300)
+    active: bool = True
+
+    @field_validator("questions_to_ask")
+    @classmethod
+    def _clean_questions(cls, value: list[str]) -> list[str]:
+        return [item.strip()[:200] for item in value if item and item.strip()][:8]
+
+    @field_validator("allowed_actions")
+    @classmethod
+    def _clean_actions(cls, value: list[str]) -> list[str]:
+        return [item.strip()[:100] for item in value if item and item.strip()][:10]
+
+
 class SmsWordingOverrides(BaseModel):
     """The owner's own text for each appointment SMS, in place of the built-in one.
     {business} and {when} are filled in when present; a kind left blank keeps using
@@ -546,6 +575,7 @@ class AICallSettingsResponse(BaseModel):
     sms_wording: SmsWordingOverrides = Field(default_factory=SmsWordingOverrides)
     cancellation_policy: str | None = None
     call_routing_rules: list[CallRoutingRule] = Field(default_factory=list)
+    outbound_call_purposes: list[OutboundCallPurpose] = Field(default_factory=list)
     emergency_keywords: list[str] = Field(default_factory=list)
     # "take_message": notify the team and transfer if a number is configured (the
     # original behavior - right for a contractor, lawyer, or most other businesses).
@@ -593,6 +623,7 @@ class AICallSettingsUpdateRequest(BaseModel):
     cancellation_policy: str | None = Field(default=None, max_length=500)
     # Named playbooks: "when a caller wants X, ask these, book with this, notify this".
     call_routing_rules: list[CallRoutingRule] | None = Field(default=None, max_length=20)
+    outbound_call_purposes: list[OutboundCallPurpose] | None = Field(default=None, max_length=20)
     # Business-specific phrases that force an immediate transfer/notification, on top
     # of the built-in universal ones (chest pain, gas leak, etc).
     emergency_keywords: list[str] | None = Field(default=None, max_length=20)
@@ -1333,8 +1364,12 @@ class OutboundCallRequest(BaseModel):
     phone_number: str | None = None
     from_number: str | None = None
     ai_ready: bool = True
-    # What the AI is calling about - briefed into the Realtime receptionist.
-    purpose: Literal["follow_up", "appointment_reminder", "custom"] = "follow_up"
+    # Which configured OutboundCallPurpose this call is about - looked up by id from
+    # the org's own ai_call_settings.outbound_call_purposes at call time (see
+    # realtime_receptionist.py). Free string rather than a fixed enum so the owner's
+    # own named purposes work here, not just the 3 legacy built-in ones; an unknown id
+    # just falls back to a generic outbound framing rather than failing the call.
+    purpose: str = Field(default="follow_up", max_length=64)
     script_notes: str | None = Field(default=None, max_length=1000)
 
 
