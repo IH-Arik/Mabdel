@@ -420,6 +420,9 @@ class SmartFlowService(SmartFlowBase):
     async def update_ai_call_settings(self, user_id, payload):
         return await self.ai_call_settings_service.update_settings(user_id, payload)
 
+    async def compose_receptionist_fields(self, user_id, **kwargs):
+        return await self.ai_call_settings_service.compose_receptionist_fields(user_id, **kwargs)
+
     async def get_calendar_provider_settings(self, user_id):
         return await self.calendar_service.get_calendar_provider_settings(user_id)
 
