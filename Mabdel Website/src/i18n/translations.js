@@ -858,6 +858,7 @@ export const TRANSLATIONS = {
     contacts_remove_contact: 'Remove Contact',
     contacts_editing: 'Editing Contact',
     contacts_creating: 'Creating Draft',
+    contacts_lead_badge: 'Lead',
     contacts_upload_picture: 'Upload Profile Picture',
     contacts_field_first_name: 'First Name',
     contacts_field_last_name: 'Last Name',
