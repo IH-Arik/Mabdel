@@ -238,6 +238,57 @@ class ContactService(SmartFlowBase):
             return None
         return await self.db.contacts.find_one({"user_id": {"$in": team_ids}, "$or": matches})
 
+    async def find_or_create_by_phone_or_email(
+        self, user_id: str, *, phone: str | None = None, email: str | None = None, name: str | None = None, source: str | None = None
+    ) -> dict:
+        """Used by the AI receptionist's lead-capture tool - matches phone first, then
+        email (via `_find_duplicate_contact`), else creates a new contact tagged with
+        `source`. On a match, only fills in currently-empty email/name - never
+        overwrites real data with AI-captured data, and never touches an existing
+        contact's `source`. Returns the raw contact document (not the public/serialized
+        shape), for internal service-to-service use."""
+        team_ids = await self._resolve_team_user_ids(user_id)
+        normalized_email = self._normalize_email(email)
+        normalized_phone = self._normalize_phone(phone)
+        existing = await self._find_duplicate_contact(team_ids, normalized_email, normalized_phone)
+        now = utc_now()
+        if existing:
+            updates: dict = {}
+            if not existing.get("email") and normalized_email:
+                updates["email"] = normalized_email
+            if not existing.get("name") and name:
+                updates.update(self._normalize_contact_names({"name": name}))
+            if updates:
+                updates["updated_at"] = now
+                existing = await self.db.contacts.find_one_and_update(
+                    {"_id": existing["_id"]}, {"$set": updates}, return_document=ReturnDocument.AFTER
+                )
+            return existing
+
+        names = self._normalize_contact_names({"name": name or "New Lead"})
+        document = {
+            "user_id": user_id,
+            "name": names["name"],
+            "first_name": names["first_name"],
+            "last_name": names["last_name"],
+            "email": normalized_email,
+            "phone": normalized_phone,
+            "avatar_url": None,
+            "company": None,
+            "job_title": None,
+            "address": None,
+            "date_of_birth": None,
+            "notes": None,
+            "identities": [],
+            "presence": "offline",
+            "source": source,
+            "created_at": now,
+            "updated_at": now,
+        }
+        result = await self.db.contacts.insert_one(document)
+        document["_id"] = result.inserted_id
+        return document
+
     async def create_contact(self, user_id: str, payload: dict) -> dict:
         now = utc_now()
         names = self._normalize_contact_names(payload)

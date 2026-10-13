@@ -150,6 +150,7 @@ class ContactResponse(BaseModel):
     is_online: bool = False
     initials: str = "NA"
     primary_detail: str | None = None
+    source: str | None = None
     created_at: datetime
     updated_at: datetime
 

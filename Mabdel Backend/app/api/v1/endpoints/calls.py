@@ -665,8 +665,52 @@ async def _process_recording(
             },
         )
         logger.info("Call %s: Recording transcribed and summarized.", call_id)
+        await _post_lead_call_summary(db, call_id, user_id, summary)
     except Exception:
         logger.exception("Call %s: Recording processing error", call_id)
+
+
+async def _post_lead_call_summary(db, call_id: str, user_id: str, summary: dict) -> None:
+    """If this call captured a lead (see RealtimeReceptionist._tool_capture_lead),
+    post the AI-generated call summary into that lead's own AI Receptionist
+    conversation thread - gives the owner the full lead card (contact + structured
+    note + call summary) in Unified Conversations without any separate timeline UI."""
+    call = await db.call_logs.find_one({"twilio_call_sid": call_id, "user_id": user_id}, {"lead_contact_id": 1, "from_number": 1})
+    lead_contact_id = (call or {}).get("lead_contact_id")
+    if not lead_contact_id:
+        return
+    try:
+        from app.services.smartflow.appointment_notifications import AppointmentNotifier
+        from app.services.smartflow_service import SmartFlowService
+
+        service = SmartFlowService(db)
+        organization_id = await service._resolve_organization_id(user_id)
+        number = AppointmentNotifier(db)._normalize_phone_value(call.get("from_number") or "")
+        if not number:
+            return
+        conversation_id, contact_id = await AppointmentNotifier(db)._sms_thread(user_id, organization_id, number, None, platform="ai_receptionist")
+        if contact_id != lead_contact_id:
+            return
+        headline = summary.get("purpose") or summary.get("summary") or ""
+        key_points = summary.get("key_points") or []
+        key_points_text = "; ".join(str(point) for point in key_points) if isinstance(key_points, list) else str(key_points)
+        body = " ".join(part for part in [headline, key_points_text] if part)
+        if not body:
+            return
+        text = f"Call summary — {body}"
+        await service.create_message(
+            user_id,
+            {
+                "conversation_id": conversation_id,
+                "contact_id": contact_id,
+                "platform": "ai_receptionist",
+                "direction": "inbound",
+                "content": text[:1000],
+                "provider_message_id": None,
+            },
+        )
+    except Exception:
+        logger.warning("Call %s: could not attach the call summary to the lead", call_id, exc_info=True)
 
 
 @router.get("/calls/{call_sid}/transcript")
