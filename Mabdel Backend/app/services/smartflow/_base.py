@@ -498,6 +498,7 @@ class SmartFlowBase:
         safe.setdefault("date_of_birth", None)
         safe.setdefault("notes", None)
         safe.setdefault("identities", [])
+        safe.setdefault("source", None)
         return safe
 
     @staticmethod

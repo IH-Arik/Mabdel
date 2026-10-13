@@ -34,11 +34,15 @@ DISPOSITIONS_BY_TOOL = {
     "transfer_to_human": "transferred",
     "take_message": "message_taken",
     "notify_team": "message_taken",
+    "capture_lead": "lead_captured",
+    "send_payment_link": "payment_link_sent",
 }
 # When a call did more than one of these, the most consequential one wins (e.g. a
 # caller who got transferred after a failed booking attempt is "transferred", not
 # "booked", since the booking never actually went through).
-DISPOSITION_PRIORITY = ["booked", "rescheduled", "cancelled", "transferred", "message_taken"]
+DISPOSITION_PRIORITY = [
+    "booked", "rescheduled", "cancelled", "transferred", "payment_link_sent", "lead_captured", "message_taken",
+]
 
 
 def _derive_call_disposition(ai_actions: list[dict] | None) -> str:
@@ -59,6 +63,10 @@ def _derive_call_disposition(ai_actions: list[dict] | None) -> str:
             if outcome not in ("booked", "rescheduled", "cancelled", "pending", "pending_cancellation"):
                 continue
         elif tool == "transfer_to_human" and not result.get("transferred"):
+            continue
+        elif tool == "capture_lead" and not result.get("saved"):
+            continue
+        elif tool == "send_payment_link" and not result.get("sent"):
             continue
         achieved.add(disposition)
     for candidate in DISPOSITION_PRIORITY:
@@ -165,10 +173,12 @@ TOOLS: list[dict] = [
         "parameters": {
             "type": "object",
             "properties": {
-                "message": {"type": "string"},
+                "message": {"type": "string", "description": "A one or two sentence summary of what they need - not a verbatim transcript."},
                 "caller_name": {"type": "string"},
                 "callback_number": {"type": "string"},
                 "urgent": {"type": "boolean"},
+                "department": {"type": "string", "description": "Who or what team they wanted to reach, if they said."},
+                "callback_requested": {"type": "boolean", "description": "Whether they explicitly asked for a callback."},
             },
             "required": ["message"],
         },
@@ -184,6 +194,43 @@ TOOLS: list[dict] = [
                 "playbook": {"type": "string", "description": "The playbook name this came from."},
             },
             "required": ["note"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "capture_lead",
+        "description": (
+            "Log a NEW potential customer's interest as a lead in the CRM - only when the caller is NOT an "
+            "existing customer or patient and is asking about a new product or service (a genuine new sales "
+            "inquiry). Do not call this for an existing customer, a caller just booking a routine appointment, "
+            "or someone leaving a message - use book_appointment or take_message for those."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "caller_name": {"type": "string"},
+                "phone": {"type": "string", "description": "The caller's phone number - use the number they're calling from unless they give a different one."},
+                "email": {"type": "string"},
+                "service_interested": {"type": "string", "description": "The product or service they're asking about."},
+                "need_description": {"type": "string", "description": "A one or two sentence summary of what they need."},
+                "preferred_time": {"type": "string", "description": "An appointment or callback time they mentioned, if any."},
+            },
+            "required": ["caller_name", "phone", "service_interested"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "send_payment_link",
+        "description": (
+            "Send the caller a secure Stripe link to pay an EXISTING open balance they owe - only after they "
+            "agree. Never state a dollar amount yourself; this tool looks it up from GoCustify's real invoice "
+            "records. Never ask for or repeat card numbers, CVV, or other payment details."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "phone": {"type": "string", "description": "The caller's phone number to look up their invoice. Defaults to the number they're calling from."},
+            },
         },
     },
     {
@@ -495,6 +542,9 @@ class RealtimeReceptionist(AIPhoneAgent):
             "- If booking, moving or cancelling comes back unavailable or not possible, say so plainly and offer other times with check_availability.\n"
             "- Pass the language field (the language the caller is speaking) when you book, move or cancel, so the confirmation text matches.\n"
             "- Before calling transfer_to_human, tell the caller you are connecting them to a person.\n"
+            "- If a caller who is not an existing customer is asking about a new product or service, capture_lead once you have their name, "
+            "phone and what they're interested in.\n"
+            "- If a caller wants to pay a bill, offer to text them a secure payment link with send_payment_link; never take card details by voice.\n"
             "- When the caller is done, say a short goodbye in that same turn, then call end_call.\n",
         ]
         if call_settings.get("custom_instructions"):
@@ -508,7 +558,10 @@ class RealtimeReceptionist(AIPhoneAgent):
             "- NEVER claim a document, invoice, agreement or booking has already been created or sent "
             "during this call. Requests are logged for the team.\n",
             "- Only say an appointment is booked, moved or cancelled when the tool result says so. "
-            "Never claim an invoice, agreement or other document was created or sent; those requests go to the team with take_message.\n",
+            "Never claim an invoice or agreement was created or sent; those requests go to the team with take_message. "
+            "Only say a payment link was sent after send_payment_link confirms it, and only state the dollar amount the tool "
+            "returns - never estimate or invent a price. Never ask the caller for card numbers, CVV, or other payment details "
+            "over the phone.\n",
         ))
         return "".join(section for section in sections if section)
 
@@ -921,7 +974,15 @@ class RealtimeReceptionist(AIPhoneAgent):
             caller_name=caller_name, call_sid=self.call_id, language=self._adopt_language(language),
         )
 
-    async def _tool_take_message(self, message: str, caller_name: str | None = None, callback_number: str | None = None, urgent: bool = False) -> dict:
+    async def _tool_take_message(
+        self,
+        message: str,
+        caller_name: str | None = None,
+        callback_number: str | None = None,
+        urgent: bool = False,
+        department: str | None = None,
+        callback_requested: bool = False,
+    ) -> dict:
         from app.utils.helpers import resolve_organization_user_ids
 
         entry = {
@@ -930,6 +991,8 @@ class RealtimeReceptionist(AIPhoneAgent):
             "caller_name": caller_name,
             "callback_number": callback_number or self.caller_phone,
             "urgent": bool(urgent),
+            "department": department,
+            "callback_requested": bool(callback_requested),
             "timestamp": utc_now().isoformat(),
         }
         self.captured_requests.append(entry)
@@ -946,10 +1009,20 @@ class RealtimeReceptionist(AIPhoneAgent):
                 )
             except Exception:
                 continue
-        await self._post_to_ai_receptionist_inbox(message, caller_name, entry["callback_number"])
+        await self._post_to_ai_receptionist_inbox(
+            message, caller_name, entry["callback_number"], department=department, callback_requested=bool(callback_requested)
+        )
         return {"saved": True, "note": "Tell the caller the team has the message and will get back to them."}
 
-    async def _post_to_ai_receptionist_inbox(self, message: str, caller_name: str | None, callback_number: str | None) -> None:
+    async def _post_to_ai_receptionist_inbox(
+        self,
+        message: str,
+        caller_name: str | None,
+        callback_number: str | None,
+        *,
+        department: str | None = None,
+        callback_requested: bool = False,
+    ) -> None:
         """Mirrors the message into its own "AI Receptionist" thread in Unified
         Conversations, same as a WhatsApp/SMS message would land there - the
         notifications write above is just the bell-icon alert, this is what lets the
@@ -969,6 +1042,11 @@ class RealtimeReceptionist(AIPhoneAgent):
             conversation_id, contact_id = await notifier._sms_thread(
                 self.user_id, organization_id, number, caller_name, platform="ai_receptionist"
             )
+            formatted = f"{caller_name or 'Unknown caller'} — {callback_number or 'no number given'} — {message}"
+            if callback_requested:
+                formatted += " Requests callback."
+            if department:
+                formatted += f" For: {department}."
             await self.flow_service.create_message(
                 self.user_id,
                 {
@@ -976,12 +1054,139 @@ class RealtimeReceptionist(AIPhoneAgent):
                     "contact_id": contact_id,
                     "platform": "ai_receptionist",
                     "direction": "inbound",
-                    "content": message[:1000],
+                    "content": formatted[:1000],
                     "provider_message_id": None,
                 },
             )
         except Exception:
             logger.warning("Call %s: could not post the message into the AI Receptionist inbox", self.call_id, exc_info=True)
+
+    async def _tool_capture_lead(
+        self,
+        caller_name: str,
+        phone: str,
+        service_interested: str,
+        email: str | None = None,
+        need_description: str | None = None,
+        preferred_time: str | None = None,
+    ) -> dict:
+        if self.user_id == "guest":
+            return {"saved": False, "note": "Tell the caller their information has been noted and the team will follow up."}
+        try:
+            from app.services.smartflow.appointment_notifications import AppointmentNotifier
+            from app.services.smartflow.contact_service import ContactService
+
+            number = self.flow_service._normalize_phone_value(phone or self.caller_phone or "")
+            contacts = ContactService(self.flow_service.db)
+            contact = await contacts.find_or_create_by_phone_or_email(
+                self.user_id, phone=number, email=email, name=caller_name, source="ai_call_lead"
+            )
+            contact_id = str(contact["_id"])
+
+            note_line = f"[{utc_now().strftime('%Y-%m-%d %H:%M')} UTC] AI Lead: interested in {service_interested}."
+            if need_description:
+                note_line += f" {need_description}"
+            if preferred_time:
+                note_line += f" Preferred time: {preferred_time}."
+            existing_notes = (contact.get("notes") or "").strip()
+            new_notes = f"{existing_notes}\n\n{note_line}".strip() if existing_notes else note_line
+            await self.flow_service.db.contacts.update_one({"_id": contact["_id"]}, {"$set": {"notes": new_notes, "updated_at": utc_now()}})
+
+            if self.call_id:
+                await self.flow_service.db.call_logs.update_one(
+                    {"twilio_call_sid": self.call_id}, {"$set": {"lead_contact_id": contact_id}}
+                )
+
+            if number:
+                notifier = AppointmentNotifier(self.flow_service.db)
+                organization_id = await self.flow_service._resolve_organization_id(self.user_id)
+                conversation_id, _ = await notifier._sms_thread(self.user_id, organization_id, number, caller_name, platform="ai_receptionist")
+                summary = f"New lead: interested in {service_interested}."
+                if need_description:
+                    summary += f" {need_description}"
+                if preferred_time:
+                    summary += f" Preferred time: {preferred_time}."
+                await self.flow_service.create_message(
+                    self.user_id,
+                    {
+                        "conversation_id": conversation_id,
+                        "contact_id": contact_id,
+                        "platform": "ai_receptionist",
+                        "direction": "inbound",
+                        "content": summary[:1000],
+                        "provider_message_id": None,
+                    },
+                )
+        except Exception:
+            logger.warning("Call %s: could not capture lead", self.call_id, exc_info=True)
+            return {"saved": False, "note": "Tell the caller their information has been noted and the team will follow up."}
+        return {"saved": True, "note": "Tell the caller their information has been noted and the team will follow up."}
+
+    async def _tool_send_payment_link(self, phone: str | None = None) -> dict:
+        not_found = {"sent": False, "note": "Tell the caller you don't see an open balance on file; offer take_message so the team can check."}
+        if self.user_id == "guest":
+            return not_found
+        try:
+            from app.core.exceptions import AppException
+            from app.services.invoice_service import InvoiceService
+            from app.services.smartflow.appointment_notifications import AppointmentNotifier
+            from app.utils.helpers import resolve_team_user_ids
+
+            number = self.flow_service._normalize_phone_value(phone or self.caller_phone or "")
+            team_ids = await self.flow_service._resolve_team_user_ids(self.user_id)
+            contact = await self.flow_service.db.contacts.find_one({"user_id": {"$in": team_ids}, "phone": number}) if number else None
+            email = (contact or {}).get("email")
+
+            owner_ids = await resolve_team_user_ids(self.flow_service.db, self.user_id)
+            matches: list[dict] = []
+            if number:
+                matches.append({"client_phone": number})
+            if email:
+                matches.append({"client_email": email})
+            if not matches:
+                return not_found
+            invoice = await self.flow_service.db.invoices.find_one(
+                {"owner_user_id": {"$in": owner_ids}, "status": {"$in": ["sent", "viewed", "overdue"]}, "$or": matches},
+                sort=[("created_at", -1)],
+            )
+            if not invoice:
+                return not_found
+
+            try:
+                response = await InvoiceService(self.flow_service.db).create_payment_link(self.user_id, str(invoice["_id"]))
+            except AppException as exc:
+                logger.warning("Call %s: could not create a payment link - %s", self.call_id, exc.message)
+                return {"sent": False, "note": "Payment collection isn't set up yet - offer to transfer or take a message."}
+
+            business_name = (await self.flow_service.db.organizations.find_one(
+                {"organization_id": await self.flow_service._resolve_organization_id(self.user_id)}
+            ) or {}).get("business_name") or "Our business"
+            sms_text = f"{business_name}: here's your secure payment link for invoice {response.invoice_number} (${response.total_amount:.2f}): {response.payment_url}"
+            if number:
+                await self.call_control.send_sms(to_number=number, message=sms_text)
+                notifier = AppointmentNotifier(self.flow_service.db)
+                organization_id = await self.flow_service._resolve_organization_id(self.user_id)
+                conversation_id, contact_id = await notifier._sms_thread(self.user_id, organization_id, number, None, platform="ai_receptionist")
+                await self.flow_service.create_message(
+                    self.user_id,
+                    {
+                        "conversation_id": conversation_id,
+                        "contact_id": contact_id,
+                        "platform": "ai_receptionist",
+                        "direction": "inbound",
+                        "content": sms_text[:1000],
+                        "provider_message_id": None,
+                    },
+                )
+            return {
+                "sent": True,
+                "amount": response.total_amount,
+                "invoice_number": response.invoice_number,
+                "note": "Tell the caller you just texted them a secure payment link.",
+            }
+        except Exception:
+            logger.warning("Call %s: could not send a payment link", self.call_id, exc_info=True)
+            return not_found
 
     async def _tool_notify_team(self, note: str, playbook: str | None = None) -> dict:
         from app.utils.helpers import resolve_organization_user_ids
@@ -1198,6 +1403,17 @@ class RealtimeReceptionist(AIPhoneAgent):
 
     async def _sim_take_message(self, message: str, **_: Any) -> dict:
         return {"saved": True, "test_mode": "no one was notified"}
+
+    async def _sim_capture_lead(self, caller_name: str, phone: str, service_interested: str, **_: Any) -> dict:
+        return {"saved": True, "test_mode": "no lead was actually created"}
+
+    async def _sim_send_payment_link(self, phone: str | None = None, **_: Any) -> dict:
+        return {
+            "sent": True,
+            "amount": 0,
+            "invoice_number": "TEST-0000",
+            "test_mode": "no text message or Stripe link was actually sent",
+        }
 
     async def _sim_transfer_to_human(self, reason: str | None = None) -> dict:
         target = (await self._get_call_settings()).get("transfer_number")

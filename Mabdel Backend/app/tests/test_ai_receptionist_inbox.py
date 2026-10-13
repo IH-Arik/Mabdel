@@ -41,6 +41,46 @@ def test_a_message_with_no_phone_number_on_file_skips_the_inbox_post_without_err
     assert asyncio.run(mock_db.notifications.count_documents({"user_id": owner_id})) == 1
 
 
+def test_a_message_is_formatted_with_caller_number_and_department_and_callback_flag(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "ai-inbox-format@example.com")
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, FakeOpenAI())
+        await agent.run_tool(
+            "take_message",
+            json.dumps(
+                {
+                    "message": "Lower-left tooth pain for two days; worsening.",
+                    "caller_name": "John Smith",
+                    "callback_number": "+15551234567",
+                    "department": "Dr. Lee's office",
+                    "callback_requested": True,
+                }
+            ),
+        )
+
+    asyncio.run(run())
+    conversation = asyncio.run(mock_db.conversations.find_one({"user_id": owner_id, "platform": "ai_receptionist"}))
+    message = asyncio.run(mock_db.messages.find_one({"conversation_id": str(conversation["_id"])}))
+    assert message["content"] == (
+        "John Smith — +15551234567 — Lower-left tooth pain for two days; worsening. "
+        "Requests callback. For: Dr. Lee's office."
+    )
+
+
+def test_a_message_without_department_or_callback_flag_has_no_trailing_suffix(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "ai-inbox-format-plain@example.com")
+
+    async def run():
+        agent = _receptionist(mock_db, owner_id, FakeOpenAI())
+        await agent.run_tool("take_message", json.dumps({"message": "Please call me back", "caller_name": "Karim"}))
+
+    asyncio.run(run())
+    conversation = asyncio.run(mock_db.conversations.find_one({"user_id": owner_id, "platform": "ai_receptionist"}))
+    message = asyncio.run(mock_db.messages.find_one({"conversation_id": str(conversation["_id"])}))
+    assert message["content"] == "Karim — +15551230000 — Please call me back"
+
+
 def test_the_ai_receptionist_thread_is_separate_from_the_customers_sms_thread(client, mock_db, monkeypatch):
     owner_id = _business(client, mock_db, monkeypatch, "ai-inbox-separate@example.com")
 

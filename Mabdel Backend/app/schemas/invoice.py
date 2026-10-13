@@ -21,6 +21,7 @@ class InvoiceLineItem(BaseModel):
 class InvoiceCreateRequest(BaseModel):
     client_name: str = Field(..., min_length=2, max_length=120)
     client_email: EmailStr | None = None
+    client_phone: str | None = Field(default=None, max_length=40)
     billing_address: str | None = Field(default=None, max_length=500)
     currency: str = Field(default="USD", min_length=3, max_length=3)
     issue_date: date | None = None
@@ -33,6 +34,7 @@ class InvoiceCreateRequest(BaseModel):
 class InvoiceUpdateRequest(BaseModel):
     client_name: str | None = Field(default=None, min_length=2, max_length=120)
     client_email: EmailStr | None = None
+    client_phone: str | None = Field(default=None, max_length=40)
     billing_address: str | None = Field(default=None, max_length=500)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     issue_date: date | None = None
@@ -90,6 +92,7 @@ class InvoiceResponse(BaseModel):
     invoice_number: str
     client_name: str
     client_email: EmailStr | None = None
+    client_phone: str | None = None
     billing_address: str | None = None
     currency: str
     issue_date: date

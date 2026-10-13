@@ -55,6 +55,7 @@ class InvoiceService:
             "invoice_number": invoice_number,
             "client_name": payload.client_name.strip(),
             "client_email": str(payload.client_email) if payload.client_email else None,
+            "client_phone": payload.client_phone.strip() if payload.client_phone else None,
             "billing_address": payload.billing_address.strip() if payload.billing_address else None,
             "currency": payload.currency.upper(),
             "issue_date": issue_date.isoformat(),
@@ -116,6 +117,8 @@ class InvoiceService:
             invoice["client_name"] = payload.client_name.strip()
         if "client_email" in fields:
             invoice["client_email"] = str(payload.client_email) if payload.client_email else None
+        if "client_phone" in fields:
+            invoice["client_phone"] = payload.client_phone.strip() if payload.client_phone else None
         if "billing_address" in fields:
             invoice["billing_address"] = payload.billing_address.strip() if payload.billing_address else None
         if "currency" in fields and payload.currency is not None:
@@ -412,6 +415,7 @@ class InvoiceService:
             invoice_number=invoice["invoice_number"],
             client_name=invoice["client_name"],
             client_email=invoice.get("client_email"),
+            client_phone=invoice.get("client_phone"),
             billing_address=invoice.get("billing_address"),
             currency=invoice["currency"],
             issue_date=date.fromisoformat(invoice["issue_date"]),
