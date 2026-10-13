@@ -1031,7 +1031,14 @@ export default function Contacts() {
                               )}
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-white leading-none">{item.name}</p>
+                              <p className="text-xs font-bold text-white leading-none flex items-center gap-1.5">
+                                {item.name}
+                                {item.source === 'ai_call_lead' ? (
+                                  <span className="px-1.5 py-0.5 bg-purple-950/80 border border-purple-500/20 text-purple-400 text-[8px] font-bold rounded-full uppercase tracking-wider">
+                                    {t('contacts_lead_badge')}
+                                  </span>
+                                ) : null}
+                              </p>
                               <p className="text-[10px] text-slate-500 mt-1.5">{item.phone}</p>
                             </div>
                           </div>
@@ -1226,7 +1233,14 @@ export default function Contacts() {
               </div>
 
               <div>
-                <h2 className="text-2xl font-extrabold text-white leading-tight">{activeContact.name}</h2>
+                <h2 className="text-2xl font-extrabold text-white leading-tight flex items-center gap-2">
+                  {activeContact.name}
+                  {activeContact.source === 'ai_call_lead' ? (
+                    <span className="px-2.5 py-0.5 bg-purple-950/80 border border-purple-500/20 text-purple-400 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                      {t('contacts_lead_badge')}
+                    </span>
+                  ) : null}
+                </h2>
                 <div className="flex items-center gap-4 text-xs text-slate-400 mt-2 font-semibold">
                   <span className="flex items-center gap-1.5"><Phone size={12} className="text-slate-500" /> {activeContact.phone}</span>
                   <span className="text-slate-700">•</span>
