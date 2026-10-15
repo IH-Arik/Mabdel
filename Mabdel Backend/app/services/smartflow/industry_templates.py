@@ -212,3 +212,34 @@ def get_industry_template(business_type: str | None) -> dict:
     else - blank, a custom/"Other" business type, or free text the owner typed - safely
     falls back to the generic template rather than ever failing to build a prompt."""
     return INDUSTRY_TEMPLATES.get((business_type or "").strip()) or INDUSTRY_TEMPLATES[UNRECOGNIZED_BUSINESS_TYPE_FALLBACK]
+
+
+# Business types where "do you take my insurance" comes up. Only used to help the
+# model RECOGNIZE an insurer name the caller says - recognition is never itself an
+# answer; the owner's own configured `insurance_plans` is the only source of truth
+# for whether a plan is actually accepted (see InsurancePlan in app/schemas/smartflow.py).
+INSURANCE_ELIGIBLE_BUSINESS_TYPES = {"Dental Clinic", "Medical Clinic", "Chiropractor"}
+
+INSURANCE_RECOGNITION_DICTIONARY: dict[str, list[str]] = {
+    "Dental Clinic": [
+        "Delta Dental", "Cigna Dental", "Aetna Dental", "MetLife Dental", "Guardian",
+        "UnitedHealthcare Dental", "Blue Cross Blue Shield Dental", "Humana Dental", "Ameritas",
+        "Principal", "Sun Life", "United Concordia", "DentaQuest", "GEHA",
+    ],
+    "Medical Clinic": [
+        "Blue Cross Blue Shield", "Anthem", "Aetna", "Cigna", "UnitedHealthcare", "Humana",
+        "Medicare", "Medicaid", "Molina", "Ambetter", "Oscar", "TRICARE", "WellCare",
+    ],
+    "Chiropractor": [
+        "Blue Cross Blue Shield", "Anthem", "Aetna", "Cigna", "UnitedHealthcare", "Humana",
+        "Medicare", "Medicaid",
+    ],
+}
+
+
+def is_insurance_eligible_business_type(business_type: str | None) -> bool:
+    return (business_type or "").strip() in INSURANCE_ELIGIBLE_BUSINESS_TYPES
+
+
+def get_insurance_recognition_dictionary(business_type: str | None) -> list[str]:
+    return INSURANCE_RECOGNITION_DICTIONARY.get((business_type or "").strip(), [])

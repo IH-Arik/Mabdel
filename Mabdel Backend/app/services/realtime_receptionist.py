@@ -462,7 +462,11 @@ class RealtimeReceptionist(AIPhoneAgent):
             if policy
             else ""
         )
-        from app.services.smartflow.industry_templates import get_industry_template
+        from app.services.smartflow.industry_templates import (
+            get_industry_template,
+            get_insurance_recognition_dictionary,
+            is_insurance_eligible_business_type,
+        )
 
         industry_template = get_industry_template(call_settings.get("business_type"))
         industry_intents = industry_template.get("supported_intents") or []
@@ -474,6 +478,27 @@ class RealtimeReceptionist(AIPhoneAgent):
             if industry_intents
             else ""
         )
+        insurance_block = ""
+        if is_insurance_eligible_business_type(call_settings.get("business_type")):
+            plans = [plan for plan in (call_settings.get("insurance_plans") or []) if plan.get("active", True)]
+            plan_lines = []
+            for plan in plans:
+                label = plan["payer"] + (f" ({plan['plan_name']})" if plan.get("plan_name") else "")
+                status = "accepted" if plan.get("accepted") else "NOT accepted"
+                verify = " - tell the caller the office will verify this before confirming" if plan.get("verification_required") else ""
+                plan_lines.append(f"- {label}: {status}, network status: {plan.get('network_status', 'unknown')}{verify}")
+            recognition = get_insurance_recognition_dictionary(call_settings.get("business_type"))
+            insurance_block = (
+                "\nINSURANCE - the list below is the ONLY source you may answer an insurance question from:\n"
+                + ("\n".join(plan_lines) if plan_lines else "No insurance plans are configured yet.") + "\n"
+                + (
+                    f"You may recognize these common insurer names if the caller says one ({', '.join(recognition)}), "
+                    "but recognizing a name is NOT the same as it being accepted - only the list above is the real answer.\n"
+                    if recognition else ""
+                )
+                + "If the caller names a plan that is not listed above, say you don't have confirmed information for that "
+                "specific plan and offer to have the office verify it. Never guess or infer acceptance from the name alone.\n"
+            )
         providers_block = ""
         ask_provider_line = ""
         playbooks_block = ""
@@ -543,6 +568,7 @@ class RealtimeReceptionist(AIPhoneAgent):
             knowledge_block,
             policy_block,
             industry_template_block,
+            insurance_block,
             "\nHOW TO BEHAVE:\n"
             "- Sound like a warm, capable person at the front desk: short spoken sentences, one question at a time, natural acknowledgements. Never read lists or long menus.\n"
             "- Answer in the caller's language. Reply in one to three sentences unless they ask for detail.\n"
