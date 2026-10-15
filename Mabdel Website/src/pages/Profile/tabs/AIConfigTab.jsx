@@ -65,6 +65,11 @@ const AI_CAPABILITIES = [
   { key: 'send_payment_link', labelKey: 'aiprof_cap_send_payment_link', supportsApproval: false },
 ];
 
+// Mirrors INSURANCE_ELIGIBLE_BUSINESS_TYPES in industry_templates.py - where "do you
+// take my insurance" actually comes up.
+const INSURANCE_ELIGIBLE_BUSINESS_TYPES = ['Dental Clinic', 'Medical Clinic', 'Chiropractor'];
+const NETWORK_STATUS_OPTIONS = ['in_network', 'out_of_network', 'plan_dependent', 'unknown'];
+
 // Python's date.weekday(): 0=Monday ... 6=Sunday - matches business_hours.days already.
 const WEEKDAYS = [
   { value: 0, labelKey: 'aiprof_day_mon' },
@@ -355,6 +360,28 @@ function AIConfigTab() {
     setCallSettings((prev) => ({ ...(prev || {}), ai_capabilities: { ...(prev?.ai_capabilities || {}), [capability]: value } }));
   };
 
+  const updateInsurancePlan = (id, field, value) => {
+    setCallSettings((prev) => ({
+      ...(prev || {}),
+      insurance_plans: (prev?.insurance_plans || []).map((plan) => (plan.id === id ? { ...plan, [field]: value } : plan)),
+    }));
+  };
+
+  const addInsurancePlan = () => {
+    const id = `ins-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setCallSettings((prev) => ({
+      ...(prev || {}),
+      insurance_plans: [
+        ...(prev?.insurance_plans || []),
+        { id, payer: '', plan_name: '', accepted: true, network_status: 'unknown', verification_required: false, active: true },
+      ],
+    }));
+  };
+
+  const removeInsurancePlan = (id) => {
+    setCallSettings((prev) => ({ ...(prev || {}), insurance_plans: (prev?.insurance_plans || []).filter((plan) => plan.id !== id) }));
+  };
+
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generateAllError, setGenerateAllError] = useState('');
 
@@ -571,6 +598,17 @@ function AIConfigTab() {
         require_approval_for_reschedules: Boolean(callSettings.require_approval_for_reschedules),
         require_approval_for_cancellations: Boolean(callSettings.require_approval_for_cancellations),
         ai_capabilities: callSettings.ai_capabilities || {},
+        insurance_plans: (callSettings.insurance_plans || [])
+          .filter((plan) => plan.payer?.trim())
+          .map((plan) => ({
+            id: plan.id,
+            payer: plan.payer.trim(),
+            plan_name: plan.plan_name?.trim() || null,
+            accepted: plan.accepted !== false,
+            network_status: plan.network_status || 'unknown',
+            verification_required: Boolean(plan.verification_required),
+            active: plan.active !== false,
+          })),
         sms_confirmations_enabled: callSettings.sms_confirmations_enabled !== false,
         appointment_reminders_enabled: Boolean(callSettings.appointment_reminders_enabled),
         appointment_reminder_hours_before: Math.min(168, Math.max(1, Number(callSettings.appointment_reminder_hours_before) || 24)),
@@ -1080,6 +1118,83 @@ function AIConfigTab() {
             />
             <AiFieldTools fieldKey="cancellation_policy" value={callSettings?.cancellation_policy || ''} onChange={(text) => updateField('cancellation_policy', text)} businessType={callSettings?.business_type} t={t} />
           </SectionCard>
+
+          {INSURANCE_ELIGIBLE_BUSINESS_TYPES.includes(callSettings?.business_type) ? (
+            <SectionCard icon={ShieldCheck} title={t('aiprof_hdr_insurance')} description={t('aiprof_insurance_desc')}>
+              <div className="space-y-3">
+                {(callSettings?.insurance_plans || []).map((plan) => (
+                  <div key={plan.id} className="rounded-xl border border-[#243041] bg-[#131A24] p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        maxLength={80}
+                        placeholder={t('aiprof_ph_insurance_payer')}
+                        value={plan.payer}
+                        onChange={(event) => updateInsurancePlan(plan.id, 'payer', event.target.value)}
+                        className="flex-1 bg-[#0A1019] border border-[#243246] rounded-lg text-sm text-white font-semibold px-3 py-2 outline-none focus:border-[#9333ea]/50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeInsurancePlan(plan.id)}
+                        className="shrink-0 p-2 text-[#A4B0B7] hover:text-rose-400 cursor-pointer"
+                        title={t('aiprof_btn_remove')}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      maxLength={80}
+                      placeholder={t('aiprof_ph_insurance_plan_name')}
+                      value={plan.plan_name || ''}
+                      onChange={(event) => updateInsurancePlan(plan.id, 'plan_name', event.target.value)}
+                      className="w-full bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
+                    />
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={plan.accepted !== false}
+                          onChange={(event) => updateInsurancePlan(plan.id, 'accepted', event.target.checked)}
+                          className="w-4 h-4 accent-[#9333ea]"
+                        />
+                        <span className="text-[10px] font-bold text-[#A4B0B7] uppercase">{t('aiprof_lbl_insurance_accepted')}</span>
+                      </label>
+                      <select
+                        aria-label={t('aiprof_lbl_insurance_network_status')}
+                        value={plan.network_status || 'unknown'}
+                        onChange={(event) => updateInsurancePlan(plan.id, 'network_status', event.target.value)}
+                        className="bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2 py-1.5 outline-none"
+                      >
+                        {NETWORK_STATUS_OPTIONS.map((status) => (
+                          <option key={status} value={status}>{t(`aiprof_net_${status}`)}</option>
+                        ))}
+                      </select>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(plan.verification_required)}
+                          onChange={(event) => updateInsurancePlan(plan.id, 'verification_required', event.target.checked)}
+                          className="w-4 h-4 accent-[#9333ea]"
+                        />
+                        <span className="text-[10px] font-bold text-[#A4B0B7] uppercase">{t('aiprof_lbl_insurance_verification_required')}</span>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                {!(callSettings?.insurance_plans || []).length ? (
+                  <p className="text-[#4A5568] text-xs">{t('aiprof_no_insurance_plans')}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={addInsurancePlan}
+                  className="w-full py-2.5 bg-[#9333ea]/10 border border-[#9333ea]/30 text-[#9333ea] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Plus size={13} /> {t('aiprof_btn_add_insurance_plan')}
+                </button>
+              </div>
+            </SectionCard>
+          ) : null}
 
           <SectionCard icon={AlertTriangle} title={t('aiprof_hdr_emergency_keywords')} description={t('aiprof_emergency_keywords_desc')}>
             <p className="text-xs text-[#70829B] mb-2">{t('aiprof_emergency_keywords_builtin_hint')}</p>

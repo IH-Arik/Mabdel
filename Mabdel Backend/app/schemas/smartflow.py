@@ -555,6 +555,25 @@ class OutboundCallPurpose(BaseModel):
         return [item.strip()[:100] for item in value if item and item.strip()][:10]
 
 
+InsuranceNetworkStatus = Literal["in_network", "out_of_network", "plan_dependent", "unknown"]
+
+
+class InsurancePlan(BaseModel):
+    """Authoritative insurance data the owner configures - the ONLY source the AI may
+    answer an insurance question from. A static recognition dictionary of common
+    insurer names (see realtime_receptionist.py) only helps the model understand what
+    the caller said; it is never itself an answer. Shown in Settings only for the
+    Dentist/Medical/Chiropractor business types, where this question comes up."""
+
+    id: str = Field(min_length=1, max_length=64)
+    payer: str = Field(min_length=1, max_length=80)
+    plan_name: str | None = Field(default=None, max_length=80)
+    accepted: bool = True
+    network_status: InsuranceNetworkStatus = "unknown"
+    verification_required: bool = False
+    active: bool = True
+
+
 class SmsWordingOverrides(BaseModel):
     """The owner's own text for each appointment SMS, in place of the built-in one.
     {business} and {when} are filled in when present; a kind left blank keeps using
@@ -602,6 +621,7 @@ class AICallSettingsResponse(BaseModel):
     call_routing_rules: list[CallRoutingRule] = Field(default_factory=list)
     outbound_call_purposes: list[OutboundCallPurpose] = Field(default_factory=list)
     ai_capabilities: AICapabilities = Field(default_factory=AICapabilities)
+    insurance_plans: list[InsurancePlan] = Field(default_factory=list)
     emergency_keywords: list[str] = Field(default_factory=list)
     # "take_message": notify the team and transfer if a number is configured (the
     # original behavior - right for a contractor, lawyer, or most other businesses).
@@ -651,6 +671,7 @@ class AICallSettingsUpdateRequest(BaseModel):
     call_routing_rules: list[CallRoutingRule] | None = Field(default=None, max_length=20)
     outbound_call_purposes: list[OutboundCallPurpose] | None = Field(default=None, max_length=20)
     ai_capabilities: AICapabilities | None = None
+    insurance_plans: list[InsurancePlan] | None = Field(default=None, max_length=50)
     # Business-specific phrases that force an immediate transfer/notification, on top
     # of the built-in universal ones (chest pain, gas leak, etc).
     emergency_keywords: list[str] | None = Field(default=None, max_length=20)
