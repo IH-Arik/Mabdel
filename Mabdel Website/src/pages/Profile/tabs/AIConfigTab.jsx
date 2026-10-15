@@ -44,7 +44,7 @@ const SMS_WORDING_KINDS = [
 // A curated starting list, not an enum enforced server-side — the field stays a
 // free string so a business whose type isn't listed can still type it via "Other".
 const BUSINESS_TYPE_OPTIONS = [
-  'Dental Clinic', 'Medical Clinic', 'Law Firm', 'Real Estate Agency', 'Restaurant',
+  'Dental Clinic', 'Medical Clinic', 'Chiropractor', 'Law Firm', 'Real Estate Agency', 'Restaurant',
   'Salon / Spa', 'Home Services (Plumbing, Electrical, HVAC)', 'Auto Repair Shop',
   'Fitness Studio / Gym', 'Retail Store', 'Accounting / Bookkeeping Firm',
   'Insurance Agency', 'Veterinary Clinic', 'Photography Studio', 'Consulting Firm',
