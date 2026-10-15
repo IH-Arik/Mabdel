@@ -55,7 +55,7 @@ const BillingPage = () => {
     try {
       const res = await getSubscriptionStatus();
       setStatus(res?.data);
-    } catch (e) {
+    } catch {
       setError("Failed to load subscription status.");
     } finally {
       setLoading(false);

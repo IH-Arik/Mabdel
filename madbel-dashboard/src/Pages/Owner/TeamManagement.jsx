@@ -167,26 +167,6 @@ const TeamManagement = () => {
     }
   };
 
-  const togglePermKey = (key) => {
-    setSelectedPerms((prev) => {
-      const current = prev || [];
-      return current.includes(key)
-        ? current.filter((k) => k !== key)
-        : [...current, key];
-    });
-  };
-
-  const toggleModule = (mod) => {
-    const allKeys = (permData?.all_permissions?.[mod] || []).map((p) => p.key);
-    const current = selectedPerms || [];
-    const allSelected = allKeys.every((k) => current.includes(k));
-    if (allSelected) {
-      setSelectedPerms(current.filter((k) => !allKeys.includes(k)));
-    } else {
-      setSelectedPerms([...new Set([...current, ...allKeys])]);
-    }
-  };
-
   const handlePermSave = async () => {
     if (!permTarget) return;
     setPermSaving(true);

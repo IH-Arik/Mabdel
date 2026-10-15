@@ -151,7 +151,7 @@ const Subscriptions = () => {
             assignedEmail: item.login_email || "N/A",
             organization: item.organization_name || "-",
             status: normalizeStatus(item.status),
-            plan: item.plan || "7-Day Trial",
+            plan: item.plan ? normalizePlan(item.plan) : "7-Day Trial",
             expirationDate: formatDate(expDate),
           });
         });

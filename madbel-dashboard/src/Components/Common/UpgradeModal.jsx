@@ -32,7 +32,7 @@ const UpgradeModal = () => {
       await startTrial();
       setOpen(false);
       window.location.reload();
-    } catch (e) {
+    } catch {
       // Trial already started or failed — send to billing
       setOpen(false);
       navigate("/settings/billing");

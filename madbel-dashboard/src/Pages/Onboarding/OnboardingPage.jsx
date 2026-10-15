@@ -26,7 +26,7 @@ const OnboardingPage = () => {
     setError(null);
     try {
       await startTrial();
-    } catch (e) {
+    } catch {
       // Non-fatal: mark locally even if backend call fails
     }
     markOnboardingComplete();
@@ -39,7 +39,7 @@ const OnboardingPage = () => {
     setError(null);
     try {
       await completeOnboarding();
-    } catch (e) {
+    } catch {
       // Non-fatal: mark locally even if backend call fails
     }
     markOnboardingComplete();

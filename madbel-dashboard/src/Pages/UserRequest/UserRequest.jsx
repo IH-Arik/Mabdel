@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { EyeOutlined } from "@ant-design/icons";
 import { IoIosArrowBack, IoIosArrowForward, IoIosCheckmarkCircle, IoMdClose } from "react-icons/io";
 import { MdBlock } from "react-icons/md";
-// import userImage from "../../assets/image/admin.jpg";
-// import nid from "../../assets/image/NID.png";
+import { FaUserCircle, FaRegFileAlt } from "react-icons/fa";
 
 
 function UserRequest() {
@@ -310,7 +309,7 @@ function UserRequest() {
                   <td className="px-4 my-3 text-white">{user.id}</td>
                  
                   <td className="px-4 my-3 overflow-hidden text-white w-11 h-11">
-                    <img className="rounded-full w-11 h-11" src={userImage} alt="user" />
+                    <FaUserCircle className="w-11 h-11 text-white" />
                   </td>
                   <td className="px-4 my-3 text-white">{user.name}</td>
                   <td className="px-4 my-3 text-white">{user.email}</td>
@@ -400,7 +399,7 @@ function UserRequest() {
               {/* Modal Header */}
               <div className="bg-[#52B5D1] p-6 text-center rounded-md">
                 <div className="w-24 h-24 mx-auto mb-4 overflow-hidden border-4 border-white rounded-full">
-                  <img src={userImage} className="object-cover w-full h-full" />
+                  <FaUserCircle className="object-cover w-full h-full text-white" />
                 </div>
                 <h2 className="text-xl font-bold text-white">
                   {selectedUser.name}
@@ -438,12 +437,9 @@ function UserRequest() {
                   <h3 className="mb-2 font-semibold text-black">
                   NID/Licence
                   </h3>
-                  <div className="flex space-x-2">
-                    <img src={nid} alt="" />
-                    
-     
-
-
+                  <div className="flex items-center space-x-2 text-gray-500">
+                    <FaRegFileAlt size={20} />
+                    <span>No document uploaded</span>
                   </div>
                 </div>
               </div>
