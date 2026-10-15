@@ -1,9 +1,8 @@
 ﻿from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.dependencies import get_mongo_database, require_role
+from app.dependencies import require_role
 from app.dependencies import get_dashboard_service
 from app.schemas.dashboard_schemas import DashboardSummary, GrowthMetrics, BaseResponse
 from app.services.dashboard.dashboard_service import DashboardService

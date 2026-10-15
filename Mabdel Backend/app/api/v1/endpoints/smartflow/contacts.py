@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import Depends, File, Query, UploadFile, status
 from fastapi.responses import Response
 
-from app.dependencies import get_current_user, require_permission, require_subscription
+from app.dependencies import require_permission, require_subscription
 from app.schemas.smartflow import (
     ContactCreateRequest,
     ContactImportRequest,

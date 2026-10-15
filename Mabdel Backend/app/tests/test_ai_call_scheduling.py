@@ -5,7 +5,6 @@ import asyncio
 from bson import ObjectId
 from datetime import date, datetime, timedelta, timezone
 
-from app.core.config import settings
 from app.services.ai_phone_agent import AIPhoneAgent, _clean_spoken_email, _looks_affirmative, _looks_like_scheduling_request
 from app.services.gocustify_ai_service import GoCustifyAIService
 from app.services.smartflow.calendar_service import CalendarService
@@ -559,10 +558,10 @@ def test_scheduling_flow_end_to_end_creates_pending_request(mock_db, monkeypatch
         assert "free" in reply1.lower() or agent.phase == "offering_slot"
         assert agent.phase == "offering_slot"
 
-        reply2 = await agent._advance_conversation("Yes that works")
+        await agent._advance_conversation("Yes that works")
         assert agent.phase == "collecting_first_name"
 
-        reply3 = await agent._advance_conversation("John")
+        await agent._advance_conversation("John")
         assert agent.phase == "collecting_last_name"
 
         reply4 = await agent._advance_conversation("Smith")
@@ -572,14 +571,14 @@ def test_scheduling_flow_end_to_end_creates_pending_request(mock_db, monkeypatch
         assert agent.phase == "confirming_phone"
         assert agent.caller_phone in reply4
 
-        reply5 = await agent._advance_conversation("Yes, that's right")
+        await agent._advance_conversation("Yes, that's right")
         assert agent.phase == "collecting_email"
 
-        reply6 = await agent._advance_conversation("john at example dot com")
+        await agent._advance_conversation("john at example dot com")
         assert agent.phase == "confirming_email"
         assert agent.caller_email == "john@example.com"
 
-        reply7 = await agent._advance_conversation("Yes, that's correct")
+        await agent._advance_conversation("Yes, that's correct")
         assert agent.phase == "confirming"
 
         reply8 = await agent._advance_conversation("Yes, send it")
@@ -1291,21 +1290,21 @@ def test_scheduling_flow_end_to_end_in_spanish(mock_db):
         assert agent.phase == "collecting_first_name"
         assert reply2 == "Genial — ¿cuál es tu nombre?"
 
-        reply3 = await agent._advance_conversation("Ana")
+        await agent._advance_conversation("Ana")
         assert agent.phase == "collecting_last_name"
 
-        reply4 = await agent._advance_conversation("García")
+        await agent._advance_conversation("García")
         assert agent.caller_name == "Ana García"
         assert agent.phase == "confirming_phone"  # _make_agent presets caller_phone
 
-        reply5 = await agent._advance_conversation("Sí")
+        await agent._advance_conversation("Sí")
         assert agent.phase == "collecting_email"
 
-        reply6 = await agent._advance_conversation("ana at example dot com")
+        await agent._advance_conversation("ana at example dot com")
         assert agent.phase == "confirming_email"
         assert agent.caller_email == "ana@example.com"
 
-        reply7 = await agent._advance_conversation("Sí")
+        await agent._advance_conversation("Sí")
         assert agent.phase == "confirming"
 
         reply8 = await agent._advance_conversation("Sí, envíalo")
@@ -1561,11 +1560,11 @@ def test_rejecting_the_phone_readback_asks_again_with_no_attempt_cap(mock_db):
 
         phases = []
         for _ in range(5):  # repeatedly reject — must never give up or move on
-            reply = await agent._advance_conversation("no, that's wrong")
+            await agent._advance_conversation("no, that's wrong")
             phases.append(agent.phase)
             assert agent.phase == "collecting_phone"
             # re-supply a number so the loop can be exercised again
-            reply = await agent._advance_conversation("5559990000")
+            await agent._advance_conversation("5559990000")
             phases.append(agent.phase)
             assert agent.phase == "confirming_phone"
         return phases

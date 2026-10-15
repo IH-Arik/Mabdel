@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 
-from bson import ObjectId
 
 from app.core.config import settings
 from app.services.call_service import CallService

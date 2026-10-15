@@ -4,7 +4,6 @@ import asyncio
 import json
 from datetime import datetime
 
-from bson import ObjectId
 
 import app.services.realtime_receptionist as realtime
 from app.core.config import settings

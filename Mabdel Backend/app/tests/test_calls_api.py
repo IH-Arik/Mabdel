@@ -553,7 +553,6 @@ def test_outbound_ai_stream_starts_before_the_call_log_bookkeeping(client, mock_
 def test_call_summary_counts_directions_over_every_call_not_one_page(client, mock_db):
     """The Calls page counted inbound/outbound from the 20 rows it had loaded, so a run
     of recent outbound test calls made inbound read 0 next to a server total of 106."""
-    import asyncio as _asyncio
 
     from app.services.smartflow_service import SmartFlowService
 

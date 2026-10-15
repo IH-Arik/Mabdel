@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import Depends, File, Query, UploadFile, status
 
-from app.dependencies import get_current_user, require_permission, require_plan_feature
+from app.dependencies import require_permission, require_plan_feature
 from app.schemas.smartflow import (
     BulkMessageCreateRequest,
     BulkMessageImproveRequest,

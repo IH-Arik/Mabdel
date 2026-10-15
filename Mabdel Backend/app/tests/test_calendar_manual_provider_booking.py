@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 
 from app.tests.test_ai_call_scheduling import _owner_with_org
 

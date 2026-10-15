@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 
-from bson import ObjectId
 
 from app.services.realtime_receptionist import _derive_call_disposition
 from app.services.smartflow.call_history_service import CallHistoryService

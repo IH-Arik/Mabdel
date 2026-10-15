@@ -7,7 +7,6 @@ from functools import partial
 
 import telnyx
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from bson import ObjectId
 
 from app.core.config import settings
 from app.core.crypto import decrypt_value, encrypt_value

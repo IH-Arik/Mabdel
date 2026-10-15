@@ -4,7 +4,6 @@ import asyncio
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.exceptions import AppException
 from app.workflows.intent_utils import infer_intent_from_command, normalize_workflow_command
 from app.workflows.graph import run_assistant_workflow
 

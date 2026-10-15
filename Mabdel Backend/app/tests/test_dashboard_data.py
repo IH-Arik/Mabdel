@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 
-from bson import ObjectId
 
 from app.tests.test_team_direct_messaging import _same_org, _signup
 
