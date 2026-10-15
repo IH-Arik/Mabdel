@@ -462,6 +462,18 @@ class RealtimeReceptionist(AIPhoneAgent):
             if policy
             else ""
         )
+        from app.services.smartflow.industry_templates import get_industry_template
+
+        industry_template = get_industry_template(call_settings.get("business_type"))
+        industry_intents = industry_template.get("supported_intents") or []
+        industry_restrictions = industry_template.get("safety_restrictions") or []
+        industry_template_block = (
+            "\nTYPICAL REQUESTS FOR THIS KIND OF BUSINESS (vocabulary/context only - use your own judgement on what "
+            "the caller actually means; never match on a keyword alone - e.g. \"I don't want to cancel\" is not a "
+            f"cancellation):\n{', '.join(industry_intents)}\n"
+            if industry_intents
+            else ""
+        )
         providers_block = ""
         ask_provider_line = ""
         playbooks_block = ""
@@ -530,6 +542,7 @@ class RealtimeReceptionist(AIPhoneAgent):
             playbooks_block,
             knowledge_block,
             policy_block,
+            industry_template_block,
             "\nHOW TO BEHAVE:\n"
             "- Sound like a warm, capable person at the front desk: short spoken sentences, one question at a time, natural acknowledgements. Never read lists or long menus.\n"
             "- Answer in the caller's language. Reply in one to three sentences unless they ask for detail.\n"
@@ -563,6 +576,8 @@ class RealtimeReceptionist(AIPhoneAgent):
             "returns - never estimate or invent a price. Never ask the caller for card numbers, CVV, or other payment details "
             "over the phone.\n",
         ))
+        if industry_restrictions:
+            sections.append("- For this kind of business, you must never: " + "; ".join(industry_restrictions) + ".\n")
         return "".join(section for section in sections if section)
 
     @staticmethod
@@ -1254,11 +1269,16 @@ class RealtimeReceptionist(AIPhoneAgent):
 
     async def _matched_emergency_keyword(self, text: str) -> str | None:
         """Checked against every line the caller says, independent of the model's own
-        judgement. Built-in phrases always apply; a business can add its own on top."""
+        judgement. Built-in phrases always apply, the business's industry template adds
+        its own typical emergencies (e.g. "gas smell" for Home Services), and a business
+        can add its own on top of both."""
         call_settings = await self._get_call_settings()
+        from app.services.smartflow.industry_templates import get_industry_template
+
+        industry_keywords = get_industry_template(call_settings.get("business_type")).get("emergency_keywords") or []
         custom = [kw for kw in (call_settings.get("emergency_keywords") or []) if kw and kw.strip()]
         lowered = text.lower()
-        for keyword in DEFAULT_EMERGENCY_KEYWORDS + custom:
+        for keyword in DEFAULT_EMERGENCY_KEYWORDS + industry_keywords + custom:
             if keyword.lower() in lowered:
                 return keyword
         return None
