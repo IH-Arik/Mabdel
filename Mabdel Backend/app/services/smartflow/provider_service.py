@@ -46,6 +46,11 @@ class ProviderService(SmartFlowBase):
             "name": payload["name"].strip(),
             "role_title": (payload.get("role_title") or "").strip() or None,
             "linked_user_id": linked_user_id,
+            # Unset (None) means "always follows the business's own hours" - the
+            # original, still-default behavior. Set only to restrict a specialist
+            # further, e.g. a provider who only works Tue/Thu.
+            "working_days": self._validate_working_days(payload.get("working_days")),
+            "working_hours": payload.get("working_hours"),
             "active": True,
             "created_at": now,
             "updated_at": now,
@@ -63,6 +68,10 @@ class ProviderService(SmartFlowBase):
             clean_updates["role_title"] = clean_updates["role_title"].strip() or None
         if "linked_user_id" in updates:  # explicit None is meaningful: unlink
             clean_updates["linked_user_id"] = await self._validate_linked_user(user_id, updates["linked_user_id"])
+        if "working_days" in updates:  # explicit None is meaningful: back to "follows business hours"
+            clean_updates["working_days"] = self._validate_working_days(updates["working_days"])
+        if "working_hours" in updates:
+            clean_updates["working_hours"] = updates["working_hours"]
         clean_updates["updated_at"] = utc_now()
         updated = await self.db.providers.find_one_and_update(
             {"_id": provider["_id"]}, {"$set": clean_updates}, return_document=ReturnDocument.AFTER
@@ -75,6 +84,12 @@ class ProviderService(SmartFlowBase):
         # resolves - harmless (they already have their own time on the calendar) -
         # rather than losing the record of who an old appointment was with.
         await self.db.providers.delete_one({"_id": provider["_id"]})
+
+    @staticmethod
+    def _validate_working_days(value: list | None) -> list[int] | None:
+        if not value:
+            return None
+        return sorted({int(day) for day in value if isinstance(day, int) and 0 <= day <= 6}) or None
 
     async def _validate_linked_user(self, user_id: str, linked_user_id: str | None) -> str | None:
         if not linked_user_id:
@@ -103,6 +118,9 @@ class ProviderService(SmartFlowBase):
             "user_id": user_id,
             "name": payload["name"].strip(),
             "duration_minutes": int(payload["duration_minutes"]),
+            # Unset (None/empty) means "any provider can perform this type" - the
+            # original, still-default behavior.
+            "eligible_provider_ids": payload.get("eligible_provider_ids") or None,
             "active": True,
             "created_at": now,
             "updated_at": now,
@@ -118,6 +136,8 @@ class ProviderService(SmartFlowBase):
             clean_updates["name"] = clean_updates["name"].strip()
         if "duration_minutes" in clean_updates:
             clean_updates["duration_minutes"] = int(clean_updates["duration_minutes"])
+        if "eligible_provider_ids" in updates:  # explicit None/[] is meaningful: open to any provider again
+            clean_updates["eligible_provider_ids"] = updates["eligible_provider_ids"] or None
         clean_updates["updated_at"] = utc_now()
         updated = await self.db.appointment_types.find_one_and_update(
             {"_id": appointment_type["_id"]}, {"$set": clean_updates}, return_document=ReturnDocument.AFTER

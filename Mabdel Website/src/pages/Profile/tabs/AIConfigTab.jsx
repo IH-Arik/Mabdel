@@ -65,6 +65,17 @@ const AI_CAPABILITIES = [
   { key: 'send_payment_link', labelKey: 'aiprof_cap_send_payment_link', supportsApproval: false },
 ];
 
+// Python's date.weekday(): 0=Monday ... 6=Sunday - matches business_hours.days already.
+const WEEKDAYS = [
+  { value: 0, labelKey: 'aiprof_day_mon' },
+  { value: 1, labelKey: 'aiprof_day_tue' },
+  { value: 2, labelKey: 'aiprof_day_wed' },
+  { value: 3, labelKey: 'aiprof_day_thu' },
+  { value: 4, labelKey: 'aiprof_day_fri' },
+  { value: 5, labelKey: 'aiprof_day_sat' },
+  { value: 6, labelKey: 'aiprof_day_sun' },
+];
+
 // Every AI-writable field, in the same order they appear on the page - used to
 // generate everything at once when Business Type changes. sms_* keys map onto
 // callSettings.sms_wording[<key without the sms_ prefix>] rather than a top-level field.
@@ -192,8 +203,12 @@ function AIConfigTab() {
   const [newProviderName, setNewProviderName] = useState('');
   const [newProviderRole, setNewProviderRole] = useState('');
   const [newProviderLinkedId, setNewProviderLinkedId] = useState('');
+  const [newProviderWorkingDays, setNewProviderWorkingDays] = useState([]);
+  const [newProviderStartHour, setNewProviderStartHour] = useState('');
+  const [newProviderEndHour, setNewProviderEndHour] = useState('');
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeMinutes, setNewTypeMinutes] = useState(30);
+  const [newTypeEligibleProviderIds, setNewTypeEligibleProviderIds] = useState([]);
   const [schedulingError, setSchedulingError] = useState('');
   const [savingProvider, setSavingProvider] = useState(false);
   const [savingType, setSavingType] = useState(false);
@@ -251,11 +266,18 @@ function AIConfigTab() {
         name: newProviderName.trim(),
         role_title: newProviderRole.trim() || null,
         linked_user_id: newProviderLinkedId || null,
+        working_days: newProviderWorkingDays.length ? newProviderWorkingDays : null,
+        working_hours: newProviderStartHour !== '' && newProviderEndHour !== ''
+          ? { start_hour: Number(newProviderStartHour), end_hour: Number(newProviderEndHour) }
+          : null,
       });
       setProviders((current) => [...current, response.data?.data]);
       setNewProviderName('');
       setNewProviderRole('');
       setNewProviderLinkedId('');
+      setNewProviderWorkingDays([]);
+      setNewProviderStartHour('');
+      setNewProviderEndHour('');
     } catch (err) {
       setSchedulingError(err?.response?.data?.message || t('aiprof_err_provider_save_failed'));
     } finally {
@@ -287,10 +309,15 @@ function AIConfigTab() {
     setSavingType(true);
     setSchedulingError('');
     try {
-      const response = await smartflowApi.createAppointmentType({ name: newTypeName.trim(), duration_minutes: minutes });
+      const response = await smartflowApi.createAppointmentType({
+        name: newTypeName.trim(),
+        duration_minutes: minutes,
+        eligible_provider_ids: newTypeEligibleProviderIds.length ? newTypeEligibleProviderIds : null,
+      });
       setAppointmentTypes((current) => [...current, response.data?.data]);
       setNewTypeName('');
       setNewTypeMinutes(30);
+      setNewTypeEligibleProviderIds([]);
     } catch (err) {
       setSchedulingError(err?.response?.data?.message || t('aiprof_err_type_save_failed'));
     } finally {
@@ -914,6 +941,47 @@ function AIConfigTab() {
                         ))}
                       </select>
                     ) : null}
+                    <div>
+                      <span className="text-[#70829B] text-[10px] block mb-1">{t('aiprof_lbl_provider_working_days')}</span>
+                      <div className="flex gap-1">
+                        {WEEKDAYS.map((day) => (
+                          <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => setNewProviderWorkingDays((current) =>
+                              current.includes(day.value) ? current.filter((d) => d !== day.value) : [...current, day.value]
+                            )}
+                            className={`flex-1 py-1.5 rounded-lg border text-[10px] font-bold cursor-pointer ${
+                              newProviderWorkingDays.includes(day.value)
+                                ? 'bg-[#9333ea]/20 border-[#9333ea]/50 text-[#9333ea]'
+                                : 'bg-[#131A24] border-[#243041] text-[#70829B]'
+                            }`}
+                          >
+                            {t(day.labelKey)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[#70829B] text-[10px] block mb-1">{t('aiprof_lbl_provider_working_hours')}</span>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number" min={0} max={23}
+                          placeholder="Start"
+                          value={newProviderStartHour}
+                          onChange={(event) => setNewProviderStartHour(event.target.value)}
+                          className="w-full bg-[#131A24] border border-[#243041] rounded-lg text-xs text-white px-2 py-1.5 outline-none"
+                        />
+                        <span className="text-[#70829B] text-xs">–</span>
+                        <input
+                          type="number" min={1} max={24}
+                          placeholder="End"
+                          value={newProviderEndHour}
+                          onChange={(event) => setNewProviderEndHour(event.target.value)}
+                          className="w-full bg-[#131A24] border border-[#243041] rounded-lg text-xs text-white px-2 py-1.5 outline-none"
+                        />
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={handleAddProvider}
@@ -972,6 +1040,29 @@ function AIConfigTab() {
                       {savingType ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                     </button>
                   </div>
+                  {providers.length ? (
+                    <div className="mt-2">
+                      <span className="text-[#70829B] text-[10px] block mb-1">{t('aiprof_lbl_eligible_providers')}</span>
+                      <div className="flex flex-wrap gap-1">
+                        {providers.map((provider) => (
+                          <button
+                            key={provider.id}
+                            type="button"
+                            onClick={() => setNewTypeEligibleProviderIds((current) =>
+                              current.includes(provider.id) ? current.filter((id) => id !== provider.id) : [...current, provider.id]
+                            )}
+                            className={`px-2 py-1 rounded-lg border text-[10px] font-bold cursor-pointer ${
+                              newTypeEligibleProviderIds.includes(provider.id)
+                                ? 'bg-[#9333ea]/20 border-[#9333ea]/50 text-[#9333ea]'
+                                : 'bg-[#131A24] border-[#243041] text-[#70829B]'
+                            }`}
+                          >
+                            {provider.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             )}

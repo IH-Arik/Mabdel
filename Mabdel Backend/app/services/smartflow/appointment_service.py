@@ -130,6 +130,10 @@ class AppointmentService(SmartFlowBase):
         if await self.requests.scheduling_capability(organization_id, "new") == "disabled":
             return {"outcome": "unavailable", "reason": "Booking isn't available through the phone for this business right now; the team can help directly."}
         provider, appointment_type = await self._resolve_provider_and_type(owner_id, provider_name, appointment_type_name)
+        if provider and appointment_type:
+            eligible = appointment_type.get("eligible_provider_ids")
+            if eligible and provider["id"] not in eligible:
+                return {"outcome": "unavailable", "reason": f"{provider['name']} doesn't perform {appointment_type['name']}; ask who does or offer to take a message."}
         try:
             start, end = await self._slot_bounds(
                 owner_id, day, time,

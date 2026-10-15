@@ -19,13 +19,27 @@ def _setup(client, mock_db, email):
     return owner_id
 
 
-def _provider(mock_db, owner_id, name):
-    doc = asyncio.run(mock_db.providers.insert_one({"user_id": owner_id, "name": name, "role_title": None, "linked_user_id": None, "active": True}))
+def _provider(mock_db, owner_id, name, *, working_days=None, working_hours=None):
+    doc = asyncio.run(
+        mock_db.providers.insert_one(
+            {
+                "user_id": owner_id, "name": name, "role_title": None, "linked_user_id": None, "active": True,
+                "working_days": working_days, "working_hours": working_hours,
+            }
+        )
+    )
     return str(doc.inserted_id)
 
 
-def _appointment_type(mock_db, owner_id, name, minutes):
-    doc = asyncio.run(mock_db.appointment_types.insert_one({"user_id": owner_id, "name": name, "duration_minutes": minutes, "active": True}))
+def _appointment_type(mock_db, owner_id, name, minutes, *, eligible_provider_ids=None):
+    doc = asyncio.run(
+        mock_db.appointment_types.insert_one(
+            {
+                "user_id": owner_id, "name": name, "duration_minutes": minutes, "active": True,
+                "eligible_provider_ids": eligible_provider_ids,
+            }
+        )
+    )
     return str(doc.inserted_id)
 
 
@@ -67,6 +81,83 @@ def test_a_long_appointment_type_blocks_the_whole_duration(client, mock_db, monk
     # 10:30 is inside that 90-minute block and must now be unavailable
     slots = asyncio.run(service.available_slots(owner_id, day="2026-09-21"))
     assert "10:30" not in [slot["time"] for slot in slots["slots"]]
+
+
+def test_a_provider_restricted_to_tue_thu_is_never_offered_on_a_monday(client, mock_db, monkeypatch):
+    owner_id = _setup(client, mock_db, "prov-schedule-days@example.com")
+    monkeypatch.setattr(CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 9, 21, 8, 0, tzinfo=tz)))  # a Monday
+    _provider(mock_db, owner_id, "Dr. Lee", working_days=[1, 3])  # Tuesday, Thursday only
+    service = AppointmentService(mock_db)
+
+    monday_slots = asyncio.run(service.available_slots(owner_id, day="2026-09-21", provider_name="Dr. Lee"))
+    assert monday_slots["slots"] == []
+
+    tuesday_slots = asyncio.run(service.available_slots(owner_id, day="2026-09-22", provider_name="Dr. Lee"))
+    assert len(tuesday_slots["slots"]) > 0
+
+
+def test_booking_a_restricted_provider_on_an_off_day_is_rejected_not_silently_allowed(client, mock_db, monkeypatch):
+    owner_id = _setup(client, mock_db, "prov-schedule-reject@example.com")
+    monkeypatch.setattr(CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 9, 21, 8, 0, tzinfo=tz)))  # a Monday
+    _provider(mock_db, owner_id, "Dr. Lee", working_days=[1, 3])
+    service = AppointmentService(mock_db)
+
+    result = asyncio.run(service.book(owner_id, name="Karim", phone="+8801711111111", email=None, day="2026-09-21", time="10:00", provider_name="Dr. Lee"))
+
+    assert result["outcome"] == "unavailable"
+    assert asyncio.run(mock_db.calendar_events.count_documents({})) == 0
+
+
+def test_a_providers_own_narrower_hours_restrict_the_offered_window(client, mock_db, monkeypatch):
+    owner_id = _setup(client, mock_db, "prov-schedule-hours@example.com")
+    monkeypatch.setattr(CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 9, 21, 8, 0, tzinfo=tz)))
+    _provider(mock_db, owner_id, "Dr. Lee", working_hours={"start_hour": 13, "end_hour": 15})  # business is 9-17
+    service = AppointmentService(mock_db)
+
+    slots = asyncio.run(service.available_slots(owner_id, day="2026-09-21", provider_name="Dr. Lee"))
+    times = [slot["time"] for slot in slots["slots"]]
+    assert "09:00" not in times and "16:00" not in times
+    assert "13:00" in times
+
+
+def test_a_provider_with_no_working_days_set_still_follows_the_business_hours(client, mock_db, monkeypatch):
+    owner_id = _setup(client, mock_db, "prov-schedule-default@example.com")
+    monkeypatch.setattr(CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 9, 21, 8, 0, tzinfo=tz)))
+    _provider(mock_db, owner_id, "Dr. Lee")
+    service = AppointmentService(mock_db)
+
+    slots = asyncio.run(service.available_slots(owner_id, day="2026-09-21", provider_name="Dr. Lee"))
+    assert len(slots["slots"]) > 0
+
+
+def test_an_appointment_type_restricted_to_specific_providers_rejects_an_ineligible_one(client, mock_db, monkeypatch):
+    owner_id = _setup(client, mock_db, "prov-eligible-reject@example.com")
+    monkeypatch.setattr(CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 9, 21, 8, 0, tzinfo=tz)))
+    dentist_id = _provider(mock_db, owner_id, "Dr. Smith")
+    _provider(mock_db, owner_id, "Hygienist Jane")
+    _appointment_type(mock_db, owner_id, "Root Canal", 60, eligible_provider_ids=[dentist_id])
+    service = AppointmentService(mock_db)
+
+    result = asyncio.run(
+        service.book(owner_id, name="Nadia", phone="+8801733333333", email=None, day="2026-09-21", time="10:00", provider_name="Hygienist Jane", appointment_type_name="Root Canal")
+    )
+
+    assert result["outcome"] == "unavailable"
+    assert asyncio.run(mock_db.calendar_events.count_documents({})) == 0
+
+
+def test_an_appointment_type_restricted_to_specific_providers_allows_an_eligible_one(client, mock_db, monkeypatch):
+    owner_id = _setup(client, mock_db, "prov-eligible-allow@example.com")
+    monkeypatch.setattr(CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 9, 21, 8, 0, tzinfo=tz)))
+    dentist_id = _provider(mock_db, owner_id, "Dr. Smith")
+    _appointment_type(mock_db, owner_id, "Root Canal", 60, eligible_provider_ids=[dentist_id])
+    service = AppointmentService(mock_db)
+
+    result = asyncio.run(
+        service.book(owner_id, name="Nadia", phone="+8801733333333", email=None, day="2026-09-21", time="10:00", provider_name="Dr. Smith", appointment_type_name="Root Canal")
+    )
+
+    assert result["outcome"] == "booked"
 
 
 def test_an_unmatched_provider_name_falls_back_to_pooled_availability_instead_of_failing(client, mock_db, monkeypatch):

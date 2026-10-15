@@ -680,12 +680,22 @@ class AICallSettingsUpdateRequest(BaseModel):
         return [item.strip()[:80] for item in value if item and item.strip()][:20]
 
 
+class ProviderWorkingHours(BaseModel):
+    start_hour: int = Field(ge=0, le=23)
+    end_hour: int = Field(ge=1, le=24)
+
+
 class ProviderCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     role_title: str | None = Field(default=None, max_length=60)
     # A real team member's user id, when this provider is a colleague and not a
     # login-less named resource (a chair, a technician with no account).
     linked_user_id: str | None = None
+    # When unset, this provider is assumed available whenever the business itself is
+    # open (today's behavior, unchanged) - set only to restrict further, e.g. a
+    # specialist who only works Tue/Thu.
+    working_days: list[int] | None = Field(default=None, max_length=7)
+    working_hours: ProviderWorkingHours | None = None
 
 
 class ProviderUpdateRequest(BaseModel):
@@ -693,17 +703,23 @@ class ProviderUpdateRequest(BaseModel):
     role_title: str | None = Field(default=None, max_length=60)
     linked_user_id: str | None = None
     active: bool | None = None
+    working_days: list[int] | None = Field(default=None, max_length=7)
+    working_hours: ProviderWorkingHours | None = None
 
 
 class AppointmentTypeCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     duration_minutes: int = Field(ge=5, le=480)
+    # When empty/unset, any provider can perform this type (today's behavior,
+    # unchanged) - set to restrict it to specific providers only.
+    eligible_provider_ids: list[str] | None = Field(default=None, max_length=50)
 
 
 class AppointmentTypeUpdateRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     duration_minutes: int | None = Field(default=None, ge=5, le=480)
     active: bool | None = None
+    eligible_provider_ids: list[str] | None = Field(default=None, max_length=50)
 
 
 class AICallTestStartResponse(BaseModel):
