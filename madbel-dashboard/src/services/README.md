@@ -30,8 +30,6 @@ This frontend now includes service functions for the provided admin collection e
 - `updateMyProfile`
 - `getSettingsProfile`
 - `updateSettingsProfile`
-- `getSettingsSecurity`
-- `updateSettingsSecurity`
 
 ## Subscriptions
 - `listSubscriptions`
