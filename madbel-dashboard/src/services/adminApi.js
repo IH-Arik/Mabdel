@@ -315,15 +315,6 @@ export const updateSettingsProfile = (body) =>
     body,
   });
 
-export const getSettingsSecurity = () =>
-  apiRequestWithFallback(["/admin/settings/security"]);
-
-export const updateSettingsSecurity = (body) =>
-  apiRequestWithFallback(["/admin/settings/security", "/admin/password"], {
-    method: "PUT",
-    body,
-  });
-
 // Newly integrated API functions for FastAPI backend compatibility
 export const listAdmins = () => apiRequest("/admin/admins");
 

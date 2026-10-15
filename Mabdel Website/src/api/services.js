@@ -168,10 +168,6 @@ export const smartflowApi = {
   setTelnyxVoiceRegistration: (data) => client.post('/api/v1/telnyx/voice/registration', data),
   getLiveCallTranscriptBySid: (callSid) => client.get(`/api/v1/calls/${callSid}/transcript`),
 
-  // Earnings & Withdrawals
-  getUserEarnings: () => client.get('/api/v1/smartflow/earnings'),
-  requestWithdrawal: (data) => client.post('/api/v1/smartflow/earnings/withdraw', data),
-
   // ── Settings extras ──────────────────────────────────────────────────────────
   changePassword: (data) => client.post('/api/v1/smartflow/settings/change-password', data),
   revokeSessions: () => client.post('/api/v1/smartflow/settings/revoke-sessions'),
