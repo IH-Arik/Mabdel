@@ -936,6 +936,15 @@ class RealtimeReceptionist(AIPhoneAgent):
             self.language_locked = True
         return self.language
 
+    async def _capability(self, name: str) -> str:
+        """The effective hard-permission state for one of the AI's own capabilities
+        (see AICapabilities) - "disabled" / "ai_allowed" / "human_approval_required".
+        A guest/test call has no organization to restrict, so it is always allowed."""
+        if self.user_id == "guest":
+            return "ai_allowed"
+        organization_id = await self.flow_service._resolve_organization_id(self.user_id)
+        return await self.flow_service.resolve_capability(organization_id, name)
+
     async def _tool_book_appointment(
         self, date: str, time: str, first_name: str, last_name: str = "", email: str | None = None,
         phone: str | None = None, language: str | None = None, provider: str | None = None, appointment_type: str | None = None,
@@ -983,6 +992,8 @@ class RealtimeReceptionist(AIPhoneAgent):
         department: str | None = None,
         callback_requested: bool = False,
     ) -> dict:
+        if await self._capability("take_message") == "disabled":
+            return {"saved": False, "note": "Tell the caller you're not able to take a message right now; suggest they call back during business hours."}
         from app.utils.helpers import resolve_organization_user_ids
 
         entry = {
@@ -1070,7 +1081,7 @@ class RealtimeReceptionist(AIPhoneAgent):
         need_description: str | None = None,
         preferred_time: str | None = None,
     ) -> dict:
-        if self.user_id == "guest":
+        if self.user_id == "guest" or await self._capability("capture_lead") == "disabled":
             return {"saved": False, "note": "Tell the caller their information has been noted and the team will follow up."}
         try:
             from app.services.smartflow.appointment_notifications import AppointmentNotifier
@@ -1124,7 +1135,7 @@ class RealtimeReceptionist(AIPhoneAgent):
 
     async def _tool_send_payment_link(self, phone: str | None = None) -> dict:
         not_found = {"sent": False, "note": "Tell the caller you don't see an open balance on file; offer take_message so the team can check."}
-        if self.user_id == "guest":
+        if self.user_id == "guest" or await self._capability("send_payment_link") == "disabled":
             return not_found
         try:
             from app.core.exceptions import AppException
@@ -1214,6 +1225,8 @@ class RealtimeReceptionist(AIPhoneAgent):
         return {"notified": True}
 
     async def _tool_transfer_to_human(self, reason: str | None = None) -> dict:
+        if await self._capability("transfer_to_human") == "disabled":
+            return {"transferred": False, "note": "Nobody is available to take the call. Offer to take a message instead."}
         call_settings = await self._get_call_settings()
         target = call_settings.get("transfer_number")
         if not target and self.user_id and self.user_id != "guest":

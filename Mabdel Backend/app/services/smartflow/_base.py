@@ -741,6 +741,30 @@ class SmartFlowBase:
         user = await self.db.users.find_one({"_id": ObjectId(user_id)}, {"organization_id": 1})
         return (user or {}).get("organization_id")
 
+    async def resolve_capability(self, organization_id: str | None, capability: str) -> str:
+        """The effective hard-permission state for an AI receptionist capability -
+        "disabled" / "ai_allowed" / "human_approval_required". An explicit entry in
+        ``ai_call_settings.ai_capabilities`` always wins. Capabilities with no legacy
+        equivalent (take_message, transfer_to_human, send_sms, send_email,
+        create_crm_contact, capture_lead, send_payment_link) default to "ai_allowed" -
+        today's actual unconditional behavior - until an owner explicitly dials one
+        down. ``schedule``/``reschedule``/``cancel`` fall back to the older approval
+        booleans so an existing business's behavior never silently changes just
+        because this field now exists."""
+        org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+        org = org or {}
+        explicit = ((org.get("ai_call_settings") or {}).get("ai_capabilities") or {}).get(capability)
+        if explicit in ("disabled", "ai_allowed", "human_approval_required"):
+            return explicit
+        if capability not in ("schedule", "reschedule", "cancel"):
+            return "ai_allowed"
+        legacy = bool(org.get("require_meeting_approval", False))
+        if capability == "cancel":
+            return "human_approval_required" if bool(org.get("require_approval_for_cancellations", False)) else "ai_allowed"
+        if capability == "reschedule":
+            return "human_approval_required" if bool(org.get("require_approval_for_reschedules", legacy)) else "ai_allowed"
+        return "human_approval_required" if legacy else "ai_allowed"
+
     @staticmethod
     def _is_shared_member_conversation(conversation: dict) -> bool:
         """Is this a thread between colleagues rather than an external-channel inbox?

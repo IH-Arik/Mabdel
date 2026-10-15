@@ -480,6 +480,30 @@ class AICallLanguageMenuOption(BaseModel):
     language: str = Field(min_length=2, max_length=5)
 
 
+AICapabilityState = Literal["disabled", "ai_allowed", "human_approval_required"]
+
+
+class AICapabilities(BaseModel):
+    """Per-capability hard permission the AI receptionist must respect, separate from
+    the conversation script - the owner's prompt wording (greetings, playbooks) never
+    grants a capability by itself; only these switches do. A field left unset (None)
+    means "not explicitly overridden": schedule/reschedule/cancel fall back to the
+    legacy approval booleans so an existing business's behavior never silently
+    changes, and every other capability defaults to "ai_allowed" (today's actual
+    unconditional behavior) until an owner dials it down."""
+
+    schedule: AICapabilityState | None = None
+    reschedule: AICapabilityState | None = None
+    cancel: AICapabilityState | None = None
+    take_message: AICapabilityState | None = None
+    transfer_to_human: AICapabilityState | None = None
+    send_sms: AICapabilityState | None = None
+    send_email: AICapabilityState | None = None
+    create_crm_contact: AICapabilityState | None = None
+    capture_lead: AICapabilityState | None = None
+    send_payment_link: AICapabilityState | None = None
+
+
 class CallRoutingRule(BaseModel):
     """A named playbook: 'when a caller wants X, ask these, book with this provider/
     type, notify this'. The receptionist reads these as guidance, not a rigid script -
@@ -577,6 +601,7 @@ class AICallSettingsResponse(BaseModel):
     cancellation_policy: str | None = None
     call_routing_rules: list[CallRoutingRule] = Field(default_factory=list)
     outbound_call_purposes: list[OutboundCallPurpose] = Field(default_factory=list)
+    ai_capabilities: AICapabilities = Field(default_factory=AICapabilities)
     emergency_keywords: list[str] = Field(default_factory=list)
     # "take_message": notify the team and transfer if a number is configured (the
     # original behavior - right for a contractor, lawyer, or most other businesses).
@@ -625,6 +650,7 @@ class AICallSettingsUpdateRequest(BaseModel):
     # Named playbooks: "when a caller wants X, ask these, book with this, notify this".
     call_routing_rules: list[CallRoutingRule] | None = Field(default=None, max_length=20)
     outbound_call_purposes: list[OutboundCallPurpose] | None = Field(default=None, max_length=20)
+    ai_capabilities: AICapabilities | None = None
     # Business-specific phrases that force an immediate transfer/notification, on top
     # of the built-in universal ones (chest pain, gas leak, etc).
     emergency_keywords: list[str] | None = Field(default=None, max_length=20)

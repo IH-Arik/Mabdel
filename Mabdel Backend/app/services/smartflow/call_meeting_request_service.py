@@ -94,7 +94,11 @@ class CallMeetingRequestService(SmartFlowBase):
         organization_id = await self._require_organization_id(user_id)
         has_contact_info = bool(caller_name and (caller_email or caller_phone))
 
-        if not await self.approval_required(organization_id, "new") and has_contact_info:
+        capability = await self.scheduling_capability(organization_id, "new")
+        if capability == "disabled":
+            return {"status": "disabled", "booking_outcome": "disabled"}
+
+        if capability == "ai_allowed" and has_contact_info:
             try:
                 event = await self._create_customer_event(
                     user_id,
@@ -164,24 +168,13 @@ class CallMeetingRequestService(SmartFlowBase):
         pending_doc["booking_outcome"] = "pending"
         return pending_doc
 
-    async def approval_required(self, organization_id: str | None, action: str = "new") -> bool:
-        """Per-action approval gate. ``action`` is one of "new", "reschedule", "cancel".
-
-        Each action has its own org-level switch, so a business can e.g. auto-approve
-        reschedules while still reviewing new bookings. A business that has never set
-        the newer per-action switches keeps its old behavior exactly: new bookings and
-        reschedules both fall back to the original single ``require_meeting_approval``
-        flag, and cancellations default to immediate (their long-standing behavior,
-        since customers were never expected to need approval just to cancel).
-        """
-        org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
-        org = org or {}
-        legacy = bool(org.get("require_meeting_approval", False))
-        if action == "cancel":
-            return bool(org.get("require_approval_for_cancellations", False))
-        if action == "reschedule":
-            return bool(org.get("require_approval_for_reschedules", legacy))
-        return legacy
+    async def scheduling_capability(self, organization_id: str | None, action: str) -> str:
+        """Per-action capability gate - "disabled" / "ai_allowed" / "human_approval_required".
+        ``action`` is one of "new", "reschedule", "cancel" - thin wrapper over the shared
+        ``SmartFlowBase.resolve_capability`` with the scheduling-action-to-capability-name
+        mapping (kept here since this is where every scheduling call site already is)."""
+        capability = {"new": "schedule", "reschedule": "reschedule", "cancel": "cancel"}.get(action, "schedule")
+        return await self.resolve_capability(organization_id, capability)
 
     async def _create_customer_event(
         self,

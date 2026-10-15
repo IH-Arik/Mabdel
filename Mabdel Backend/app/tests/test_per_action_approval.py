@@ -51,6 +51,65 @@ def test_cancellations_are_immediate_by_default_even_with_global_approval_on(cli
     assert asyncio.run(mock_db.calendar_events.count_documents({"_id": ObjectId(booked["appointment_id"])})) == 0
 
 
+def test_disabled_scheduling_blocks_booking_without_creating_a_pending_request(client, mock_db, monkeypatch):
+    _, owner_id, service = _setup(
+        client, mock_db, monkeypatch, "capability-schedule-disabled@example.com",
+        org_overrides={"ai_call_settings": {"ai_capabilities": {"schedule": "disabled"}}},
+    )
+
+    result = asyncio.run(service.book(owner_id, name="Nadia", phone=CALLER, email=None, day=TUESDAY, time="10:00"))
+
+    assert result["outcome"] == "unavailable"
+    assert asyncio.run(mock_db.calendar_events.count_documents({})) == 0
+    assert asyncio.run(mock_db.call_meeting_requests.count_documents({})) == 0
+
+
+def test_disabled_reschedule_blocks_the_change_and_leaves_the_appointment_untouched(client, mock_db, monkeypatch):
+    _, owner_id, service = _setup(client, mock_db, monkeypatch, "capability-reschedule-disabled@example.com")
+    booked = asyncio.run(service.book(owner_id, name="Nadia", phone=CALLER, email=None, day=TUESDAY, time="10:00"))
+    asyncio.run(
+        mock_db.organizations.update_one(
+            {"organization_id": owner_id}, {"$set": {"ai_call_settings.ai_capabilities": {"reschedule": "disabled"}}}
+        )
+    )
+
+    result = asyncio.run(
+        service.reschedule(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, day="2026-08-19", time="11:00", caller_name="Nadia")
+    )
+
+    assert result["outcome"] == "not_possible"
+    event = asyncio.run(mock_db.calendar_events.find_one({"_id": ObjectId(booked["appointment_id"])}))
+    assert event["starts_at"].hour == 15  # unchanged (10:00 Chicago = 15:00 UTC)
+
+
+def test_disabled_cancellation_blocks_it_even_though_cancellations_are_immediate_by_default(client, mock_db, monkeypatch):
+    _, owner_id, service = _setup(client, mock_db, monkeypatch, "capability-cancel-disabled@example.com")
+    booked = asyncio.run(service.book(owner_id, name="Nadia", phone=CALLER, email=None, day=TUESDAY, time="10:00"))
+    asyncio.run(
+        mock_db.organizations.update_one(
+            {"organization_id": owner_id}, {"$set": {"ai_call_settings.ai_capabilities": {"cancel": "disabled"}}}
+        )
+    )
+
+    result = asyncio.run(service.cancel(owner_id, appointment_id=booked["appointment_id"], phone=CALLER, caller_name="Nadia"))
+
+    assert result["outcome"] == "not_possible"
+    assert asyncio.run(mock_db.calendar_events.count_documents({"_id": ObjectId(booked["appointment_id"])})) == 1
+
+
+def test_an_explicit_ai_capability_overrides_the_legacy_approval_boolean(client, mock_db, monkeypatch):
+    # An org with the OLD "require approval for everything" flag on, but which has
+    # explicitly set the new capability to ai_allowed - the new explicit value wins.
+    _, owner_id, service = _setup(
+        client, mock_db, monkeypatch, "capability-overrides-legacy@example.com",
+        org_overrides={"require_meeting_approval": True, "ai_call_settings": {"ai_capabilities": {"schedule": "ai_allowed"}}},
+    )
+
+    result = asyncio.run(service.book(owner_id, name="Nadia", phone=CALLER, email=None, day=TUESDAY, time="10:00"))
+
+    assert result["outcome"] == "booked"
+
+
 def test_cancellation_approval_can_be_turned_on_independently(client, mock_db, monkeypatch):
     headers, owner_id, service = _setup(
         client, mock_db, monkeypatch, "approval-cancel-on@example.com", org_overrides={"require_approval_for_cancellations": True}
