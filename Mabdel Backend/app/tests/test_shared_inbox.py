@@ -133,6 +133,35 @@ def test_assignment_and_the_mine_unassigned_filters(client, mock_db):
     assert {member["id"] for member in members} == {owner_id, mate_id}
 
 
+def test_a_new_conversation_defaults_to_new_status_and_can_be_marked_read_then_completed(client, mock_db):
+    owner_headers, owner_id = _signup(client, mock_db, "status-owner@example.com", "Owner")
+    first = _inbound(mock_db, owner_id, "whatsapp", "8801755555555@s.whatsapp.net", "hello")
+
+    assert _list(client, owner_headers)["items"][0]["status"] == "new"
+
+    read = client.patch(
+        f"/api/v1/smartflow/conversations/{first['conversation_id']}/status", headers=owner_headers, json={"status": "read"}
+    )
+    assert read.status_code == 200 and read.json()["data"]["status"] == "read"
+
+    completed = client.patch(
+        f"/api/v1/smartflow/conversations/{first['conversation_id']}/status", headers=owner_headers, json={"status": "completed"}
+    )
+    assert completed.status_code == 200 and completed.json()["data"]["status"] == "completed"
+
+    assert _list(client, owner_headers)["items"][0]["status"] == "completed"
+
+
+def test_an_invalid_status_value_is_rejected(client, mock_db):
+    owner_headers, owner_id = _signup(client, mock_db, "status-invalid@example.com", "Owner")
+    first = _inbound(mock_db, owner_id, "whatsapp", "8801766666666@s.whatsapp.net", "hi")
+
+    response = client.patch(
+        f"/api/v1/smartflow/conversations/{first['conversation_id']}/status", headers=owner_headers, json={"status": "archived"}
+    )
+    assert response.status_code == 422
+
+
 def test_history_import_keeps_real_order_instead_of_import_time(client, mock_db):
     headers, owner_id = _signup(client, mock_db, "order-owner@example.com", "Owner")
     recent = _inbound(mock_db, owner_id, "whatsapp", "8801755555555@s.whatsapp.net", "live today")

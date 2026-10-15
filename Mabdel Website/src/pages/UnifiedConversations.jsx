@@ -356,6 +356,19 @@ export default function UnifiedConversations() {
     }
   };
 
+  const handleSetStatus = async (status) => {
+    if (!selectedId) return;
+    setBusyAction(`status-${status}`);
+    try {
+      upsertConversation(getApiData(await smartflowApi.updateConversationStatus(selectedId, status)));
+      refreshCountsSoon();
+    } catch (statusError) {
+      setError(errorMessage(statusError, t('conv_err_status_failed')));
+    } finally {
+      setBusyAction('');
+    }
+  };
+
   const handleArchive = async () => {
     if (!selectedConversation) return;
     setBusyAction('archive');
@@ -582,6 +595,8 @@ export default function UnifiedConversations() {
                 members={members}
                 onAssign={handleAssign}
                 assigning={assigning}
+                onSetStatus={handleSetStatus}
+                settingStatus={busyAction.startsWith('status-')}
                 t={t}
               />
             ) : null}

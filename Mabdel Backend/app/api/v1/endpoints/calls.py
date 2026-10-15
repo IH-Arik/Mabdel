@@ -675,11 +675,13 @@ async def _post_lead_call_summary(db, call_id: str, user_id: str, summary: dict)
     post the AI-generated call summary into that lead's own AI Receptionist
     conversation thread - gives the owner the full lead card (contact + structured
     note + call summary) in Unified Conversations without any separate timeline UI."""
-    call = await db.call_logs.find_one({"twilio_call_sid": call_id, "user_id": user_id}, {"lead_contact_id": 1, "from_number": 1})
+    call = await db.call_logs.find_one({"twilio_call_sid": call_id, "user_id": user_id}, {"lead_contact_id": 1, "from_number": 1, "disposition": 1})
     lead_contact_id = (call or {}).get("lead_contact_id")
     if not lead_contact_id:
         return
     try:
+        from bson import ObjectId
+
         from app.services.smartflow.appointment_notifications import AppointmentNotifier
         from app.services.smartflow_service import SmartFlowService
 
@@ -694,10 +696,13 @@ async def _post_lead_call_summary(db, call_id: str, user_id: str, summary: dict)
         headline = summary.get("purpose") or summary.get("summary") or ""
         key_points = summary.get("key_points") or []
         key_points_text = "; ".join(str(point) for point in key_points) if isinstance(key_points, list) else str(key_points)
-        body = " ".join(part for part in [headline, key_points_text] if part)
-        if not body:
+        reason = " ".join(part for part in [headline, key_points_text] if part)
+        if not reason:
             return
-        text = f"Call summary — {body}"
+        contact = await db.contacts.find_one({"_id": ObjectId(lead_contact_id)}, {"name": 1}) if ObjectId.is_valid(lead_contact_id) else None
+        caller_name = (contact or {}).get("name") or "Unknown caller"
+        result = (call.get("disposition") or "faq_only").replace("_", " ").capitalize()
+        text = f"Call summary\nCaller: {caller_name}\nPhone: {number}\nReason: {reason}\nResult: {result}"
         await service.create_message(
             user_id,
             {

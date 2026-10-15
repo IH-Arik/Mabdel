@@ -167,6 +167,13 @@ class ConversationAssignRequest(BaseModel):
     assignee_id: str | None = Field(default=None, max_length=64)
 
 
+ConversationStatus = Literal["new", "read", "completed"]
+
+
+class ConversationStatusUpdateRequest(BaseModel):
+    status: ConversationStatus
+
+
 class ConversationResponse(BaseModel):
     id: str
     title: str | None = None
@@ -191,6 +198,7 @@ class ConversationResponse(BaseModel):
     has_unread: bool = False
     delivery_state: str | None = None
     display_time_label: str | None = None
+    status: ConversationStatus = "new"
     updated_at: datetime
 
 

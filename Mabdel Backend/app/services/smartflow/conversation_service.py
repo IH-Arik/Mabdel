@@ -401,6 +401,14 @@ class ConversationService(SmartFlowBase):
             )
         return await self._serialize_conversation(updated, viewer_user_id=user_id)
 
+    async def set_conversation_status(self, user_id: str, conversation_id: str, status: str) -> dict:
+        conversation = await self._require_customer_conversation(user_id, conversation_id)
+        updated = await self.db.conversations.find_one_and_update(
+            {"_id": conversation["_id"]}, {"$set": {"status": status}}, return_document=ReturnDocument.AFTER
+        )
+        await self._publish_to_conversation_audience(updated, extra_user_ids=[user_id])
+        return await self._serialize_conversation(updated, viewer_user_id=user_id)
+
     async def list_assignable_members(self, user_id: str) -> list[dict]:
         organization_id = (await self._get_user_document(user_id)).get("organization_id")
         if not organization_id:

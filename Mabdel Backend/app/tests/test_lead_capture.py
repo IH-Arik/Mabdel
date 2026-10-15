@@ -134,9 +134,13 @@ def test_the_call_summary_is_attached_to_the_leads_conversation_thread(client, m
     conversation = asyncio.run(mock_db.conversations.find_one({"user_id": owner_id, "platform": "ai_receptionist"}))
     messages = asyncio.run(mock_db.messages.find({"conversation_id": str(conversation["_id"])}).sort("timestamp", 1).to_list(10))
     assert len(messages) == 2  # the lead-capture message, then the call summary
-    assert messages[1]["content"].startswith("Call summary —")
-    assert "orthodontic options" in messages[1]["content"]
-    assert "Interested in braces" in messages[1]["content"]
+    content = messages[1]["content"]
+    assert content.startswith("Call summary\n")
+    assert "Caller: Sam Lee" in content
+    assert "Phone: +15552223333" in content
+    assert "orthodontic options" in content
+    assert "Interested in braces" in content
+    assert "Result: Lead captured" in content
 
 
 def test_no_call_summary_is_posted_when_the_call_never_captured_a_lead(client, mock_db, monkeypatch):
