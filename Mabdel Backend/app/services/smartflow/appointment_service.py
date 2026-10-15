@@ -126,6 +126,9 @@ class AppointmentService(SmartFlowBase):
         call_sid: str | None = None, language: str | None = None,
         provider_name: str | None = None, appointment_type_name: str | None = None,
     ) -> dict:
+        organization_id = await self._resolve_organization_id(owner_id)
+        if await self.requests.scheduling_capability(organization_id, "new") == "disabled":
+            return {"outcome": "unavailable", "reason": "Booking isn't available through the phone for this business right now; the team can help directly."}
         provider, appointment_type = await self._resolve_provider_and_type(owner_id, provider_name, appointment_type_name)
         try:
             start, end = await self._slot_bounds(
@@ -226,6 +229,10 @@ class AppointmentService(SmartFlowBase):
         self, owner_id: str, *, appointment_id: str, phone: str | None, day: str, time: str,
         caller_name: str | None = None, call_sid: str | None = None, language: str | None = None,
     ) -> dict:
+        organization_id = await self._resolve_organization_id(owner_id)
+        capability = await self.requests.scheduling_capability(organization_id, "reschedule")
+        if capability == "disabled":
+            return {"outcome": "not_possible", "reason": "Rescheduling isn't available through the phone for this business right now; the team can help directly."}
         try:
             event = await self._callers_event(owner_id, appointment_id, phone, caller_name)
             # Keep the same provider and the same length the appointment already had -
@@ -238,8 +245,7 @@ class AppointmentService(SmartFlowBase):
         hours, _ = await self._hours(owner_id)
         when = format_when(start, hours.get("timezone"))
         await self._remember_language(event, language)
-        organization_id = await self._resolve_organization_id(owner_id)
-        if await self.requests.approval_required(organization_id, "reschedule"):
+        if capability == "human_approval_required":
             customer = event.get("customer") or {}
             await self.requests.create_pending_request(
                 organization_id=organization_id,
@@ -266,6 +272,10 @@ class AppointmentService(SmartFlowBase):
         """Cancels immediately unless the business has turned on approval for
         cancellations specifically - most businesses want these instant, but some
         (e.g. a cancellation fee policy) want a human to confirm first."""
+        organization_id = await self._resolve_organization_id(owner_id)
+        capability = await self.requests.scheduling_capability(organization_id, "cancel")
+        if capability == "disabled":
+            return {"outcome": "not_possible", "reason": "Cancellations aren't available through the phone for this business right now; the team can help directly."}
         try:
             event = await self._callers_event(owner_id, appointment_id, phone, caller_name)
         except AppException as exc:
@@ -273,8 +283,7 @@ class AppointmentService(SmartFlowBase):
         hours, _ = await self._hours(owner_id)
         when = format_when(event["starts_at"], hours.get("timezone"))
         await self._remember_language(event, language)
-        organization_id = await self._resolve_organization_id(owner_id)
-        if await self.requests.approval_required(organization_id, "cancel"):
+        if capability == "human_approval_required":
             customer = event.get("customer") or {}
             await self.requests.create_pending_request(
                 organization_id=organization_id,

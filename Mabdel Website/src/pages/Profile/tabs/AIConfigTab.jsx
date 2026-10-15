@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle, Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Plus, Save, Send, Sparkles, Trash2, Users, Workflow, X, Zap,
+  AlertTriangle, Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Plus, Save, Send, ShieldCheck, Sparkles, Trash2, Users, Workflow, X, Zap,
 } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
 import { LABEL } from '../shared';
@@ -48,6 +48,21 @@ const BUSINESS_TYPE_OPTIONS = [
   'Salon / Spa', 'Home Services (Plumbing, Electrical, HVAC)', 'Auto Repair Shop',
   'Fitness Studio / Gym', 'Retail Store', 'Accounting / Bookkeeping Firm',
   'Insurance Agency', 'Veterinary Clinic', 'Photography Studio', 'Consulting Firm',
+];
+
+// AI capabilities the owner can hard-disable or gate behind approval, separate from
+// the conversation script - enforced server-side regardless of what greetings/
+// playbooks say. Only schedule/reschedule/cancel have a real "needs your approval"
+// behavior today (an existing pending-request workflow); the rest are a simple
+// on/off since there's no synchronous human-in-the-loop moment mid-call for them.
+const AI_CAPABILITIES = [
+  { key: 'schedule', labelKey: 'aiprof_cap_schedule', supportsApproval: true },
+  { key: 'reschedule', labelKey: 'aiprof_cap_reschedule', supportsApproval: true },
+  { key: 'cancel', labelKey: 'aiprof_cap_cancel', supportsApproval: true },
+  { key: 'take_message', labelKey: 'aiprof_cap_take_message', supportsApproval: false },
+  { key: 'transfer_to_human', labelKey: 'aiprof_cap_transfer_to_human', supportsApproval: false },
+  { key: 'capture_lead', labelKey: 'aiprof_cap_capture_lead', supportsApproval: false },
+  { key: 'send_payment_link', labelKey: 'aiprof_cap_send_payment_link', supportsApproval: false },
 ];
 
 // Every AI-writable field, in the same order they appear on the page - used to
@@ -309,6 +324,10 @@ function AIConfigTab() {
     setCallSettings((prev) => ({ ...(prev || {}), sms_wording: { ...(prev?.sms_wording || {}), [kind]: value } }));
   };
 
+  const updateCapability = (capability, value) => {
+    setCallSettings((prev) => ({ ...(prev || {}), ai_capabilities: { ...(prev?.ai_capabilities || {}), [capability]: value } }));
+  };
+
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generateAllError, setGenerateAllError] = useState('');
 
@@ -524,6 +543,7 @@ function AIConfigTab() {
         require_meeting_approval: Boolean(callSettings.require_meeting_approval),
         require_approval_for_reschedules: Boolean(callSettings.require_approval_for_reschedules),
         require_approval_for_cancellations: Boolean(callSettings.require_approval_for_cancellations),
+        ai_capabilities: callSettings.ai_capabilities || {},
         sms_confirmations_enabled: callSettings.sms_confirmations_enabled !== false,
         appointment_reminders_enabled: Boolean(callSettings.appointment_reminders_enabled),
         appointment_reminder_hours_before: Math.min(168, Math.max(1, Number(callSettings.appointment_reminder_hours_before) || 24)),
@@ -762,46 +782,8 @@ function AIConfigTab() {
           </SectionCard>
 
           <SectionCard icon={CalendarCheck} title={t('aiprof_hdr_appointments')} description={t('aiprof_appointments_desc')}>
+            <p className="text-[#4A5568] text-xs mb-4">{t('aiprof_approval_moved_hint')}</p>
             <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={Boolean(callSettings?.require_meeting_approval)}
-                onChange={(event) => updateField('require_meeting_approval', event.target.checked)}
-                className="w-4 h-4 mt-0.5 accent-[#9333ea]"
-              />
-              <span>
-                <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_approval')}</span>
-                <span className="text-[#A4B0B7] text-xs">{t('aiprof_approval_hint')}</span>
-              </span>
-            </label>
-
-            <label className="flex items-start gap-2 cursor-pointer mt-4 pt-4 border-t border-[#243041]">
-              <input
-                type="checkbox"
-                checked={Boolean(callSettings?.require_approval_for_reschedules)}
-                onChange={(event) => updateField('require_approval_for_reschedules', event.target.checked)}
-                className="w-4 h-4 mt-0.5 accent-[#9333ea]"
-              />
-              <span>
-                <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_approval_reschedule')}</span>
-                <span className="text-[#A4B0B7] text-xs">{t('aiprof_approval_reschedule_hint')}</span>
-              </span>
-            </label>
-
-            <label className="flex items-start gap-2 cursor-pointer mt-4 pt-4 border-t border-[#243041]">
-              <input
-                type="checkbox"
-                checked={Boolean(callSettings?.require_approval_for_cancellations)}
-                onChange={(event) => updateField('require_approval_for_cancellations', event.target.checked)}
-                className="w-4 h-4 mt-0.5 accent-[#9333ea]"
-              />
-              <span>
-                <span className="text-white text-sm font-semibold block">{t('aiprof_toggle_approval_cancel')}</span>
-                <span className="text-[#A4B0B7] text-xs">{t('aiprof_approval_cancel_hint')}</span>
-              </span>
-            </label>
-
-            <label className="flex items-start gap-2 cursor-pointer mt-4 pt-4 border-t border-[#243041]">
               <input
                 type="checkbox"
                 checked={callSettings?.sms_confirmations_enabled !== false}
@@ -842,6 +824,38 @@ function AIConfigTab() {
                 />
               </div>
             ) : null}
+          </SectionCard>
+
+          <SectionCard icon={ShieldCheck} title={t('aiprof_hdr_permissions')} description={t('aiprof_permissions_desc')}>
+            <div className="space-y-3">
+              {AI_CAPABILITIES.map((capability) => {
+                const effectiveDefault = capability.key === 'schedule'
+                  ? (callSettings?.require_meeting_approval ? 'human_approval_required' : 'ai_allowed')
+                  : capability.key === 'reschedule'
+                    ? (callSettings?.require_approval_for_reschedules ? 'human_approval_required' : 'ai_allowed')
+                    : capability.key === 'cancel'
+                      ? (callSettings?.require_approval_for_cancellations ? 'human_approval_required' : 'ai_allowed')
+                      : 'ai_allowed';
+                const value = callSettings?.ai_capabilities?.[capability.key] || effectiveDefault;
+                return (
+                  <div key={capability.key} className="flex items-center justify-between gap-3 rounded-xl border border-[#243041] bg-[#131A24] px-4 py-3">
+                    <span className="text-white text-sm font-semibold">{t(capability.labelKey)}</span>
+                    <select
+                      aria-label={t(capability.labelKey)}
+                      value={value}
+                      onChange={(event) => updateCapability(capability.key, event.target.value)}
+                      className="bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
+                    >
+                      <option value="disabled">{t('aiprof_perm_disabled')}</option>
+                      <option value="ai_allowed">{t('aiprof_perm_ai_allowed')}</option>
+                      {capability.supportsApproval ? (
+                        <option value="human_approval_required">{t('aiprof_perm_human_approval_required')}</option>
+                      ) : null}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
           </SectionCard>
 
           <SectionCard icon={Users} title={t('aiprof_hdr_scheduling')} description={t('aiprof_scheduling_desc')}>

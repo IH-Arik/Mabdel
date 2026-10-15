@@ -132,6 +132,7 @@ class AICallSettingsService(SmartFlowBase):
         "sms_wording": {},
         "cancellation_policy": None,
         "call_routing_rules": [],
+        "ai_capabilities": {},
         "emergency_keywords": [],
         "emergency_response_mode": "take_message",
         "emergency_alert_phone": None,
