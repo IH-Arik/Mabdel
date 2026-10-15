@@ -536,8 +536,9 @@ class RealtimeReceptionist(AIPhoneAgent):
                         booking_bits.append(f"type {type_names[rule['appointment_type_id']]}")
                     if booking_bits:
                         parts.append("   Book with: " + ", ".join(booking_bits))
-                    if rule.get("notify_target"):
-                        parts.append(f"   Notify: {rule['notify_target']} (use notify_team)")
+                    notify_bits = [bit for bit in [rule.get("notify_target"), (rule.get("notify_role") or "").replace("_", " ").strip() or None] if bit]
+                    if notify_bits:
+                        parts.append(f"   Notify: {' - '.join(notify_bits)} (use notify_team)")
                     if rule.get("crm_note"):
                         parts.append(f"   Note: {rule['crm_note']}")
                     playbook_lines.append("\n".join(parts))
