@@ -7,7 +7,7 @@ const parseJwtPayload = (token) => {
     const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
     const decoded = atob(normalized);
     return JSON.parse(decoded);
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -57,7 +57,7 @@ export const getAdminSession = () => {
     }
 
     return parsed;
-  } catch (error) {
+  } catch {
     localStorage.removeItem(AUTH_KEY);
     return null;
   }
@@ -93,5 +93,7 @@ export const markOnboardingComplete = () => {
       session.profile.onboarding_complete = true;
       localStorage.setItem(AUTH_KEY, JSON.stringify(session));
     }
-  } catch {}
+  } catch {
+    // Ignore malformed session data
+  }
 };

@@ -1,6 +1,6 @@
 import { FiLogOut } from "react-icons/fi";
 import { BiChevronDown } from "react-icons/bi";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { MdDashboard } from "react-icons/md";
 import brandlogo from "../../assets/image/gocustify-mark.png";
 import {
@@ -70,7 +70,6 @@ const ROLE_MENU = {
 
 const Sidebar = ({ closeDrawer }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const role = getAdminRole();
 
   const menuItems = ROLE_MENU[role] || ADMIN_MENU;

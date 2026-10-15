@@ -73,7 +73,7 @@ export const sendThreadMessage = async ({ threadId, body }) => {
   });
 };
 
-export const markThreadSeen = ({ threadId }) => Promise.resolve({ success: true });
+export const markThreadSeen = () => Promise.resolve({ success: true });
 
 // Backward compatible names in case any old imports still exist.
 export const listConversations = listThreads;

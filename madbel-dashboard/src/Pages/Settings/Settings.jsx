@@ -58,6 +58,15 @@ const Settings = () => {
           },
         ]
       : []),
+    ...(isOwner
+      ? [
+          {
+            icon: <CreditCard className="w-5 h-5" />,
+            label: "Billing",
+            link: "/settings/billing",
+          },
+        ]
+      : []),
   ];
 
   return (

@@ -1,4 +1,4 @@
-import { apiRequest, apiRequestWithFallback, createPath } from "./httpClient";
+import { apiRequestWithFallback, createPath } from "./httpClient";
 
 const toListQuery = (query = {}) => ({
   ...query,

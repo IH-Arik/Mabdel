@@ -113,7 +113,7 @@ const Dashboard = () => {
 
         const users = extractItems(usersPayload);
         setRecentUsers(users);
-      } catch (error) {
+      } catch {
         if (mounted) {
           setOverview(null);
           setAnalytics(null);
@@ -140,7 +140,7 @@ const Dashboard = () => {
           : await getUserGrowth();
         if (!mounted) return;
         setAnalytics(analyticsPayload?.data || analyticsPayload);
-      } catch (error) {
+      } catch {
         if (mounted) {
           setAnalytics(null);
         }

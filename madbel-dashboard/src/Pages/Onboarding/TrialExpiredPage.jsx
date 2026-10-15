@@ -12,7 +12,7 @@ const TrialExpiredPage = () => {
     setLoading(true);
     try {
       await completeOnboarding();
-    } catch (_) {
+    } catch {
       // already past onboarding, ignore
     } finally {
       setLoading(false);

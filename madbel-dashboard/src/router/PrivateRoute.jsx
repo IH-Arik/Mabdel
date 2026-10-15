@@ -1,7 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { isAdminAuthenticated, isOnboardingComplete } from "../utils/auth";
-
-const EXEMPT_PATHS = ["/onboarding", "/trial-expired"];
+import { isAdminAuthenticated } from "../utils/auth";
 
 const PrivateRoute = () => {
   const location = useLocation();

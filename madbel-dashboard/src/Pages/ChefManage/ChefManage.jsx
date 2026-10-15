@@ -228,10 +228,6 @@ const ChefManage = () => {
     },
   ];
 
-  const handleBack = () => {
-    alert("Navigating back");
-  };
-
   const handleViewDetails = (chefId) => {
     alert(`Viewing details for chef ${chefId}`);
   };
