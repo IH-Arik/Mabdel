@@ -945,6 +945,12 @@ class SmartFlowBase:
         safe["last_message_delivery_error"] = (latest_message or {}).get("delivery_error")
         safe["last_message_at"] = safe.get("last_message_at") or (latest_message or {}).get("timestamp") or safe.get("updated_at")
         safe["assigned_to"] = safe.get("assigned_to")
+        # New (never acted on) / Read / Completed - a lightweight workflow status
+        # distinct from message-level read receipts, for the "mark complete" flow on a
+        # customer thread (e.g. AI Receptionist messages). Unset on any conversation
+        # created before this field existed defaults to "new" rather than requiring a
+        # migration.
+        safe["status"] = safe.get("status") or "new"
         safe["is_customer_conversation"] = self._is_customer_conversation(conversation)
         # Team chats belong to whoever started them; the whole team manages customer threads.
         safe["can_manage"] = (not is_global_chat) and (

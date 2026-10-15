@@ -1,9 +1,9 @@
-import { Loader2, Mail, Phone, X } from 'lucide-react';
+import { CheckCircle2, Loader2, Mail, Phone, PhoneCall, X } from 'lucide-react';
 import ChannelIcon from './ChannelIcon';
 import { channelMeta } from '../../constants/channels';
 import { formatListTime } from './inboxUtils';
 
-export default function ContactPanel({ details, loading, onClose, onOpenConversation, conversation, members, onAssign, assigning, t }) {
+export default function ContactPanel({ details, loading, onClose, onOpenConversation, conversation, members, onAssign, assigning, onSetStatus, settingStatus, t }) {
   const contact = details?.contact;
   return (
     <aside
@@ -71,6 +71,45 @@ export default function ContactPanel({ details, loading, onClose, onOpenConversa
               {assigning ? <Loader2 size={12} className="absolute right-8 top-1/2 -translate-y-1/2 animate-spin text-slate-400" /> : null}
             </div>
           </div>
+
+          <div>
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t('conv_status')}</p>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-slate-800 bg-slate-950 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-300">
+                {t(`conv_status_${conversation?.status || 'new'}`)}
+              </span>
+              {conversation?.status !== 'read' && conversation?.status !== 'completed' ? (
+                <button
+                  type="button"
+                  disabled={settingStatus}
+                  onClick={() => onSetStatus('read')}
+                  className="cursor-pointer rounded-xl border border-slate-800 px-2.5 py-1 text-[10px] font-bold text-slate-300 hover:border-[#9333ea]/40 disabled:opacity-60"
+                >
+                  {t('conv_mark_read')}
+                </button>
+              ) : null}
+              {conversation?.status !== 'completed' ? (
+                <button
+                  type="button"
+                  disabled={settingStatus}
+                  onClick={() => onSetStatus('completed')}
+                  className="flex cursor-pointer items-center gap-1 rounded-xl border border-slate-800 px-2.5 py-1 text-[10px] font-bold text-slate-300 hover:border-[#9333ea]/40 disabled:opacity-60"
+                >
+                  <CheckCircle2 size={11} /> {t('conv_mark_complete')}
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {conversation?.platform === 'ai_receptionist' && contact?.phone ? (
+            <a
+              href={`/calls?search=${encodeURIComponent(contact.phone)}`}
+              className="flex items-center gap-2 rounded-xl border border-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:border-[#9333ea]/40 hover:text-[#c084fc]"
+            >
+              <PhoneCall size={13} className="text-slate-500" />
+              {t('conv_view_calls')}
+            </a>
+          ) : null}
 
           <div>
             <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t('conv_also_on')}</p>

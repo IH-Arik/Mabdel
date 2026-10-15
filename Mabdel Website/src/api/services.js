@@ -283,6 +283,7 @@ export const smartflowApi = {
   archiveConversation: (id, archived = true) => client.patch(`/api/v1/smartflow/conversations/${id}/archive`, null, { params: { archived } }),
   markConversationRead: (id) => client.post(`/api/v1/smartflow/conversations/${id}/mark-read`),
   assignConversation: (id, assigneeId) => client.patch(`/api/v1/smartflow/conversations/${id}/assign`, { assignee_id: assigneeId }),
+  updateConversationStatus: (id, status) => client.patch(`/api/v1/smartflow/conversations/${id}/status`, { status }),
   getConversationAssignees: () => client.get('/api/v1/smartflow/conversations/assignees'),
   getConversationContact: (id) => client.get(`/api/v1/smartflow/conversations/${id}/contact`),
   composeMessage: (data) => client.post('/api/v1/smartflow/ai/compose', data),

@@ -183,6 +183,9 @@ class SmartFlowService(SmartFlowBase):
     async def assign_conversation(self, user_id, conversation_id, assignee_id):
         return await self.conversation_service.assign_conversation(user_id, conversation_id, assignee_id)
 
+    async def set_conversation_status(self, user_id, conversation_id, status):
+        return await self.conversation_service.set_conversation_status(user_id, conversation_id, status)
+
     async def list_assignable_members(self, user_id):
         return await self.conversation_service.list_assignable_members(user_id)
 

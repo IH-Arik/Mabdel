@@ -11,6 +11,7 @@ from app.repositories.auth_repository import AuthRepository
 from app.schemas.smartflow import (
     ConversationAssignRequest,
     ConversationCreateRequest,
+    ConversationStatusUpdateRequest,
     ForwardMessageRequest,
     MessageCreateRequest,
     MessageUpdateRequest,
@@ -139,6 +140,17 @@ async def assign_conversation(
 ) -> dict:
     data = await service.assign_conversation(str(current_user["_id"]), conversation_id, payload.assignee_id)
     return success_response(data=data, message="Conversation assignment updated.")
+
+
+@router.patch("/conversations/{conversation_id}/status")
+async def update_conversation_status(
+    conversation_id: str,
+    payload: ConversationStatusUpdateRequest,
+    current_user: dict = Depends(require_permission("messages", "send")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.set_conversation_status(str(current_user["_id"]), conversation_id, payload.status)
+    return success_response(data=data, message="Conversation status updated.")
 
 
 @router.get("/conversations/{conversation_id}/contact")
