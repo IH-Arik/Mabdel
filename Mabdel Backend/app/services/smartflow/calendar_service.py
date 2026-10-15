@@ -225,6 +225,23 @@ class CalendarService(SmartFlowBase):
         if day.isoformat() in (hours.get("blocked_dates") or []):
             return []
 
+        # A provider with its own working_days/working_hours is available only on the
+        # intersection of the business's hours and theirs - set only to restrict a
+        # specialist further (e.g. Tue/Thu only); unset means "follows the business".
+        start_hour, end_hour = hours["start_hour"], hours["end_hour"]
+        if provider_id:
+            provider = await self.db.providers.find_one({"_id": ObjectId(provider_id)}) if ObjectId.is_valid(provider_id) else None
+            if provider:
+                working_days = provider.get("working_days")
+                if working_days and day.weekday() not in working_days:
+                    return []
+                working_hours = provider.get("working_hours")
+                if working_hours:
+                    start_hour = max(start_hour, int(working_hours.get("start_hour", start_hour)))
+                    end_hour = min(end_hour, int(working_hours.get("end_hour", end_hour)))
+                    if start_hour >= end_hour:
+                        return []
+
         slot_minutes = max(15, int(hours.get("slot_minutes") or 60))
         reserve_minutes = max(15, int(duration_minutes)) if duration_minutes else slot_minutes
         tz = self._resolve_zoneinfo(hours.get("timezone"))
@@ -232,8 +249,8 @@ class CalendarService(SmartFlowBase):
         # Business hours are defined in local time; calendar_events are stored in UTC
         # (the rest of this codebase's convention), so the open window has to be
         # converted before it can be compared against them.
-        local_start = datetime(day.year, day.month, day.day, hours["start_hour"], tzinfo=tz)
-        local_end_hour = hours["end_hour"]
+        local_start = datetime(day.year, day.month, day.day, start_hour, tzinfo=tz)
+        local_end_hour = end_hour
         if local_end_hour >= 24:
             local_end = datetime(day.year, day.month, day.day, tzinfo=tz) + timedelta(days=1)
         else:
