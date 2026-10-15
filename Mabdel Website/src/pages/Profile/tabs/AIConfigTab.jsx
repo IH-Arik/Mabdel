@@ -70,6 +70,12 @@ const AI_CAPABILITIES = [
 const INSURANCE_ELIGIBLE_BUSINESS_TYPES = ['Dental Clinic', 'Medical Clinic', 'Chiropractor'];
 const NETWORK_STATUS_OPTIONS = ['in_network', 'out_of_network', 'plan_dependent', 'unknown'];
 
+// Mirrors NotifyRole in app/schemas/smartflow.py.
+const NOTIFY_ROLE_OPTIONS = [
+  'owner', 'front_desk', 'scheduling', 'sales', 'billing', 'insurance', 'customer_service',
+  'clinical_staff', 'attorney_intake', 'agent', 'dispatch', 'manager', 'custom_team',
+];
+
 // Python's date.weekday(): 0=Monday ... 6=Sunday - matches business_hours.days already.
 const WEEKDAYS = [
   { value: 0, labelKey: 'aiprof_day_mon' },
@@ -451,7 +457,7 @@ function AIConfigTab() {
       ...(prev || {}),
       call_routing_rules: [
         ...(prev?.call_routing_rules || []),
-        { id, name: '', trigger_description: '', questions_to_ask: [], provider_id: '', appointment_type_id: '', notify_target: '', crm_note: '', active: true },
+        { id, name: '', trigger_description: '', questions_to_ask: [], provider_id: '', appointment_type_id: '', notify_target: '', notify_role: null, crm_note: '', active: true },
       ],
     }));
   };
@@ -627,6 +633,7 @@ function AIConfigTab() {
             provider_id: rule.provider_id || null,
             appointment_type_id: rule.appointment_type_id || null,
             notify_target: rule.notify_target?.trim() || null,
+            notify_role: rule.notify_role || null,
             crm_note: rule.crm_note?.trim() || null,
             active: rule.active !== false,
           })),
@@ -1425,14 +1432,27 @@ function AIConfigTab() {
                     </div>
                   ) : null}
 
-                  <input
-                    type="text"
-                    maxLength={120}
-                    placeholder={t('aiprof_ph_playbook_notify')}
-                    value={rule.notify_target || ''}
-                    onChange={(event) => updatePlaybook(rule.id, 'notify_target', event.target.value)}
-                    className="w-full bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
-                  />
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      maxLength={120}
+                      placeholder={t('aiprof_ph_playbook_notify')}
+                      value={rule.notify_target || ''}
+                      onChange={(event) => updatePlaybook(rule.id, 'notify_target', event.target.value)}
+                      className="flex-1 min-w-0 bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
+                    />
+                    <select
+                      aria-label={t('aiprof_lbl_notify_role')}
+                      value={rule.notify_role || ''}
+                      onChange={(event) => updatePlaybook(rule.id, 'notify_role', event.target.value || null)}
+                      className="w-32 shrink-0 bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2 py-2 outline-none"
+                    >
+                      <option value="">{t('aiprof_opt_no_role')}</option>
+                      {NOTIFY_ROLE_OPTIONS.map((role) => (
+                        <option key={role} value={role}>{t(`aiprof_role_${role}`)}</option>
+                      ))}
+                    </select>
+                  </div>
                   <input
                     type="text"
                     maxLength={200}

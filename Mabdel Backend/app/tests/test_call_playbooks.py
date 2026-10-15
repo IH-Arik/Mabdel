@@ -15,6 +15,7 @@ def _rule(**overrides):
         "provider_id": None,
         "appointment_type_id": None,
         "notify_target": None,
+        "notify_role": None,
         "crm_note": None,
         "active": True,
         **overrides,
@@ -80,6 +81,48 @@ def test_an_inactive_playbook_is_left_out_of_the_instructions(client, mock_db, m
     agent = _receptionist(mock_db, owner_id, FakeOpenAI(), FakeCallControl())
     instructions = asyncio.run(agent.build_instructions())
     assert "CALL PLAYBOOKS" not in instructions and "Emergency Service" not in instructions
+
+
+def test_a_notify_role_renders_alongside_the_free_text_target(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "playbook-role@example.com")
+    asyncio.run(
+        mock_db.organizations.update_one(
+            {"organization_id": owner_id},
+            {"$set": {"ai_call_settings.call_routing_rules": [_rule(notify_target="Maria", notify_role="billing")]}},
+        )
+    )
+    agent = _receptionist(mock_db, owner_id, FakeOpenAI(), FakeCallControl())
+    instructions = asyncio.run(agent.build_instructions())
+
+    assert "Notify: Maria - billing (use notify_team)" in instructions
+
+
+def test_a_notify_role_alone_still_renders_without_a_free_text_target(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "playbook-role-only@example.com")
+    asyncio.run(
+        mock_db.organizations.update_one(
+            {"organization_id": owner_id},
+            {"$set": {"ai_call_settings.call_routing_rules": [_rule(notify_role="front_desk")]}},
+        )
+    )
+    agent = _receptionist(mock_db, owner_id, FakeOpenAI(), FakeCallControl())
+    instructions = asyncio.run(agent.build_instructions())
+
+    assert "Notify: front desk (use notify_team)" in instructions
+
+
+def test_a_playbook_with_neither_notify_field_set_adds_no_notify_line(client, mock_db, monkeypatch):
+    owner_id = _business(client, mock_db, monkeypatch, "playbook-no-notify@example.com")
+    asyncio.run(
+        mock_db.organizations.update_one(
+            {"organization_id": owner_id},
+            {"$set": {"ai_call_settings.call_routing_rules": [_rule()]}},
+        )
+    )
+    agent = _receptionist(mock_db, owner_id, FakeOpenAI(), FakeCallControl())
+    instructions = asyncio.run(agent.build_instructions())
+
+    assert "Notify:" not in instructions
 
 
 def test_notify_team_tool_creates_a_team_notification(client, mock_db, monkeypatch):

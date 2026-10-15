@@ -512,6 +512,12 @@ class AICapabilities(BaseModel):
     send_payment_link: AICapabilityState | None = None
 
 
+NotifyRole = Literal[
+    "owner", "front_desk", "scheduling", "sales", "billing", "insurance", "customer_service",
+    "clinical_staff", "attorney_intake", "agent", "dispatch", "manager", "custom_team",
+]
+
+
 class CallRoutingRule(BaseModel):
     """A named playbook: 'when a caller wants X, ask these, book with this provider/
     type, notify this'. The receptionist reads these as guidance, not a rigid script -
@@ -525,6 +531,11 @@ class CallRoutingRule(BaseModel):
     provider_id: str | None = None
     appointment_type_id: str | None = None
     notify_target: str | None = Field(default=None, max_length=120)
+    # A labeled team/role the owner intends this to reach (e.g. "Billing"), alongside
+    # notify_target's free text (a specific person's name). This app has no
+    # per-member department tagging today, so it is rendered into the prompt as
+    # context for the team note - it does not itself filter who gets notified.
+    notify_role: NotifyRole | None = None
     crm_note: str | None = Field(default=None, max_length=200)
     active: bool = True
 
