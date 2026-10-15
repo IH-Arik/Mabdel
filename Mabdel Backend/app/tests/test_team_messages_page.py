@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 
 from app.tests.test_shared_inbox import _inbound, _list
 from app.tests.test_team_direct_messaging import _same_org, _signup

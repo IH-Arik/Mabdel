@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 
 from app.services.realtime_receptionist import DEFAULT_EMERGENCY_KEYWORDS
 from app.tests.test_realtime_receptionist import FakeCallControl, FakeOpenAI, _business, _greeting_done, _receptionist, _until

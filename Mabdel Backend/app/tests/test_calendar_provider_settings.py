@@ -5,7 +5,6 @@ from datetime import datetime
 
 import httpx
 
-from app.core.config import settings
 from app.core.crypto import encrypt_value
 from app.tests.conftest import grant_owner_role
 from app.tests.test_auth import _register_user, _verify_signup_otp

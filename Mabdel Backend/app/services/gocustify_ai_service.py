@@ -924,10 +924,8 @@ class GoCustifyAIService:
                 score += 1.5
 
             # 2. Alias Match
-            alias_matched = False
             for alias in entry["aliases"]:
                 if alias in normalized:
-                    alias_matched = True
                     if " " in alias:
                         score += 3.0
                     else:

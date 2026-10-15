@@ -11,7 +11,7 @@ from fastapi import APIRouter, Body, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.exceptions import AppException
-from app.dependencies import get_current_user, get_mongo_database, require_role
+from app.dependencies import get_mongo_database, require_role
 from app.repositories.dashboard.dashboard_repository import DashboardRepository
 
 router = APIRouter()
@@ -142,7 +142,6 @@ async def list_team(
     current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
-    uid = _user_id(current_user)
     await _resolve_owner_role(current_user, db)
 
     query = await _team_scope_query(current_user, db)
@@ -350,7 +349,6 @@ async def revoke_team_role(
     current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
-    uid = _user_id(current_user)
     owner_role = await _resolve_owner_role(current_user, db)
 
     target_user_id = body.get("user_id", "").strip()

@@ -300,7 +300,6 @@ class DashboardService:
     async def change_admin_password(self, user_id: str, data: ChangePasswordRequest) -> bool:
         from app.core.security import verify_password, hash_password
         from app.core.exceptions import AppException
-        from bson import ObjectId
         
         user = await self.repository.db.users.find_one({"_id": _object_id(user_id, "INVALID_USER_ID")})
         stored_password = user.get("hashed_password") or user.get("password_hash") if user else ""
@@ -403,7 +402,6 @@ class DashboardService:
         await self.repository.save_message(msg)
 
     async def apply_report_action(self, report_id: str, action: str, note: str | None = None) -> bool:
-        from bson import ObjectId
         from app.core.exceptions import AppException
         
         report = await self.repository.db.user_reports.find_one({"_id": _object_id(report_id, "INVALID_REPORT_ID")})

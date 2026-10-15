@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
 from app.core.config import settings
 from app.core.exceptions import AppException
-from app.dependencies import get_current_user, require_permission, require_plan_feature
+from app.dependencies import require_permission, require_plan_feature
 from app.schemas.smartflow import (
     SocialIntegrationUpsertRequest,
     TelegramManualConnectRequest,

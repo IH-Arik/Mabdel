@@ -11,7 +11,6 @@ trip back to the Telnyx portal; the real handler lives in
 from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.api.v1.endpoints.calls import get_smartflow_service, get_voice_service, handle_telnyx_call_webhook
 from app.services.smartflow_service import SmartFlowService

@@ -5,7 +5,7 @@ from fastapi import Depends, File, Query, UploadFile, WebSocket, WebSocketDiscon
 from app.core.realtime import conversation_realtime_hub, inbox_realtime_hub
 from app.core.security import decode_token
 from app.core.exceptions import AppException
-from app.dependencies import get_current_user, get_mongo_database, get_redis_client, require_permission, require_subscription
+from app.dependencies import get_mongo_database, get_redis_client, require_permission, require_subscription
 from app.services.rbac_service import RBACService
 from app.repositories.auth_repository import AuthRepository
 from app.schemas.smartflow import (

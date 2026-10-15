@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import Depends, Query, status
 
-from app.dependencies import get_current_user, require_permission, require_subscription
+from app.dependencies import require_permission, require_subscription
 from app.schemas.smartflow import (
     GroupCreateRequest,
     GroupInviteRequest,

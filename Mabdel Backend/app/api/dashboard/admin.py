@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.dependencies import get_mongo_database, require_role, require_permission
 from app.utils.helpers import utc_now
 from app.dependencies import get_dashboard_service
+from app.services.dashboard.dashboard_service import DashboardService
 from app.core.security import hash_password, verify_password, create_access_token
 from app.core.exceptions import AppException
 from app.schemas.dashboard_schemas import (

@@ -9,7 +9,6 @@ technician who never signs in). Both are org-wide, like contacts and groups.
 
 from __future__ import annotations
 
-from bson import ObjectId
 from pymongo import ReturnDocument
 
 from app.core.exceptions import AppException

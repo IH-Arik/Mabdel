@@ -124,6 +124,6 @@ def test_live_call_cancel_tool_requires_a_caller_name_argument(client, mock_db, 
         return booked
 
     asyncio.run(mock_db.call_logs.insert_one({"twilio_call_sid": "call-rt", "user_id": owner_id}))
-    booked = asyncio.run(run())
+    asyncio.run(run())
     event = asyncio.run(mock_db.calendar_events.find_one({"customer.phone": "+15551230000"}))
     assert event is not None  # the cancel attempt without a name never touched it

@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.dependencies import get_current_user, get_mongo_database, require_permission, require_plan_feature
+from app.dependencies import get_mongo_database, require_permission, require_plan_feature
 from app.schemas.invoice import (
     InvoiceCreateRequest,
     InvoiceReminderRequest,

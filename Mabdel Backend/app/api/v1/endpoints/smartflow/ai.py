@@ -7,7 +7,7 @@ from fastapi import Depends, File, Form, Query, Request, UploadFile
 from pydantic import BaseModel, Field, ValidationError
 
 from app.core.exceptions import AppException
-from app.dependencies import get_current_user, require_permission, require_subscription
+from app.dependencies import require_permission, require_subscription
 from app.schemas.smartflow import (
     AIChatRequest,
     AISynthesizeSpeechRequest,

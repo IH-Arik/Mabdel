@@ -1722,7 +1722,7 @@ class ConversationService(SmartFlowBase):
 
         owner = await self._resolve_global_chat_owner(org_id, str(user["_id"]))
         business_name = (owner or {}).get("business_name") or (owner or {}).get("full_name") or "Organization"
-        group = await self.ensure_global_chat(org_id, business_name, str((owner or {}).get("_id") or user["_id"]))
+        await self.ensure_global_chat(org_id, business_name, str((owner or {}).get("_id") or user["_id"]))
         is_eligible = self._user_has_global_chat_access(user) and user.get("organization_id") == org_id
 
         if is_eligible:
