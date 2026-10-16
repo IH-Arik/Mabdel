@@ -141,10 +141,7 @@ export const smartflowApi = {
   getProtocolsForLawEnforcement: () => client.get('/api/v1/content/protocols-for-law-enforcement'),
   getHelpSupportContent: () => client.get('/api/v1/content/help-support'),
 
-  // Activities & Events
-  listActivities: (params) => client.get('/api/v1/activities', { params }),
-  createActivity: (data) => client.post('/api/v1/activities', data),
-  joinActivity: (id) => client.post(`/api/v1/activities/${id}/join`),
+  // Events
   listEvents: (params) => client.get('/api/v1/events', { params }),
   createEvent: (data) => client.post('/api/v1/events', data),
   joinEvent: (id) => client.post(`/api/v1/events/${id}/join`),
