@@ -25,7 +25,13 @@ const STATUS_STYLES = {
 };
 
 function unwrap(response) {
-  return response?.data?.data ?? response?.data ?? null;
+  const payload = response?.data;
+  // A `data` key that is explicitly null (no domain configured yet) is a real,
+  // valid value — `??` can't tell that apart from a missing key, and falling
+  // through to the whole envelope left `domain` truthy with no `.status`,
+  // producing the literal string "bed_status_undefined" in the UI.
+  if (payload && typeof payload === 'object' && 'data' in payload) return payload.data;
+  return payload ?? null;
 }
 
 // The status endpoint answers { items, summary }; older/fallback shapes are a bare array.
