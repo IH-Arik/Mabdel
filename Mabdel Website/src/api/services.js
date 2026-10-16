@@ -124,6 +124,7 @@ export const smartflowApi = {
   updateNotificationSettings: (data) => client.patch('/api/v1/smartflow/settings/notifications', data),
   getBusinessProfile: () => client.get('/api/v1/smartflow/business-profile'),
   updateBusinessProfile: (data) => client.patch('/api/v1/smartflow/business-profile', data),
+  completeOnboarding: (userId) => client.post('/api/v1/onboarding/complete', { user_id: userId }),
   getSubscriptionPlans: () => client.get('/api/v1/smartflow/subscription/plans'),
   getCurrentSubscription: () => client.get('/api/v1/smartflow/subscription/current'),
   createSupportTicket: (data) => client.post('/api/v1/smartflow/support/tickets', data),

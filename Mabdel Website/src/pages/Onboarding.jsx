@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ArrowLeft, Home, Briefcase, TrendingUp, Check, Building2, User, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuthStore } from '../store/useAuthStore';
+import { smartflowApi } from '../api/services';
 
 const steps = [
   { id: 'role', title: 'Your Role' },
@@ -13,6 +15,7 @@ const steps = [
 export default function Onboarding() {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const user = useAuthStore((state) => state.user);
   const [currentStep, setCurrentStep] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
   const [formData, setFormData] = useState({
@@ -38,15 +41,19 @@ export default function Onboarding() {
     t('onboard_goal_maintenance')
   ];
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1);
-    } else {
-      setIsFinishing(true);
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
+      return;
     }
+
+    setIsFinishing(true);
+    const companyName = formData.company.trim();
+    await Promise.allSettled([
+      user?.id ? smartflowApi.completeOnboarding(user.id) : Promise.resolve(),
+      companyName.length >= 2 ? smartflowApi.updateBusinessProfile({ business_name: companyName }) : Promise.resolve(),
+    ]);
+    navigate('/dashboard');
   };
 
   const handleBack = () => {
