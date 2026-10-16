@@ -620,17 +620,32 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
     if (!event?.id) return;
     setSharing(true);
     setError('');
+    let shareUrl;
     try {
       const response = await smartflowApi.shareCalendarEvent(event.id, { channel: 'link' });
       const share = normalizeEventPayload(response);
-      const shareUrl = share?.share_url || share?.shareUrl;
-      const message = [
-        event.title,
-        formatDateTimeRange(event, t),
-        event.meeting_link || event.location || '',
-        shareUrl || '',
-      ].filter(Boolean).join('\n');
+      shareUrl = share?.share_url || share?.shareUrl;
+    } catch (err) {
+      setError(err.response?.data?.message || t('cal_err_share'));
+      setSharing(false);
+      return;
+    }
 
+    // The share itself already succeeded on the backend at this point — the link was
+    // created either way. Everything below is just a convenience delivery mechanism
+    // (native share sheet / clipboard), and browsers routinely refuse those (cancelled
+    // share sheet, clipboard permission lost after the await above). A failure here must
+    // never be reported as "share failed", or a real share_url gets silently discarded.
+    setEvent((current) => ({ ...current, share_url: shareUrl || current?.share_url || null }));
+
+    const message = [
+      event.title,
+      formatDateTimeRange(event, t),
+      event.meeting_link || event.location || '',
+      shareUrl || '',
+    ].filter(Boolean).join('\n');
+
+    try {
       if (navigator.share) {
         await navigator.share({ title: event.title, text: message, url: shareUrl || undefined });
       } else if (shareUrl && navigator.clipboard?.writeText) {
@@ -639,9 +654,10 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
       } else {
         window.alert(shareUrl || message);
       }
-      setEvent((current) => ({ ...current, share_url: shareUrl || current?.share_url || null }));
-    } catch (err) {
-      setError(err.response?.data?.message || t('cal_err_share'));
+    } catch {
+      // Cancelled share sheet or blocked clipboard access — fall back to just showing
+      // the link so the user still gets it.
+      if (shareUrl) window.alert(shareUrl);
     } finally {
       setSharing(false);
     }
