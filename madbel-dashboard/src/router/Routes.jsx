@@ -26,8 +26,6 @@ import BlockedList from "../Pages/BlockedList/BlockedList";
 import ChangePass from "../Pages/AdminProfile/ChangePass";
 import AdsSetup from "../Pages/AdsSetup/AdsSetup";
 import ActivityEvents from "../Pages/Activity & Events/ActivityEvents";
-import EventCreators from "../Pages/EventCreator/EventCreators";
-import EventCreatorDetails from "../Pages/EventCreator/EventCreatorDetails";
 import MakeAdmin from "../Pages/MakeAdmin/MakeAdmin";
 import OwnerDashboard from "../Pages/Owner/OwnerDashboard";
 import TeamManagement from "../Pages/Owner/TeamManagement";
@@ -77,8 +75,6 @@ export const router = createBrowserRouter([
           { path: "/demo-requests", element: <DemoRequests /> },
           { path: "/ads-setup", element: <AdsSetup /> },
           { path: "/activity&events", element: <ActivityEvents /> },
-          { path: "/event-creator", element: <EventCreators /> },
-          { path: "/event-creator/:id", element: <EventCreatorDetails /> },
           { path: "/notifications", element: <Notifications /> },
           { path: "/settings", element: <Settings /> },
           { path: "/settings/about-us", element: <AboutUs /> },

@@ -64,11 +64,6 @@ This frontend now includes service functions for the provided admin collection e
 - `deleteAdminActivity`
 - `searchAdminActivities`
 
-## Event Creators
-- `listEventCreators`
-- `getEventCreatorById`
-- `payoutEventCreator`
-
 ## Reports
 - `listAdminReports`
 - `resolveAdminReport`

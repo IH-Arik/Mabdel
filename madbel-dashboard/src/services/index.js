@@ -8,6 +8,5 @@ export * from "./earningsApi";
 export * from "./categoriesApi";
 export * from "./adsApi";
 export * from "./activitiesApi";
-export * from "./eventCreatorsApi";
 export * from "./notificationsApi";
 export * from "./chatApi";
