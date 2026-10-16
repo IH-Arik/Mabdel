@@ -129,6 +129,7 @@ export default function Contacts() {
 
   // Layout view config
   const [layoutMode, setLayoutMode] = useState('list'); // 'grid' or 'list'
+  const [directoryPage, setDirectoryPage] = useState(1);
   const importInputRef = useRef(null);
 
   const resetForm = useCallback(() => {
@@ -683,6 +684,18 @@ export default function Contacts() {
   const showcasedContacts = filteredContacts.slice(0, 4);
   const isLoadingCurrentTab = activeTab === 'team' ? teamLoading : loading;
 
+  const DIRECTORY_PAGE_SIZE = 10;
+  const directoryTotalPages = Math.max(1, Math.ceil(filteredContacts.length / DIRECTORY_PAGE_SIZE));
+  const safeDirectoryPage = Math.min(directoryPage, directoryTotalPages);
+  const pagedContacts = filteredContacts.slice(
+    (safeDirectoryPage - 1) * DIRECTORY_PAGE_SIZE,
+    safeDirectoryPage * DIRECTORY_PAGE_SIZE
+  );
+
+  useEffect(() => {
+    setDirectoryPage(1);
+  }, [activeTab, normalizedSearch, companyFilter]);
+
   return (
     <div className="h-full flex flex-col space-y-6">
 
@@ -1003,7 +1016,7 @@ export default function Contacts() {
                         </td>
                       </tr>
                     ) : null}
-                    {filteredContacts.map(item => (
+                    {pagedContacts.map(item => (
                       <tr
                         key={item.id}
                         onClick={() => {
@@ -1111,7 +1124,7 @@ export default function Contacts() {
                     {normalizedSearch ? t('contacts_no_search_results') : t('contacts_no_contacts_available')}
                   </div>
                 ) : null}
-                {filteredContacts.map(item => (
+                {pagedContacts.map(item => (
                   <div
                     key={item.id}
                     onClick={() => {
@@ -1168,13 +1181,31 @@ export default function Contacts() {
               </span>
 
               <div className="flex items-center gap-1.5">
-                <button className="p-1.5 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-500 rounded-lg transition-colors cursor-pointer">
+                <button
+                  onClick={() => setDirectoryPage(p => Math.max(1, p - 1))}
+                  disabled={safeDirectoryPage === 1}
+                  className="p-1.5 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
                   <ChevronLeft size={14} />
                 </button>
-                <span className="w-7 h-7 bg-purple-950/60 border border-purple-500/30 text-purple-400 flex items-center justify-center rounded-lg text-xs font-extrabold">1</span>
-                <span className="w-7 h-7 hover:bg-slate-900 text-slate-500 hover:text-white flex items-center justify-center rounded-lg text-xs font-bold cursor-pointer">2</span>
-                <span className="w-7 h-7 hover:bg-slate-900 text-slate-500 hover:text-white flex items-center justify-center rounded-lg text-xs font-bold cursor-pointer">3</span>
-                <button className="p-1.5 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-500 rounded-lg transition-colors cursor-pointer">
+                {Array.from({ length: directoryTotalPages }, (_, index) => index + 1).map((pageNum) => (
+                  <span
+                    key={pageNum}
+                    onClick={() => setDirectoryPage(pageNum)}
+                    className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold cursor-pointer ${
+                      pageNum === safeDirectoryPage
+                        ? 'bg-purple-950/60 border border-purple-500/30 text-purple-400 font-extrabold'
+                        : 'hover:bg-slate-900 text-slate-500 hover:text-white'
+                    }`}
+                  >
+                    {pageNum}
+                  </span>
+                ))}
+                <button
+                  onClick={() => setDirectoryPage(p => Math.min(directoryTotalPages, p + 1))}
+                  disabled={safeDirectoryPage === directoryTotalPages}
+                  className="p-1.5 bg-slate-950 border border-slate-900 hover:border-slate-800 text-slate-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
                   <ChevronRight size={14} />
                 </button>
               </div>
