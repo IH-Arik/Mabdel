@@ -237,21 +237,33 @@ export default function Invoices() {
   // can paste anywhere (WhatsApp, SMS, forward to an accountant, ...).
   const handleShareInvoiceLink = async () => {
     if (!activeInvoice?.id || sharingInvoice) return;
-    try {
-      setSharingInvoice(true);
-      let shareUrl = activeInvoice.share_url;
-      if (!shareUrl) {
+    setSharingInvoice(true);
+    let shareUrl = activeInvoice.share_url;
+    if (!shareUrl) {
+      try {
         const response = await smartflowApi.shareInvoice(activeInvoice.id, { channel: 'link' });
         shareUrl = response.data?.data?.share_url;
         await fetchInvoiceDetails(activeInvoice.id);
+      } catch (err) {
+        console.error('Share invoice link failed:', err);
+        alert(err?.response?.data?.message || t('inv_err_share_link_failed'));
+        setSharingInvoice(false);
+        return;
       }
+    }
+
+    // The link already exists on the backend at this point — copying it to the
+    // clipboard is just a convenience. A failure here (lost permission after the
+    // await above, restricted context) must never claim the share itself failed.
+    try {
       if (shareUrl && navigator.clipboard) {
         await navigator.clipboard.writeText(shareUrl);
         alert(t('inv_msg_share_link_copied'));
+      } else if (shareUrl) {
+        alert(shareUrl);
       }
-    } catch (err) {
-      console.error('Share invoice link failed:', err);
-      alert(err?.response?.data?.message || t('inv_err_share_link_failed'));
+    } catch {
+      if (shareUrl) alert(shareUrl);
     } finally {
       setSharingInvoice(false);
     }
