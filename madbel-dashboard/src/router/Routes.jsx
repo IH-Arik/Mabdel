@@ -14,8 +14,6 @@ import ProfilePage from "../Pages/AdminProfile/ProfilePage";
 import Notifications from "../Pages/Notifications/Notifications";
 import AnalysisPage from "../Pages/Analysis/AnalysisPage";
 import Subscriptions from "../Pages/Subscriptions/Subscriptions";
-import Analysis from "../Pages/Analysis/Analysis";
-import RestaurantRequest from "../Pages/RestaurantRequest/RestaurantRequest";
 import UserList from "../Pages/UserList/UserList";
 import Earnings from "../Pages/Earnings/Earnings";
 import Categories from "../Pages/Categories/Categories";
@@ -70,9 +68,7 @@ export const router = createBrowserRouter([
           { path: "/user-list", element: <UserList /> },
           { path: "/block-list", element: <BlockedList /> },
           { path: "/earnings", element: <Earnings /> },
-          { path: "/restaurant-request", element: <RestaurantRequest /> },
           { path: "/analysis-page", element: <AnalysisPage /> },
-          { path: "/analysis/:id", element: <Analysis /> },
           { path: "/subscriptions", element: <Subscriptions /> },
           { path: "/create-admin", element: <MakeAdmin /> },
           { path: "/client-management", element: <ClientManagement /> },
