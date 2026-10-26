@@ -41,7 +41,7 @@ def test_the_book_appointment_tool_passes_the_provider_and_type_through(client, 
     agent.caller_name = "Karim"
 
     result = asyncio.run(
-        agent._tool_book_appointment(date="2026-08-18", time="10:00", first_name="Karim", provider="dr. smith", appointment_type="cleaning")
+        agent._tool_book_appointment(caller_confirmed=True, date="2026-08-18", time="10:00", first_name="Karim", provider="dr. smith", appointment_type="cleaning")
     )
     assert result["outcome"] == "booked", result
     event = asyncio.run(mock_db.calendar_events.find_one({}))

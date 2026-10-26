@@ -59,11 +59,11 @@ Backend একটাই, বাকি তিনটা client সেটাকে 
 |---|---|
 | **Unified Inbox** | WhatsApp, Instagram, Telegram, SMS, Email — সব conversation এক জায়গায় |
 | **AI Voice Assistant** | কথা বললে AI বুঝে, invoice তৈরি করে, meeting schedule করে |
-| **AI Calls** | Twilio দিয়ে call, Whisper দিয়ে auto-transcript, GPT-4o দিয়ে summary ও sentiment |
+| **AI Receptionist** | Telnyx দিয়ে real call, OpenAI Realtime API দিয়ে live speech-to-speech (স্ক্রিপ্টেড IVR না) — appointment book/reschedule/cancel, provider ও appointment-type aware, caller-name confirm করে তারপর existing booking change করে, emergency keyword শুনলে team-কে SMS + in-app alert পাঠায় (medical হলে caller-কে 911 বলতেও পারে), per-action approval, call disposition tagging |
 | **Bulk Messaging** | CSV upload করো, variable (`{{name}}`) দিয়ে personalized campaign পাঠাও |
 | **Documents** | AI দিয়ে Lease Agreement ও Business Agreement তৈরি, DocuSign integration |
 | **Invoices** | Line item দিয়ে invoice তৈরি, PDF export, auto reminder |
-| **Calendar** | Meeting create/edit/share, Google/Apple calendar sync (planned) |
+| **Calendar** | Meeting create/edit/share, Google Calendar ও Apple (CalDAV) two-way sync লাইভ, business hours-এ holiday/blocked-date ও daily-break exception |
 | **Groups** | Business internal team group chat |
 | **Integrations** | Google, Meta, LinkedIn OAuth; WhatsApp, Telegram manual connect |
 | **Shop** | Product listing আছে, কিন্তু cart/checkout নেই (UI only) |
@@ -84,7 +84,7 @@ Backend একটাই, বাকি তিনটা client সেটাকে 
 | Cache | Redis (RBAC permission cache) |
 | AI/ML | OpenAI GPT-4o, Whisper STT, LangGraph (workflow routing) |
 | Auth | JWT (HS256) + OAuth2 (Google, Meta, LinkedIn) |
-| Calls/SMS | Twilio |
+| Calls/SMS | Telnyx (voice + SMS, per-business numbers) |
 | Push Notifications | Firebase (FCM) |
 | Email | Resend API |
 | Validation | Pydantic v2 |
@@ -145,13 +145,14 @@ Backend একটাই, বাকি তিনটা client সেটাকে 
 - Authentication (Login, OTP verification, Google Sign-in, Refresh Token)
 - Conversations & Unified Inbox (multi-platform)
 - Contacts (import, add, edit, delete, call)
+- **AI Receptionist** (Telnyx + OpenAI Realtime voice, booking/reschedule/cancel, identity confirmation, providers & appointment types, named playbooks, business-hours exceptions, per-action approval, emergency escalation incl. 911 guidance, call disposition tagging) — see dedicated section below
 - Calls (outbound, incoming, transcript, AI summary, recording)
 - Invoices (create, PDF, email delivery, reminders)
 - Agreements & Leases (AI generation, DocuSign, sign, renew)
 - Bulk Messaging (CSV, scheduling, variable substitution)
 - Integrations (Google, Meta, LinkedIn OAuth; WhatsApp, Telegram manual)
 - Groups & Community (chat, member roles, invite links)
-- Calendar (create, edit, share events)
+- Calendar (create, edit, share events; Google + Apple/CalDAV two-way sync)
 - Notifications (push, mark read, delete)
 - RBAC (backend permission system, Redis-cached)
 - Admin Dashboard (analytics, user management, support tickets)
@@ -163,16 +164,36 @@ Backend একটাই, বাকি তিনটা client সেটাকে 
 |---|---|
 | **Shop cart/checkout** | "Add to Cart" button আছে, কিন্তু কোনো API নেই — UI only |
 | **Mobile RBAC gating** | Backend-এ permission check আছে, কিন্তু mobile screen-এ enforce হয় না |
-| **Google/Apple Calendar sync** | FEATURES.md-তে mention আছে, implement হয়নি |
 | **Global business chat** | FEATURES.md-তে note আছে, status unclear |
+| **Onboarding wizard data loss** | `Onboarding.jsx`-এ role/goals/company local state-এ থাকে, কখনো backend-এ save হয় না — শুধু `setTimeout` দিয়ে `/dashboard`-এ redirect করে |
+| **AI Receptionist script-writing assist** | Greeting/knowledge/instructions fields plain textarea — "write with AI" বা mic-dictation এখনো wire করা হয়নি (inbox/bulk messaging-এ আছে, AI Config tab-এ নাই) |
+
+---
+
+## AI Receptionist — বিস্তারিত (সর্বশেষ আপডেট: 2026-10-10)
+
+মূল ৫টা client ask (inbox AI reply, voice dictation, auto customer SMS, AI booking/reschedule/cancel, human-sounding receptionist) সম্পূর্ণ হওয়ার পর আরও গভীর কাজ হয়েছে:
+
+| ফিচার | বিবরণ |
+|---|---|
+| **Providers & Appointment Types** | নির্দিষ্ট staff/resource (real team member অথবা login-less named resource) ও তাদের নিজস্ব duration সহ appointment type — parallel booking সাপোর্ট করে |
+| **Named Playbooks** | "caller X বললে, এই প্রশ্নগুলো জিজ্ঞেস করো, এই provider-এর সাথে book করো, এই ব্যক্তিকে notify করো" — LLM-guided, rigid script না |
+| **Business Hours Exceptions** | Holiday/blocked-date ও daily break (লাঞ্চ টাইম) — শুধু সাপ্তাহিক generic shedule না |
+| **Per-Action Approval** | New booking, reschedule, cancellation — প্রতিটার জন্য আলাদা approval toggle |
+| **Call Disposition** | প্রতিটা call স্বয়ংক্রিয়ভাবে ট্যাগ হয় (booked/rescheduled/cancelled/message_taken/transferred/faq_only) — derive হয় actual tool-call সাফল্য থেকে, শুধু attempt থেকে না |
+| **Emergency Escalation** | Built-in + custom keyword phrase ডিটেক্ট করলে সাথে সাথে team-কে in-app notification + SMS (dashboard open থাকা লাগবে না) পাঠায়, transfer করে (number configured থাকলে); medical practice-এর জন্য আলাদা মোড — AI caller-কে বলে "hang up করে 911 call করুন" |
+| **Identity Confirmation** | শুধু phone number match যথেষ্ট না — existing appointment change করার আগে caller-এর নাম confirm করে (lenient token-overlap match, e.g. "Nadia" matches "Nadia Rahman") |
+| **SMS Confirmations & Reminders** | প্রতিটা booking/change/cancellation-এ auto SMS, configurable reminder (e.g. ২৪ ঘণ্টা আগে) |
+
+সবকটাই backend test suite (600+ tests) ও live OpenAI Realtime API call দিয়ে verify করা।
 
 ---
 
 ## সংক্ষেপে
 
-এটা একটা **production-ready, enterprise-grade monorepo** যেটা basically একটা "mini HubSpot + DocuSign + Twilio" একসাথে। প্রায় সব core feature complete (~90%), শুধু Shop module আর mobile-এর RBAC enforcement বাকি আছে।
+এটা একটা **production-ready, enterprise-grade monorepo** যেটা basically একটা "mini HubSpot + DocuSign + AI call center" একসাথে। প্রায় সব core feature complete (~90%), শুধু Shop module, mobile-এর RBAC enforcement, আর Onboarding wizard-এর backend-save বাকি আছে।
 
-AI integration (GPT-4o, Whisper, LangGraph) বেশ deep — শুধু reply suggestion না, পুরো workflow automation আছে। একটা voice command থেকে invoice তৈরি, meeting schedule, bulk campaign — সব AI দিয়ে করা যায়।
+AI integration (GPT-4o, Whisper, OpenAI Realtime, LangGraph) বেশ deep — শুধু reply suggestion না, পুরো workflow automation আছে। একটা voice command থেকে invoice তৈরি, meeting schedule, bulk campaign — সব AI দিয়ে করা যায়, আর ফোনে real-time কথাও বলে একটা human receptionist-এর মতো।
 
 ### Target Users
 - রিয়েল এস্টেট এজেন্ট
@@ -184,4 +205,4 @@ Subscription-based SaaS — Owner account থেকে team member add হয়
 
 ---
 
-*Generated: August 2026*
+*Generated: August 2026 — AI Receptionist section updated: October 2026*

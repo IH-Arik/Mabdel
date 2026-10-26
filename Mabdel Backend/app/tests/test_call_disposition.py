@@ -21,9 +21,9 @@ def test_a_failed_booking_attempt_does_not_count_as_booked():
     assert _derive_call_disposition(actions) == "faq_only"
 
 
-def test_a_pending_approval_booking_still_counts_as_booked():
+def test_a_pending_approval_booking_does_not_count_as_booked():
     actions = [{"tool": "book_appointment", "result": {"outcome": "pending"}}]
-    assert _derive_call_disposition(actions) == "booked"
+    assert _derive_call_disposition(actions) == "pending_approval"
 
 
 def test_a_failed_transfer_falls_back_to_message_taken_when_a_message_was_also_left():

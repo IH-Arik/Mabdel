@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .booking_lock import serialized_booking
+
 import logging
 import re
 
@@ -20,6 +22,7 @@ from .caldav_service import CalDAVService
 from .google_calendar_service import GoogleCalendarService
 from .microsoft_calendar_service import MicrosoftCalendarService
 from .zoom_calendar_service import ZoomCalendarService
+from .scheduling_resources import SchedulingResources
 
 
 logger = logging.getLogger(__name__)
@@ -200,6 +203,9 @@ class CalendarService(SmartFlowBase):
         exclude_datetimes: set[str] | None = None,
         provider_id: str | None = None,
         duration_minutes: int | None = None,
+        location_id: str | None = None,
+        appointment_type_id: str | None = None,
+        exclude_event_id: str | None = None,
     ) -> list[str]:
         """Real free/busy: the organization's declared business hours for that weekday
         (in the business's own timezone, at its configured slot size), minus anything
@@ -219,6 +225,10 @@ class CalendarService(SmartFlowBase):
         reserves; the grid itself still steps by the business's own slot size, so a
         90-minute service offered on a 30-minute grid still starts at :00/:30, each
         holding 90 minutes of that provider's day."""
+        resources = SchedulingResources(self.db)
+        provider, appointment_type, location = await resources.selection(user_id, provider_id=provider_id, appointment_type_id=appointment_type_id, location_id=location_id)
+        if appointment_type:
+            duration_minutes = appointment_type["duration_minutes"]
         hours = await self.get_business_hours(user_id)
         if day.weekday() not in hours["days"]:
             return []
@@ -230,7 +240,6 @@ class CalendarService(SmartFlowBase):
         # specialist further (e.g. Tue/Thu only); unset means "follows the business".
         start_hour, end_hour = hours["start_hour"], hours["end_hour"]
         if provider_id:
-            provider = await self.db.providers.find_one({"_id": ObjectId(provider_id)}) if ObjectId.is_valid(provider_id) else None
             if provider:
                 working_days = provider.get("working_days")
                 if working_days and day.weekday() not in working_days:
@@ -288,7 +297,9 @@ class CalendarService(SmartFlowBase):
         }
         if provider_id:
             event_filter["provider_id"] = provider_id
-        events = await self.db.calendar_events.find(event_filter).to_list(length=200)
+        if exclude_event_id:
+            event_filter["_id"] = {"$ne": ObjectId(exclude_event_id)}
+        events = await self.db.calendar_events.find(event_filter).to_list(length=None) if provider_id or not location_id else []
         busy_ranges = [
             (event["starts_at"].replace(tzinfo=timezone.utc), event["ends_at"].replace(tzinfo=timezone.utc))
             for event in events
@@ -304,7 +315,7 @@ class CalendarService(SmartFlowBase):
             }
             if provider_id:
                 pending_filter["provider_id"] = provider_id
-            pending = await self.db.call_meeting_requests.find(pending_filter).to_list(length=200)
+            pending = await self.db.call_meeting_requests.find(pending_filter).to_list(length=None) if provider_id or not location_id else []
             busy_ranges.extend(
                 (item["requested_start"].replace(tzinfo=timezone.utc), item["requested_end"].replace(tzinfo=timezone.utc))
                 for item in pending
@@ -331,6 +342,11 @@ class CalendarService(SmartFlowBase):
             slot_end_utc = slot_end.astimezone(timezone.utc)
             if any(busy_start < slot_end_utc and busy_end > slot_start_utc for busy_start, busy_end in busy_ranges):
                 continue
+            if location:
+                try:
+                    await resources.assert_location(user_id, location, slot_start_utc.replace(tzinfo=None), slot_end_utc.replace(tzinfo=None), tz=tz, exclude_event_id=exclude_event_id)
+                except AppException:
+                    continue
             free.append(label)
         return free
 
@@ -380,9 +396,11 @@ class CalendarService(SmartFlowBase):
         event = await self._get_editable_event(user_id, event_id)
         return await self._serialize_calendar_event(event)
 
+    @serialized_booking
     async def create_calendar_event(self, user_id: str, payload: dict, *, actor: str | None = None) -> dict:
         self._validate_calendar_event_payload(payload)
-        await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"], provider_id=payload.get("provider_id"))
+        await self._validate_scheduling_resources(user_id, payload)
+        await self._assert_calendar_slot_available(user_id, payload["starts_at"], payload["ends_at"], provider_id=payload.get("provider_id"), location_id=payload.get("location_id"))
         provider_settings = await self.get_calendar_provider_settings(user_id)
         primary = provider_settings["primary_calendar_provider"]
         connected = provider_settings["connected"]
@@ -398,19 +416,19 @@ class CalendarService(SmartFlowBase):
         if primary == "google_business":
             try:
                 google_event = await self.google_calendar_service.create_remote_event(user_id, payload)
-            except AppException:
+            except Exception:
                 google_event = None
                 payload["sync_status"] = "error"
         elif primary == "zoom":
             try:
                 zoom_meeting = await self.zoom_calendar_service.create_remote_event(user_id, payload)
-            except AppException:
+            except Exception:
                 zoom_meeting = None
                 payload["sync_status"] = "error"
         elif primary == "microsoft":
             try:
                 microsoft_event = await self.microsoft_calendar_service.create_remote_event(user_id, payload)
-            except AppException:
+            except Exception:
                 microsoft_event = None
                 payload["sync_status"] = "error"
         elif needs_meet_link:
@@ -434,6 +452,7 @@ class CalendarService(SmartFlowBase):
                 except AppException:
                     microsoft_event = None
 
+        self._require_primary_sync(primary, google_event, zoom_meeting, microsoft_event)
         if google_event:
             if needs_meet_link:
                 payload["meeting_link"] = self.google_calendar_service._extract_meeting_link(google_event)
@@ -487,13 +506,15 @@ class CalendarService(SmartFlowBase):
         if primary == "caldav":
             try:
                 caldav_uid = await self.caldav_service.push_event(user_id, document)
-            except AppException:
+            except Exception:
                 caldav_uid = None
                 document["sync_status"] = "error"
             if caldav_uid:
                 document["caldav_uid"] = caldav_uid
                 document["sync_status"] = "synced"
                 document["calendar_source"] = "caldav_sync"
+        if primary == "caldav" and not document.get("caldav_uid"):
+            self._raise_sync_failure()
         result = await self.db.calendar_events.insert_one(document)
         document["_id"] = result.inserted_id
         await self._create_calendar_event_notifications(user_id, document, action="created")
@@ -549,6 +570,7 @@ class CalendarService(SmartFlowBase):
                 meeting_link=None if cancelled else after.get("meeting_link"),
             )
 
+    @serialized_booking
     async def update_calendar_event(
         self, user_id: str, event_id: str, updates: dict, *, notify_customer: bool = True, actor: str | None = None
     ) -> dict:
@@ -558,18 +580,26 @@ class CalendarService(SmartFlowBase):
         # was created on - the owner's - even when a teammate makes the change.
         user_id = str(event["user_id"])
         clean_updates = {key: value for key, value in updates.items() if value is not None}
+        for key in ("provider_id", "appointment_type_id", "location_id"):
+            if key in updates:
+                clean_updates[key] = updates[key]
         merged = {**event, **clean_updates}
         # A moved appointment needs its own fresh reminder for the new time, not silence
         # because the old time already sent one.
         if "starts_at" in clean_updates and not self._same_instant(event.get("starts_at"), clean_updates["starts_at"]):
             clean_updates["reminder_sent_at"] = None
         self._validate_calendar_event_payload(merged)
+        await self._validate_scheduling_resources(user_id, merged, exclude_event_id=str(event["_id"]))
+        clean_updates["location_name"] = merged.get("location_name")
+        if merged.get("location_id"):
+            clean_updates["location"] = merged.get("location")
         await self._assert_calendar_slot_available(
             user_id,
             merged["starts_at"],
             merged["ends_at"],
             exclude_event_id=str(event["_id"]),
             provider_id=merged.get("provider_id"),
+            location_id=merged.get("location_id"),
         )
         provider_settings = await self.get_calendar_provider_settings(user_id)
         primary = provider_settings["primary_calendar_provider"]
@@ -591,7 +621,7 @@ class CalendarService(SmartFlowBase):
                     if google_event:
                         clean_updates["google_event_id"] = google_event.get("id")
                         google_event_id = google_event.get("id")
-            except AppException:
+            except Exception:
                 google_event = None
                 clean_updates["sync_status"] = "error"
         elif primary == "zoom":
@@ -603,7 +633,7 @@ class CalendarService(SmartFlowBase):
                     if zoom_meeting:
                         clean_updates["zoom_meeting_id"] = str(zoom_meeting.get("id"))
                         zoom_meeting_id = zoom_meeting.get("id")
-            except AppException:
+            except Exception:
                 zoom_meeting = None
                 clean_updates["sync_status"] = "error"
         elif primary == "microsoft":
@@ -615,7 +645,7 @@ class CalendarService(SmartFlowBase):
                     if microsoft_event:
                         clean_updates["microsoft_event_id"] = microsoft_event.get("id")
                         microsoft_event_id = microsoft_event.get("id")
-            except AppException:
+            except Exception:
                 microsoft_event = None
                 clean_updates["sync_status"] = "error"
         elif needs_meet_link:
@@ -634,6 +664,7 @@ class CalendarService(SmartFlowBase):
                     microsoft_event = await self.microsoft_calendar_service.create_remote_event(user_id, merged)
                 except AppException:
                     microsoft_event = None
+        self._require_primary_sync(primary, google_event, zoom_meeting, microsoft_event)
         if google_event:
             if needs_meet_link:
                 real_link = self.google_calendar_service._extract_meeting_link(google_event)
@@ -693,13 +724,15 @@ class CalendarService(SmartFlowBase):
                 caldav_uid = await self.caldav_service.push_event(
                     user_id, {**merged, **clean_updates, "caldav_uid": event.get("caldav_uid")}
                 )
-            except AppException:
+            except Exception:
                 caldav_uid = None
                 clean_updates["sync_status"] = "error"
             if caldav_uid:
                 clean_updates["caldav_uid"] = caldav_uid
                 clean_updates["sync_status"] = "synced"
                 clean_updates["calendar_source"] = "caldav_sync"
+        if primary == "caldav" and not clean_updates.get("caldav_uid"):
+            self._raise_sync_failure()
         clean_updates["updated_at"] = utc_now()
         updated = await self.db.calendar_events.find_one_and_update(
             {"_id": event["_id"]},
@@ -745,6 +778,7 @@ class CalendarService(SmartFlowBase):
             "share_url": share_url,
         }
 
+    @serialized_booking
     async def delete_calendar_event(self, user_id: str, event_id: str, *, notify_customer: bool = True, actor: str | None = None) -> None:
         event = await self._get_editable_event(user_id, event_id)
         caller_id = actor or user_id
@@ -760,9 +794,34 @@ class CalendarService(SmartFlowBase):
                 continue
             try:
                 await delete_remote(user_id, remote_id)
-            except AppException as exc:
-                logger.warning("Could not delete the %s copy of calendar event %s: %s", provider, event["_id"], exc.message)
+            except Exception:
+                # Keep the local appointment until the provider confirms deletion.
+                # Provider delete adapters treat already-deleted events as success,
+                # so retrying after a partial multi-provider deletion is safe.
+                self._raise_sync_failure()
         await self.db.calendar_events.delete_one({"_id": event["_id"]})
         await self._record_appointment_history(event, action="cancelled", actor=caller_id, before=self._appointment_snapshot(event))
         if notify_customer and event.get("customer"):
             await self._after_customer_appointment_change(event, None)
+
+    @staticmethod
+    def _raise_sync_failure():
+        raise AppException(status_code=503, code="CALENDAR_SYNC_REQUIRED",
+            message="The connected calendar could not confirm this change. The appointment has not been confirmed or changed; the team must retry.",
+            details={"sync_status": "error"})
+
+    @classmethod
+    def _require_primary_sync(cls, primary, google_event, zoom_meeting, microsoft_event):
+        result = {"google_business": google_event, "zoom": zoom_meeting, "microsoft": microsoft_event}
+        if primary in result and not (result[primary] or {}).get("id"):
+            cls._raise_sync_failure()
+
+    async def _validate_scheduling_resources(self, user_id, payload, *, exclude_event_id=None):
+        resources = SchedulingResources(self.db)
+        provider, appointment_type, location = await resources.selection(user_id, provider_id=payload.get("provider_id"), appointment_type_id=payload.get("appointment_type_id"), location_id=payload.get("location_id"))
+        payload["location_name"] = location["name"] if location else None
+        if location:
+            hours = await self.get_business_hours(user_id)
+            await resources.assert_location(user_id, location, payload["starts_at"], payload["ends_at"], tz=self._resolve_zoneinfo(hours.get("timezone")), exclude_event_id=exclude_event_id, exclude_request_id=payload.get("call_meeting_request_id"))
+            payload["location_name"] = location["name"]
+            payload["location"] = location.get("address") or location["name"]

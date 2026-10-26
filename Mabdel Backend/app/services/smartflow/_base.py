@@ -624,6 +624,7 @@ class SmartFlowBase:
         return actions
 
     _DISPOSITION_LABELS = {
+        "pending_approval": "Awaiting approval",
         "booked": "Booked",
         "rescheduled": "Rescheduled",
         "cancelled": "Cancelled",
@@ -2653,7 +2654,10 @@ class SmartFlowBase:
         ends_at: datetime,
         exclude_event_id: str | None = None,
         provider_id: str | None = None,
+        location_id: str | None = None,
     ) -> None:
+        if location_id and not provider_id:
+            return  # Physical capacity is checked by SchedulingResources.
         clashing: dict = {
             "starts_at": {"$lt": ends_at},
             "ends_at": {"$gt": starts_at},

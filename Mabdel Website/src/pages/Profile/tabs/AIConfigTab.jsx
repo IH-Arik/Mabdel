@@ -3,6 +3,7 @@ import {
   AlertTriangle, Ban, BookOpen, CalendarCheck, CheckCircle2, Globe, Grid3x3, Loader2, Mic, MessageSquare, Phone, PhoneForwarded, PhoneOff, PhoneOutgoing, Plus, Save, Send, ShieldCheck, Sparkles, Trash2, Users, Workflow, X, Zap,
 } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
+import ReceptionistDocuments from './ReceptionistDocuments';
 import { LABEL } from '../shared';
 import { AI_LANGUAGE_OPTIONS, getStoredAiLanguage, setStoredAiLanguage } from '../../../utils/voiceAgentConfig';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -50,19 +51,17 @@ const BUSINESS_TYPE_OPTIONS = [
   'Insurance Agency', 'Veterinary Clinic', 'Photography Studio', 'Consulting Firm',
 ];
 
-// AI capabilities the owner can hard-disable or gate behind approval, separate from
-// the conversation script - enforced server-side regardless of what greetings/
-// playbooks say. Only schedule/reschedule/cancel have a real "needs your approval"
-// behavior today (an existing pending-request workflow); the rest are a simple
-// on/off since there's no synchronous human-in-the-loop moment mid-call for them.
+// Capability choices are enforced by the server on every action.
 const AI_CAPABILITIES = [
-  { key: 'schedule', labelKey: 'aiprof_cap_schedule', supportsApproval: true },
-  { key: 'reschedule', labelKey: 'aiprof_cap_reschedule', supportsApproval: true },
-  { key: 'cancel', labelKey: 'aiprof_cap_cancel', supportsApproval: true },
-  { key: 'take_message', labelKey: 'aiprof_cap_take_message', supportsApproval: false },
-  { key: 'transfer_to_human', labelKey: 'aiprof_cap_transfer_to_human', supportsApproval: false },
-  { key: 'capture_lead', labelKey: 'aiprof_cap_capture_lead', supportsApproval: false },
-  { key: 'send_payment_link', labelKey: 'aiprof_cap_send_payment_link', supportsApproval: false },
+  ...['schedule', 'reschedule', 'cancel', 'take_message', 'transfer_to_human', 'capture_lead', 'send_payment_link'].map((key) => ({ key, labelKey: `aiprof_cap_${key}`, supportsApproval: true })),
+  ...[
+    ['answer_calls', 'Answer calls'], ['outbound_calls', 'Make outbound calls'],
+    ['send_sms', 'Send SMS'], ['send_email', 'Send email'], ['update_crm', 'Update CRM'],
+    ['create_callback', 'Create callback requests'], ['create_task', 'Create tasks'],
+    ['create_service_ticket', 'Create service tickets'], ['provide_pricing', 'Share approved pricing'],
+    ['provide_quote', 'Provide quotes'], ['access_account_information', 'Access account information'],
+    ['trigger_workflow', 'Trigger workflows'], ['notify_team', 'Notify team'],
+  ].map(([key, label]) => ({ key, label, supportsApproval: true })),
 ];
 
 // Mirrors INSURANCE_ELIGIBLE_BUSINESS_TYPES in industry_templates.py - where "do you
@@ -613,9 +612,13 @@ function AIConfigTab() {
             accepted: plan.accepted !== false,
             network_status: plan.network_status || 'unknown',
             verification_required: Boolean(plan.verification_required),
+            effective_from: plan.effective_from || null,
+            effective_until: plan.effective_until || null,
+            last_verified_at: plan.last_verified_at || null,
             active: plan.active !== false,
           })),
         sms_confirmations_enabled: callSettings.sms_confirmations_enabled !== false,
+        request_sms_events: callSettings.request_sms_events || [],
         appointment_reminders_enabled: Boolean(callSettings.appointment_reminders_enabled),
         appointment_reminder_hours_before: Math.min(168, Math.max(1, Number(callSettings.appointment_reminder_hours_before) || 24)),
         sms_wording: SMS_WORDING_KINDS.reduce((acc, kind) => ({ ...acc, [kind.key]: callSettings.sms_wording?.[kind.key] || null }), {}),
@@ -634,6 +637,8 @@ function AIConfigTab() {
             appointment_type_id: rule.appointment_type_id || null,
             notify_target: rule.notify_target?.trim() || null,
             notify_role: rule.notify_role || null,
+            target_user_ids: rule.target_user_ids || [],
+            transfer_number: rule.transfer_number?.trim() || null,
             crm_note: rule.crm_note?.trim() || null,
             active: rule.active !== false,
           })),
@@ -850,6 +855,7 @@ function AIConfigTab() {
               className="w-full bg-[#131A24] border border-[#243041] rounded-xl text-sm text-white px-3 py-3 outline-none focus:border-[#9333ea]/50 resize-y"
             />
             <p className="text-[#4A5568] text-xs mt-1 text-right">{knowledgeLength}/8000</p>
+            <ReceptionistDocuments />
             <AiFieldTools fieldKey="knowledge_base" value={callSettings?.knowledge_base || ''} onChange={(text) => updateField('knowledge_base', text)} businessType={callSettings?.business_type} t={t} />
           </SectionCard>
 
@@ -880,6 +886,19 @@ function AIConfigTab() {
                 <span className="text-[#A4B0B7] text-xs">{t('aiprof_reminders_hint')}</span>
               </span>
             </label>
+            <fieldset className="space-y-2 rounded-xl border border-[#243041] p-3">
+              <legend className="text-xs text-white px-1">Text after a request is saved</legend>
+              <p className="text-xs text-[#A4B0B7]">Send a receipt for selected requests. SMS permission and approval settings still apply.</p>
+              {['callback', 'quote', 'service_ticket', 'task', 'workflow'].map((kind) => (
+                <label key={kind} className="flex gap-2 items-center text-xs text-[#A4B0B7] capitalize">
+                  <input type="checkbox" checked={(callSettings?.request_sms_events || []).includes(kind)} onChange={(event) => {
+                    const selected = callSettings?.request_sms_events || [];
+                    updateField('request_sms_events', event.target.checked ? [...selected, kind] : selected.filter((value) => value !== kind));
+                  }} />
+                  {kind.replaceAll('_', ' ')}
+                </label>
+              ))}
+            </fieldset>
             {callSettings?.appointment_reminders_enabled ? (
               <div className="mt-3 flex items-center gap-2 pl-6">
                 <label className="text-[#A4B0B7] text-xs shrink-0" htmlFor="aiprof-reminder-hours">
@@ -911,9 +930,9 @@ function AIConfigTab() {
                 const value = callSettings?.ai_capabilities?.[capability.key] || effectiveDefault;
                 return (
                   <div key={capability.key} className="flex items-center justify-between gap-3 rounded-xl border border-[#243041] bg-[#131A24] px-4 py-3">
-                    <span className="text-white text-sm font-semibold">{t(capability.labelKey)}</span>
+                    <span className="text-white text-sm font-semibold">{capability.label || t(capability.labelKey)}</span>
                     <select
-                      aria-label={t(capability.labelKey)}
+                      aria-label={capability.label || t(capability.labelKey)}
                       value={value}
                       onChange={(event) => updateCapability(capability.key, event.target.value)}
                       className="bg-[#0A1019] border border-[#243246] rounded-lg text-xs text-white px-2.5 py-2 outline-none focus:border-[#9333ea]/50"
@@ -1186,6 +1205,11 @@ function AIConfigTab() {
                         />
                         <span className="text-[10px] font-bold text-[#A4B0B7] uppercase">{t('aiprof_lbl_insurance_verification_required')}</span>
                       </label>
+                      {[['effective_from', 'Effective from'], ['effective_until', 'Effective until'], ['last_verified_at', 'Last verified']].map(([field, label]) => (
+                        <label key={field} className="text-xs text-[#A4B0B7]">{label}
+                          <input type="date" aria-label={label} value={plan[field] || ''} onChange={(event) => updateInsurancePlan(plan.id, field, event.target.value || null)} className="block bg-[#0A1019] border border-[#243246] rounded-lg text-white px-2 py-1.5" />
+                        </label>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -1453,6 +1477,14 @@ function AIConfigTab() {
                       ))}
                     </select>
                   </div>
+                  <label className="block text-xs text-[#A4B0B7]">Route to team members
+                    <select multiple aria-label="Route to team members" value={rule.target_user_ids || []} onChange={(event) => updatePlaybook(rule.id, 'target_user_ids', Array.from(event.target.selectedOptions, (option) => option.value))} className="block w-full mt-1 bg-[#0A1019] border border-[#243246] rounded-lg text-white px-2 py-2">
+                      {teamMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="block text-xs text-[#A4B0B7]">Transfer number for this route
+                    <input type="tel" aria-label="Route transfer number" placeholder="+15551234567" value={rule.transfer_number || ''} onChange={(event) => updatePlaybook(rule.id, 'transfer_number', event.target.value)} className="block w-full mt-1 bg-[#0A1019] border border-[#243246] rounded-lg text-white px-2 py-2" />
+                  </label>
                   <input
                     type="text"
                     maxLength={200}

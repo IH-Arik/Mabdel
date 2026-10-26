@@ -184,6 +184,9 @@ class AppointmentNotifier(ConversationService):
             if meeting_link and kind in ("booked", "rescheduled"):
                 text += f" {meeting_link}"
 
+            if not await self._sms_allowed(owner_user_id, organization_id, number, name, text):
+                return None
+
             conversation_id, contact_id = await self._sms_thread(owner_user_id, organization_id, number, name)
             message = await self.create_message(
                 owner_user_id,
@@ -226,6 +229,9 @@ class AppointmentNotifier(ConversationService):
                 logger.warning("An outbound call purpose's follow-up SMS had a bad placeholder; skipping it")
                 return None
 
+            if not await self._sms_allowed(owner_user_id, organization_id, number, name, text):
+                return None
+
             conversation_id, contact_id = await self._sms_thread(owner_user_id, organization_id, number, name)
             message = await self.create_message(
                 owner_user_id,
@@ -243,19 +249,29 @@ class AppointmentNotifier(ConversationService):
             logger.warning("Could not queue the outbound-call follow-up text", exc_info=True)
             return None
 
-    async def sms_contact_id(self, owner_user_id: str, phone: str | None, name: str | None) -> str | None:
+    async def _sms_allowed(self, user_id: str, organization_id: str | None, phone: str, name: str | None, text: str) -> bool:
+        state = await self.resolve_capability(organization_id, "send_sms")
+        if state == "ai_allowed":
+            return True
+        if state == "human_approval_required":
+            from .receptionist_action_service import ReceptionistActionService
+            await ReceptionistActionService(self.db).request(user_id, tool="send_sms",
+                arguments={"phone": phone, "name": name, "message": text}, capabilities=["send_sms"], caller_phone=phone)
+        return False
+
+    async def sms_contact_id(self, owner_user_id: str, phone: str | None, name: str | None, *, approved: bool = False) -> str | None:
         """The CRM contact for a phone number (created if needed), for linking a booking."""
         number = self._normalize_phone_value(phone or "")
         if not number:
             return None
         organization_id = await self._resolve_organization_id(owner_user_id)
-        _, contact_id = await self._sms_thread(owner_user_id, organization_id, number, name, create_conversation=False)
+        _, contact_id = await self._sms_thread(owner_user_id, organization_id, number, name, create_conversation=False, approved=approved)
         return contact_id
 
     async def _sms_thread(
         self, owner_user_id: str, organization_id: str | None, number: str, name: str | None, *,
-        create_conversation: bool = True, platform: str = "sms",
-    ) -> tuple[str | None, str]:
+        create_conversation: bool = True, platform: str = "sms", approved: bool = False,
+    ) -> tuple[str | None, str | None]:
         """``platform`` only changes which *conversation* thread this lands in (e.g.
         "ai_receptionist" for a message the AI receptionist took, vs the default "sms"
         text thread) - the caller is still matched/created as a CRM contact by their
@@ -271,29 +287,30 @@ class AppointmentNotifier(ConversationService):
                     {"$addToSet": {"identities": {"platform": "sms", "external_id": number, "handle": None}}},
                 )
         else:
-            contact = {
-                "user_id": owner_user_id,
-                "name": (name or "").strip() or "SMS Contact",
-                "email": None,
-                "phone": number,
-                "avatar_url": None,
-                "identities": [{"platform": "sms", "external_id": number, "handle": None}],
-                "presence": "offline",
-                "created_at": now,
-                "updated_at": now,
-            }
-            contact["_id"] = (await self.db.contacts.insert_one(contact)).inserted_id
-        contact_id = str(contact["_id"])
+            state = await self.resolve_capability(organization_id, "create_crm_contact")
+            if state != "ai_allowed" and not (approved and state == "human_approval_required"):
+                if state == "human_approval_required":
+                    from .receptionist_action_service import ReceptionistActionService
+                    await ReceptionistActionService(self.db).request(owner_user_id, tool="create_crm_contact",
+                        arguments={"phone": number, "name": name}, capabilities=["create_crm_contact"], caller_phone=number)
+                # A message can exist without silently granting permission to create a CRM record.
+                contact = {"name": name or number}
+            else:
+                contact = await self._create_sms_contact(owner_user_id, number, name, now)
+        contact_id = str(contact["_id"]) if contact.get("_id") else None
         if not create_conversation:
             return None, contact_id
 
-        conversation = await self.db.conversations.find_one({"user_id": owner_user_id, "contact_id": contact_id, "platform": platform})
+        conversation_query = {"user_id": owner_user_id, "platform": platform}
+        conversation_query.update({"contact_id": contact_id} if contact_id else {"external_phone": number})
+        conversation = await self.db.conversations.find_one(conversation_query)
         if not conversation:
             conversation = {
                 "user_id": owner_user_id,
                 "organization_id": organization_id,
                 "title": contact.get("name"),
                 "contact_id": contact_id,
+                "external_phone": number,
                 "type": "direct",
                 "platform": platform,
                 "member_ids": [owner_user_id],
@@ -305,3 +322,20 @@ class AppointmentNotifier(ConversationService):
             }
             conversation["_id"] = (await self.db.conversations.insert_one(conversation)).inserted_id
         return str(conversation["_id"]), contact_id
+
+    async def _create_sms_contact(self, owner_user_id, number, name, now):
+        contact = {
+                "user_id": owner_user_id,
+                "name": (name or "").strip() or "SMS Contact",
+                "email": None,
+                "phone": number,
+                "avatar_url": None,
+                "identities": [{"platform": "sms", "external_id": number, "handle": None}],
+                "presence": "offline",
+                "created_at": now,
+                "updated_at": now,
+        }
+        contact["_id"] = (await self.db.contacts.insert_one(contact)).inserted_id
+        await self.db.conversations.update_many({"user_id": owner_user_id, "external_phone": number, "contact_id": None},
+                                                {"$set": {"contact_id": str(contact["_id"])}})
+        return contact

@@ -117,9 +117,9 @@ def test_live_call_cancel_tool_requires_a_caller_name_argument(client, mock_db, 
     agent = _receptionist(mock_db, owner_id, FakeOpenAI())
 
     async def run():
-        booked = await agent.run_tool("book_appointment", json.dumps({"date": TUESDAY, "time": "10:00", "first_name": "Nadia"}))
+        booked = await agent.run_tool("book_appointment", json.dumps({"caller_confirmed": True, "date": TUESDAY, "time": "10:00", "first_name": "Nadia"}))
         assert booked["outcome"] == "booked"
-        missing_name = await agent.run_tool("cancel_appointment", json.dumps({"appointment_id": booked["appointment_id"]}))
+        missing_name = await agent.run_tool("cancel_appointment", json.dumps({"caller_confirmed": True, "appointment_id": booked["appointment_id"]}))
         assert "error" in missing_name
         return booked
 

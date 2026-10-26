@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from fastapi import Depends, Query, status
+from fastapi import Depends, File, Query, UploadFile, status
+from pydantic import BaseModel
 
 from app.dependencies import require_permission, require_subscription
 from app.schemas.smartflow import (
@@ -44,6 +45,52 @@ async def update_ai_call_settings(
     return success_response(data=data, message="AI call settings updated successfully.")
 
 
+class KnowledgeApprovalRequest(BaseModel):
+    approved: bool
+
+
+@router.post("/ai-call-settings/documents", status_code=status.HTTP_201_CREATED)
+async def upload_receptionist_document(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    from app.services.smartflow.receptionist_documents import MAX_DOCUMENT_BYTES
+    content = await file.read(MAX_DOCUMENT_BYTES + 1)
+    data = await service.ai_call_settings_service.upload_knowledge_document(str(current_user["_id"]), file.filename or "", content)
+    return success_response(data=data, message="Review extracted text before approving for the receptionist.")
+
+
+@router.get("/ai-call-settings/documents/{document_id}")
+async def preview_receptionist_document(
+    document_id: str,
+    current_user: dict = Depends(require_permission("calls", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.ai_call_settings_service.get_knowledge_document(str(current_user["_id"]), document_id)
+    return success_response(data=data)
+
+
+@router.patch("/ai-call-settings/documents/{document_id}")
+async def approve_receptionist_document(
+    document_id: str, payload: KnowledgeApprovalRequest,
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    data = await service.ai_call_settings_service.approve_knowledge_document(str(current_user["_id"]), document_id, payload.approved)
+    return success_response(data=data)
+
+
+@router.delete("/ai-call-settings/documents/{document_id}")
+async def delete_receptionist_document(
+    document_id: str,
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    await service.ai_call_settings_service.delete_knowledge_document(str(current_user["_id"]), document_id)
+    return success_response(message="Document removed.")
+
+
 @router.get("/calls")
 async def list_calls(
     page: int = Query(default=1, ge=1),
@@ -78,7 +125,7 @@ async def create_outbound_call(
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     data = await service.create_outbound_call(str(current_user["_id"]), payload.model_dump(exclude_unset=True))
-    return success_response(data=data, message="Outbound call initiated successfully.")
+    return success_response(data=data, message="Awaiting approval; no call has been placed." if data.get("approval_required") else "Outbound call initiated successfully.")
 
 
 @router.get("/calls/summary")

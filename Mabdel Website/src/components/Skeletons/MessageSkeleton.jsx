@@ -1,5 +1,3 @@
-import React from 'react';
-
 export function ConversationSkeletonList({ count = 6 }) {
   return (
     <div className="divide-y divide-[#243041]/20">

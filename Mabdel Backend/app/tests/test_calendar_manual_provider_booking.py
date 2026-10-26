@@ -62,7 +62,7 @@ def test_editing_an_event_to_add_a_provider_is_checked_against_that_provider(cli
     assert busy["id"]  # sanity
 
 
-def test_an_unrecognised_provider_id_is_stored_but_names_nothing(client, mock_db):
+def test_an_unrecognised_provider_id_is_rejected(client, mock_db):
     headers, _ = _owner_with_org(client, mock_db, "manual-badid@example.com")
-    created = _event(client, headers, provider_id="000000000000000000000000").json()["data"]
-    assert created["provider_id"] == "000000000000000000000000" and created["provider_name"] is None
+    response = _event(client, headers, provider_id="000000000000000000000000")
+    assert response.status_code == 404

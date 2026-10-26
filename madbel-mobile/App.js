@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import VoiceProvider from "./src/voice/VoiceProvider";
 import RootAppNavigator from "./src/root/RootAppNavigator";
 import { NavigationContainer } from "@react-navigation/native";
 import { store, persistor } from "./src/redux/store";
@@ -76,39 +77,40 @@ const AuthBootstrapper = ({ onReady }) => {
 
 export default function App() {
   const navigationRef = useRef(null);
+  const queuedNotification = useRef(null);
+  const handledNotification = useRef(null);
+  const [navigationReady, setNavigationReady] = useState(false);
   const notificationResponseListener = useRef(null);
   const notificationReceivedListener = useRef(null);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isPersistReady, setIsPersistReady] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
+  const handleCallNotification = (notification) => {
+    const data = notification?.request?.content?.data || {};
+    if (data.notification_type !== "incoming_call") return;
+    const id = notification.request.identifier;
+    if (handledNotification.current === id) return;
+    if (!navigationRef.current?.isReady() || !store.getState().auth?.accessToken) {
+      queuedNotification.current = notification;
+      return;
+    }
+    handledNotification.current = id;
+    queuedNotification.current = null;
+    // Backend notifications are call alerts, never proof of a native media leg.
+    // The SDK's own active-call stream navigates with nativeCallId when it arrives.
+    navigationRef.current.navigate("IncomingCall", {
+      callSid: data.call_sid || null, callerNumber: data.caller_number || null,
+      callerName: data.caller_name || null,
+    });
+  };
+
   useEffect(() => {
-    // Handle a notification tap (app in background/killed).
-    notificationResponseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data || {};
-        if (data.notification_type === "incoming_call" && navigationRef.current) {
-          navigationRef.current.navigate("IncomingCall", {
-            callSid: data.call_sid || null,
-            callerNumber: data.caller_number || null,
-            callerName: data.caller_name || null,
-          });
-        }
-      });
-
-    // Handle a notification received while app is in the foreground.
-    notificationReceivedListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
-        const data = notification.request.content.data || {};
-        if (data.notification_type === "incoming_call" && navigationRef.current) {
-          navigationRef.current.navigate("IncomingCall", {
-            callSid: data.call_sid || null,
-            callerNumber: data.caller_number || null,
-            callerName: data.caller_name || null,
-          });
-        }
-      });
-
+    notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener((response) => handleCallNotification(response.notification));
+    notificationReceivedListener.current = Notifications.addNotificationReceivedListener(handleCallNotification);
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) handleCallNotification(response.notification);
+    }).catch(() => {});
     return () => {
       notificationResponseListener.current?.remove();
       notificationReceivedListener.current?.remove();
@@ -140,9 +142,11 @@ export default function App() {
             <LanguageProvider>
               <AuthBootstrapper onReady={() => setIsAuthReady(true)} />
               {isAuthReady ? (
-                <NavigationContainer ref={navigationRef} linking={linking}>
+                <VoiceProvider navigationRef={navigationRef} navigationReady={navigationReady}>
+                <NavigationContainer ref={navigationRef} linking={linking} onReady={() => { setNavigationReady(true); if (queuedNotification.current) handleCallNotification(queuedNotification.current); }}>
                   <RootAppNavigator />
                 </NavigationContainer>
+                </VoiceProvider>
               ) : null}
             </LanguageProvider>
           </PersistGate>

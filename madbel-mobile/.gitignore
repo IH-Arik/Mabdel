@@ -19,9 +19,15 @@ yarn-error.log*
 .idea/
 *.suo           
 
-# OS generated files                    
-.DS_Store       
+# OS generated files
+.DS_Store
 Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
 config.bat
 branch_structure.json
 temp_auto_push.bat

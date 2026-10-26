@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Check, ChevronRight, X, Building, Users, Calendar, DollarSign, Loader2 } from 'lucide-react';
+import { FileText, Check, ChevronRight, X, Building, Users, DollarSign, Loader2 } from 'lucide-react';
 import SignaturePad from './SignaturePad';
 
 const steps = [

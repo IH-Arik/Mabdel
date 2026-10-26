@@ -1,0 +1,3897 @@
+{
+  "total_backend": 426,
+  "total_connected": 380,
+  "total_backend_only": 46,
+  "folder_breakdown": {
+    "01 - Authentication & Onboarding": {
+      "total": 18,
+      "connected": 5,
+      "unconnected": 13,
+      "endpoints": [
+        {
+          "name": "[POST] Forgot Password",
+          "method": "POST",
+          "url": "/api/v1/auth/forgot-password",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Google Login",
+          "method": "POST",
+          "url": "/api/v1/auth/google",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Login",
+          "method": "POST",
+          "url": "/api/v1/auth/login",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Logout",
+          "method": "POST",
+          "url": "/api/v1/auth/logout",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Me",
+          "method": "GET",
+          "url": "/api/v1/auth/me",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Refresh Token",
+          "method": "POST",
+          "url": "/api/v1/auth/refresh-token",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Register",
+          "method": "POST",
+          "url": "/api/v1/auth/register",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Resend Otp",
+          "method": "POST",
+          "url": "/api/v1/auth/resend-otp",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Reset Password",
+          "method": "POST",
+          "url": "/api/v1/auth/reset-password",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Send Otp",
+          "method": "POST",
+          "url": "/api/v1/auth/send-otp",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Subscription Signup",
+          "method": "POST",
+          "url": "/api/v1/auth/subscription-signup",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Verify Otp",
+          "method": "POST",
+          "url": "/api/v1/auth/verify-otp",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Authentication",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Mark Onboarding As Completed",
+          "method": "POST",
+          "url": "/api/v1/onboarding/complete",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Onboarding Wizard",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Fetch Onboarding Progress By User Id Or Device Id",
+          "method": "GET",
+          "url": "/api/v1/onboarding/progress",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Onboarding Wizard",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Save Current Onboarding Step",
+          "method": "POST",
+          "url": "/api/v1/onboarding/progress",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Onboarding Wizard",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Reset Onboarding Progress (Testing/Admin Only)",
+          "method": "POST",
+          "url": "/api/v1/onboarding/reset",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Onboarding Wizard",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Mark Onboarding As Skipped",
+          "method": "POST",
+          "url": "/api/v1/onboarding/skip",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Onboarding Wizard",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Get Onboarding Slides",
+          "method": "GET",
+          "url": "/api/v1/onboarding/slides",
+          "folder": "01 - Authentication & Onboarding",
+          "subfolder": "Onboarding Wizard",
+          "is_connected": false
+        }
+      ]
+    },
+    "02 - Dashboard & Analytics": {
+      "total": 10,
+      "connected": 10,
+      "unconnected": 0,
+      "endpoints": [
+        {
+          "name": "[GET] List Activities",
+          "method": "GET",
+          "url": "/api/v1/activities",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Activities Feed",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Activity",
+          "method": "POST",
+          "url": "/api/v1/activities",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Activities Feed",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Join Activity",
+          "method": "POST",
+          "url": "/api/v1/activities/{activity_id}/join",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Activities Feed",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Events",
+          "method": "GET",
+          "url": "/api/v1/events",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Events & Audit Logs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Event",
+          "method": "POST",
+          "url": "/api/v1/events",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Events & Audit Logs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Join Event",
+          "method": "POST",
+          "url": "/api/v1/events/{event_id}/join",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Events & Audit Logs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Leave Event",
+          "method": "POST",
+          "url": "/api/v1/events/{event_id}/leave",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Events & Audit Logs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Home Dashboard",
+          "method": "GET",
+          "url": "/api/v1/smartflow/home",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Home Overview",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create User Report",
+          "method": "POST",
+          "url": "/api/v1/smartflow/reports",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Reports & Analytics",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Report Categories",
+          "method": "GET",
+          "url": "/api/v1/smartflow/reports/categories",
+          "folder": "02 - Dashboard & Analytics",
+          "subfolder": "Reports & Analytics",
+          "is_connected": true
+        }
+      ]
+    },
+    "03 - Unified Inbox & Conversations": {
+      "total": 23,
+      "connected": 22,
+      "unconnected": 1,
+      "endpoints": [
+        {
+          "name": "[POST] Ai Compose",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/compose",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "AI Writing & Dictation",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Ai Transcribe",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/transcribe",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "AI Writing & Dictation",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Inbox",
+          "method": "GET",
+          "url": "/api/inbox",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Compatibility Inbox",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] List Conversations",
+          "method": "GET",
+          "url": "/api/v1/smartflow/conversations",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Conversation",
+          "method": "POST",
+          "url": "/api/v1/smartflow/conversations",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Conversation Assignees",
+          "method": "GET",
+          "url": "/api/v1/smartflow/conversations/assignees",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Conversation",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Conversation",
+          "method": "GET",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Archive Conversation",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}/archive",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Assign Conversation",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}/assign",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Upload Conversation Attachment",
+          "method": "POST",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}/attachments",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Conversation Contact",
+          "method": "GET",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}/contact",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Mark Conversation Read",
+          "method": "POST",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}/mark-read",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Messages",
+          "method": "GET",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}/messages",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Typing State",
+          "method": "GET",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}/typing",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Set Typing State",
+          "method": "POST",
+          "url": "/api/v1/smartflow/conversations/{conversation_id}/typing",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Conversations & Threads",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Message",
+          "method": "POST",
+          "url": "/api/v1/smartflow/messages",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Messages (SMS, Email, WhatsApp)",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Unread Summary",
+          "method": "GET",
+          "url": "/api/v1/smartflow/messages/unread-summary",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Messages (SMS, Email, WhatsApp)",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Message",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/messages/{message_id}",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Messages (SMS, Email, WhatsApp)",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Forward Message",
+          "method": "POST",
+          "url": "/api/v1/smartflow/messages/{message_id}/forward",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Messages (SMS, Email, WhatsApp)",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Reply To Message",
+          "method": "POST",
+          "url": "/api/v1/smartflow/messages/{message_id}/reply",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "Messages (SMS, Email, WhatsApp)",
+          "is_connected": true
+        },
+        {
+          "name": "[WS] [WebSocket] Conversation Stream",
+          "method": "GET",
+          "url": "/api/v1/smartflow/ws/conversations/{conversation_id}",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "WebSockets (Real-time Live Stream)",
+          "is_connected": true
+        },
+        {
+          "name": "[WS] [WebSocket] Inbox Stream",
+          "method": "GET",
+          "url": "/api/v1/smartflow/ws/inbox",
+          "folder": "03 - Unified Inbox & Conversations",
+          "subfolder": "WebSockets (Real-time Live Stream)",
+          "is_connected": true
+        }
+      ]
+    },
+    "04 - Calls & Voice AI (Receptionist)": {
+      "total": 28,
+      "connected": 26,
+      "unconnected": 2,
+      "endpoints": [
+        {
+          "name": "[POST] Telnyx Call Webhook",
+          "method": "POST",
+          "url": "/api/v1/calls/webhook",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Call Action",
+          "method": "POST",
+          "url": "/api/v1/calls/{call_sid}/action",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Live Call Transcript",
+          "method": "GET",
+          "url": "/api/v1/calls/{call_sid}/transcript",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Calls",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calls",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Call Log",
+          "method": "POST",
+          "url": "/api/v1/smartflow/calls",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Call Meeting Requests",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calls/meeting-requests",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Accept Call Meeting Request",
+          "method": "POST",
+          "url": "/api/v1/smartflow/calls/meeting-requests/{request_id}/accept",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Decline Call Meeting Request",
+          "method": "POST",
+          "url": "/api/v1/smartflow/calls/meeting-requests/{request_id}/decline",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Outbound Call",
+          "method": "POST",
+          "url": "/api/v1/smartflow/calls/outbound",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Call Summary",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calls/summary",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Call Log",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calls/{call_id}",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Call Log",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/calls/{call_id}",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Call Ai Summary",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calls/{call_id}/ai-summary",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Update Call Ai Summary",
+          "method": "PUT",
+          "url": "/api/v1/smartflow/calls/{call_id}/ai-summary",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Request Call Callback",
+          "method": "POST",
+          "url": "/api/v1/smartflow/calls/{call_id}/callback",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Call Recording",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calls/{call_id}/recording",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Update Call Recording",
+          "method": "PUT",
+          "url": "/api/v1/smartflow/calls/{call_id}/recording",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Call Transcript",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calls/{call_id}/transcript",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Update Call Transcript",
+          "method": "PUT",
+          "url": "/api/v1/smartflow/calls/{call_id}/transcript",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Call Logs & Actions",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Ai Call Analytics",
+          "method": "GET",
+          "url": "/api/ai-call-analytics",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Compatibility Calls",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Request Call Callback",
+          "method": "POST",
+          "url": "/api/calls/{callId}/callback",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Compatibility Calls",
+          "is_connected": false
+        },
+        {
+          "name": "[WS] [WebSocket] Call Stream",
+          "method": "GET",
+          "url": "/api/v1/calls/stream/{call_id}",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Realtime Audio Stream (WebSocket)",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Ai Call Settings",
+          "method": "GET",
+          "url": "/api/v1/smartflow/ai-call-settings",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Receptionist Settings & Briefing",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Ai Call Settings",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/ai-call-settings",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Receptionist Settings & Briefing",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Start Ai Call Test",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai-call-settings/test/start",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Receptionist Settings & Briefing",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] End Ai Call Test",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/ai-call-settings/test/{session_id}",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Receptionist Settings & Briefing",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Send Ai Call Test Message",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai-call-settings/test/{session_id}/message",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Receptionist Settings & Briefing",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Transcribe Voice",
+          "method": "POST",
+          "url": "/api/v1/smartflow/voice/transcribe",
+          "folder": "04 - Calls & Voice AI (Receptionist)",
+          "subfolder": "Voice Engine",
+          "is_connected": true
+        }
+      ]
+    },
+    "05 - Contacts & Audience Groups": {
+      "total": 22,
+      "connected": 20,
+      "unconnected": 2,
+      "endpoints": [
+        {
+          "name": "[POST] Create Group",
+          "method": "POST",
+          "url": "/api/v1/groups",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] List Groups",
+          "method": "GET",
+          "url": "/api/v1/smartflow/groups",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Group",
+          "method": "POST",
+          "url": "/api/v1/smartflow/groups",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Group",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/groups/{group_id}",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Group",
+          "method": "GET",
+          "url": "/api/v1/smartflow/groups/{group_id}",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Group",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/groups/{group_id}",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Invite Group Member",
+          "method": "POST",
+          "url": "/api/v1/smartflow/groups/{group_id}/invites",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Cancel Group Invite",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/groups/{group_id}/invites/{invite_id}",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Leave Group",
+          "method": "POST",
+          "url": "/api/v1/smartflow/groups/{group_id}/leave",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Add Group Members",
+          "method": "POST",
+          "url": "/api/v1/smartflow/groups/{group_id}/members",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Remove Group Member",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/groups/{group_id}/members/{member_id}",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Group Member Role",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/groups/{group_id}/members/{member_id}",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contact Groups & Audience",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Contacts",
+          "method": "GET",
+          "url": "/api/contacts",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] List Contacts",
+          "method": "GET",
+          "url": "/api/v1/smartflow/contacts",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Contact",
+          "method": "POST",
+          "url": "/api/v1/smartflow/contacts",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Export Contacts",
+          "method": "GET",
+          "url": "/api/v1/smartflow/contacts/export",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Import Contacts",
+          "method": "POST",
+          "url": "/api/v1/smartflow/contacts/import",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Contact",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/contacts/{contact_id}",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Contact",
+          "method": "GET",
+          "url": "/api/v1/smartflow/contacts/{contact_id}",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Contact",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/contacts/{contact_id}",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Upload Contact Avatar",
+          "method": "POST",
+          "url": "/api/v1/smartflow/contacts/{contact_id}/avatar",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Contact Conversations",
+          "method": "GET",
+          "url": "/api/v1/smartflow/contacts/{contact_id}/conversations",
+          "folder": "05 - Contacts & Audience Groups",
+          "subfolder": "Contacts",
+          "is_connected": true
+        }
+      ]
+    },
+    "06 - Calendar, Appointments & Booking": {
+      "total": 14,
+      "connected": 10,
+      "unconnected": 4,
+      "endpoints": [
+        {
+          "name": "[POST] Connect Calendar",
+          "method": "POST",
+          "url": "/api/calendar/connect",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Get Calendar Events",
+          "method": "GET",
+          "url": "/api/calendar/events",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Schedule Meeting",
+          "method": "POST",
+          "url": "/api/v1/calendar/schedule",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Get Business Hours",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calendar/business-hours",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Update Business Hours",
+          "method": "PUT",
+          "url": "/api/v1/smartflow/calendar/business-hours",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Calendar Events",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calendar/events",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Calendar Event",
+          "method": "POST",
+          "url": "/api/v1/smartflow/calendar/events",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Calendar Event",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/calendar/events/{event_id}",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Calendar Event",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calendar/events/{event_id}",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Calendar Event",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/calendar/events/{event_id}",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Share Calendar Event",
+          "method": "POST",
+          "url": "/api/v1/smartflow/calendar/events/{event_id}/share",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Calendar Provider Settings",
+          "method": "GET",
+          "url": "/api/v1/smartflow/calendar/provider-settings",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Set Primary Calendar Provider",
+          "method": "PUT",
+          "url": "/api/v1/smartflow/calendar/provider-settings",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Calendar & Appointments",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Shared Calendar Event",
+          "method": "GET",
+          "url": "/calendar/share/{share_token}",
+          "folder": "06 - Calendar, Appointments & Booking",
+          "subfolder": "Public Booking Share Link",
+          "is_connected": false
+        }
+      ]
+    },
+    "07 - Bulk Messaging & Campaigns": {
+      "total": 9,
+      "connected": 9,
+      "unconnected": 0,
+      "endpoints": [
+        {
+          "name": "[GET] List Bulk Messages",
+          "method": "GET",
+          "url": "/api/v1/smartflow/bulk-messages",
+          "folder": "07 - Bulk Messaging & Campaigns",
+          "subfolder": "Campaigns & Broadcasts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Bulk Message",
+          "method": "POST",
+          "url": "/api/v1/smartflow/bulk-messages",
+          "folder": "07 - Bulk Messaging & Campaigns",
+          "subfolder": "Campaigns & Broadcasts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Upload Bulk Message Attachment",
+          "method": "POST",
+          "url": "/api/v1/smartflow/bulk-messages/attachments",
+          "folder": "07 - Bulk Messaging & Campaigns",
+          "subfolder": "Campaigns & Broadcasts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Improve Bulk Message Content",
+          "method": "POST",
+          "url": "/api/v1/smartflow/bulk-messages/improve-content",
+          "folder": "07 - Bulk Messaging & Campaigns",
+          "subfolder": "Campaigns & Broadcasts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Validate Bulk Recipients",
+          "method": "POST",
+          "url": "/api/v1/smartflow/bulk-messages/recipients/validate",
+          "folder": "07 - Bulk Messaging & Campaigns",
+          "subfolder": "Campaigns & Broadcasts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Bulk Message",
+          "method": "GET",
+          "url": "/api/v1/smartflow/bulk-messages/{bulk_message_id}",
+          "folder": "07 - Bulk Messaging & Campaigns",
+          "subfolder": "Campaigns & Broadcasts",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Bulk Message",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/bulk-messages/{bulk_message_id}",
+          "folder": "07 - Bulk Messaging & Campaigns",
+          "subfolder": "Campaigns & Broadcasts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Cancel Bulk Message",
+          "method": "POST",
+          "url": "/api/v1/smartflow/bulk-messages/{bulk_message_id}/cancel",
+          "folder": "07 - Bulk Messaging & Campaigns",
+          "subfolder": "Campaigns & Broadcasts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Send Bulk Message",
+          "method": "POST",
+          "url": "/api/v1/smartflow/bulk-messages/{bulk_message_id}/send",
+          "folder": "07 - Bulk Messaging & Campaigns",
+          "subfolder": "Campaigns & Broadcasts",
+          "is_connected": true
+        }
+      ]
+    },
+    "08 - Documents, Agreements & Leases": {
+      "total": 52,
+      "connected": 51,
+      "unconnected": 1,
+      "endpoints": [
+        {
+          "name": "[GET] List Agreements",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Agreement",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Generate Agreement Draft",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/generate",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Improve Agreement Draft",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/improve",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Agreement Metadata",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/metadata",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Agreement Priorities",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/priorities",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Review Agreement Draft",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/review",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Complete Docusign Oauth",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/signature-providers/docusign/oauth/callback",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Start Docusign Oauth",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/signature-providers/docusign/oauth/start",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Docusign Signing Complete",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/signature-providers/docusign/signing-complete",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Docusign Status",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/signature-providers/docusign/status",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Handle Docusign Webhook",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/signature-providers/docusign/webhook",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Public Signing Agreement",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/signing/{signature_token}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Sign Public Agreement",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/signing/{signature_token}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Public Signing Agreement Pdf",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/signing/{signature_token}/pdf",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Agreement Types",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/types",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Agreement",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Agreement",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Agreement",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Download Agreement Completion Certificate",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}/completion-certificate",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Improve Agreement",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}/improve",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Download Agreement Pdf",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}/pdf",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Renew Agreement",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}/renew",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Review Agreement",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}/review",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Send Agreement For Signature",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}/send-signature",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Sign Agreement",
+          "method": "POST",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}/sign",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Download Signed Agreement Pdf",
+          "method": "GET",
+          "url": "/api/v1/smartflow/agreements/{agreement_id}/signed-pdf",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Agreements & E-Sign",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Document Types",
+          "method": "GET",
+          "url": "/api/documents/types",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Documents & Files",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] List Documents",
+          "method": "GET",
+          "url": "/api/v1/smartflow/documents",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Documents & Files",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Document",
+          "method": "POST",
+          "url": "/api/v1/smartflow/documents",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Documents & Files",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Document",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/documents/{document_id}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Documents & Files",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Document",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/documents/{document_id}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Documents & Files",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Leases",
+          "method": "GET",
+          "url": "/api/v1/smartflow/leases",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Lease",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Enhance Lease Terms",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases/enhance-terms",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Generate Lease Draft",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases/generate",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Lease Metadata",
+          "method": "GET",
+          "url": "/api/v1/smartflow/leases/metadata",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Review Lease Draft",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases/review",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Public Signing Lease",
+          "method": "GET",
+          "url": "/api/v1/smartflow/leases/signing/{signature_token}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Sign Public Lease",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases/signing/{signature_token}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Public Signing Lease Pdf",
+          "method": "GET",
+          "url": "/api/v1/smartflow/leases/signing/{signature_token}/pdf",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Lease",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/leases/{lease_id}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Lease",
+          "method": "GET",
+          "url": "/api/v1/smartflow/leases/{lease_id}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Lease",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/leases/{lease_id}",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Download Lease Completion Certificate",
+          "method": "GET",
+          "url": "/api/v1/smartflow/leases/{lease_id}/completion-certificate",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Enhance Saved Lease Terms",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases/{lease_id}/enhance-terms",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Download Lease Pdf",
+          "method": "GET",
+          "url": "/api/v1/smartflow/leases/{lease_id}/pdf",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Renew Lease",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases/{lease_id}/renew",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Review Lease",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases/{lease_id}/review",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Send Lease For Signature",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases/{lease_id}/send-signature",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Sign Lease",
+          "method": "POST",
+          "url": "/api/v1/smartflow/leases/{lease_id}/sign",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Download Signed Lease Pdf",
+          "method": "GET",
+          "url": "/api/v1/smartflow/leases/{lease_id}/signed-pdf",
+          "folder": "08 - Documents, Agreements & Leases",
+          "subfolder": "Lease Contracts",
+          "is_connected": true
+        }
+      ]
+    },
+    "09 - AI Workflows & Automations": {
+      "total": 11,
+      "connected": 10,
+      "unconnected": 1,
+      "endpoints": [
+        {
+          "name": "[POST] Run Ai Command",
+          "method": "POST",
+          "url": "/api/v1/ai/command",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Ai Chat",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/chat",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Ai Conversation",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/conversations",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Generate Ai Image",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/generate-image",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Ai History",
+          "method": "GET",
+          "url": "/api/v1/smartflow/ai/history",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Replay Ai History",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/history/{history_id}/replay",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Synthesize Ai Speech",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/synthesize-speech",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Ai Voice Chat",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/voice-chat",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Ai Voice Chat Upload",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/voice-chat-upload",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Ai Voices",
+          "method": "GET",
+          "url": "/api/v1/smartflow/ai/voices",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Ai Workflow Prefill",
+          "method": "POST",
+          "url": "/api/v1/smartflow/ai/workflow-prefill",
+          "folder": "09 - AI Workflows & Automations",
+          "subfolder": "SmartFlow Workflows & AI Models",
+          "is_connected": true
+        }
+      ]
+    },
+    "10 - Integrations (Channels, Telnyx, Stripe)": {
+      "total": 31,
+      "connected": 29,
+      "unconnected": 2,
+      "endpoints": [
+        {
+          "name": "[GET] Get Integrations",
+          "method": "GET",
+          "url": "/api/integrations",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Connect Integration",
+          "method": "POST",
+          "url": "/api/integrations/connect",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] List Integrations",
+          "method": "GET",
+          "url": "/api/v1/smartflow/integrations",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Connect Integration",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Disconnect Caldav",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/integrations/caldav",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Connect Caldav",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations/caldav/connect",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Caldav Status",
+          "method": "GET",
+          "url": "/api/v1/smartflow/integrations/caldav/status",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Sync Caldav",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations/caldav/sync",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Integration Catalog",
+          "method": "GET",
+          "url": "/api/v1/smartflow/integrations/catalog",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Receive Telnyx Sms",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations/sms/webhook",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Integration Status",
+          "method": "GET",
+          "url": "/api/v1/smartflow/integrations/status",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Connect Telegram Manual",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations/telegram/manual-connect",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Disconnect Integration",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/integrations/{platform}",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Complete Integration Oauth",
+          "method": "GET",
+          "url": "/api/v1/smartflow/integrations/{platform}/oauth/callback",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Start Integration Oauth",
+          "method": "GET",
+          "url": "/api/v1/smartflow/integrations/{platform}/oauth/start",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Sync Integration",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations/{platform}/sync",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Verify Platform Webhook",
+          "method": "GET",
+          "url": "/api/v1/smartflow/integrations/{platform}/webhook",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Receive Platform Webhook",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations/{platform}/webhook",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Multi-Channel Integrations",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Start Stripe Connect Onboarding",
+          "method": "POST",
+          "url": "/api/v1/stripe/connect/onboard",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Stripe Connect",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Stripe Connect Status",
+          "method": "GET",
+          "url": "/api/v1/stripe/connect/status",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Stripe Connect",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Remove Custom Telnyx",
+          "method": "DELETE",
+          "url": "/api/v1/telnyx/custom",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Telnyx Telephony & Phone Numbers",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Save Custom Telnyx",
+          "method": "POST",
+          "url": "/api/v1/telnyx/custom",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Telnyx Telephony & Phone Numbers",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Provision Telnyx",
+          "method": "POST",
+          "url": "/api/v1/telnyx/provision",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Telnyx Telephony & Phone Numbers",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Release Telnyx",
+          "method": "DELETE",
+          "url": "/api/v1/telnyx/release",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Telnyx Telephony & Phone Numbers",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Telnyx Status",
+          "method": "GET",
+          "url": "/api/v1/telnyx/status",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Telnyx Telephony & Phone Numbers",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Update Telnyx Voice Registration",
+          "method": "POST",
+          "url": "/api/v1/telnyx/voice/registration",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Telnyx Telephony & Phone Numbers",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Telnyx Voice Token",
+          "method": "GET",
+          "url": "/api/v1/telnyx/voice/token",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "Telnyx Telephony & Phone Numbers",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Connect Whatsapp",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations/whatsapp/connect",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "WhatsApp Integration (QR & Official)",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Whatsapp Qr",
+          "method": "GET",
+          "url": "/api/v1/smartflow/integrations/whatsapp/qr",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "WhatsApp Integration (QR & Official)",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Receive Whatsapp Contacts",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations/whatsapp/webhook/contacts",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "WhatsApp Integration (QR & Official)",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Receive Whatsapp History Batch",
+          "method": "POST",
+          "url": "/api/v1/smartflow/integrations/whatsapp/webhook/history",
+          "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+          "subfolder": "WhatsApp Integration (QR & Official)",
+          "is_connected": true
+        }
+      ]
+    },
+    "11 - Settings & Business Profile": {
+      "total": 30,
+      "connected": 24,
+      "unconnected": 6,
+      "endpoints": [
+        {
+          "name": "[DELETE] Delete Account",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/account",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Account Settings",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Business Profile",
+          "method": "GET",
+          "url": "/api/v1/smartflow/business-profile",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Business Profile & Working Hours",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Business Profile",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/business-profile",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Business Profile & Working Hours",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Upload Business Logo",
+          "method": "POST",
+          "url": "/api/v1/smartflow/business-profile/logo",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Business Profile & Working Hours",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Email Domain",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/email-domain",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Custom Email Domain & DNS",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Email Domain",
+          "method": "GET",
+          "url": "/api/v1/smartflow/email-domain",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Custom Email Domain & DNS",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Email Domain",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/email-domain",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Custom Email Domain & DNS",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Request Email Domain",
+          "method": "POST",
+          "url": "/api/v1/smartflow/email-domain",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Custom Email Domain & DNS",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Check Email Domain Availability",
+          "method": "GET",
+          "url": "/api/v1/smartflow/email-domain/availability",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Custom Email Domain & DNS",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Verify Email Domain",
+          "method": "POST",
+          "url": "/api/v1/smartflow/email-domain/verify",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Custom Email Domain & DNS",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Draft Email",
+          "method": "POST",
+          "url": "/api/v1/email/draft",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Email Communications",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Fetch Splash Screen App Config",
+          "method": "GET",
+          "url": "/api/v1/app/config",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Notifications & Preferences",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Get Saved Permission Preferences",
+          "method": "GET",
+          "url": "/api/v1/app/permissions",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Notifications & Preferences",
+          "is_connected": false
+        },
+        {
+          "name": "[PUT] Update Permission Preferences",
+          "method": "PUT",
+          "url": "/api/v1/app/permissions",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Notifications & Preferences",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Accept All Permission Toggles",
+          "method": "POST",
+          "url": "/api/v1/app/permissions/accept-all",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Notifications & Preferences",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] List Notifications",
+          "method": "GET",
+          "url": "/api/v1/smartflow/notifications",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Notifications & Preferences",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Dispatch Pending Notifications",
+          "method": "POST",
+          "url": "/api/v1/smartflow/notifications/dispatch-pending",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Notifications & Preferences",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Mark All Notifications Read",
+          "method": "POST",
+          "url": "/api/v1/smartflow/notifications/mark-all-read",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Notifications & Preferences",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Notification",
+          "method": "DELETE",
+          "url": "/api/v1/smartflow/notifications/{notification_id}",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Notifications & Preferences",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Mark Notification Read",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/notifications/{notification_id}/read",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Notifications & Preferences",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Register Push Token",
+          "method": "POST",
+          "url": "/api/v1/smartflow/devices/push-token",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Registered Devices & Push",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Get Settings",
+          "method": "GET",
+          "url": "/api/v1/smartflow/settings",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "System & App Settings",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Settings",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/settings",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "System & App Settings",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Upload Profile Avatar",
+          "method": "POST",
+          "url": "/api/v1/smartflow/settings/avatar",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "System & App Settings",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Change Password",
+          "method": "POST",
+          "url": "/api/v1/smartflow/settings/change-password",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "System & App Settings",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Notification Settings",
+          "method": "GET",
+          "url": "/api/v1/smartflow/settings/notifications",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "System & App Settings",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Notification Settings",
+          "method": "PATCH",
+          "url": "/api/v1/smartflow/settings/notifications",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "System & App Settings",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Revoke Sessions",
+          "method": "POST",
+          "url": "/api/v1/smartflow/settings/revoke-sessions",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "System & App Settings",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Team Members",
+          "method": "GET",
+          "url": "/api/v1/smartflow/team",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "Team Management & Invites",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Search App Users",
+          "method": "GET",
+          "url": "/api/v1/smartflow/users/search",
+          "folder": "11 - Settings & Business Profile",
+          "subfolder": "User Profile",
+          "is_connected": false
+        }
+      ]
+    },
+    "12 - Billing, Invoices & Shop": {
+      "total": 24,
+      "connected": 17,
+      "unconnected": 7,
+      "endpoints": [
+        {
+          "name": "[GET] Admin List Products",
+          "method": "GET",
+          "url": "/api/v1/shop/admin/products",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Add-on Shop",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Admin Create Product",
+          "method": "POST",
+          "url": "/api/v1/shop/admin/products",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Add-on Shop",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Admin List Products Table",
+          "method": "GET",
+          "url": "/api/v1/shop/admin/products/table",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Add-on Shop",
+          "is_connected": false
+        },
+        {
+          "name": "[DELETE] Admin Delete Product",
+          "method": "DELETE",
+          "url": "/api/v1/shop/admin/products/{product_id}",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Add-on Shop",
+          "is_connected": false
+        },
+        {
+          "name": "[PATCH] Admin Update Product",
+          "method": "PATCH",
+          "url": "/api/v1/shop/admin/products/{product_id}",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Add-on Shop",
+          "is_connected": false
+        },
+        {
+          "name": "[PUT] Admin Update Product",
+          "method": "PUT",
+          "url": "/api/v1/shop/admin/products/{product_id}",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Add-on Shop",
+          "is_connected": false
+        },
+        {
+          "name": "[PATCH] Admin Toggle Product Status",
+          "method": "PATCH",
+          "url": "/api/v1/shop/admin/products/{product_id}/status",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Add-on Shop",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] List Shop Products",
+          "method": "GET",
+          "url": "/api/v1/shop/products",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Add-on Shop",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Shop Product",
+          "method": "GET",
+          "url": "/api/v1/shop/products/{product_id}",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Add-on Shop",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Invoices",
+          "method": "GET",
+          "url": "/api/v1/invoices",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Invoice",
+          "method": "POST",
+          "url": "/api/v1/invoices",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Download Shared Invoice Pdf",
+          "method": "GET",
+          "url": "/api/v1/invoices/shared/{share_token}/pdf",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Invoice",
+          "method": "DELETE",
+          "url": "/api/v1/invoices/{invoice_id}",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Invoice",
+          "method": "GET",
+          "url": "/api/v1/invoices/{invoice_id}",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Invoice",
+          "method": "PATCH",
+          "url": "/api/v1/invoices/{invoice_id}",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Invoice Payment Link",
+          "method": "POST",
+          "url": "/api/v1/invoices/{invoice_id}/payment-link",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Download Invoice Pdf",
+          "method": "GET",
+          "url": "/api/v1/invoices/{invoice_id}/pdf",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Send Invoice Reminder",
+          "method": "POST",
+          "url": "/api/v1/invoices/{invoice_id}/remind",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Send Invoice",
+          "method": "POST",
+          "url": "/api/v1/invoices/{invoice_id}/send",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Share Invoice",
+          "method": "POST",
+          "url": "/api/v1/invoices/{invoice_id}/share",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Update Invoice Status",
+          "method": "POST",
+          "url": "/api/v1/invoices/{invoice_id}/status",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Invoice Timeline",
+          "method": "GET",
+          "url": "/api/v1/invoices/{invoice_id}/timeline",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Invoices & Receipts",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Current Subscription",
+          "method": "GET",
+          "url": "/api/v1/smartflow/subscription/current",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Subscription & Plans",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Subscription Plans",
+          "method": "GET",
+          "url": "/api/v1/smartflow/subscription/plans",
+          "folder": "12 - Billing, Invoices & Shop",
+          "subfolder": "Subscription & Plans",
+          "is_connected": true
+        }
+      ]
+    },
+    "13 - Support & Social Media": {
+      "total": 8,
+      "connected": 8,
+      "unconnected": 0,
+      "endpoints": [
+        {
+          "name": "[GET] List Social Posts",
+          "method": "GET",
+          "url": "/api/v1/smartflow/social-posts",
+          "folder": "13 - Support & Social Media",
+          "subfolder": "Social Posts Scheduler",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Social Post",
+          "method": "POST",
+          "url": "/api/v1/smartflow/social-posts",
+          "folder": "13 - Support & Social Media",
+          "subfolder": "Social Posts Scheduler",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Social Post",
+          "method": "GET",
+          "url": "/api/v1/smartflow/social-posts/{post_id}",
+          "folder": "13 - Support & Social Media",
+          "subfolder": "Social Posts Scheduler",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Support Messages",
+          "method": "GET",
+          "url": "/api/v1/smartflow/support/messages",
+          "folder": "13 - Support & Social Media",
+          "subfolder": "Support Tickets & FAQ",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Support Message",
+          "method": "POST",
+          "url": "/api/v1/smartflow/support/messages",
+          "folder": "13 - Support & Social Media",
+          "subfolder": "Support Tickets & FAQ",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Support Session",
+          "method": "GET",
+          "url": "/api/v1/smartflow/support/session",
+          "folder": "13 - Support & Social Media",
+          "subfolder": "Support Tickets & FAQ",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Start Support Session",
+          "method": "POST",
+          "url": "/api/v1/smartflow/support/session",
+          "folder": "13 - Support & Social Media",
+          "subfolder": "Support Tickets & FAQ",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Support Ticket",
+          "method": "POST",
+          "url": "/api/v1/smartflow/support/tickets",
+          "folder": "13 - Support & Social Media",
+          "subfolder": "Support Tickets & FAQ",
+          "is_connected": true
+        }
+      ]
+    },
+    "14 - Admin & Owner Dashboard": {
+      "total": 124,
+      "connected": 124,
+      "unconnected": 0,
+      "endpoints": [
+        {
+          "name": "[GET] List Notifications",
+          "method": "GET",
+          "url": "/api/v1/dashboard/notifications/",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Broadcast Notifications",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Mark All Notifications As Read",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/notifications/read-all",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Broadcast Notifications",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Mark All Notifications As Read",
+          "method": "POST",
+          "url": "/api/v1/dashboard/notifications/read-all",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Broadcast Notifications",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Unread Notifications Count",
+          "method": "GET",
+          "url": "/api/v1/dashboard/notifications/unread-count",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Broadcast Notifications",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Mark Notification As Read",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/notifications/{notification_id}/read",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Broadcast Notifications",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Mark Notification As Read",
+          "method": "POST",
+          "url": "/api/v1/dashboard/notifications/{notification_id}/read",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Broadcast Notifications",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Admin Activities",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/activities",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Search Admin Activities",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/activities/search",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Admin Activity",
+          "method": "DELETE",
+          "url": "/api/v1/dashboard/admin/activities/{activity_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Admin Activity",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/activities/{activity_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Approve Admin Activity",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/activities/{activity_id}/approve",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Cancel Admin Activity",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/activities/{activity_id}/cancel",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Admin Activity Status",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/admin/activities/{activity_id}/status",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Admins",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/admins",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Ai Logs",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/ai/logs",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Ai Stats",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/ai/stats",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Forgot Password",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/auth/forgot-password",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Admin Login",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/auth/login",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Reset Password",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/auth/reset-password",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Verify Otp",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/auth/verify-otp",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Admin Categories",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/categories",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Admin Category",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/categories",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Admin Category",
+          "method": "DELETE",
+          "url": "/api/v1/dashboard/admin/categories/{category_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Admin Category",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/admin/categories/{category_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Update Admin Category",
+          "method": "PUT",
+          "url": "/api/v1/dashboard/admin/categories/{category_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Change Password",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/change-password",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Change Admin Password Put",
+          "method": "PUT",
+          "url": "/api/v1/dashboard/admin/change-password",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get All Conversations",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/chats",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Chat Messages",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/chats/{user_id}/messages",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Send Message",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/chats/{user_id}/messages",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Organization Admin",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/create-admin",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Earnings Report",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/earnings",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Transactions",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/earnings/transactions",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Trx Details",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/earnings/transactions/{trx_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Download Invoice",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Generate Transaction Invoice Post",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Event Creators",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/event-creators",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Event Creators",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/event-creators/premium",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Event Creator",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/event-creators/premium/{creator_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Event Creator",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/event-creators/{creator_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Payout Event Creator",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/event-creators/{creator_id}/payout",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Admin Events",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/events",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Admin Event Status",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/admin/events/{event_id}/status",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Admin Login",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/login",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Logout",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/logout",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Logout Admin Put",
+          "method": "PUT",
+          "url": "/api/v1/dashboard/admin/logout",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Logout All",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/logout-all",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Owners",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/owners",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Owner Account",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/owners/create",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Admin Profile",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/profile",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Profile",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/admin/profile",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Update Admin Profile Put",
+          "method": "PUT",
+          "url": "/api/v1/dashboard/admin/profile",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get User Reports",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/reports",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Report Action",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/reports/{report_id}/action",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Dismiss Report Endpoint",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/reports/{report_id}/dismiss",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Resolve Report Endpoint",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/reports/{report_id}/resolve",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Dashboard Settings",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/settings",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Settings Page Content",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/settings/content",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Update Settings Page Content",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/settings/content",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Subscriptions",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/subscriptions",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Subscription Plan",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/subscriptions",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Subscription Fees",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/subscriptions/fees",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Subscription Fees",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/admin/subscriptions/fees",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Update Subscription Fees",
+          "method": "PUT",
+          "url": "/api/v1/dashboard/admin/subscriptions/fees",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Admin Summary",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/summary",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Users",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/users",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Users Growth",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/users-growth",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Blocked Users",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/users/blocked",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Search Users Before User Id",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/users/search",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get User Details",
+          "method": "GET",
+          "url": "/api/v1/dashboard/admin/users/{user_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update User",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/admin/users/{user_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Block User",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/users/{user_id}/ban",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Block User",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/users/{user_id}/block",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Add User Note",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/users/{user_id}/notes",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update User Status",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/admin/users/{user_id}/status",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Unblock User",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/users/{user_id}/unban",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Unblock User",
+          "method": "POST",
+          "url": "/api/v1/dashboard/admin/users/{user_id}/unblock",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Admin Metrics, Users & Orgs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List My Availability Slots",
+          "method": "GET",
+          "url": "/api/v1/dashboard/availability-slots",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Availability Slots",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Availability Slots",
+          "method": "POST",
+          "url": "/api/v1/dashboard/availability-slots",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Availability Slots",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete Availability Slot",
+          "method": "DELETE",
+          "url": "/api/v1/dashboard/availability-slots/{slot_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Availability Slots",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Demo Requests",
+          "method": "GET",
+          "url": "/api/v1/dashboard/demo-requests",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Demo Requests",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Demo Request",
+          "method": "GET",
+          "url": "/api/v1/dashboard/demo-requests/{request_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Demo Requests",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Reply To Demo Request",
+          "method": "POST",
+          "url": "/api/v1/dashboard/demo-requests/{request_id}/reply",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Demo Requests",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update Demo Request Status",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/demo-requests/{request_id}/status",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Demo Requests",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Meeting Requests",
+          "method": "GET",
+          "url": "/api/v1/dashboard/meeting-requests",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Meeting Requests",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Meeting Request",
+          "method": "GET",
+          "url": "/api/v1/dashboard/meeting-requests/{request_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Meeting Requests",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Accept Meeting Request",
+          "method": "POST",
+          "url": "/api/v1/dashboard/meeting-requests/{request_id}/accept",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Meeting Requests",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Decline Meeting Request",
+          "method": "POST",
+          "url": "/api/v1/dashboard/meeting-requests/{request_id}/decline",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Meeting Requests",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Propose Meeting Time",
+          "method": "POST",
+          "url": "/api/v1/dashboard/meeting-requests/{request_id}/propose",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Meeting Requests",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Assign Team Role",
+          "method": "POST",
+          "url": "/api/v1/dashboard/owner/assign",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Owner Me",
+          "method": "GET",
+          "url": "/api/v1/dashboard/owner/me",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Permission Modules",
+          "method": "GET",
+          "url": "/api/v1/dashboard/owner/modules",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] My Dashboard",
+          "method": "GET",
+          "url": "/api/v1/dashboard/owner/my-dashboard",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Revoke Team Role",
+          "method": "DELETE",
+          "url": "/api/v1/dashboard/owner/revoke",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Search Users",
+          "method": "GET",
+          "url": "/api/v1/dashboard/owner/search",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List Team",
+          "method": "GET",
+          "url": "/api/v1/dashboard/owner/team",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Owner Team Analysis",
+          "method": "GET",
+          "url": "/api/v1/dashboard/owner/team/analysis",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Owner Team Dashboard",
+          "method": "GET",
+          "url": "/api/v1/dashboard/owner/team/dashboard",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Member Analysis",
+          "method": "GET",
+          "url": "/api/v1/dashboard/owner/team/{user_id}/analysis",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Ban Team Member",
+          "method": "POST",
+          "url": "/api/v1/dashboard/owner/team/{user_id}/ban",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get User Permissions",
+          "method": "GET",
+          "url": "/api/v1/dashboard/owner/team/{user_id}/permissions",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Set User Permissions",
+          "method": "PUT",
+          "url": "/api/v1/dashboard/owner/team/{user_id}/permissions",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Unban Team Member",
+          "method": "POST",
+          "url": "/api/v1/dashboard/owner/team/{user_id}/unban",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Owner Team Management",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Rbac Audit Logs",
+          "method": "GET",
+          "url": "/api/v1/dashboard/rbac/audit-logs",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List All Permissions Grouped By Module",
+          "method": "GET",
+          "url": "/api/v1/dashboard/rbac/permissions",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List All Permissions As Flat List",
+          "method": "GET",
+          "url": "/api/v1/dashboard/rbac/permissions/flat",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] List All Roles With Their Permissions",
+          "method": "GET",
+          "url": "/api/v1/dashboard/rbac/roles",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create A New Custom Role",
+          "method": "POST",
+          "url": "/api/v1/dashboard/rbac/roles",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Create Subordinate Account",
+          "method": "POST",
+          "url": "/api/v1/dashboard/rbac/roles/create-subordinate",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[DELETE] Delete A Custom Role",
+          "method": "DELETE",
+          "url": "/api/v1/dashboard/rbac/roles/{role_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get A Specific Role",
+          "method": "GET",
+          "url": "/api/v1/dashboard/rbac/roles/{role_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[PATCH] Update A Role",
+          "method": "PATCH",
+          "url": "/api/v1/dashboard/rbac/roles/{role_id}",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[PUT] Set Permissions For A Role (Replaces Existing)",
+          "method": "PUT",
+          "url": "/api/v1/dashboard/rbac/roles/{role_id}/permissions",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Assign A Role To A User",
+          "method": "POST",
+          "url": "/api/v1/dashboard/rbac/users/assign-role",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Revoke A Role From A User",
+          "method": "POST",
+          "url": "/api/v1/dashboard/rbac/users/revoke-role",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get All Roles Assigned To A User",
+          "method": "GET",
+          "url": "/api/v1/dashboard/rbac/users/{user_id}/roles",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Role-Based Access Control (RBAC)",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Activate Subscription",
+          "method": "POST",
+          "url": "/api/v1/dashboard/subscription/activate",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Subscription Administration",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Complete Onboarding",
+          "method": "POST",
+          "url": "/api/v1/dashboard/subscription/complete-onboarding",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Subscription Administration",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Start Trial",
+          "method": "POST",
+          "url": "/api/v1/dashboard/subscription/start-trial",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Subscription Administration",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Status",
+          "method": "GET",
+          "url": "/api/v1/dashboard/subscription/status",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Subscription Administration",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Global Growth",
+          "method": "GET",
+          "url": "/api/v1/dashboard/super/global-growth",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Super Admin Controls",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Platform Summary",
+          "method": "GET",
+          "url": "/api/v1/dashboard/super/platform-summary",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Super Admin Controls",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Resend Inbound Webhook",
+          "method": "POST",
+          "url": "/api/v1/dashboard/webhooks/resend/inbound",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Webhooks Monitoring",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Stripe Webhook",
+          "method": "POST",
+          "url": "/api/v1/dashboard/webhooks/stripe",
+          "folder": "14 - Admin & Owner Dashboard",
+          "subfolder": "Webhooks Monitoring",
+          "is_connected": true
+        }
+      ]
+    },
+    "15 - Public & Marketing Website": {
+      "total": 15,
+      "connected": 15,
+      "unconnected": 0,
+      "endpoints": [
+        {
+          "name": "[GET] Get About Us",
+          "method": "GET",
+          "url": "/api/v1/content/about-us",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Blog & Legal Content",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Acceptable Use Policy",
+          "method": "GET",
+          "url": "/api/v1/content/acceptable-use-policy",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Blog & Legal Content",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Help Support",
+          "method": "GET",
+          "url": "/api/v1/content/help-support",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Blog & Legal Content",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Content Page",
+          "method": "GET",
+          "url": "/api/v1/content/pages/{slug}",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Blog & Legal Content",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Privacy Policy",
+          "method": "GET",
+          "url": "/api/v1/content/privacy-policy",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Blog & Legal Content",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Protocols For Law Enforcement",
+          "method": "GET",
+          "url": "/api/v1/content/protocols-for-law-enforcement",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Blog & Legal Content",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Refund Policy",
+          "method": "GET",
+          "url": "/api/v1/content/refund-policy",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Blog & Legal Content",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Sms Messaging Policy",
+          "method": "GET",
+          "url": "/api/v1/content/sms-messaging-policy",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Blog & Legal Content",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Terms And Conditions",
+          "method": "GET",
+          "url": "/api/v1/content/terms-and-conditions",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Blog & Legal Content",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Submit Demo Request",
+          "method": "POST",
+          "url": "/api/v1/public/demo-requests",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Public Marketing APIs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Submit Meeting Request",
+          "method": "POST",
+          "url": "/api/v1/public/meeting-requests",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Public Marketing APIs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Available Times",
+          "method": "GET",
+          "url": "/api/v1/public/meeting-requests/available-times",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Public Marketing APIs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Book Available Time",
+          "method": "POST",
+          "url": "/api/v1/public/meeting-requests/book",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Public Marketing APIs",
+          "is_connected": true
+        },
+        {
+          "name": "[GET] Get Proposed Meeting Time",
+          "method": "GET",
+          "url": "/api/v1/public/meeting-requests/confirm/{token}",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Public Marketing APIs",
+          "is_connected": true
+        },
+        {
+          "name": "[POST] Confirm Proposed Meeting Time",
+          "method": "POST",
+          "url": "/api/v1/public/meeting-requests/confirm/{token}",
+          "folder": "15 - Public & Marketing Website",
+          "subfolder": "Public Marketing APIs",
+          "is_connected": true
+        }
+      ]
+    },
+    "16 - System, Webhooks & Health": {
+      "total": 7,
+      "connected": 0,
+      "unconnected": 7,
+      "endpoints": [
+        {
+          "name": "[GET] Swagger Ui Html",
+          "method": "GET",
+          "url": "/docs",
+          "folder": "16 - System, Webhooks & Health",
+          "subfolder": "API Documentation & Specs",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Swagger Ui Redirect",
+          "method": "GET",
+          "url": "/docs/oauth2-redirect",
+          "folder": "16 - System, Webhooks & Health",
+          "subfolder": "API Documentation & Specs",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Openapi",
+          "method": "GET",
+          "url": "/openapi.json",
+          "folder": "16 - System, Webhooks & Health",
+          "subfolder": "API Documentation & Specs",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Redoc Html",
+          "method": "GET",
+          "url": "/redoc",
+          "folder": "16 - System, Webhooks & Health",
+          "subfolder": "API Documentation & Specs",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Health Check",
+          "method": "GET",
+          "url": "/health",
+          "folder": "16 - System, Webhooks & Health",
+          "subfolder": "Health Checks",
+          "is_connected": false
+        },
+        {
+          "name": "[GET] Readiness Check",
+          "method": "GET",
+          "url": "/ready",
+          "folder": "16 - System, Webhooks & Health",
+          "subfolder": "Health Checks",
+          "is_connected": false
+        },
+        {
+          "name": "[POST] Telnyx Call Webhook Alias",
+          "method": "POST",
+          "url": "/webhooks/telnyx/voice",
+          "folder": "16 - System, Webhooks & Health",
+          "subfolder": "Incoming Webhooks",
+          "is_connected": false
+        }
+      ]
+    }
+  },
+  "backend_only_list": [
+    {
+      "name": "[POST] Google Login",
+      "method": "POST",
+      "url": "/api/v1/auth/google",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Authentication",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Logout",
+      "method": "POST",
+      "url": "/api/v1/auth/logout",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Authentication",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Me",
+      "method": "GET",
+      "url": "/api/v1/auth/me",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Authentication",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Refresh Token",
+      "method": "POST",
+      "url": "/api/v1/auth/refresh-token",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Authentication",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Register",
+      "method": "POST",
+      "url": "/api/v1/auth/register",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Authentication",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Resend Otp",
+      "method": "POST",
+      "url": "/api/v1/auth/resend-otp",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Authentication",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Send Otp",
+      "method": "POST",
+      "url": "/api/v1/auth/send-otp",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Authentication",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Mark Onboarding As Completed",
+      "method": "POST",
+      "url": "/api/v1/onboarding/complete",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Onboarding Wizard",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Fetch Onboarding Progress By User Id Or Device Id",
+      "method": "GET",
+      "url": "/api/v1/onboarding/progress",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Onboarding Wizard",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Save Current Onboarding Step",
+      "method": "POST",
+      "url": "/api/v1/onboarding/progress",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Onboarding Wizard",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Reset Onboarding Progress (Testing/Admin Only)",
+      "method": "POST",
+      "url": "/api/v1/onboarding/reset",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Onboarding Wizard",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Mark Onboarding As Skipped",
+      "method": "POST",
+      "url": "/api/v1/onboarding/skip",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Onboarding Wizard",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Get Onboarding Slides",
+      "method": "GET",
+      "url": "/api/v1/onboarding/slides",
+      "folder": "01 - Authentication & Onboarding",
+      "subfolder": "Onboarding Wizard",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Get Inbox",
+      "method": "GET",
+      "url": "/api/inbox",
+      "folder": "03 - Unified Inbox & Conversations",
+      "subfolder": "Compatibility Inbox",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Get Ai Call Analytics",
+      "method": "GET",
+      "url": "/api/ai-call-analytics",
+      "folder": "04 - Calls & Voice AI (Receptionist)",
+      "subfolder": "Compatibility Calls",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Request Call Callback",
+      "method": "POST",
+      "url": "/api/calls/{callId}/callback",
+      "folder": "04 - Calls & Voice AI (Receptionist)",
+      "subfolder": "Compatibility Calls",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Create Group",
+      "method": "POST",
+      "url": "/api/v1/groups",
+      "folder": "05 - Contacts & Audience Groups",
+      "subfolder": "Contact Groups & Audience",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Get Contacts",
+      "method": "GET",
+      "url": "/api/contacts",
+      "folder": "05 - Contacts & Audience Groups",
+      "subfolder": "Contacts",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Connect Calendar",
+      "method": "POST",
+      "url": "/api/calendar/connect",
+      "folder": "06 - Calendar, Appointments & Booking",
+      "subfolder": "Calendar & Appointments",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Get Calendar Events",
+      "method": "GET",
+      "url": "/api/calendar/events",
+      "folder": "06 - Calendar, Appointments & Booking",
+      "subfolder": "Calendar & Appointments",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Schedule Meeting",
+      "method": "POST",
+      "url": "/api/v1/calendar/schedule",
+      "folder": "06 - Calendar, Appointments & Booking",
+      "subfolder": "Calendar & Appointments",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Shared Calendar Event",
+      "method": "GET",
+      "url": "/calendar/share/{share_token}",
+      "folder": "06 - Calendar, Appointments & Booking",
+      "subfolder": "Public Booking Share Link",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Get Document Types",
+      "method": "GET",
+      "url": "/api/documents/types",
+      "folder": "08 - Documents, Agreements & Leases",
+      "subfolder": "Documents & Files",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Run Ai Command",
+      "method": "POST",
+      "url": "/api/v1/ai/command",
+      "folder": "09 - AI Workflows & Automations",
+      "subfolder": "SmartFlow Workflows & AI Models",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Get Integrations",
+      "method": "GET",
+      "url": "/api/integrations",
+      "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+      "subfolder": "Multi-Channel Integrations",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Connect Integration",
+      "method": "POST",
+      "url": "/api/integrations/connect",
+      "folder": "10 - Integrations (Channels, Telnyx, Stripe)",
+      "subfolder": "Multi-Channel Integrations",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Fetch Splash Screen App Config",
+      "method": "GET",
+      "url": "/api/v1/app/config",
+      "folder": "11 - Settings & Business Profile",
+      "subfolder": "Notifications & Preferences",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Get Saved Permission Preferences",
+      "method": "GET",
+      "url": "/api/v1/app/permissions",
+      "folder": "11 - Settings & Business Profile",
+      "subfolder": "Notifications & Preferences",
+      "is_connected": false
+    },
+    {
+      "name": "[PUT] Update Permission Preferences",
+      "method": "PUT",
+      "url": "/api/v1/app/permissions",
+      "folder": "11 - Settings & Business Profile",
+      "subfolder": "Notifications & Preferences",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Accept All Permission Toggles",
+      "method": "POST",
+      "url": "/api/v1/app/permissions/accept-all",
+      "folder": "11 - Settings & Business Profile",
+      "subfolder": "Notifications & Preferences",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Register Push Token",
+      "method": "POST",
+      "url": "/api/v1/smartflow/devices/push-token",
+      "folder": "11 - Settings & Business Profile",
+      "subfolder": "Registered Devices & Push",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Search App Users",
+      "method": "GET",
+      "url": "/api/v1/smartflow/users/search",
+      "folder": "11 - Settings & Business Profile",
+      "subfolder": "User Profile",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Admin List Products",
+      "method": "GET",
+      "url": "/api/v1/shop/admin/products",
+      "folder": "12 - Billing, Invoices & Shop",
+      "subfolder": "Add-on Shop",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Admin Create Product",
+      "method": "POST",
+      "url": "/api/v1/shop/admin/products",
+      "folder": "12 - Billing, Invoices & Shop",
+      "subfolder": "Add-on Shop",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Admin List Products Table",
+      "method": "GET",
+      "url": "/api/v1/shop/admin/products/table",
+      "folder": "12 - Billing, Invoices & Shop",
+      "subfolder": "Add-on Shop",
+      "is_connected": false
+    },
+    {
+      "name": "[DELETE] Admin Delete Product",
+      "method": "DELETE",
+      "url": "/api/v1/shop/admin/products/{product_id}",
+      "folder": "12 - Billing, Invoices & Shop",
+      "subfolder": "Add-on Shop",
+      "is_connected": false
+    },
+    {
+      "name": "[PATCH] Admin Update Product",
+      "method": "PATCH",
+      "url": "/api/v1/shop/admin/products/{product_id}",
+      "folder": "12 - Billing, Invoices & Shop",
+      "subfolder": "Add-on Shop",
+      "is_connected": false
+    },
+    {
+      "name": "[PUT] Admin Update Product",
+      "method": "PUT",
+      "url": "/api/v1/shop/admin/products/{product_id}",
+      "folder": "12 - Billing, Invoices & Shop",
+      "subfolder": "Add-on Shop",
+      "is_connected": false
+    },
+    {
+      "name": "[PATCH] Admin Toggle Product Status",
+      "method": "PATCH",
+      "url": "/api/v1/shop/admin/products/{product_id}/status",
+      "folder": "12 - Billing, Invoices & Shop",
+      "subfolder": "Add-on Shop",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Swagger Ui Html",
+      "method": "GET",
+      "url": "/docs",
+      "folder": "16 - System, Webhooks & Health",
+      "subfolder": "API Documentation & Specs",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Swagger Ui Redirect",
+      "method": "GET",
+      "url": "/docs/oauth2-redirect",
+      "folder": "16 - System, Webhooks & Health",
+      "subfolder": "API Documentation & Specs",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Openapi",
+      "method": "GET",
+      "url": "/openapi.json",
+      "folder": "16 - System, Webhooks & Health",
+      "subfolder": "API Documentation & Specs",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Redoc Html",
+      "method": "GET",
+      "url": "/redoc",
+      "folder": "16 - System, Webhooks & Health",
+      "subfolder": "API Documentation & Specs",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Health Check",
+      "method": "GET",
+      "url": "/health",
+      "folder": "16 - System, Webhooks & Health",
+      "subfolder": "Health Checks",
+      "is_connected": false
+    },
+    {
+      "name": "[GET] Readiness Check",
+      "method": "GET",
+      "url": "/ready",
+      "folder": "16 - System, Webhooks & Health",
+      "subfolder": "Health Checks",
+      "is_connected": false
+    },
+    {
+      "name": "[POST] Telnyx Call Webhook Alias",
+      "method": "POST",
+      "url": "/webhooks/telnyx/voice",
+      "folder": "16 - System, Webhooks & Health",
+      "subfolder": "Incoming Webhooks",
+      "is_connected": false
+    }
+  ]
+}

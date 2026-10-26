@@ -1,4 +1,3 @@
-import { Loader2 } from 'lucide-react';
 export const INPUT = 'w-full px-4 py-3 bg-[#0A1019] border border-[#243246] text-white rounded-xl outline-none focus:border-[#9333ea]/50 transition-colors text-sm placeholder:text-[#4A5568]';
 export const LABEL = 'block text-[#A4B0B7] text-xs font-semibold uppercase tracking-wider mb-1.5';
 export function Field({ label, children }) { return <div><label className={LABEL}>{label}</label>{children}</div>; }

@@ -100,6 +100,15 @@ class CallHistoryService(SmartFlowBase):
         return await self._serialize_call_log(document)
 
     async def create_outbound_call(self, user_id: str, payload: dict) -> dict:
+        if payload.get("ai_ready", True):
+            organization_id = await self._resolve_organization_id(user_id)
+            capability = await self.resolve_capability(organization_id, "outbound_calls")
+            if capability == "disabled":
+                raise AppException(status_code=403, code="PERMISSION_DENIED", message="AI outbound calling is disabled by the business owner.")
+            if capability == "human_approval_required" and not payload.get("_ai_approved"):
+                from .receptionist_action_service import ReceptionistActionService
+                action = await ReceptionistActionService(self.db).request(user_id, tool="outbound_call", arguments=payload, capabilities=["outbound_calls"])
+                return {"id": action["id"], "status": "pending", "approval_required": True, "note": "Awaiting human approval; no call has been placed."}
         phone_number = (payload.get("phone_number") or "").strip() or None
         contact_id = payload.get("contact_id")
         contact = None

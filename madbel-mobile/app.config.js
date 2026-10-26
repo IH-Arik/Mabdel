@@ -39,11 +39,12 @@ module.exports = {
       supportsTablet: true,
       bundleIdentifier: "com.madbelai.madbel",
       googleServicesFile: "./GoogleService-Info.plist",
+      entitlements: { "aps-environment": getEnv("TELNYX_APNS_ENVIRONMENT") || "development" },
       infoPlist: {
         NSLocationWhenInUseUsageDescription:
           "We use your location to show nearby activities within 10 miles.",
         NSMicrophoneUsageDescription:
-          "Allow GoCustify to record voice commands for AI assistance.",
+          "Allow GoCustify to use your microphone for phone calls and voice commands.",
         NSContactsUsageDescription:
           "Allow GoCustify to import contacts from your phone.",
         NSPhotoLibraryUsageDescription:
@@ -52,6 +53,7 @@ module.exports = {
           "Allow GoCustify to access your calendar so meetings can be synced to Apple Calendar.",
         NSCalendarsFullAccessUsageDescription:
           "Allow GoCustify to access your calendar so meetings can be synced to Apple Calendar.",
+        UIBackgroundModes: ["voip", "audio", "remote-notification"],
         GIDClientID: googleIosClientId,
       },
     },
@@ -70,6 +72,14 @@ module.exports = {
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.MANAGE_OWN_CALLS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_PHONE_CALL",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.USE_FULL_SCREEN_INTENT",
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS",
         "android.permission.READ_MEDIA_IMAGES",
@@ -92,7 +102,7 @@ module.exports = {
         "expo-audio",
         {
           microphonePermission:
-            "Allow GoCustify to record voice commands for AI assistance.",
+            "Allow GoCustify to use your microphone for phone calls and voice commands.",
         },
       ],
       "expo-speech-recognition",
@@ -128,6 +138,7 @@ module.exports = {
             { iosUrlScheme: finalIosUrlScheme },
           ]
         : "@react-native-google-signin/google-signin",
+      "./plugins/withTelnyxVoice",
     ],
     web: {
       favicon: "./assets/favicon.png",

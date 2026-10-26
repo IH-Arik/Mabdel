@@ -1,3 +1,4 @@
+import BusinessLocationsPanel from '../components/BusinessLocationsPanel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -149,6 +150,7 @@ function getInitialFormState(prefill) {
     recipientIds: Array.isArray(prefill?.contact_ids) ? prefill.contact_ids : [],
     providerId: prefill?.provider_id || '',
     appointmentTypeId: prefill?.appointment_type_id || '',
+    locationId: prefill?.location_id || '',
   };
 }
 
@@ -169,7 +171,7 @@ function Toggle({ label, value, onChange }) {
   );
 }
 
-function MeetingEditor({ contacts, providers = [], appointmentTypes = [], event, prefill, onSaved, onCancel, googleConnected = false }) {
+function MeetingEditor({ contacts, providers = [], appointmentTypes = [], locations = [], event, prefill, onSaved, onCancel, googleConnected = false }) {
   const { t } = useLanguage();
   const isEditing = Boolean(event?.id);
   const seed = useMemo(() => getInitialFormState(event || prefill || {}), [event, prefill]);
@@ -188,6 +190,7 @@ function MeetingEditor({ contacts, providers = [], appointmentTypes = [], event,
   const [recipientIds, setRecipientIds] = useState(seed.recipientIds);
   const [providerId, setProviderId] = useState(seed.providerId);
   const [appointmentTypeId, setAppointmentTypeId] = useState(seed.appointmentTypeId);
+  const [locationId, setLocationId] = useState(seed.locationId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -207,6 +210,7 @@ function MeetingEditor({ contacts, providers = [], appointmentTypes = [], event,
     setRecipientIds(seed.recipientIds);
     setProviderId(seed.providerId);
     setAppointmentTypeId(seed.appointmentTypeId);
+    setLocationId(seed.locationId);
   }, [seed]);
 
   // Picking a type sets how long the meeting is, straight from that type's own length -
@@ -267,6 +271,7 @@ function MeetingEditor({ contacts, providers = [], appointmentTypes = [], event,
       timezone: CST_TIME_ZONE,
       provider_id: providerId || null,
       appointment_type_id: appointmentTypeId || null,
+      location_id: locationId || null,
     };
 
     setError('');
@@ -315,6 +320,14 @@ function MeetingEditor({ contacts, providers = [], appointmentTypes = [], event,
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('cal_ph_description')} className={`${INPUT} min-h-20 resize-none`} />
       </Field>
 
+      {locations.length ? (
+        <Field label="Business location">
+          <select value={locationId} onChange={(e) => { setLocationId(e.target.value); const selected = locations.find((item) => item.id === e.target.value); if (selected) { setLocation(selected.address || selected.name); setMode('offline'); } }} className={INPUT}>
+            <option value="">Choose a location</option>
+            {locations.filter((item) => item.active || item.id === locationId).map((item) => <option key={item.id} value={item.id}>{item.name}{!item.active ? ' (inactive)' : ''}</option>)}
+          </select>
+        </Field>
+      ) : null}
       {providers.length || appointmentTypes.length ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {providers.length ? (
@@ -564,7 +577,7 @@ function buildICSFile(event) {
   ].filter(Boolean).join('\r\n');
 }
 
-function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnected = false, providers = [], appointmentTypes = [] }) {
+function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnected = false, providers = [], appointmentTypes = [], locations = [] }) {
   const { t } = useLanguage();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -709,6 +722,7 @@ function EventDetailsModal({ eventId, onClose, onDeleted, onSaved, googleConnect
               contacts={contacts}
               providers={providers}
               appointmentTypes={appointmentTypes}
+              locations={locations}
               event={event}
               googleConnected={googleConnected}
               onCancel={() => setEditing(false)}
@@ -1195,6 +1209,7 @@ export default function Calendar() {
   // primaryProvider above (Google/Zoom/CalDAV, the calendar-sync provider).
   const [providers, setProviders] = useState([]);
   const [appointmentTypes, setAppointmentTypes] = useState([]);
+  const [businessLocations, setBusinessLocations] = useState([]);
 
   useEffect(() => {
     if (location.state?.prefill) {
@@ -1322,8 +1337,9 @@ export default function Calendar() {
   );
 
   useEffect(() => {
-    Promise.all([smartflowApi.getProviders(), smartflowApi.getAppointmentTypes()])
-      .then(([providersRes, typesRes]) => {
+    Promise.all([smartflowApi.getProviders(), smartflowApi.getAppointmentTypes(), smartflowApi.getLocations()])
+      .then(([providersRes, typesRes, locationsRes]) => {
+        setBusinessLocations(locationsRes.data?.data || []);
         const providersData = providersRes.data?.data;
         setProviders((Array.isArray(providersData) ? providersData : providersData?.items || []).filter((item) => item.active));
         const typesData = typesRes.data?.data;
@@ -1606,6 +1622,8 @@ export default function Calendar() {
         />
       ) : null}
 
+      <BusinessLocationsPanel locations={businessLocations} onChange={setBusinessLocations} providers={providers} appointmentTypes={appointmentTypes} onProvidersChange={setProviders} onTypesChange={setAppointmentTypes} />
+
       {!loading ? <CalendarStats events={events} total={eventsTotal} /> : null}
 
       <div className={`grid gap-6 items-start ${showCreate ? 'grid-cols-1 xl:grid-cols-[1fr_420px]' : 'grid-cols-1'}`}>
@@ -1675,6 +1693,7 @@ export default function Calendar() {
                 contacts={contacts}
                 providers={providers}
                 appointmentTypes={appointmentTypes}
+                locations={businessLocations}
                 prefill={prefillData}
                 googleConnected={googleConnected}
                 onCancel={() => {
@@ -1695,6 +1714,7 @@ export default function Calendar() {
             googleConnected={googleConnected}
             providers={providers}
             appointmentTypes={appointmentTypes}
+                locations={businessLocations}
             onClose={() => setSelectedEventId(null)}
             onDeleted={handleEventDeleted}
             onSaved={handleEventSaved}

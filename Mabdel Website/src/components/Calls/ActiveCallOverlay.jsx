@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PhoneOff, Mic, MicOff, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react';
 

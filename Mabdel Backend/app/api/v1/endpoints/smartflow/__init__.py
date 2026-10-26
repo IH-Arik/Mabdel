@@ -21,6 +21,8 @@ from . import (  # noqa: F401
     notifications,
     groups,
     settings,
+    receptionist_actions,
+    receptionist_workflows,
     social_posts,
 )
 

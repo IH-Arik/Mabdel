@@ -7,6 +7,7 @@ import AuthStack from "../stack/AuthStack";
 import BottomNavigator from "../stack/BottomTabNavigator";
 import { useSelector } from "react-redux";
 import NotificationScreen from "../screens/NotificaitonsScreen";
+import DeviceCallScreen from "../voice/DeviceCallScreen";
 import IncomingCallScreen from "../screens/call/IncomingCallScreen";
 import ActiveCallScreen from "../screens/call/ActiveCallScreen";
 import AiCallScreen from "../screens/call/AiCallScreen";
@@ -14,6 +15,8 @@ import * as Notifications from "expo-notifications";
 import { useMadbelRegisterPushTokenMutation } from "../redux/slices/madbelApiSlice";
 
 const Stack = createNativeStackNavigator();
+const IncomingCallRoute = (props) => props.route.params?.nativeCallId ? <DeviceCallScreen {...props} /> : <IncomingCallScreen {...props} />;
+const ActiveCallRoute = (props) => props.route.params?.nativeCallId ? <DeviceCallScreen {...props} /> : <ActiveCallScreen {...props} />;
 
 const RootAppNavigator = () => {
   const accessToken = useSelector(
@@ -81,8 +84,8 @@ const RootAppNavigator = () => {
         <>
 
           <Stack.Screen name="BottomNavigator" component={BottomNavigator} />
-          <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
-          <Stack.Screen name="ActiveCall" component={ActiveCallScreen} />
+          <Stack.Screen name="IncomingCall" component={IncomingCallRoute} />
+          <Stack.Screen name="ActiveCall" component={ActiveCallRoute} />
           <Stack.Screen name="AiCall" component={AiCallScreen} />
         </>
       ) : (

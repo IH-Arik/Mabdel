@@ -1,21 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Mail, 
-  Lock, 
-  Loader2, 
-  ArrowRight, 
-  ShieldCheck, 
-  Sparkles, 
-  User, 
-  Phone, 
-  Eye, 
-  EyeOff, 
-  KeyRound, 
+import {
+  Mail,
+  Lock,
+  Loader2,
+  ArrowRight,
+  ShieldCheck,
+  User,
+  Phone,
+  Eye,
+  EyeOff,
+  KeyRound,
   Check,
-  ChevronRight,
-  Clock,
-  Unlock
+  Clock
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import client from '../api/client';

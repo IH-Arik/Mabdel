@@ -127,9 +127,12 @@ def test_a_playbook_with_neither_notify_field_set_adds_no_notify_line(client, mo
 
 def test_notify_team_tool_creates_a_team_notification(client, mock_db, monkeypatch):
     owner_id = _business(client, mock_db, monkeypatch, "playbook-notify@example.com")
+    asyncio.run(mock_db.organizations.update_one({"organization_id": owner_id}, {"$set": {
+        "ai_call_settings.call_routing_rules": [{"id": "emergency", "name": "Emergency Service", "active": True,
+                                               "target_user_ids": [owner_id]}]}}))
     agent = _receptionist(mock_db, owner_id, FakeOpenAI(), FakeCallControl())
     result = asyncio.run(agent._tool_notify_team(note="Burst pipe at 12 Main St, needs urgent dispatch.", playbook="Emergency Service"))
-    assert result == {"notified": True}
+    assert result["notified"] is True
 
     notification = asyncio.run(mock_db.notifications.find_one({"user_id": owner_id, "type": "call"}))
     assert notification is not None

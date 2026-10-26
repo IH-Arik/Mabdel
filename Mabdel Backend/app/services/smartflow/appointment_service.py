@@ -18,6 +18,7 @@ from app.core.exceptions import AppException
 from app.utils.helpers import utc_now
 
 from ._base import SmartFlowBase
+from .booking_lock import serialized_booking
 from .appointment_notifications import format_when
 from .calendar_service import CalendarService
 from .call_meeting_request_service import CallMeetingRequestService
@@ -41,15 +42,14 @@ class AppointmentService(SmartFlowBase):
     async def _resolve_provider_and_type(
         self, owner_id: str, provider_name: str | None, appointment_type_name: str | None
     ) -> tuple[dict | None, dict | None]:
-        """Matches what the caller (or the team, editing a booking) said against the
-        business's own providers/appointment types. A name that doesn't match anything
-        is treated the same as not naming one - the business may not have set these up,
-        or the model may have misheard; failing the whole booking over it would be worse
-        than just not narrowing by provider/duration."""
         provider = await self.providers.resolve_provider_by_name(owner_id, provider_name) if provider_name else None
         appointment_type = (
             await self.providers.resolve_appointment_type_by_name(owner_id, appointment_type_name) if appointment_type_name else None
         )
+        if provider_name and not provider:
+            raise AppException(status_code=400, code="PROVIDER_NOT_FOUND", message="That provider was not found. Please choose a configured provider.")
+        if appointment_type_name and not appointment_type:
+            raise AppException(status_code=400, code="APPOINTMENT_TYPE_NOT_FOUND", message="That service was not found. Please choose a configured appointment type.")
         return provider, appointment_type
 
     @staticmethod
@@ -63,11 +63,12 @@ class AppointmentService(SmartFlowBase):
 
     async def available_slots(
         self, owner_id: str, *, day: str | None = None, part_of_day: str | None = None, count: int = 3,
-        provider_name: str | None = None, appointment_type_name: str | None = None,
+        provider_name: str | None = None, appointment_type_name: str | None = None, location_name: str | None = None,
     ) -> dict:
         """Open times on the day asked for, or the next days with space."""
         hours, tz = await self._hours(owner_id)
         provider, appointment_type = await self._resolve_provider_and_type(owner_id, provider_name, appointment_type_name)
+        location = await self._resolve_location(owner_id, location_name)
         provider_id = provider["id"] if provider else None
         duration_minutes = appointment_type["duration_minutes"] if appointment_type else None
         today = self.calendar._now(tz).date()
@@ -78,7 +79,7 @@ class AppointmentService(SmartFlowBase):
         for current in days:
             if current < today:
                 continue
-            for label in await self.calendar.find_free_slots(owner_id, current, provider_id=provider_id, duration_minutes=duration_minutes):
+            for label in await self.calendar.find_free_slots(owner_id, current, provider_id=provider_id, duration_minutes=duration_minutes, location_id=(location or {}).get("id"), appointment_type_id=(appointment_type or {}).get("id")):
                 hour = int(label[:2])
                 if not (low <= hour < high):
                     continue
@@ -96,6 +97,8 @@ class AppointmentService(SmartFlowBase):
             "business_hours": f"{', '.join(open_days)} {hours['start_hour']:02d}:00-{hours['end_hour']:02d}:00 ({hours.get('timezone') or 'UTC'})",
             "today": today.isoformat(),
         }
+        if location:
+            result["location"] = location["name"]
         if provider_name:
             result["provider"] = provider["name"] if provider else None  # None: say so, don't pretend it matched
         if appointment_type_name:
@@ -103,7 +106,7 @@ class AppointmentService(SmartFlowBase):
         return result
 
     async def _slot_bounds(
-        self, owner_id: str, day: str, time: str, *, provider_id: str | None = None, duration_minutes: int | None = None
+        self, owner_id: str, day: str, time: str, *, provider_id: str | None = None, duration_minutes: int | None = None, location_id: str | None = None, appointment_type_id: str | None = None, exclude_event_id: str | None = None
     ) -> tuple[datetime, datetime]:
         hours, tz = await self._hours(owner_id)
         wanted = self._parse_day(day)
@@ -115,21 +118,26 @@ class AppointmentService(SmartFlowBase):
             raise AppException(status_code=409, code="APPOINTMENT_DATE_PASSED", message="That date has already passed.")
         if wanted > today + timedelta(days=MAX_BOOKING_DAYS_AHEAD):
             raise AppException(status_code=409, code="APPOINTMENT_TOO_FAR", message="That is too far ahead to book by phone.")
-        if time not in await self.calendar.find_free_slots(owner_id, wanted, provider_id=provider_id, duration_minutes=duration_minutes):
+        if time not in await self.calendar.find_free_slots(owner_id, wanted, provider_id=provider_id, duration_minutes=duration_minutes, location_id=location_id, appointment_type_id=appointment_type_id, exclude_event_id=exclude_event_id):
             raise AppException(status_code=409, code="APPOINTMENT_SLOT_UNAVAILABLE", message="That time is not available.")
         start = await self.calendar.localize_business_slot(owner_id, wanted.isoformat(), time)
         reserve_minutes = duration_minutes or max(15, int(hours.get("slot_minutes") or 60))
         return start, start + timedelta(minutes=reserve_minutes)
 
+    @serialized_booking
     async def book(
         self, owner_id: str, *, name: str, phone: str | None, email: str | None, day: str, time: str,
         call_sid: str | None = None, language: str | None = None,
-        provider_name: str | None = None, appointment_type_name: str | None = None,
+        provider_name: str | None = None, appointment_type_name: str | None = None, location_name: str | None = None,
     ) -> dict:
         organization_id = await self._resolve_organization_id(owner_id)
         if await self.requests.scheduling_capability(organization_id, "new") == "disabled":
             return {"outcome": "unavailable", "reason": "Booking isn't available through the phone for this business right now; the team can help directly."}
-        provider, appointment_type = await self._resolve_provider_and_type(owner_id, provider_name, appointment_type_name)
+        try:
+            provider, appointment_type = await self._resolve_provider_and_type(owner_id, provider_name, appointment_type_name)
+            location = await self._resolve_location(owner_id, location_name)
+        except AppException as exc:
+            return {"outcome": "unavailable", "reason": exc.message}
         if provider and appointment_type:
             eligible = appointment_type.get("eligible_provider_ids")
             if eligible and provider["id"] not in eligible:
@@ -139,6 +147,8 @@ class AppointmentService(SmartFlowBase):
                 owner_id, day, time,
                 provider_id=provider["id"] if provider else None,
                 duration_minutes=appointment_type["duration_minutes"] if appointment_type else None,
+                location_id=(location or {}).get("id"),
+                appointment_type_id=(appointment_type or {}).get("id"),
             )
         except AppException as exc:
             return {"outcome": "unavailable", "reason": exc.message}
@@ -153,12 +163,14 @@ class AppointmentService(SmartFlowBase):
             language=language,
             provider=provider,
             appointment_type=appointment_type,
+            location=location,
         )
         hours, _ = await self._hours(owner_id)
         return {
             "outcome": result.get("booking_outcome", "pending"),
             "when": format_when(start, hours.get("timezone")),
             "appointment_id": result.get("calendar_event_id"),
+            "reason": result.get("integration_failure"),
         }
 
     async def find_upcoming(self, owner_id: str, phone: str | None) -> dict:
@@ -229,6 +241,7 @@ class AppointmentService(SmartFlowBase):
             return False
         return bool(given_tokens & tokens(stored))
 
+    @serialized_booking
     async def reschedule(
         self, owner_id: str, *, appointment_id: str, phone: str | None, day: str, time: str,
         caller_name: str | None = None, call_sid: str | None = None, language: str | None = None,
@@ -243,13 +256,22 @@ class AppointmentService(SmartFlowBase):
             # a reschedule doesn't change who it's with or how long it takes.
             provider_id = event.get("provider_id")
             existing_minutes = int((event["ends_at"] - event["starts_at"]).total_seconds() // 60) if event.get("ends_at") and event.get("starts_at") else None
-            start, end = await self._slot_bounds(owner_id, day, time, provider_id=provider_id, duration_minutes=existing_minutes)
+            start, end = await self._slot_bounds(owner_id, day, time, provider_id=provider_id, duration_minutes=existing_minutes, location_id=event.get("location_id"), appointment_type_id=event.get("appointment_type_id"), exclude_event_id=str(event["_id"]))
         except AppException as exc:
             return {"outcome": "not_possible", "reason": exc.message}
         hours, _ = await self._hours(owner_id)
         when = format_when(start, hours.get("timezone"))
         await self._remember_language(event, language)
-        if capability == "human_approval_required":
+        integration_failure = None
+        if capability == "ai_allowed":
+            try:
+                await self.calendar.update_calendar_event(str(event["user_id"]), str(event["_id"]), {"starts_at": start, "ends_at": end}, actor="ai_agent")
+                return {"outcome": "rescheduled", "when": when}
+            except AppException as exc:
+                if exc.code != "CALENDAR_SYNC_REQUIRED":
+                    raise
+                integration_failure = exc.message
+        if capability == "human_approval_required" or integration_failure:
             customer = event.get("customer") or {}
             await self.requests.create_pending_request(
                 organization_id=organization_id,
@@ -263,12 +285,13 @@ class AppointmentService(SmartFlowBase):
                 kind="reschedule",
                 calendar_event_id=str(event["_id"]),
                 provider_id=provider_id,
+                location_id=event.get("location_id"),
+                location_name=event.get("location_name"),
                 appointment_type_id=event.get("appointment_type_id"),
             )
-            return {"outcome": "pending", "when": when}
-        await self.calendar.update_calendar_event(str(event["user_id"]), str(event["_id"]), {"starts_at": start, "ends_at": end}, actor="ai_agent")
-        return {"outcome": "rescheduled", "when": when}
+            return {"outcome": "pending", "when": when, "reason": integration_failure}
 
+    @serialized_booking
     async def cancel(
         self, owner_id: str, *, appointment_id: str, phone: str | None, caller_name: str | None = None,
         call_sid: str | None = None, language: str | None = None,
@@ -287,7 +310,16 @@ class AppointmentService(SmartFlowBase):
         hours, _ = await self._hours(owner_id)
         when = format_when(event["starts_at"], hours.get("timezone"))
         await self._remember_language(event, language)
-        if capability == "human_approval_required":
+        integration_failure = None
+        if capability == "ai_allowed":
+            try:
+                await self.calendar.delete_calendar_event(str(event["user_id"]), str(event["_id"]), actor="ai_agent")
+                return {"outcome": "cancelled", "when": when}
+            except AppException as exc:
+                if exc.code != "CALENDAR_SYNC_REQUIRED":
+                    raise
+                integration_failure = exc.message
+        if capability == "human_approval_required" or integration_failure:
             customer = event.get("customer") or {}
             await self.requests.create_pending_request(
                 organization_id=organization_id,
@@ -303,9 +335,7 @@ class AppointmentService(SmartFlowBase):
                 provider_id=event.get("provider_id"),
                 appointment_type_id=event.get("appointment_type_id"),
             )
-            return {"outcome": "pending_cancellation", "when": when}
-        await self.calendar.delete_calendar_event(str(event["user_id"]), str(event["_id"]), actor="ai_agent")
-        return {"outcome": "cancelled", "when": when}
+            return {"outcome": "pending_cancellation", "when": when, "reason": integration_failure}
 
     async def send_due_reminders(self, *, now: datetime | None = None, window_minutes: int = 15) -> int:
         """Texts customers whose appointment is now inside their business's configured
@@ -351,3 +381,15 @@ class AppointmentService(SmartFlowBase):
                     sent += 1
         return sent
 
+
+    async def _resolve_location(self, owner_id, name):
+        location = await self.providers.resolve_location_by_name(owner_id, name) if name else None
+        if name and not location:
+            raise AppException(status_code=400, code="LOCATION_NOT_FOUND", message="That location was not found. Please choose a configured location.")
+        if not location:
+            locations = await self.providers.list_locations(owner_id, active_only=True)
+            if len(locations) == 1:
+                location = locations[0]
+            elif len(locations) > 1:
+                raise AppException(status_code=400, code="LOCATION_REQUIRED", message="Ask the caller which business location they prefer.")
+        return location

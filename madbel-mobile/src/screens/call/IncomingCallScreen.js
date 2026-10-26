@@ -1,6 +1,6 @@
 import { useAppLanguage } from "../../context/LanguageContext";
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import useCallTimer from "../../hooks/useCallTimer";
@@ -46,20 +46,11 @@ const IncomingCallScreen = () => {
 
   const handleAccept = async () => {
     try {
-      await callAction({
-        call_sid: activeCallSid,
-        action: "receive",
-        user_id: myUserId || "guest",
-      }).unwrap();
-    } catch (e) {
-      // call may already be accepted
+      await callAction({ call_sid: activeCallSid, action: "receive", user_id: myUserId }).unwrap();
+      Alert.alert("Connecting call", "Answer the incoming call on this device when it rings. If your account uses cellular forwarding, answer your registered phone.");
+    } catch (error) {
+      Alert.alert("Could not connect call", error?.data?.message || "Please reconnect calling and try again.");
     }
-    navigation.navigate("ActiveCall", {
-      callSid: activeCallSid,
-      callerName: callerName || null,
-      callerNumber: callerNumber || null,
-      mode: "forwarded",
-    });
   };
 
   const handleTransferToAi = async () => {
@@ -70,7 +61,8 @@ const IncomingCallScreen = () => {
         user_id: myUserId || "guest",
       }).unwrap();
     } catch (e) {
-      // transfer may still proceed
+      Alert.alert("Transfer failed", e?.data?.message || "The call could not be transferred.");
+      return;
     }
     navigation.navigate("ActiveCall", {
       callSid: activeCallSid,

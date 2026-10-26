@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <title>GoCustify / Mabdel AI — পেজ-ভিত্তিক গ্যাপ অ্যানালাইসিস ও সিস্টেম আর্কিটেকচার</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 18mm 15mm 18mm 15mm;
+            @bottom-right {
+                content: "Page " counter(page);
+                font-family: 'Inter', sans-serif;
+                font-size: 8pt;
+                color: #64748b;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        body {
+            font-family: 'Hind Siliguri', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 9.5pt;
+            line-height: 1.55;
+            color: #1e293b;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Inter', 'Hind Siliguri', sans-serif;
+            color: #0f172a;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-top: 1.6em;
+            margin-bottom: 0.6em;
+            page-break-after: avoid;
+        }
+
+        h1 {
+            font-size: 22pt;
+            border-bottom: 3px solid #0284c7;
+            padding-bottom: 8px;
+            margin-top: 0;
+            color: #0369a1;
+        }
+
+        h2 {
+            font-size: 15pt;
+            border-bottom: 1.5px solid #e2e8f0;
+            padding-bottom: 5px;
+            margin-top: 2em;
+            color: #0284c7;
+            page-break-before: auto;
+        }
+
+        h3 {
+            font-size: 12pt;
+            margin-top: 1.4em;
+            color: #0f172a;
+        }
+
+        p, li {
+            color: #334155;
+            margin-top: 0.3em;
+            margin-bottom: 0.5em;
+        }
+
+        blockquote {
+            margin: 1.2em 0;
+            padding: 10px 16px;
+            background-color: #f8fafc;
+            border-left: 4px solid #0284c7;
+            border-radius: 0 6px 6px 0;
+            font-size: 9pt;
+            color: #475569;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.2em 0 1.8em 0;
+            font-size: 8.2pt;
+            page-break-inside: auto;
+        }
+
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-weight: 600;
+            text-align: left;
+            padding: 7px 9px;
+            border: 1px solid #cbd5e1;
+            font-family: 'Inter', 'Hind Siliguri', sans-serif;
+        }
+
+        td {
+            padding: 6px 8px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+            font-size: 8pt;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 4px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .badge {
+            display: inline-block;
+            font-family: 'Inter', sans-serif;
+            font-size: 7pt;
+            font-weight: 700;
+            padding: 2px 5px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .badge-get { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .badge-post { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-put { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .badge-patch { background-color: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+        .badge-delete { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .badge-ws { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 2em 0;
+        }
+
+        .cover-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0284c7 100%);
+            color: #ffffff;
+            padding: 24px 28px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        .cover-header h1 {
+            color: #ffffff;
+            border-bottom: none;
+            margin: 0 0 8px 0;
+            font-size: 22pt;
+        }
+        .cover-header p {
+            color: #e0f2fe;
+            margin: 4px 0;
+            font-size: 10pt;
+        }
+        .meta-tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 8.5pt;
+            margin-right: 6px;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="cover-header">
+        <h1>GoCustify / Mabdel AI</h1>
+        <p><strong>পেজ-ভিত্তিক গ্যাপ অ্যানালাইসিস ও সিস্টেম আর্কিটেকচার রিপোর্ট</strong></p>
+        <div>
+            <span class="meta-tag">২৮টি পেজ অডিট</span>
+            <span class="meta-tag">৪২৬টি এন্ডপয়েন্ট</span>
+            <span class="meta-tag">UI ফিল্ড ম্যাপিং</span>
+            <span class="meta-tag">ইন্টিগ্রেশন স্ট্যাটাস</span>
+        </div>
+    </div>
+    <h1 id="gocustify-mabdel-ai-">📊 GoCustify / Mabdel AI — পেজ-ভিত্তিক পূর্ণাঙ্গ গ্যাপ অ্যানালাইসিস ও সিস্টেম আর্কিটেকচার রিপোর্ট</h1>
+<blockquote>
+<p><strong>ডকুমেন্ট তৈরির তারিখ:</strong> 2026-09-29<br />
+<strong>কভারেজ:</strong> Mabdel Website (২৮টি পেজ), madbel-dashboard (অপারেশনাল অ্যাপ) এবং Mabdel Backend (৪২৬টি এন্ডপয়েন্ট)<br />
+<strong>উদ্দেশ্য:</strong> ওয়েবসাইটে কী কী ফিল্ড রয়েছে, ব্যাকএন্ডে কী কী বানানো আছে বনাম কী কী বানানো নেই, কী কী অলরেডি ইন্টিগ্রেটেড বনাম আন-ইন্টিগ্রেটেড, এবং ব্যাকএন্ডে আছে কিন্তু ফ্রন্টএন্ডে নেই—তার একটি পরিপূর্ণ পেজ-বাই-পেজ অডিট।</p>
+</blockquote>
+<hr />
+<h2 id="table-of-contents">📑 সূচিপত্র (Table of Contents)</h2>
+<ol>
+<li><a href="#1-এক-নজরে-হাই-লেভেল-ম্যাট্রিক্স">এক নজরে হাই-লেভেল ম্যাট্রিক্স (Executive Matrix)</a></li>
+<li><a href="#2-২৮টি-পেজের-বিস্তারিত-পেজ-বাই-পেজ-অডিট">২৮টি পেজের বিস্তারিত পেজ-বাই-পেজ অডিট (Page-by-Page Audit)</a></li>
+<li>Landing (<code>/</code>)</li>
+<li>Login &amp; Register (<code>/login</code>)</li>
+<li>Onboarding (<code>/onboarding</code>)</li>
+<li>Subscription (<code>/subscription</code>)</li>
+<li>Dashboard (<code>/dashboard</code>)</li>
+<li>Conversations &amp; Messages (<code>/conversations</code>)</li>
+<li>Unified Conversations (<code>/unified-conversation</code>)</li>
+<li>Calls &amp; Voice AI (<code>/calls</code>, <code>/ai-call</code>, <code>/voice-conversation</code>)</li>
+<li>Contacts (<code>/contacts</code>)</li>
+<li>Groups (<code>/groups</code>)</li>
+<li>Calendar (<code>/calendar</code>)</li>
+<li>Confirm Meeting (<code>/confirm-meeting/:token</code>)</li>
+<li>Bulk Messaging (<code>/bulk-messaging</code>)</li>
+<li>Documents &amp; Contracts (<code>/documents</code>)</li>
+<li>Sign Document (<code>/sign/:docType/:token</code>)</li>
+<li>AI Workflow (<code>/ai-workflow</code>)</li>
+<li>Integrations Hub (<code>/integrations</code>)</li>
+<li>Invoices (<code>/invoices</code>)</li>
+<li>Shop &amp; Add-ons (<code>/shop</code>)</li>
+<li>Create Post / Social Media (<code>/create-post</code>)</li>
+<li>Activities &amp; Events (<code>/activities</code>, <code>/join-event</code>)</li>
+<li>Notifications (<code>/notifications</code>)</li>
+<li>Admin Panel (<code>/admin</code>)</li>
+<li>Profile &amp; Security (<code>/profile</code>)</li>
+<li>Public Legal &amp; Content Pages (<code>/terms-and-conditions</code>, etc.)</li>
+<li><a href="#3-ব্যাকএন্ডে-আছে-কিন্তু-ফ্রন্টএন্ডে-নেই-এমন-৪৬টি-এন্ডপয়েন্ট">ব্যাকএন্ডে আছে কিন্তু ফ্রন্টএন্ডে নেই এমন ৪৬টি এন্ডপয়েন্ট (Backend Only Features)</a></li>
+<li><a href="#4-থার্ড-পার্টি-ইন্টিগ্রেশন-স্ট্যাটাস-অডিট">থার্ড-পার্টি ইন্টিগ্রেশন স্ট্যাটাস অডিট (Third-Party Integrations)</a></li>
+<li><a href="#5-ভবিষ্যত-ডেভেলপমেন্ট-ও-অ্যাকশন-প্ল্যান">ভবিষ্যত ডেভেলপমেন্ট ও অ্যাকশন প্ল্যান (Punchlist Recommendations)</a></li>
+</ol>
+<hr />
+<h2 id="1-executive-matrix">📊 1. এক নজরে হাই-লেভেল ম্যাট্রিক্স (Executive Matrix)</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেট্রিক্স ক্যাটাগরি</th>
+<th style="text-align: center;">মোট সংখ্যা</th>
+<th style="text-align: left;">স্ট্যাটাস ও বিবরণ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>ওয়েবসাইট পেজ সংখ্যা</strong></td>
+<td style="text-align: center;"><strong>২৮টি</strong></td>
+<td style="text-align: left;">Next.js / React অ্যাপে ২৮টি ডেডিকেটেড রুট ও পেজ কম্পোনেন্ট রয়েছে।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ব্যাকএন্ড এন্ডপয়েন্ট সংখ্যা</strong></td>
+<td style="text-align: center;"><strong>৪২৬টি</strong></td>
+<td style="text-align: left;">FastAPI-তে ১৬টি মডিউলের অধীনে রেজিস্টার্ড মোট এন্ডপয়েন্ট।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ফ্রন্টএন্ডের সাথে যুক্ত ব্যাকএন্ড এন্ডপয়েন্ট</strong></td>
+<td style="text-align: center;"><strong>৩৮০টি</strong></td>
+<td style="text-align: left;">প্রত্যক্ষ বা পরোক্ষভাবে ফ্রন্টএন্ডের UI বা সার্ভিস কল দ্বারা ব্যবহৃত।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ব্যাকএন্ড আছে কিন্তু ফ্রন্টএন্ড নাই (Orphaned)</strong></td>
+<td style="text-align: center;"><strong>৪৬টি</strong></td>
+<td style="text-align: left;">ব্যাকএন্ড তৈরি কিন্তু ফ্রন্টএন্ডে বাটন/স্ক্রিন নেই (যেমন: শপ এডমিন, মোবাইল স্লাইডস)।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>লাইভ ৩য়-পক্ষ ইন্টিগ্রেশন</strong></td>
+<td style="text-align: center;"><strong>৭টি</strong></td>
+<td style="text-align: left;">Telnyx, OpenAI Realtime, Stripe, Meta WhatsApp, Google, Resend, Telegram।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>পূর্ণাঙ্গ কার্যকর ইন্টিগ্রেশন রেট</strong></td>
+<td style="text-align: center;"><strong>~৮৮%</strong></td>
+<td style="text-align: left;">মূল বিজনেস ফ্লো (কল, মেসেজ, কন্ট্যাক্ট, ইনভয়েস, ই-সাইন) সম্পূর্ণ সচল।</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-page-by-page-audit">🔍 2. ২৮টি পেজের বিস্তারিত পেজ-বাই-পেজ অডিট (Page-by-Page Audit)</h2>
+<hr />
+<h3 id="landing-page-landingjsx">[পেজ ০১] Landing Page (<code>/</code>) — <code>Landing.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>হিরো সেকশন:</strong> ইন্টারেক্টিভ অডিও প্লেয়ার ডেমো, "Get Started" বাটন, "Watch Demo" ভিডিও ট্রিগার।</li>
+<li><strong>ইন্টারেক্টিভ ক্যালকুলেটর (ROI Calculator):</strong> স্লাইডার ফিল্ড (Monthly Inbound Calls সংখ্যা, Average Call Duration, Staff Hourly Rate) -&gt; সেভ করা টাকা ও সময় ক্যালকুলেট করে।</li>
+<li><strong>ডেমো রিকোয়েস্ট ও কন্ট্যাক্ট ফর্ম:</strong><ul>
+<li>First Name (<code>input[name="first_name"]</code>)</li>
+<li>Last Name (<code>input[name="last_name"]</code>)</li>
+<li>Phone Number (<code>input[name="phone"]</code>)</li>
+<li>Work Email (<code>input[name="email"]</code>)</li>
+<li>Business Category / Industry (ড্রপডাউন)</li>
+<li>Message / Notes (<code>textarea</code>)</li>
+</ul>
+</li>
+<li><strong>লাইভ সোশ্যাল প্রুফ ও টেস্টোমোনিয়াল:</strong> রিভিউ ক্যারোসেল, প্রাইসিং প্রিভিউ কার্ড।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>POST /api/v1/public/demo-requests</code> (ডেমো সাবমিশন ও লিড ক্যাপচার)</li>
+<li><code>POST /api/v1/public/meeting-requests</code> (মিটিং স্লট কোয়েরি)</li>
+<li><code>GET /api/v1/smartflow/subscription/plans</code> (প্রাইসিং প্ল্যান ফেচ করা)</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>লাইভ ল্যান্ডিং পেজে সরাসরি ইন্টারেক্টিভ এআই রিসেপশনিস্ট ভয়েস টেস্ট কল করার পাবলিক ট্রায়াল সেশন (বর্তমানে শুধু ড্যাশবোর্ডে লগইন করার পর টেস্ট কল করা যায়)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>ইন্টিগ্রেটেড:</strong> ডেমো রিকোয়েস্ট ফর্ম সরাসরি <code>publicApi.submitDemoRequest</code> হয়ে MongoDB-র <code>demo_requests</code> কালেকশনে সেভ হচ্ছে।</li>
+<li>⚠️ <strong>ল্যাক:</strong> ROI ক্যালকুলেটরের হিসেব ফ্রন্টএন্ডের ক্লায়েন্ট-সাইড জাভাস্ক্রিপ্ট দিয়ে হচ্ছে (ব্যাকএন্ড ডাইনামিক মেট্রিক্স এপিআই নেই, তবে এটি ক্লায়েন্ট সাইডেই পারফেক্ট)।</li>
+</ul>
+<hr />
+<h3 id="login-register-login-loginjsx">[পেজ ০২] Login &amp; Register (<code>/login</code>) — <code>Login.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>লগইন ট্যাব:</strong><ul>
+<li>Email বা Phone Number (<code>input[name="identifier"]</code>)</li>
+<li>Password (<code>input[name="password"]</code>)</li>
+<li>"Remember Me" চেকবক্স, "Forgot Password?" লিংক</li>
+</ul>
+</li>
+<li><strong>রেজিস্ট্রেশন ট্যাব:</strong><ul>
+<li>Full Name (<code>input[name="full_name"]</code>)</li>
+<li>Email Address (<code>input[name="email"]</code>)</li>
+<li>Phone Number (<code>input[name="phone"]</code>)</li>
+<li>Password ও Confirm Password</li>
+<li>Terms &amp; Privacy পলিসি এগ্রিমেন্ট চেকবক্স</li>
+</ul>
+</li>
+<li><strong>সোশ্যাল লগইন বাটন:</strong> Continue with Google, Continue with Microsoft</li>
+<li><strong>পাসওয়ার্ড রিসেট মোডাল:</strong> ইমেইল ইনপুট, ৬-ডিজিটের OTP ভেরিফিকেশন কোড ইনপুট ফিল্ড, New Password ফিল্ড।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>POST /api/v1/auth/login</code> (JWT টোকেন জেনারেটর)</li>
+<li><code>POST /api/v1/auth/register</code> (নতুন ইউজার সৃষ্টি)</li>
+<li><code>POST /api/v1/auth/forgot-password</code> (OTP পাঠানো)</li>
+<li><code>POST /api/v1/auth/verify-otp</code> (OTP যাচাই)</li>
+<li><code>POST /api/v1/auth/reset-password</code> (পাসওয়ার্ড আপডেট)</li>
+<li><code>POST /api/v1/auth/refresh-token</code> (টোকেন রোটেশন)</li>
+<li><code>POST /api/v1/auth/google</code> (গুগল সাইন-ইন)</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>ফোন নম্বরে SMS OTP দিয়ে লগইন (বর্তমানে শুধুমাত্র ইমেইল OTP ব্যাকএন্ডে কনফিগার করা)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>ইন্টিগ্রেটেড:</strong> <code>useAuthStore</code> এর মাধ্যমে <code>login</code>, <code>register</code>, <code>me</code> ব্যাকএন্ডের সাথে সম্পূর্ণ লাইভ কানেক্টেড।</li>
+<li>⚠️ <strong>আন-ইন্টিগ্রেটেড:</strong> মাইক্রোসফট সোশ্যাল লগইন বাটন UI-তে থাকলেও ব্যাকএন্ডে শুধুমাত্র Google OAuth রাউট সংযুক্ত; মাইক্রোসফটের হ্যান্ডলার আংশিক।</li>
+</ul>
+<hr />
+<h3 id="onboarding-wizard-onboarding-onboardingjsx">[পেজ ০৩] Onboarding Wizard (<code>/onboarding</code>) — <code>Onboarding.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>স্টেপ ১ (Role Selection):</strong> Investor, Realtor, Landlord, Buyer (রেডিও/কার্ড সিলেক্টর)।</li>
+<li><strong>স্টেপ ২ (Main Goals Multi-Select):</strong> Expand Portfolio, Close More Deals, Automate Inquiries, Build Network, Manage Maintenance (চেকবক্স)।</li>
+<li><strong>স্টেপ ৩ (Profile Setup):</strong> Company Name (<code>input[name="company"]</code>), Years of Experience (ড্রপডাউন: 1-3 years, 3-5 years, 5+ years)।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>POST /api/v1/onboarding/complete</code> (অনবোর্ডিং ফিনিশ করা)</li>
+<li><code>POST /api/v1/onboarding/progress</code> (স্টেপ সেভ করা)</li>
+<li><code>PATCH /api/v1/smartflow/business-profile</code> (কোম্পানি ও রোল আপডেট)</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>কোনো নির্দিষ্ট অভাব নেই, ব্যাকএন্ড সম্পূর্ণ প্রস্তুত।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>❌ <strong>গুরুত্বপূর্ণ গ্যাপ (NOT INTEGRATED):</strong> <code>Onboarding.jsx</code> ফাইলে ইউজারের সিলেক্ট করা রোল ও গোল লোকাল রিঅ্যাক্ট <code>useState</code>-এ রাখা হয় এবং ফিনিশ বাটনে চাপ দিলে <code>setTimeout(..., 1500)</code> দিয়ে সরাসরি <code>/dashboard</code>-এ পাঠিয়ে দেওয়া হয়! ব্যাকএন্ডের <code>updateBusinessProfile</code> বা <code>complete</code> এপিআই কল করা হয়নি!</li>
+</ul>
+<hr />
+<h3 id="subscription-checkout-subscription-subscriptionjsx">[পেজ ০৪] Subscription &amp; Checkout (<code>/subscription</code>) — <code>Subscription.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>প্ল্যান সিলেক্টর:</strong> Starter ($49/mo), Growth ($99/mo), Pro ($199/mo) কার্ডস।</li>
+<li><strong>বিলিং টগল:</strong> Monthly বনাম Annual (২০% ডিসকাউন্ট ক্যালকুলেশন)।</li>
+<li><strong>ইউজার ডিটেইলস ফর্ম:</strong> Full Name, Work Email, Business Name, Business Address, Phone Number।</li>
+<li><strong>পেমেন্ট ফর্ম:</strong> কার্ড নম্বর, এক্সপায়ারি, CVC (অথবা স্ট্রাইপ চেকআউট রিডাইরেক্ট)।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/smartflow/subscription/plans</code> (প্ল্যান লিস্ট)</li>
+<li><code>GET /api/v1/smartflow/subscription/current</code> (বর্তমান স্ট্যাটাস)</li>
+<li><code>POST /api/v1/auth/subscription-signup</code> (সাবস্ক্রিপশন রেজিস্ট্রেশন)</li>
+<li><code>POST /api/v1/dashboard/webhooks/stripe</code> (পেমেন্ট সাকসেস লিসেনার)</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>পেপাল (PayPal) বা ক্রিপ্টো পেমেন্ট গেটওয়ে (শুধু Stripe সমর্থিত)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>ইন্টিগ্রেটেড:</strong> <code>publicApi.subscriptionSignup</code> এবং স্ট্রাইপ চেকআউট সেশন যুক্ত।</li>
+</ul>
+<hr />
+<h3 id="dashboard-overview-dashboard-dashboardjsx">[পেজ ০৫] Dashboard Overview (<code>/dashboard</code>) — <code>Dashboard.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>KPI কার্ডস:</strong> Total Calls, Saved Minutes, Active Contacts, Unread Chats।</li>
+<li><strong>ইনবক্স প্রিভিউ উইজেট:</strong> সর্বশেষ ৩টি চ্যাট মেসেজ, প্রেরকের নাম ও প্রোফাইল অ্যাভাটার স্ট্যাক।</li>
+<li><strong>কন্ট্যাক্টস প্রিভিউ উইজেট:</strong> মোট কন্ট্যাক্ট সংখ্যা এবং সম্প্রতি যুক্ত হওয়া ক্লায়েন্টদের অ্যাভাটার।</li>
+<li><strong>আপকামিং ক্যালেন্ডার উইজেট:</strong> পরবর্তী মিটিংয়ের তারিখ, সময় ও টাইটেল।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস ব্যাজ:</strong> WhatsApp, Telnyx, Facebook, Instagram কানেক্টেড কিনা তার লাইভ ব্যাজ।</li>
+<li><strong>কুইক অ্যাকশন বাটন:</strong> New Agreement, New Invoice, New Lease, Create Post।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/smartflow/home</code> (একক এগ্রিগেটেড ড্যাশবোর্ড ডেটা)</li>
+<li><code>GET /api/v1/smartflow/calls/summary</code></li>
+<li><code>GET /api/v1/smartflow/contacts</code></li>
+<li><code>GET /api/v1/smartflow/conversations</code></li>
+<li><code>GET /api/v1/smartflow/calendar/events</code></li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>লাইভ ওয়েদার বা মার্কেট নিউজ উইজেট (এগুলো ডিজাইনে ছিল না)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>ইন্টিগ্রেটেড:</strong> ড্যাশবোর্ডটি <code>Promise.allSettled</code> দিয়ে ৫টি আলাদা ব্যাকএন্ড এপিআই কল করে রিয়েল ডেটা সফলভাবে রেন্ডার করছে।</li>
+</ul>
+<hr />
+<h3 id="conversations-unified-inbox-conversations-unified-conversation">[পেজ ০৬] Conversations &amp; Unified Inbox (<code>/conversations</code>, <code>/unified-conversation</code>)</h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>বামদিকের থ্রেড লিস্ট:</strong> সার্চ বার (<code>placeholder="Search messages..."</code>), ফিল্টার ড্রপডাউন (All, Unread, SMS, WhatsApp, Email), চ্যানেল আইকন।</li>
+<li><strong>চ্যাট হেডার:</strong> কাস্টমার নাম, ফোন নম্বর, অ্যাসাইন করা টিম মেম্বার ড্রপডাউন, Archive বাটন, Delete বাটন।</li>
+<li><strong>মেসেজ ভিউয়ার:</strong> ইনকামিং ও আউটগোয়িং মেসেজ বাবলস, টাইমস্ট্যাম্প, ডেলিভারি টিক্স (Sent, Delivered, Read), ইমেজ/ফাইল প্রিভিউয়ার।</li>
+<li><strong>মেসেজ কম্পোজার ইনপুট:</strong><ul>
+<li>টেক্সট ইনপুট (<code>textarea[placeholder="Type a message..."]</code>)</li>
+<li><strong>AI Compose বাটন (✨):</strong> ক্লিক করলে প্রম্পট ড্রপডাউন খোলে (Professional, Friendly, Urgent, Follow-up)।</li>
+<li><strong>Voice Dictation বাটন (🎙️):</strong> ক্লিক করলে ব্রাউজার মাইক রেকর্ড করে অডিও টেক্সটে পরিণত করে।</li>
+<li>ফাইল অ্যাটাচমেন্ট আইকন (PDF, ইমেজ আপলোড)।</li>
+<li>সেন্ড বাটন।</li>
+</ul>
+</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/smartflow/conversations</code> (থ্রেড লিস্ট ও ফিল্টারিং)</li>
+<li><code>GET /api/v1/smartflow/conversations/{id}/messages</code> (মেসেজ হিস্টোরি)</li>
+<li><code>POST /api/v1/smartflow/messages</code> (নতুন মেসেজ পাঠানো)</li>
+<li><code>POST /api/v1/smartflow/ai/compose</code> (AI দিয়ে রিপ্লাই তৈরি)</li>
+<li><code>POST /api/v1/smartflow/ai/transcribe</code> (ভয়েস ডিকটেশন থেকে টেক্সট)</li>
+<li><code>POST /api/v1/smartflow/conversations/{id}/mark-read</code></li>
+<li><code>PATCH /api/v1/smartflow/conversations/{id}/assign</code> (টিম মেম্বারকে এসাইন করা)</li>
+<li><code>PATCH /api/v1/smartflow/conversations/{id}/archive</code></li>
+<li><code>DELETE /api/v1/smartflow/conversations/{id}</code></li>
+<li><code>WebSocket /api/v1/smartflow/ws/conversations/{id}</code> (রিয়েল-টাইম চ্যাট সিঙ্ক)</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>মেসেজ শিডিউলিং (নির্দিষ্ট সময় পর মেসেজ পাঠানো — এটি বাল্ক মেসেজিংয়ে আছে, কিন্তু ১-টু-১ চ্যাটে নেই)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>১০০% ইন্টিগ্রেটেড:</strong> ওমনিচ্যানেল মেসেজিং, AI কম্পোজ এবং ফাইল আপলোড ব্যাকএন্ডের সাথে সম্পূর্ণ লাইভ।</li>
+</ul>
+<hr />
+<h3 id="calls-voice-ai-receptionist-calls-ai-call-voice-conversation">[পেজ ০৭] Calls &amp; Voice AI Receptionist (<code>/calls</code>, <code>/ai-call</code>, <code>/voice-conversation</code>)</h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>ডায়াল প্যাড (Dialer):</strong> ফোন নম্বর ইনপুট (<code>input[type="tel"]</code>), কল বাটন, স্পিকার/মাইক মিউট টগল।</li>
+<li><strong>কল অ্যানালিটিক্স বার:</strong> Total Calls, Average Call Duration, Missed Calls, AI Handled Calls।</li>
+<li><strong>কল হিস্টোরি টেবিল:</strong> কলারের নাম/নম্বর, তারিখ ও সময়, কলের ধরন (Inbound/Outbound), ডিউরেশন, স্ট্যাটাস (Completed, Missed)।</li>
+<li><strong>কল ডিটেইলস মোডাল:</strong><ul>
+<li>অডিও প্লেয়ার (Play/Pause, Seekbar, Download Recording বাটন)।</li>
+<li>সম্পূর্ণ অডিও ট্রান্সক্রিপ্ট (স্পিকার ডায়ালগ সহ)।</li>
+<li><strong>AI Summary বক্স:</strong> কলের সারাংশ ও কাস্টমারের উদ্দেশ্য (Lead Intent)।</li>
+<li>Request Callback বাটন।</li>
+</ul>
+</li>
+<li><strong>AI Receptionist কনফিগারেশন পেজ (<code>/ai-call</code>):</strong><ul>
+<li>AI Voice নির্বাচন ড্রপডাউন (Alloy, Echo, Fable, Onyx, Nova, Shimmer)।</li>
+<li>Greeting Message (<code>textarea</code>).</li>
+<li>System Prompt / Instruction (<code>textarea</code>).</li>
+<li>Transfer Call Phone Number (<code>input[name="transfer_number"]</code>).</li>
+<li>টেস্ট কল বাটন ("Test AI Receptionist Now")।</li>
+</ul>
+</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/smartflow/calls</code> (কল লিস্ট)</li>
+<li><code>GET /api/v1/smartflow/calls/{id}/transcript</code> (ট্রান্সক্রিপ্ট)</li>
+<li><code>GET /api/v1/smartflow/calls/{id}/ai-summary</code> (এআই সামারি)</li>
+<li><code>GET /api/v1/smartflow/calls/{id}/recording</code> (অডিও ফাইল)</li>
+<li><code>POST /api/v1/smartflow/calls/outbound</code> (আউটবাউন্ড কল শুরু)</li>
+<li><code>GET/PATCH /api/v1/smartflow/ai-call-settings</code> (ভয়েস সেটিংস)</li>
+<li><code>WebSocket /api/v1/calls/stream/{call_id}</code> (লাইভ ভয়েস অডিও স্ট্রিমিং)</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>কল চলাকালীন লাইভ কল বাজের (Barge-in / মানব এজেন্টের সরাসরি ফোনে কথা বলে টেক-ওভার করা)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>ইন্টিগ্রেটেড:</strong> কল হিস্টোরি, অডিও প্লেব্যাক, ট্রান্সক্রিপ্ট এবং এআই সামারি সম্পূর্ণ লাইভ ডেটা দিয়ে কাজ করে।</li>
+<li>⚠️ <strong>আংশিক:</strong> ব্রাউজার থেকে সরাসরি ওয়েবআরটিসি দিয়ে ফোনে কথা বলার ফিচারটি ব্যাকএন্ডের মাধ্যমে আউটবাউন্ড কল ট্রিগার করে, তবে ব্রাউজারে ইনকামিং কল রিং হওয়ার জন্য Telnyx WebRTC SDK কনফিগারেশন প্রয়োজন।</li>
+</ul>
+<hr />
+<h3 id="contacts-crm-contacts-contactsjsx">[পেজ ০৮] Contacts CRM (<code>/contacts</code>) — <code>Contacts.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>সার্চ ও ফিল্টার বার:</strong> নাম/ফোন দিয়ে সার্চ, কোম্পানি অনুযায়ী ফিল্টার, ট্যাগ ফিল্টার।</li>
+<li><strong>Add Contact মোডাল:</strong><ul>
+<li>First Name (<code>input[placeholder="e.g. Alex"]</code>)</li>
+<li>Last Name (<code>input[placeholder="e.g. Thompson"]</code>)</li>
+<li>Phone Number (<code>input[placeholder="+1 (415) 555-0123"]</code>)</li>
+<li>Email Address (<code>input[placeholder="alex.t@lumina.ai"]</code>)</li>
+<li>Street Address (<code>input[placeholder="123 Innovation Drive, San Francisco, CA"]</code>)</li>
+<li>Tags ইনপুট (চিপস ইনপুট)</li>
+<li>Custom Notes (<code>textarea</code>)</li>
+<li>Avatar Image Uploader</li>
+</ul>
+</li>
+<li><strong>ইম্পোর্ট/এক্সপোর্ট টুলস:</strong> "Export CSV" বাটন, "Import CSV" ড্রপজোন ফাইল ড্রপ।</li>
+<li><strong>কন্ট্যাক্ট প্রোফাইল স্লাইড-ওভার:</strong> কন্ট্যাক্টের আগের সব চ্যাট, কল হিস্টোরি ও ডকুমেন্টস তালিকা।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/smartflow/contacts</code> (প্যাজিনেশন ও ফিল্টারিং সহ)</li>
+<li><code>POST /api/v1/smartflow/contacts</code> (নতুন কন্ট্যাক্ট)</li>
+<li><code>PATCH /api/v1/smartflow/contacts/{id}</code> (আপডেট)</li>
+<li><code>DELETE /api/v1/smartflow/contacts/{id}</code> (ডিলিট)</li>
+<li><code>POST /api/v1/smartflow/contacts/{id}/avatar</code> (ছবি আপলোড)</li>
+<li><code>POST /api/v1/smartflow/contacts/import</code> (CSV বাল্ক ইম্পোর্ট)</li>
+<li><code>GET /api/v1/smartflow/contacts/export</code> (CSV ডাউনলোড)</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>কন্ট্যাক্টের সোশ্যাল মিডিয়া প্রোফাইল অটো-এনরিচমেন্ট (Clearbit / Apollo API ইন্টিগ্রেশন)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>১০০% ফুল্লি ইন্টিগ্রেটেড:</strong> সকল ফর্ম ফিল্ড সরাসরি ডাটাবেসে সেভ ও রিড হচ্ছে।</li>
+</ul>
+<hr />
+<h3 id="groups-audience-groups-groupsjsx">[পেজ ০৯] Groups &amp; Audience (<code>/groups</code>) — <code>Groups.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>গ্রুপ লিস্ট ও মেট্রিক্স:</strong> মোট গ্রুপ সংখ্যা, মেম্বার সংখ্যা, আনরিড মেসেজ ব্যাজ।</li>
+<li><strong>Create Group মোডাল:</strong> Group Name (<code>input</code>), Description (<code>textarea</code>), Avatar URL (<code>input</code>), প্রাথমিক মেম্বার নির্বাচন চেকবক্স।</li>
+<li><strong>গ্রুপ চ্যাট এরিয়া:</strong> গ্রুপে মেসেজ পাঠানো, মেম্বার লিস্ট দেখা, Add Member মোডাল, Remove Member অ্যাকশন।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/smartflow/groups</code></li>
+<li><code>POST /api/v1/smartflow/groups</code></li>
+<li><code>PATCH /api/v1/smartflow/groups/{id}</code></li>
+<li><code>DELETE /api/v1/smartflow/groups/{id}</code></li>
+<li><code>POST /api/v1/smartflow/groups/{id}/members</code> (মেম্বার যোগ)</li>
+<li><code>DELETE /api/v1/smartflow/groups/{id}/members/{mid}</code> (মেম্বার বাতিল)</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>১০০% ফুল্লি ইন্টিগ্রেটেড।</strong></li>
+</ul>
+<hr />
+<h3 id="calendar-appointments-calendar-calendarjsx">[পেজ ১০] Calendar &amp; Appointments (<code>/calendar</code>) — <code>Calendar.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>ক্যালেন্ডার গ্রিড:</strong> Month, Week, Day ভিউ টগল।</li>
+<li><strong>Create Appointment মোডাল:</strong><ul>
+<li>Title (<code>input[name="title"]</code>)</li>
+<li>Date Picker (<code>starts_at</code>, <code>ends_at</code>)</li>
+<li>Time Slot ড্রপডাউন</li>
+<li>Client Selector (কন্ট্যাক্টস ড্রপডাউন থেকে সিলেক্ট করা)</li>
+<li>Location / Meeting URL (<code>input</code>)</li>
+<li>Notes (<code>textarea</code>)</li>
+</ul>
+</li>
+<li><strong>ক্যালেন্ডার প্রোভাইডার সেটিংস ড্রপডাউন:</strong> Google Calendar, CalDAV / Apple iCloud।</li>
+<li><strong>CalDAV কানেকশন মোডাল:</strong> Email Username (<code>input[placeholder="you@icloud.com"]</code>), App-Specific Password (<code>input[placeholder="xxxx-xxxx-xxxx-xxxx"]</code>), Server URL।</li>
+<li><strong>শেয়ার বাটন:</strong> কাস্টমারদের জন্য ইউনিক সেলফ-শিডিউলিং লিংক কপি করা।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/smartflow/calendar/events</code></li>
+<li><code>POST /api/v1/smartflow/calendar/events</code></li>
+<li><code>PATCH /api/v1/smartflow/calendar/events/{id}</code></li>
+<li><code>DELETE /api/v1/smartflow/calendar/events/{id}</code></li>
+<li><code>GET/PUT /api/v1/smartflow/calendar/business-hours</code></li>
+<li><code>GET/PUT /api/v1/smartflow/calendar/provider-settings</code></li>
+<li><code>GET /api/v1/public/meeting-requests/confirm/{token}</code></li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>Microsoft Outlook / Office 365 ডিরেক্ট ক্যালেন্ডার সিঙ্ক (গুগল এবং ক্যালড্যাভ আছে)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>ইন্টিগ্রেটেড:</strong> ইন্টারনাল ইভেন্টস এবং গুগল ক্যালেন্ডার সিঙ্ক সক্রিয়।</li>
+<li>⚠️ <strong>ইস্যু:</strong> CalDAV কানেক্ট করার এপিআই কলটিতে সার্ভার সাইডে ট্রাই-ক্যাচ হ্যান্ডলার না থাকায় ভুল পাসওয়ার্ডে HTTP 500 এরর দেয়।</li>
+</ul>
+<hr />
+<h3 id="bulk-messaging-broadcasts-bulk-messaging-bulkmessagingjsx">[পেজ ১১] Bulk Messaging &amp; Broadcasts (<code>/bulk-messaging</code>) — <code>BulkMessaging.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>চ্যানেল সিলেক্টর:</strong> SMS, WhatsApp, Email রেডিও/ট্যাব।</li>
+<li><strong>অডিয়েন্স সিলেক্টর:</strong> "All Contacts", "Specific Group", বা "By Tag"।</li>
+<li><strong>মেসেজ কম্পোজার:</strong><ul>
+<li>Email Subject (<code>input[name="subject"]</code> - শুধুমাত্র ইমেইল চ্যানেলের জন্য)</li>
+<li>Message Body (<code>textarea</code>)</li>
+<li>Dynamic Tags ইনসার্ট বাটন: <code>{first_name}</code>, <code>{company}</code>, <code>{phone}</code></li>
+<li><strong>AI Improve Content বাটন (✨):</strong> ক্লিক করলে AI দিয়ে ড্রাফট প্রফেশনাল ও আকর্ষণীয় করা হয়।</li>
+<li>অ্যাটাচমেন্ট ফাইল আপলোড বাটন</li>
+</ul>
+</li>
+<li><strong>ক্যাম্পেইন হিস্টোরি ও অ্যানালিটিক্স টেবিল:</strong> Campaign Name, Channel, Recipients Count, Sent Time, Status (Draft, Scheduled, Sent, Failed)।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/smartflow/bulk-messages</code></li>
+<li><code>POST /api/v1/smartflow/bulk-messages</code></li>
+<li><code>POST /api/v1/smartflow/bulk-messages/attachments</code></li>
+<li><code>POST /api/v1/smartflow/bulk-messages/improve-content</code></li>
+<li><code>POST /api/v1/smartflow/bulk-messages/{id}/send</code></li>
+<li><code>POST /api/v1/smartflow/bulk-messages/{id}/cancel</code></li>
+<li><code>POST /api/v1/email/draft</code></li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>A/B টেস্টিং ক্যাম্পেইন (একই সাথে দুটি ভিন্ন মেসেজ পাঠিয়ে কনভার্সন ট্র্যাক করা)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>১০০% ইন্টিগ্রেটেড:</strong> এসএমএস ও ইমেইল ব্রডকাস্ট ব্যাকএন্ড সার্ভিস দিয়ে সম্পূর্ণ কার্যকর।</li>
+</ul>
+<hr />
+<h3 id="documents-agreements-leases-documents-sign">[পেজ ১২] Documents, Agreements &amp; Leases (<code>/documents</code>, <code>/sign</code>)</h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>ট্যাব ন্যাভিগেশন:</strong> Agreements (চুক্তি), Leases (লিজ), Documents (ফাইলস)।</li>
+<li><strong>Create Agreement মোডাল:</strong><ul>
+<li>Document Title (<code>input</code>)</li>
+<li>Client Name ও Client Email (<code>input</code>)</li>
+<li>Agreement Type ড্রপডাউন (NDA, Service Agreement, Partnership, Consulting)</li>
+<li>Agreement Body Content (<code>textarea</code>)</li>
+<li>AI Improve Draft বাটন</li>
+<li>Expiration Date Picker</li>
+</ul>
+</li>
+<li><strong>Create Lease মোডাল:</strong><ul>
+<li>Property Address (<code>input</code>)</li>
+<li>Tenant Name ও Email (<code>input</code>)</li>
+<li>Monthly Rent ($) ও Security Deposit ($)</li>
+<li>Lease Start Date ও End Date</li>
+<li><strong>AI Enhance Terms বাটন:</strong> লিগ্যাল ক্লজ স্বয়ংক্রিয়ভাবে ইনসার্ট করা।</li>
+</ul>
+</li>
+<li><strong>ডিজিটাল সাইন পেজ (<code>/sign/:docType/:token</code>):</strong><ul>
+<li>ডকুমেন্ট প্রিভিউয়ার (PDF ভিউয়ার)।</li>
+<li>সিগনেচার প্যাড (মাউস/টাচ দিয়ে ড্রয়িং অথবা টাইপ করা সিগনেচার)।</li>
+<li>"I agree to legally binding electronic signature" চেকবক্স।</li>
+<li>Submit Signature বাটন।</li>
+</ul>
+</li>
+<li><strong>ডাউনলোড বাটনস:</strong> Download PDF, Download Signed Copy, Download Certificate of Completion।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li>৫২টি এন্ডপয়েন্ট (Folder 08-এর সম্পূর্ণ এগ্রিমেন্ট ও লিজ ক্রুড, পিডিএফ জেনারেশন ও সাইনিং)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>১০০% ফুল্লি ইন্টিগ্রেটেড:</strong> ডিজিটাল ই-সাইন এবং ক্রিপ্টোগ্রাফিক হ্যাশ অডিট ট্রেইল সম্পূর্ণ লাইভ।</li>
+</ul>
+<hr />
+<h3 id="ai-workflow-builder-ai-workflow-aiworkflowjsx">[পেজ ১৩] AI Workflow Builder (<code>/ai-workflow</code>) — <code>AIWorkflow.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>প্রম্পট ইনপুট:</strong> "Describe the workflow you want to automate..." (<code>textarea</code>)</li>
+<li><strong>ওয়ার্কফ্লো প্রিভিউ কার্ডস:</strong> ট্রিগার ও অ্যাকশন স্টেপস কার্ডস।</li>
+<li><strong>AI Image Generator কার্ড:</strong> Image Prompt Input, Image Style (Realistic, 3D, Anime), Generate বাটন।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>POST /api/v1/smartflow/ai/workflow-prefill</code> (প্রম্পট থেকে ওয়ার্কফ্লো স্ট্রাকচার তৈরি)</li>
+<li><code>POST /api/v1/smartflow/ai/generate-image</code> (DALL-E ইমেজ জেনারেটর)</li>
+<li><code>POST /api/v1/smartflow/ai/chat</code></li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>একটি সম্পূর্ণ ভিজ্যুয়াল ড্র্যাগ-এন্ড-ড্রপ নোড গ্রিড এডিটর (যেমন: n8n বা Make.com এর মতো ক্যানভাস) যা ডাটাবেসে সেভ হয়ে ইনকামিং কল চলাকালীন ডিসিশন ট্রি এক্সিকিউট করবে।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>⚠️ <strong>আংশিক:</strong> প্রি-ফিল প্রম্পট ও ইমেজ জেনারেশন ইন্টিগ্রেটেড, কিন্তু ওয়ার্কফ্লো পারসিস্টেন্স রুল ইঞ্জিন মিসিং।</li>
+</ul>
+<hr />
+<h3 id="integrations-hub-integrations-integrationsjsx">[পেজ ১৪] Integrations Hub (<code>/integrations</code>) — <code>Integrations.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>টেলিনিক্স (Telnyx) কার্ড:</strong> Phone Number, Status (Connected), Buy Number বাটন, Area Code Search ইনপুট।</li>
+<li><strong>WhatsApp কার্ড:</strong> Connect বাটন -&gt; কিউআর কোড (QR Code) মোডাল পপআপ ও অটো-রিফ্রেশ টাইমার।</li>
+<li><strong>টেলিগ্রাম (Telegram) কার্ড:</strong> Connect বাটন -&gt; Bot Token (<code>input</code>), Bot Username (<code>input</code>), Secret Token (<code>input</code>)।</li>
+<li><strong>Google Calendar কার্ড:</strong> Connect with Google বাটন।</li>
+<li><strong>Meta (Facebook/Instagram) কার্ড:</strong> OAuth কানেক্ট বাটন।</li>
+<li><strong>Stripe Connect কার্ড:</strong> "Setup Payouts" বাটন।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li>৩১টি এন্ডপয়েন্ট (Folder 10-এর সব ইন্টিগ্রেশন রাউট)।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>Slack বা Discord ওয়ার্কস্পেস নোটিফিকেশন ইন্টিগ্রেশন।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>ইন্টিগ্রেটেড:</strong> Telnyx নম্বর ম্যানেজমেন্ট এবং WhatsApp কিউআর কোড জেনারেশন সংযুক্ত।</li>
+<li>⚠️ <strong>ইস্যু:</strong> Telegram টোকেন টেস্টে ইনভ্যালিড থাকলে HTTP 502 দেয় এবং Stripe Connect সক্রিয় না থাকলে 503 দেয়।</li>
+</ul>
+<hr />
+<h3 id="invoices-billing-invoices-invoicesjsx">[পেজ ১৫] Invoices &amp; Billing (<code>/invoices</code>) — <code>Invoices.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>ইনভয়েস অ্যানালিটিক্স:</strong> Total Invoiced, Paid Amount, Overdue Amount, Outstanding Balance।</li>
+<li><strong>Create Invoice মোডাল:</strong><ul>
+<li>Client Name (<code>input[name="client_name"]</code>)</li>
+<li>Client Email (<code>input[placeholder="client@example.com"]</code>)</li>
+<li>Client Address (<code>input[placeholder="123 Business St, City, Country"]</code>)</li>
+<li>Issue Date ও Due Date</li>
+<li>Currency ড্রপডাউন (USD, EUR, GBP, CAD)</li>
+<li>Line Items ডায়নামিক টেবিল: Item Description, Quantity, Unit Price, Tax %</li>
+<li>Subtotal, Tax, ও Total অটো-ক্যালকুলেশন</li>
+<li>Payment Terms ও Notes</li>
+</ul>
+</li>
+<li><strong>ইনভয়েস অ্যাকশন বাটন:</strong> Send Email Invoice, Copy Payment Link, Send Reminder, Record Payment, Download PDF।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/invoices</code></li>
+<li><code>POST /api/v1/invoices</code></li>
+<li><code>PATCH /api/v1/invoices/{id}</code></li>
+<li><code>DELETE /api/v1/invoices/{id}</code></li>
+<li><code>POST /api/v1/invoices/{id}/send</code> (ইমেইলে ইনভয়েস পাঠানো)</li>
+<li><code>POST /api/v1/invoices/{id}/remind</code> (রিমাইন্ডার পাঠানো)</li>
+<li><code>GET /api/v1/invoices/{id}/pdf</code> (পিডিএফ তৈরি)</li>
+<li><code>POST /api/v1/invoices/{id}/payment-link</code> (স্ট্রাইপ পেমেন্ট লিংক জেনারেশন)</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>১০০% ফুল্লি ইন্টিগ্রেটেড:</strong> ইনভয়েস সৃষ্টি, পিডিএফ ডাউনলোড এবং ইমেইল রিমাইন্ডার লাইভ।</li>
+</ul>
+<hr />
+<h3 id="add-on-shop-shop-shopjsx">[পেজ ১৬] Add-on Shop (<code>/shop</code>) — <code>Shop.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>প্রোডাক্ট ক্যাটালগ কার্ডস:</strong> অতিরিক্ত ফোন নম্বর ($5/mo), ১,০০০ এআই ভয়েস মিনিট ($25), ৫,০০০ বাল্ক এসএমএস ($30)।</li>
+<li><strong>পারচেজ মোডাল:</strong><ul>
+<li>Cardholder Name (<code>input</code>)</li>
+<li>Card Expiry (<code>input[placeholder="MM/YY"]</code>)</li>
+<li>Card CVC (<code>input[placeholder="CVC"]</code>)</li>
+<li>Purchase Confirm বাটন</li>
+</ul>
+</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/shop/products</code> (পাবলিক ক্যাটালগ)</li>
+<li><code>GET/POST/PATCH/DELETE /api/v1/shop/admin/products</code> (এডমিন প্রোডাক্ট ক্রুড)</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>শপের কার্ট বা কুপন/ডিসকাউন্ট কোড সিস্টেম।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>⚠️ <strong>আংশিক:</strong> ক্যাটালগ লিস্ট ব্যাকএন্ড থেকে আসে, কিন্তু চেকআউট মোডালে সরাসরি ক্রেডিট কার্ডের CVC ইনপুট নেওয়া হচ্ছে যা স্ট্রাইপ সিকিউরিটির জন্য ঝুঁকিপূর্ণ (স্ট্রাইপ চেকআউট সেশন বা স্ট্রাইপ এলিমেন্টস ব্যবহার করা উচিত)।</li>
+</ul>
+<hr />
+<h3 id="social-post-creator-create-post-createpostjsx">[পেজ ১৭] Social Post Creator (<code>/create-post</code>) — <code>CreatePost.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>পোস্ট কনটেন্ট টেক্সট এরিয়া:</strong> (<code>textarea[placeholder="What would you like to share?"]</code>)</li>
+<li><strong>AI Caption Generator:</strong> Prompt ইনপুট ও Generate বাটন।</li>
+<li><strong>প্ল্যাটফর্ম টগলস:</strong> Facebook, Instagram, LinkedIn, X/Twitter চেকবক্স।</li>
+<li><strong>শিডিউলিং অপশন:</strong> "Post Now" রেডিও অথবা "Schedule for Later" ডেট-টাইম পিকার।</li>
+<li>ইমেজ আপলোডার।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>POST /api/v1/smartflow/social-posts</code> (পোস্ট শিডিউল করা)</li>
+<li><code>GET /api/v1/smartflow/social-posts</code> (পোস্ট হিস্টোরি)</li>
+<li><code>POST /api/v1/smartflow/ai/chat</code> (ক্যাপশন তৈরি)</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>ইন্টিগ্রেটেড:</strong> শিডিউল পোস্ট ডাটাবেসে সেভ হচ্ছে। (মেটা টোকেন কানেক্টেড থাকলে লাইভ পোস্ট হয়)।</li>
+</ul>
+<hr />
+<h3 id="admin-panel-admin-adminpaneljsx">[পেজ ১৮] Admin Panel (<code>/admin</code>) — <code>AdminPanel.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>সিস্টেম ওভারভিউ মেট্রিক্স:</strong> Total Registered Users, Monthly Revenue, Active Subscriptions, AI Usage Logs।</li>
+<li><strong>ইউজার লিস্ট টেবিল:</strong> User Name, Email, Role, Subscription Plan, Status, Actions (Block/Unblock)।</li>
+<li><strong>ট্রানজ্যাকশন লিস্ট:</strong> Payment ID, User, Amount, Date, Status।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li>১২৪টি এন্ডপয়েন্ট (Folder 14-এর সম্পূর্ণ ওনার ও সুপার এডমিন স্যুট)।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো নাই:</strong></li>
+<li>কোনো অভাব নেই, ব্যাকএন্ড বিশাল।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>⚠️ <strong>গুরুত্বপূর্ণ গ্যাপ:</strong> ওয়েবসাইটের <code>AdminPanel.jsx</code> ফাইলটি মাত্র ৮৯ লাইনের একটি সংক্ষিপ্ত ভিউ যা শুধুমাত্র ৪টি এপিআই কল করে। ব্যাকএন্ডের বাকি ১২০টি এডমিন এপিআই (RBAC রোল ম্যাট্রিক্স, ডেমো রিকোয়েস্ট এক্সেপ্ট/রিজেক্ট, অর্গানাইজেশন ম্যানেজমেন্ট) এই পেজে অনুপস্থিত; সেগুলো মূলত অন্য অ্যাপ <code>madbel-dashboard</code>-এ রয়েছে।</li>
+</ul>
+<hr />
+<h3 id="profile-security-settings-profile">[পেজ ১৯] Profile &amp; Security Settings (<code>/profile</code>)</h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li><strong>কোম্পানি প্রোফাইল ট্যাব:</strong> Business Name, Address, Support Phone, Website URL, Business Hours, Timezone ড্রপডাউন, Company Logo আপলোড।</li>
+<li><strong>সিকিউরিটি ট্যাব:</strong> Current Password, New Password, Confirm Password, "Revoke All Other Sessions" বাটন, "Delete Account" ডেঞ্জার জোন বাটন।</li>
+<li><strong>কাস্টম ডোমেইন DNS ট্যাব:</strong> Domain Name (<code>input[name="domain"]</code>), জেনারেট হওয়া DKIM, SPF ও CNAME রেকর্ড টেবিল, "Verify DNS" বাটন।</li>
+<li><strong>নোটিফিকেশন প্রেফারেন্স:</strong> Email Alerts, Push Notifications, SMS Notifications টগলস।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li>৩০টি এন্ডপয়েন্ট (Folder 11-এর সকল প্রোফাইল ও সেটিংস রুট)।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>১০০% ফুল্লি ইন্টিগ্রেটেড:</strong> পাসওয়ার্ড পরিবর্তন, লোগো আপলোড এবং ডিএনএস ভ্যালিডেশন ব্যাকএন্ডের সাথে যুক্ত।</li>
+</ul>
+<hr />
+<h3 id="public-legal-help-pages-terms-and-conditions-etc-contentpagejsx">[পেজ ২০] Public Legal &amp; Help Pages (<code>/terms-and-conditions</code>, etc.) — <code>ContentPage.jsx</code></h3>
+<ul>
+<li><strong>ওয়েবসাইটে কী কী ফিল্ড ও UI রয়েছে:</strong></li>
+<li>ডাইনামিক রিড-অনলি কনটেন্ট রেন্ডারার (Privacy Policy, Terms of Service, SMS Policy, Acceptable Use, Refund Policy, About Us)।</li>
+<li><strong>ব্যাকএন্ডে কী কী বানানো আছে:</strong></li>
+<li><code>GET /api/v1/content/pages/{slug}</code> এবং ডেডিকেটেড স্লাগ রুটসমূহ।</li>
+<li><strong>ইন্টিগ্রেশন স্ট্যাটাস:</strong></li>
+<li>✅ <strong>১০০% ইন্টিগ্রেটেড:</strong> ডাটাবেসের <code>content_pages</code> কালেকশন থেকে লাইভ কনটেন্ট ফেচ করে রেন্ডার হয়।</li>
+</ul>
+<hr />
+<h2 id="3-backend-only-features">🏛️ 3. ব্যাকএন্ডে আছে কিন্তু ফ্রন্টএন্ডে নেই এমন ৪৬টি এন্ডপয়েন্ট (Backend Only Features)</h2>
+<p>নিচের ৪৬টি এন্ডপয়েন্ট ব্যাকএন্ডে সম্পূর্ণ কোড ও ডাটাবেস লজিক সহ তৈরি রয়েছে, কিন্তু ফ্রন্টএন্ডে এদের জন্য কোনো বাটন বা স্ক্রিন নেই:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মডিউল</th>
+<th style="text-align: left;">মেথড ও রুট পাথ</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম ও কাজ</th>
+<th style="text-align: left;">কেন ফ্রন্টএন্ডে নেই / ব্যবহারের ক্ষেত্র</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Auth &amp; Onboarding</strong></td>
+<td style="text-align: left;"><code>GET /api/v1/onboarding/slides</code></td>
+<td style="text-align: left;">মোবাইল অনবোর্ডিং স্লাইডস</td>
+<td style="text-align: left;">মোবাইল অ্যাপ (<code>madbel-mobile</code>) এর জন্য তৈরি, ওয়েব অ্যাপে স্লাইড স্ক্রিন নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Auth &amp; Onboarding</strong></td>
+<td style="text-align: left;"><code>GET /api/v1/onboarding/progress</code></td>
+<td style="text-align: left;">অনবোর্ডিং প্রগ্রেস ট্র্যাকার</td>
+<td style="text-align: left;">ওয়েব অনবোর্ডিং লোকাল রিঅ্যাক্ট স্টেটে থাকায় ব্যাকএন্ড কল করে না।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Auth &amp; Onboarding</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/onboarding/progress</code></td>
+<td style="text-align: left;">স্টেপ প্রগ্রেস সেভ</td>
+<td style="text-align: left;">ওয়েব অনবোর্ডিংয়ে সেভ বাটন নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Auth &amp; Onboarding</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/onboarding/complete</code></td>
+<td style="text-align: left;">অনবোর্ডিং কমপ্লিট ফ্ল্যাগ</td>
+<td style="text-align: left;">ওয়েব অনবোর্ডিংয়ে সরাসরি ড্যাশবোর্ডে রিডাইরেক্ট করে, কল করে না।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Auth &amp; Onboarding</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/onboarding/skip</code></td>
+<td style="text-align: left;">অনবোর্ডিং স্কিপ করা</td>
+<td style="text-align: left;">ওয়েব UI-তে স্কিপ বাটন নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Auth &amp; Onboarding</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/onboarding/reset</code></td>
+<td style="text-align: left;">অনবোর্ডিং রিসেট</td>
+<td style="text-align: left;">ডেভেলপার/টেস্টিং রুট, UI নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Auth &amp; Onboarding</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/auth/send-otp</code></td>
+<td style="text-align: left;">সরাসরি ইমেইল OTP রিকোয়েস্ট</td>
+<td style="text-align: left;">লগইন ফ্লোতে সরাসরি ব্যবহার না হয়ে ইন্টারনাল ফাংশনে চলে।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Auth &amp; Onboarding</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/auth/resend-otp</code></td>
+<td style="text-align: left;">পুনরায় OTP পাঠানো</td>
+<td style="text-align: left;">পাসওয়ার্ড রিসেট মডালে আলাদা রিসেন্ড বাটন কল নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Settings &amp; App</strong></td>
+<td style="text-align: left;"><code>GET /api/v1/app/config</code></td>
+<td style="text-align: left;">মোবাইল স্প্ল্যাশ স্ক্রিন কনফিগ</td>
+<td style="text-align: left;">মোবাইল অ্যাপের জন্য সংরক্ষিত।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Settings &amp; App</strong></td>
+<td style="text-align: left;"><code>GET /api/v1/app/permissions</code></td>
+<td style="text-align: left;">অ্যাপ পারমিশন প্রেফারেন্স</td>
+<td style="text-align: left;">মোবাইল পারমিশন হ্যান্ডলারের জন্য।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Settings &amp; App</strong></td>
+<td style="text-align: left;"><code>PUT /api/v1/app/permissions</code></td>
+<td style="text-align: left;">অ্যাপ পারমিশন আপডেট</td>
+<td style="text-align: left;">মোবাইল পারমিশন হ্যান্ডলারের জন্য।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Settings &amp; App</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/app/permissions/accept-all</code></td>
+<td style="text-align: left;">সকল পারমিশন এক ক্লিকে গ্রহণ</td>
+<td style="text-align: left;">মোবাইল অ্যাপের অনবোর্ডিং স্ক্রিন।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Settings &amp; App</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/smartflow/devices/push-token</code></td>
+<td style="text-align: left;">FCM পুশ নোটিফিকেশন টোকেন</td>
+<td style="text-align: left;">মোবাইল অ্যাপে পুশ নোটিফিকেশন পাঠানোর ডিভাইস রেজিস্ট্রেশন।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Shop Administration</strong></td>
+<td style="text-align: left;"><code>GET /api/v1/shop/admin/products</code></td>
+<td style="text-align: left;">এডমিন প্রোডাক্ট ক্যাটালগ</td>
+<td style="text-align: left;">এডমিনের জন্য প্রোডাক্ট ম্যানেজমেন্ট UI ওয়েবসাইটে নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Shop Administration</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/shop/admin/products</code></td>
+<td style="text-align: left;">এডমিন নতুন প্রোডাক্ট সৃষ্টি</td>
+<td style="text-align: left;">শপে নতুন এড-অন প্রোডাক্ট যোগ করার কোনো এডমিন স্ক্রিন নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Shop Administration</strong></td>
+<td style="text-align: left;"><code>GET /api/v1/shop/admin/products/table</code></td>
+<td style="text-align: left;">এডমিন প্রোডাক্ট টেবিল</td>
+<td style="text-align: left;">টেবিল ভিউ UI নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Shop Administration</strong></td>
+<td style="text-align: left;"><code>PATCH /api/v1/shop/admin/products/{id}</code></td>
+<td style="text-align: left;">প্রোডাক্ট প্রাইস/স্টক এডিট</td>
+<td style="text-align: left;">এডিট করার UI নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Shop Administration</strong></td>
+<td style="text-align: left;"><code>DELETE /api/v1/shop/admin/products/{id}</code></td>
+<td style="text-align: left;">প্রোডাক্ট ডিলিট</td>
+<td style="text-align: left;">প্রোডাক্ট ডিলিট করার UI নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Shop Administration</strong></td>
+<td style="text-align: left;"><code>PATCH /api/v1/shop/admin/products/{id}/status</code></td>
+<td style="text-align: left;">একটিভ/ইনঅ্যাক্টিভ টগল</td>
+<td style="text-align: left;">স্ট্যাটাস টগল UI নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>AI Workflows</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/ai/command</code></td>
+<td style="text-align: left;">সিএলআই / ব্যাকএন্ড কমান্ড রান</td>
+<td style="text-align: left;">প্রম্পটের মাধ্যমে সরাসরি কমান্ড চালানোর কোনো কনসোল UI নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Calls &amp; Voice</strong></td>
+<td style="text-align: left;"><code>GET /api/ai-call-analytics</code></td>
+<td style="text-align: left;">পুরনো ভয়েস অ্যানালিটিক্স</td>
+<td style="text-align: left;">নতুন <code>/calls/summary</code> ব্যবহৃত হওয়ায় পুরনো রুটটি অব্যবহৃত।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Calls &amp; Voice</strong></td>
+<td style="text-align: left;"><code>POST /api/calls/{callId}/callback</code></td>
+<td style="text-align: left;">পুরনো কলব্যাক রিকোয়েস্ট</td>
+<td style="text-align: left;">নতুন <code>/smartflow/calls/{id}/callback</code> ব্যবহৃত হচ্ছে।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Calendar</strong></td>
+<td style="text-align: left;"><code>POST /api/calendar/connect</code></td>
+<td style="text-align: left;">পুরনো ক্যালেন্ডার কানেক্ট</td>
+<td style="text-align: left;">নতুন <code>/smartflow/integrations/caldav</code> দ্বারা প্রতিস্থাপিত।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Calendar</strong></td>
+<td style="text-align: left;"><code>GET /api/calendar/events</code></td>
+<td style="text-align: left;">পুরনো ক্যালেন্ডার ইভেন্টস</td>
+<td style="text-align: left;">নতুন <code>/smartflow/calendar/events</code> দ্বারা প্রতিস্থাপিত।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Calendar</strong></td>
+<td style="text-align: left;"><code>POST /api/v1/calendar/schedule</code></td>
+<td style="text-align: left;">মিটিং শিডিউলার রুট</td>
+<td style="text-align: left;">পাবলিক শিডিউলার সরাসরি <code>public/meeting-requests</code> ব্যবহার করে।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Calendar</strong></td>
+<td style="text-align: left;"><code>GET /calendar/share/{share_token}</code></td>
+<td style="text-align: left;">পাবলিক ক্যালেন্ডার ইভেন্ট শেয়ার</td>
+<td style="text-align: left;">ব্যাকএন্ডে শেয়ার লিংক আছে কিন্তু ফ্রন্টএন্ডে রুট হ্যান্ডলার নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>System &amp; Webhooks</strong></td>
+<td style="text-align: left;"><code>POST /webhooks/telnyx/voice</code></td>
+<td style="text-align: left;">টেলিনিক্স ইনকামিং কল ওয়েববুক</td>
+<td style="text-align: left;">এটি সার্ভার-টু-সার্ভার রুট, কোনো ফ্রন্টএন্ড UI দরকার নেই।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>System &amp; Docs</strong></td>
+<td style="text-align: left;"><code>GET /docs</code>, <code>/redoc</code>, <code>/openapi.json</code></td>
+<td style="text-align: left;">সোয়াগার ও এপিআই ডক</td>
+<td style="text-align: left;">ডেভেলপার ডকুমেন্টেশন রুট।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>System &amp; Health</strong></td>
+<td style="text-align: left;"><code>GET /health</code>, <code>/ready</code></td>
+<td style="text-align: left;">কুবারনেটিস / ক্লাউড প্রোব</td>
+<td style="text-align: left;">ডেভঅপস ও মনিটরিং রুট।</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-third-party-integrations">🔌 4. থার্ড-পার্টি ইন্টিগ্রেশন স্ট্যাটাস অডিট (Third-Party Integrations)</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">সার্ভিস</th>
+<th style="text-align: left;">ব্যবহারের ক্ষেত্র</th>
+<th style="text-align: center;">ব্যাকএন্ড স্ট্যাটাস</th>
+<th style="text-align: center;">ফ্রন্টএন্ড স্ট্যাটাস</th>
+<th style="text-align: left;">সমস্যা বা গ্যাপ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Telnyx Voice (SIP)</strong></td>
+<td style="text-align: left;">ইনকামিং কল রিসিভ, ভয়েস এআই রিসেপশনিস্ট, আউটবাউন্ড কল</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">ব্রাউজারে সরাসরি কল রিসিভ করার WebRTC লাইব্রেরি যুক্ত করা প্রয়োজন।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Telnyx SMS</strong></td>
+<td style="text-align: left;">১-টু-১ টেক্সট মেসেজিং এবং বাল্ক ব্রডকাস্ট এসএমএস</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">কোনো সমস্যা নেই; ১০০% কাজ করছে।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>OpenAI Realtime API</strong></td>
+<td style="text-align: left;">ফোন কলে লাইভ স্পিচ-টু-স্পিচ রিসেপশনিস্ট হ্যান্ডলিং</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">ব্যাকএন্ডে সকেট রেডি; G.711 mu-law অডিও স্ট্রিমিং সচল।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>OpenAI GPT-4o-mini</strong></td>
+<td style="text-align: left;">AI Message Compose, Lease Review, Contract Drafting</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">কোনো সমস্যা নেই; চমৎকার আউটপুট দিচ্ছে।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Stripe Billing</strong></td>
+<td style="text-align: left;">প্ল্যাটফর্ম সাবস্ক্রিপশন প্ল্যান ও ইনভয়েস পেমেন্ট</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">ওয়েবহুক রিসিভার সহ পেমেন্ট ফ্লো কাজ করছে।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Stripe Connect</strong></td>
+<td style="text-align: left;">ক্লায়েন্ট/ভেন্ডরদের সরাসরি ব্যাংক একাউন্টে পেআউট</td>
+<td style="text-align: center;">⚠️ আংশিক</td>
+<td style="text-align: center;">⚠️ আংশিক</td>
+<td style="text-align: left;">স্ট্রাইপ অ্যাকাউন্টে Connect মোড সক্রিয় না থাকায় অনবোর্ডিংয়ে 503 দেয়।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Meta WhatsApp API</strong></td>
+<td style="text-align: left;">হোয়াটসঅ্যাপ কিউআর কোড স্ক্যান ও অফিসিয়াল মেসেজিং</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">কিউআর কোড জেনারেশন সচল; টেমপ্লেট মেসেজ ব্রডকাস্টে আরও কাজ দরকার।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Telegram Bot API</strong></td>
+<td style="text-align: left;">টেলিগ্রাম বট কানেক্ট ও দ্বিমুখী মেসেজ সিঙ্ক</td>
+<td style="text-align: center;">⚠️ আংশিক</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">ইনভ্যালিড বট টোকেনে ব্যাকএন্ডে 502 দেয় (ক্লিন ভ্যালিডেশন দরকার)।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Google Calendar</strong></td>
+<td style="text-align: left;">গুগল ক্যালেন্ডার ইভেন্টস দ্বিমুখী সিঙ্ক</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">OAuth ফ্লো ব্যাকএন্ডে কনফিগার করা।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>CalDAV (Apple iCloud)</strong></td>
+<td style="text-align: left;">অ্যাপল ক্যালেন্ডার সিঙ্ক</td>
+<td style="text-align: center;">⚠️ বাগ</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">ব্যাকএন্ডে ট্রাই-ক্যাচ না থাকায় কানেকশন ফেইল করলে HTTP 500 এরর দেয়।</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Resend / SMTP</strong></td>
+<td style="text-align: left;">ওটিপি, পাসওয়ার্ড রিসেট, ইনভয়েস ইমেইল ও ডোমেইন DNS</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: center;">✅ লাইভ</td>
+<td style="text-align: left;">DKIM, SPF ও CNAME ভ্যালিডেশন সহ সক্রিয়।</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-punchlist-recommendations">🎯 5. ভবিষ্যত ডেভেলপমেন্ট ও অ্যাকশন প্ল্যান (Punchlist Recommendations)</h2>
+<h3 id="frontend-punchlist">১. ফ্রন্টএন্ডের জন্য অগ্রাধিকার (Frontend Punchlist):</h3>
+<ol>
+<li><strong>Onboarding পেজ ফিক্স করা:</strong> <code>Onboarding.jsx</code>-এ ইউজার যে রোল এবং গোল ইনপুট দিচ্ছে, তা লোকাল টাইমার দিয়ে স্কিপ না করে ব্যাকএন্ডের <code>smartflowApi.updateBusinessProfile</code> এবং <code>complete</code> এপিআই-তে সেভ করা।</li>
+<li><strong>AI Receptionist ভিজ্যুয়াল বিল্ডার:</strong> ইউজার যেভাবে চেয়েছেন—একটি নোড-ভিত্তিক "AI Receptionist Builder" ইন্টারফেস তৈরি করা, যেখানে ড্রপডাউনে রুল সেট করা যাবে (<em>Emergency -&gt; Ask Address -&gt; Dispatch Technician -&gt; Send SMS</em>)।</li>
+<li><strong>শপ এডমিন প্যানেল তৈরি করা:</strong> ব্যাকএন্ডের <code>/api/v1/shop/admin/products</code> রুটের সাথে মিলিয়ে একটি এডমিন স্ক্রিন যুক্ত করা, যাতে নতুন প্রোডাক্ট বা এড-অন অ্যাড করা যায়।</li>
+<li><strong>শপ চেকআউট সিকিউরিটি:</strong> <code>Shop.jsx</code>-এ র' ক্রেডিট কার্ড ফিল্ডের বদলে Stripe Elements বা Stripe Checkout সেশন ব্যবহার করা।</li>
+</ol>
+<h3 id="backend-punchlist">২. ব্যাকএন্ডের জন্য অগ্রাধিকার (Backend Punchlist):</h3>
+<p><em>(নোট: আপনার নির্দেশ মতো এখন কোনো কোড পরিবর্তন করা হয়নি, এগুলো ভবিষ্যতের জন্য রেকমেন্ডেশন)</em>
+1. <strong>CalDAV কানেকশন হ্যান্ডলার:</strong> <code>POST /integrations/caldav/connect</code>-এ <code>try...except httpx.HTTPError</code> বসানো।
+2. <strong>টেলিগ্রাম বট ভ্যালিডেশন:</strong> <code>POST /integrations/telegram/manual-connect</code>-এ টেলিগ্রামের এররকে ৫MD এর বদলে ৪MD ইউজার ফ্রেন্ডলি মেসেজ হিসেবে রিটার্ন করা।
+3. <strong>ড্যাশবোর্ড কুয়েরি অপটিমাইজেশন:</strong> <code>/api/v1/smartflow/home</code> এন্ডপয়েন্টে ১২টি কুয়েরি ক্রমান্বয়ে চালানোর বদলে <code>asyncio.gather</code> ব্যবহার করে লেটেন্সি ৯.৭ সেকেন্ড থেকে ১ সেকেন্ডে নামিয়ে আনা।</p>
+</body>
+</html>

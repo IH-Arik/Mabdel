@@ -1,15 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  AlertTriangle, Building2, Camera, CheckCircle2, ChevronDown, ChevronUp, 
-  CreditCard, Cpu, Globe, Key, LifeBuoy, Loader2, LogOut, Mail, Mic, 
-  Phone, Play, Save, Shield, Trash2, TrendingUp, Upload, User, Lock,
-  ArrowUpRight, Wallet, Clock, DollarSign, Bell, Eye, EyeOff, Calendar
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { AlertTriangle, CheckCircle2, Key, Loader2, LogOut, Shield, Trash2, Lock, Eye, EyeOff } from 'lucide-react';
 import { smartflowApi } from '../../../api/services';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { INPUT, LABEL, Field, Badge, StatCard } from '../shared';
+import { INPUT, Field } from '../shared';
 import { useLanguage } from '../../../context/LanguageContext';
+
+function PwInput({ label, value, onChange, show, onToggle }) {
+  return (
+    <Field label={label}>
+      <div className="relative">
+        <input type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} className={`${INPUT} pr-11`} placeholder="••••••••" />
+        <button type="button" onClick={onToggle} className="absolute right-3 top-3.5 text-[#A4B0B7] hover:text-white">
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+    </Field>
+  );
+}
 
 function SecurityTab() {
   const { t } = useLanguage();
@@ -52,17 +59,6 @@ function SecurityTab() {
     try { await smartflowApi.deleteAccount(); logout(); }
     catch(err) { setError(err.response?.data?.message || t('sec_err_delete')); setDeleting(false); }
   }
-
-  const PwInput = ({ label, value, onChange, show, onToggle }) => (
-    <Field label={label}>
-      <div className="relative">
-        <input type={show?'text':'password'} value={value} onChange={e=>onChange(e.target.value)} className={`${INPUT} pr-11`} placeholder="••••••••"/>
-        <button type="button" onClick={onToggle} className="absolute right-3 top-3.5 text-[#A4B0B7] hover:text-white">
-          {show ? <EyeOff size={16}/> : <Eye size={16}/>}
-        </button>
-      </div>
-    </Field>
-  );
 
   return (
     <div className="space-y-6">

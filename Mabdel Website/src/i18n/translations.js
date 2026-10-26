@@ -716,7 +716,6 @@ export const TRANSLATIONS = {
     conv_assigned_to: "Assigned to",
     conv_status: "Status",
     conv_status_new: "New",
-    conv_status_read: "Read",
     conv_status_completed: "Completed",
     conv_mark_read: "Mark Read",
     conv_mark_complete: "Mark Complete",

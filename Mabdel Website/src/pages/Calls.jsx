@@ -14,13 +14,13 @@ import {
   RefreshCw,
   Search,
   Sparkles,
-  Volume2,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { smartflowApi } from '../api/services';
 import CallMeetingRequests from '../components/Calls/CallMeetingRequests';
+import ReceptionistWorkQueue from '../components/Calls/ReceptionistWorkQueue';
 import { useTelnyxVoice } from '../context/TelnyxVoiceContext';
 import { formatCstDateTime } from '../utils/dateUtils';
 import { useLanguage } from '../context/LanguageContext';
@@ -532,7 +532,7 @@ function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
     setError('');
     try {
       const response = await onCall(normalized, { purpose, script_notes: notes.trim() || null });
-      onSuccess(t('calls_success_call_started'), response);
+      onSuccess(response.data?.data?.approval_required ? 'Call request saved for approval. No call has been placed.' : t('calls_success_call_started'), response);
       onClose();
     } catch (requestError) {
       setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_call_failed'));
@@ -898,6 +898,7 @@ export default function Calls() {
       )}
 
       <CallMeetingRequests />
+      <ReceptionistWorkQueue />
 
       {!loading && <CallStats summary={summary} t={t} />}
 

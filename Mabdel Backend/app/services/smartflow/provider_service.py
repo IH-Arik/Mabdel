@@ -45,6 +45,7 @@ class ProviderService(SmartFlowBase):
             "name": payload["name"].strip(),
             "role_title": (payload.get("role_title") or "").strip() or None,
             "linked_user_id": linked_user_id,
+            "location_ids": await self._validate_resource_ids(user_id, self.db.business_locations, payload.get("location_ids"), "LOCATION_NOT_FOUND"),
             # Unset (None) means "always follows the business's own hours" - the
             # original, still-default behavior. Set only to restrict a specialist
             # further, e.g. a provider who only works Tue/Thu.
@@ -71,6 +72,8 @@ class ProviderService(SmartFlowBase):
             clean_updates["working_days"] = self._validate_working_days(updates["working_days"])
         if "working_hours" in updates:
             clean_updates["working_hours"] = updates["working_hours"]
+        if "location_ids" in updates:
+            clean_updates["location_ids"] = await self._validate_resource_ids(user_id, self.db.business_locations, updates["location_ids"], "LOCATION_NOT_FOUND")
         clean_updates["updated_at"] = utc_now()
         updated = await self.db.providers.find_one_and_update(
             {"_id": provider["_id"]}, {"$set": clean_updates}, return_document=ReturnDocument.AFTER
@@ -119,7 +122,8 @@ class ProviderService(SmartFlowBase):
             "duration_minutes": int(payload["duration_minutes"]),
             # Unset (None/empty) means "any provider can perform this type" - the
             # original, still-default behavior.
-            "eligible_provider_ids": payload.get("eligible_provider_ids") or None,
+            "eligible_provider_ids": await self._validate_resource_ids(user_id, self.db.providers, payload.get("eligible_provider_ids"), "PROVIDER_NOT_FOUND"),
+            "eligible_location_ids": await self._validate_resource_ids(user_id, self.db.business_locations, payload.get("eligible_location_ids"), "LOCATION_NOT_FOUND"),
             "active": True,
             "created_at": now,
             "updated_at": now,
@@ -136,7 +140,9 @@ class ProviderService(SmartFlowBase):
         if "duration_minutes" in clean_updates:
             clean_updates["duration_minutes"] = int(clean_updates["duration_minutes"])
         if "eligible_provider_ids" in updates:  # explicit None/[] is meaningful: open to any provider again
-            clean_updates["eligible_provider_ids"] = updates["eligible_provider_ids"] or None
+            clean_updates["eligible_provider_ids"] = await self._validate_resource_ids(user_id, self.db.providers, updates["eligible_provider_ids"], "PROVIDER_NOT_FOUND")
+        if "eligible_location_ids" in updates:
+            clean_updates["eligible_location_ids"] = await self._validate_resource_ids(user_id, self.db.business_locations, updates["eligible_location_ids"], "LOCATION_NOT_FOUND")
         clean_updates["updated_at"] = utc_now()
         updated = await self.db.appointment_types.find_one_and_update(
             {"_id": appointment_type["_id"]}, {"$set": clean_updates}, return_document=ReturnDocument.AFTER
@@ -171,3 +177,60 @@ class ProviderService(SmartFlowBase):
             {"user_id": {"$in": team_ids}, "active": True, "name": {"$regex": f"^{re.escape(name.strip())}$", "$options": "i"}}
         )
         return _serialize(document) if document else None
+
+    async def _validate_resource_ids(self, user_id, collection, ids, code):
+        if not ids:
+            return None
+        for resource_id in ids:
+            await self._get_team_document(collection, user_id, resource_id, code)
+        return list(dict.fromkeys(ids))
+
+    async def list_locations(self, user_id: str, *, active_only: bool = False) -> list[dict]:
+        filters = {"user_id": {"$in": await self._resolve_team_user_ids(user_id)}}
+        if active_only:
+            filters["active"] = True
+        return [_serialize(item) for item in await self.db.business_locations.find(filters).sort("name", 1).to_list(length=200)]
+
+    async def create_location(self, user_id: str, payload: dict) -> dict:
+        now = utc_now()
+        document = {**payload, "name": payload["name"].strip(), "user_id": user_id, "active": True, "created_at": now, "updated_at": now}
+        if not document["name"]:
+            raise AppException(status_code=400, code="LOCATION_NAME_REQUIRED", message="Enter a location name.")
+        await self._assert_unique_location_name(user_id, document["name"])
+        result = await self.db.business_locations.insert_one(document)
+        document["_id"] = result.inserted_id
+        return _serialize(document)
+
+    async def update_location(self, user_id: str, location_id: str, updates: dict) -> dict:
+        location = await self._get_team_document(self.db.business_locations, user_id, location_id, "LOCATION_NOT_FOUND")
+        if "name" in updates and updates["name"] is not None:
+            updates["name"] = updates["name"].strip()
+            if not updates["name"]:
+                raise AppException(status_code=400, code="LOCATION_NAME_REQUIRED", message="Enter a location name.")
+            await self._assert_unique_location_name(user_id, updates["name"], location_id)
+        updates["updated_at"] = utc_now()
+        result = await self.db.business_locations.find_one_and_update({"_id": location["_id"]}, {"$set": updates}, return_document=ReturnDocument.AFTER)
+        return _serialize(result)
+
+    async def delete_location(self, user_id: str, location_id: str) -> None:
+        # Retain a resolvable reference for historical appointments.
+        await self.update_location(user_id, location_id, {"active": False})
+
+    async def resolve_location_by_name(self, user_id: str, name: str | None) -> dict | None:
+        if not name or not name.strip():
+            return None
+        import re
+        document = await self.db.business_locations.find_one({
+            "user_id": {"$in": await self._resolve_team_user_ids(user_id)}, "active": True,
+            "name": {"$regex": f"^{re.escape(name.strip())}$", "$options": "i"},
+        })
+        return _serialize(document) if document else None
+
+    async def _assert_unique_location_name(self, user_id, name, exclude_id=None):
+        import re
+        from bson import ObjectId
+        filters = {"user_id": {"$in": await self._resolve_team_user_ids(user_id)}, "name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}}
+        if exclude_id:
+            filters["_id"] = {"$ne": ObjectId(exclude_id)}
+        if await self.db.business_locations.find_one(filters):
+            raise AppException(status_code=409, code="LOCATION_NAME_EXISTS", message="A location with this name already exists. Choose a distinct location name.")

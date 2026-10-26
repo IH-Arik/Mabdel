@@ -8,7 +8,6 @@ import {
   FileText,
   History,
   Loader2,
-  Menu,
   MessageSquare,
   Mic,
   MicOff,
@@ -44,21 +43,6 @@ const DESIRED_FIELDS = {
 const FALLBACK_VOICE = 'neutral_assistant';
 
 const getApiData = (response) => response?.data?.data || response?.data || response || {};
-
-const formatValue = (key, value, t) => {
-  if (isEmptyValue(value)) return null;
-  if (Array.isArray(value)) {
-    if (!value.length) return null;
-    if (key === 'items') {
-      return value
-        .map((item) => `${item.description || t('vcon_fallback_service')} x${item.quantity || 1} @ $${item.unit_price || 0}`)
-        .join(', ');
-    }
-    return value.join(', ');
-  }
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
-};
 
 const toMessageArray = (value) => {
   if (Array.isArray(value)) return value;

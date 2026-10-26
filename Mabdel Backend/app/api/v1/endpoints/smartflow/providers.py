@@ -4,6 +4,8 @@ from fastapi import Depends, status
 
 from app.dependencies import require_permission, require_subscription
 from app.schemas.smartflow import (
+    BusinessLocationCreateRequest,
+    BusinessLocationUpdateRequest,
     AppointmentTypeCreateRequest,
     AppointmentTypeUpdateRequest,
     ProviderCreateRequest,
@@ -98,3 +100,41 @@ async def delete_appointment_type(
 ) -> dict:
     await service.delete_appointment_type(str(current_user["_id"]), type_id)
     return success_response(data={"deleted": True}, message="Appointment type deleted successfully.")
+
+
+@router.get("/locations")
+async def list_locations(
+    current_user: dict = Depends(require_permission("calls", "view")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    return success_response(data=await service.provider_service.list_locations(str(current_user["_id"])), message="Locations fetched successfully.")
+
+
+@router.post("/locations", status_code=status.HTTP_201_CREATED)
+async def create_location(
+    payload: BusinessLocationCreateRequest,
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    _: dict = Depends(require_subscription),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    return success_response(data=await service.provider_service.create_location(str(current_user["_id"]), payload.model_dump()), message="Location created successfully.")
+
+
+@router.patch("/locations/{location_id}")
+async def update_location(
+    location_id: str, payload: BusinessLocationUpdateRequest,
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    _: dict = Depends(require_subscription),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    return success_response(data=await service.provider_service.update_location(str(current_user["_id"]), location_id, payload.model_dump(exclude_unset=True)), message="Location updated successfully.")
+
+
+@router.delete("/locations/{location_id}")
+async def delete_location(
+    location_id: str,
+    current_user: dict = Depends(require_permission("calls", "manage")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    await service.provider_service.delete_location(str(current_user["_id"]), location_id)
+    return success_response(data={"deleted": True}, message="Location deactivated successfully.")

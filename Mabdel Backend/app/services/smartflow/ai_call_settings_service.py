@@ -127,6 +127,7 @@ class AICallSettingsService(SmartFlowBase):
         "transfer_number": None,
         "voice_engine": "realtime",
         "sms_confirmations_enabled": True,
+        "request_sms_events": [],
         "appointment_reminders_enabled": False,
         "appointment_reminder_hours_before": 24,
         "sms_wording": {},
@@ -153,6 +154,7 @@ class AICallSettingsService(SmartFlowBase):
         require_meeting_approval = bool(org.get("require_meeting_approval", False))
         return {
             **self.merge_settings(org.get("ai_call_settings")),
+            "knowledge_documents": self.document_metadata(org.get("ai_receptionist_documents") or []),
             "require_meeting_approval": require_meeting_approval,
             "require_approval_for_reschedules": bool(org.get("require_approval_for_reschedules", require_meeting_approval)),
             "require_approval_for_cancellations": bool(org.get("require_approval_for_cancellations", False)),
@@ -167,7 +169,12 @@ class AICallSettingsService(SmartFlowBase):
         if not organization_id:
             return self.merge_settings(None)
         org = await self.db.organizations.find_one({"organization_id": organization_id})
-        return self.merge_settings((org or {}).get("ai_call_settings"))
+        settings = self.merge_settings((org or {}).get("ai_call_settings"))
+        documents = [doc for doc in (org or {}).get("ai_receptionist_documents", []) if doc.get("approved")]
+        if documents:
+            extracted = "\n\n".join(f"Approved document: {doc['filename']}\n{doc['text']}" for doc in documents)
+            settings["approved_document_knowledge"] = extracted
+        return settings
 
     async def update_settings(self, user_id: str, payload: dict) -> dict:
         organization_id = await self._resolve_organization_id(user_id)
@@ -183,6 +190,13 @@ class AICallSettingsService(SmartFlowBase):
         # never silently blanks the rest. None is a meaningful value here — it clears
         # a custom greeting back to the built-in one — so it is not filtered out.
         merged = {**current, **payload}
+        merged.pop("knowledge_documents", None)
+        for plan in merged.get("insurance_plans") or []:
+            for key in ("effective_from", "effective_until", "last_verified_at"):
+                value = plan.get(key)
+                if hasattr(value, "isoformat"):
+                    plan[key] = value.isoformat()
+
         merged["language_menu"] = self._validate_language_menu(merged.get("language_menu"))
         if merged.get("transfer_number"):
             merged["transfer_number"] = self._normalize_phone_value(merged["transfer_number"]) or None
@@ -216,6 +230,86 @@ class AICallSettingsService(SmartFlowBase):
             "require_approval_for_reschedules": require_approval_for_reschedules,
             "require_approval_for_cancellations": require_approval_for_cancellations,
         }
+
+    @staticmethod
+    def document_metadata(documents: list) -> list[dict]:
+        return [{key: doc.get(key) for key in ("id", "filename", "approved", "uploaded_at", "approved_at", "character_count")} for doc in documents]
+
+    async def _document_org(self, user_id: str) -> str:
+        organization_id = await self._resolve_organization_id(user_id)
+        if not organization_id:
+            raise AppException(status_code=422, code="NO_ORGANIZATION", message="Your account is not part of an organization.")
+        return organization_id
+
+    async def upload_knowledge_document(self, user_id: str, filename: str, content: bytes) -> dict:
+        from uuid import uuid4
+        from .receptionist_documents import extract_document_text
+        organization_id = await self._document_org(user_id)
+        text = await asyncio.to_thread(extract_document_text, filename, content)
+        doc = {"id": uuid4().hex, "filename": filename.replace("\\", "/").split("/")[-1][:180], "text": text,
+               "approved": False, "uploaded_at": utc_now(), "approved_at": None, "character_count": len(text)}
+        # A conditional atomic append prevents concurrent uploads exceeding the limit.
+        result = await self.db.organizations.update_one(
+            {"organization_id": organization_id, "ai_receptionist_documents.9": {"$exists": False}},
+            {"$push": {"ai_receptionist_documents": doc}, "$set": {"updated_at": utc_now()}})
+        if not result.matched_count:
+            raise AppException(status_code=422, code="KNOWLEDGE_DOCUMENT_LIMIT", message="Save your business settings first and keep at most 10 documents.")
+        return {**self.document_metadata([doc])[0], "preview": text}
+
+    async def search_approved_documents(self, organization_id: str | None, query: str) -> dict:
+        """Retrieve bounded verbatim excerpts across all approved organization documents."""
+        import re
+        if not organization_id:
+            return {"matches": [], "message": "No approved business documents available."}
+        stop_words = {"the", "a", "an", "and", "or", "to", "is", "are", "do", "does", "of", "for", "in", "on", "at", "what", "how", "can", "you", "your", "we", "our", "i", "me", "my", "about"}
+        terms = set(re.findall(r"[^\W_]+", (query or "")[:500].casefold())) - stop_words
+        if not terms:
+            return {"matches": [], "message": "Ask a specific question about the business documents."}
+        org = await self.db.organizations.find_one({"organization_id": organization_id}) or {}
+        candidates = []
+        for doc in org.get("ai_receptionist_documents", []):
+            if not doc.get("approved"):
+                continue
+            content = doc.get("text") or ""
+            # Overlap retains nearby context when a sentence spans chunk boundaries.
+            for offset in range(0, len(content), 700):
+                excerpt = content[max(0, offset - 100):offset + 800]
+                words = set(re.findall(r"[^\W_]+", excerpt.casefold()))
+                matched = terms & words
+                if matched:
+                    candidates.append((len(matched), doc["id"], offset, {
+                        "document_id": doc["id"], "filename": doc["filename"], "text": excerpt,
+                    }))
+        candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
+        matches = [item[3] for item in candidates[:6]]
+        return {"matches": matches, "message": "Use only the quoted facts; do not infer missing business policies." if matches else "No matching approved document facts found. Ask staff rather than guessing."}
+
+    async def get_knowledge_document(self, user_id: str, document_id: str) -> dict:
+        organization_id = await self._document_org(user_id)
+        org = await self.db.organizations.find_one({"organization_id": organization_id}) or {}
+        doc = next((item for item in org.get("ai_receptionist_documents", []) if item.get("id") == document_id), None)
+        if not doc:
+            raise AppException(status_code=404, code="KNOWLEDGE_DOCUMENT_NOT_FOUND", message="Document not found.")
+        return {**self.document_metadata([doc])[0], "preview": doc["text"]}
+
+    async def approve_knowledge_document(self, user_id: str, document_id: str, approved: bool) -> dict:
+        organization_id = await self._document_org(user_id)
+        result = await self.db.organizations.update_one(
+            {"organization_id": organization_id, "ai_receptionist_documents.id": document_id},
+            {"$set": {"ai_receptionist_documents.$.approved": approved,
+                      "ai_receptionist_documents.$.approved_at": utc_now() if approved else None,
+                      "updated_at": utc_now()}})
+        if not result.matched_count:
+            raise AppException(status_code=404, code="KNOWLEDGE_DOCUMENT_NOT_FOUND", message="Document not found.")
+        return await self.get_knowledge_document(user_id, document_id)
+
+    async def delete_knowledge_document(self, user_id: str, document_id: str) -> None:
+        organization_id = await self._document_org(user_id)
+        result = await self.db.organizations.update_one(
+            {"organization_id": organization_id, "ai_receptionist_documents.id": document_id},
+            {"$pull": {"ai_receptionist_documents": {"id": document_id}}, "$set": {"updated_at": utc_now()}})
+        if not result.matched_count:
+            raise AppException(status_code=404, code="KNOWLEDGE_DOCUMENT_NOT_FOUND", message="Document not found.")
 
     @staticmethod
     def _validate_language_menu(menu: list | None) -> list[dict]:

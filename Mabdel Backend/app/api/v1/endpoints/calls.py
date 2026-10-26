@@ -6,7 +6,7 @@ import asyncio
 import base64 as _base64
 import time
 
-from app.dependencies import get_current_user, get_mongo_database
+from app.dependencies import get_current_user, get_mongo_database, require_permission
 from app.schemas.call import CallActionRequest
 from app.services.call_service import CallService
 from app.services.smartflow_service import SmartFlowService
@@ -38,6 +38,30 @@ active_sessions: dict[str, AIPhoneAgent] = {}
 # which inbound call to bridge into or fall back to AI for.
 BROWSER_RING_TIMEOUT_SECONDS = 18
 pending_browser_rings: dict[str, str] = {}
+
+
+async def _answer_with_ai_permission(call_id: str, service: SmartFlowService) -> None:
+    """Apply the owner's answer permission on every browser fallback path."""
+    log = await service.db.call_logs.find_one({"twilio_call_sid": call_id})
+    user_id = (log or {}).get("user_id")
+    if user_id and user_id != "guest":
+        organization_id = await service._resolve_organization_id(user_id)
+        state = await service.resolve_capability(organization_id, "answer_calls")
+        if state == "disabled":
+            org = await service.db.organizations.find_one({"organization_id": organization_id})
+            target = ((org or {}).get("ai_call_settings") or {}).get("transfer_number")
+            if target:
+                await call_service.answer_call(call_id)
+                if await call_service.transfer_call(call_id, to_number=target):
+                    return
+            await call_service.hangup_call(call_id)
+            return
+        if state == "human_approval_required" and not (log or {}).get("ai_answer_approved"):
+            from app.services.smartflow.receptionist_action_service import ReceptionistActionService
+            await ReceptionistActionService(service.db).request(user_id, tool="answer_call", arguments={},
+                capabilities=["answer_calls"], call_id=call_id, caller_phone=(log or {}).get("from_number"))
+            return
+    await call_service.answer_call(call_id, websocket_url=call_service.build_media_stream_url(call_id))
 
 # Call recordings are far bigger than the images/documents MEDIA_MAX_UPLOAD_BYTES is
 # sized for (mp3 runs roughly 1MB a minute).
@@ -108,7 +132,7 @@ def get_voice_service(db: AsyncIOMotorDatabase = Depends(get_mongo_database)) ->
 async def call_action(
     call_sid: str,
     request: CallActionRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission("calls", "manage")),
     service: SmartFlowService = Depends(get_smartflow_service),
 ) -> dict:
     """
@@ -143,6 +167,12 @@ async def call_action(
             raise AppException(status_code=400, code="NO_FORWARDING_NUMBER", message="No forwarding number configured in profile")
         success = await call_service.transfer_call(call_sid, to_number=forward_to)
     elif request.action == "transfer_to_ai":
+        organization_id = await service._resolve_organization_id(str(user["_id"]))
+        if await service.resolve_capability(organization_id, "answer_calls") == "disabled":
+            raise AppException(status_code=403, code="PERMISSION_DENIED", message="The business owner has disabled AI call answering.")
+        # An explicit handoff by a calls:manage team member is a human approval.
+        approved_call_id = pending_browser_rings.get(call_sid) or call_sid
+        await service.db.call_logs.update_one({"twilio_call_sid": approved_call_id}, {"$set": {"ai_answer_approved": True}})
         if call_sid in pending_browser_rings:
             # call_sid is a browser ring leg that's still ringing (unanswered) --
             # start_streaming below only works on an already-answered call, so
@@ -152,9 +182,7 @@ async def call_action(
             # than waiting out BROWSER_RING_TIMEOUT_SECONDS.
             inbound_call_id = pending_browser_rings.pop(call_sid)
             await call_service.hangup_call(call_sid)
-            await call_service.answer_call(
-                inbound_call_id, websocket_url=call_service.build_media_stream_url(inbound_call_id)
-            )
+            await _answer_with_ai_permission(inbound_call_id, service)
             success = True
         else:
             success = await call_service.start_streaming(call_sid, websocket_url=call_service.build_media_stream_url(call_sid))
@@ -216,7 +244,7 @@ async def handle_telnyx_call_webhook(
             # Prewarmed at answer time but the media stream never opened.
             active_sessions.pop(call_id, None)
         if call_id in pending_browser_rings:
-            background_tasks.add_task(_handle_browser_ring_hangup, call_id, payload)
+            background_tasks.add_task(_handle_browser_ring_hangup, call_id, payload, service)
         else:
             # The caller may have abandoned the call while a browser ring was still
             # outstanding for it — stop ringing the team member for a call that's
@@ -230,7 +258,7 @@ async def handle_telnyx_call_webhook(
             background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
     elif event.event_type in {"call.answered", "call.bridged"}:
         if call_id in pending_browser_rings:
-            background_tasks.add_task(_handle_browser_ring_answered, call_id)
+            background_tasks.add_task(_handle_browser_ring_answered, call_id, service)
         else:
             background_tasks.add_task(_handle_call_status, service, call_id, event.event_type, payload)
     elif event.event_type == "call.dtmf.received":
@@ -358,10 +386,10 @@ async def _handle_incoming_call(
         logger.warning("Call %s: could not ring browser (%s), falling back to AI.", call_id, sip_target)
 
     # No one's live in the browser (or the bridge failed) — answer straight into the AI agent.
-    await call_service.answer_call(call_id, websocket_url=call_service.build_media_stream_url(call_id))
+    await _answer_with_ai_permission(call_id, service)
 
 
-async def _handle_browser_ring_answered(ring_leg_id: str) -> None:
+async def _handle_browser_ring_answered(ring_leg_id: str, service: SmartFlowService) -> None:
     """The team member picked up in their browser — bridge that leg into the
     original inbound call, which has been sitting unanswered (still "ringing" to
     the caller) this whole time."""
@@ -374,10 +402,10 @@ async def _handle_browser_ring_answered(ring_leg_id: str) -> None:
             "Call %s: browser answered but bridging to inbound call %s failed, falling back to AI.",
             ring_leg_id, inbound_call_id,
         )
-        await call_service.answer_call(inbound_call_id, websocket_url=call_service.build_media_stream_url(inbound_call_id))
+        await _answer_with_ai_permission(inbound_call_id, service)
 
 
-async def _handle_browser_ring_hangup(ring_leg_id: str, payload) -> None:
+async def _handle_browser_ring_hangup(ring_leg_id: str, payload, service: SmartFlowService) -> None:
     """The browser ring leg ended before anyone answered it. Two genuinely different
     cases, both arriving as call.hangup on the ring leg:
     - hangup_cause "timeout" — Telnyx's own timeout_secs on the dial fired because
@@ -395,7 +423,7 @@ async def _handle_browser_ring_hangup(ring_leg_id: str, payload) -> None:
     hangup_cause = (getattr(payload, "hangup_cause", None) or "").strip().lower()
     if hangup_cause == "timeout":
         logger.info("Call %s: browser ring timed out, falling back to AI.", inbound_call_id)
-        await call_service.answer_call(inbound_call_id, websocket_url=call_service.build_media_stream_url(inbound_call_id))
+        await _answer_with_ai_permission(inbound_call_id, service)
     else:
         logger.info("Call %s: browser explicitly declined (%s), ending the call.", inbound_call_id, hangup_cause)
         await call_service.hangup_call(inbound_call_id)

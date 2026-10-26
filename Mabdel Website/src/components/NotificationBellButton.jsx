@@ -2,7 +2,6 @@ import { Bell } from 'lucide-react';
 
 export default function NotificationBellButton({
   count = 0,
-  active = false,
   onClick,
   size = 18,
   strokeWidth = 2,

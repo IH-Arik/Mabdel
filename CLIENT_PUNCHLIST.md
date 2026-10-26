@@ -1,7 +1,7 @@
 # Client Punch List — AI Calling & Platform Fixes
 
 Tracking sheet for the client meeting recap items, worked one at a time on
-`need-verification` (synced to `master` after each item). Last updated: 2026-08-25.
+`need-verification` (synced to `master` after each item). Last updated: 2026-10-10.
 
 ## AI Calling
 
@@ -340,6 +340,102 @@ From the original meeting recap, not yet picked up:
 - Apple/Zoho Calendar integration
 - Call-recording-download XML error fix
 - Bulk Messaging group-email-population bug
+
+## AI Receptionist — advanced build-out (2026-09-30 to 2026-10-10)
+
+Separate thread from the items above: a full gap-analysis against the client's
+original AI-receptionist checklist, followed by building out everything that
+was still missing, one item at a time, each with new backend tests proving
+the old behavior failed first and a full regression before committing.
+
+- [x] **SMS appointment confirmations as a toggle** — commit `44396ee`.
+  Default on; owner can turn off per-business in AI Settings.
+
+- [x] **Configurable SMS appointment reminders** — commit `0613163`.
+  Celery beat job, 15-minute poll, owner sets hours-before (1-168).
+
+- [x] **Owner-editable SMS wording + cancellation policy** — commit `689a086`.
+  Per-message-kind text overrides, injected into the live call prompt so the
+  AI states the real policy before cancelling.
+
+- [x] **Providers & appointment types** — commits `b4294b7`, `f4e99f5`.
+  A provider is either a real linked team member or a login-less named
+  resource; appointment types carry their own duration. Duration-aware,
+  provider-scoped slot-finding so two providers can be booked for the same
+  time. Wired into the Website's `/calendar` manual-booking UI too.
+
+- [x] **Appointment change audit history** — commit `5fd8d76`.
+  Every create/reschedule/update/cancel recorded with before/after snapshots
+  and a resolved actor ("AI Receptionist" or the real team member), stored
+  separately from the event so it survives cancellation.
+
+- [x] **Named call playbooks** — commit `4ab918c`. The client's flagship
+  "visual AI receptionist builder" ask. Owner defines named scenarios:
+  trigger description, questions to ask, which provider/appointment type to
+  book with, who to notify. LLM-guided (the model uses judgement matching a
+  caller's situation to a playbook) rather than a rigid step-engine, per a
+  deliberate architecture choice.
+
+- [x] **Business hours exceptions — holidays & daily breaks** — commit
+  `06ca06c`. Business hours were a generic weekly pattern only; the AI would
+  happily offer a slot on a day the business is actually closed. Added
+  `blocked_dates` (one-off closures) and `daily_breaks` (e.g. lunch),
+  enforced in the same slot-finding path the AI's booking tools already use.
+
+- [x] **Granular per-action approval** — commit `d71499b`. One global
+  "require approval" switch used to cover new bookings, reschedules, *and*
+  cancellations together (with cancellations hardcoded to skip it entirely).
+  Split into three independent switches; existing orgs keep their exact
+  prior behavior by default. Cancellation approval is a new capability —
+  goes through the existing accept/decline flow with its own SMS wording.
+
+- [x] **Structured call disposition** — commit `526c0df`. Calls previously
+  only had a free-text AI summary. Each call is now tagged with a reportable
+  outcome (`booked`/`rescheduled`/`cancelled`/`transferred`/`message_taken`/
+  `faq_only`), derived from which tool calls actually *succeeded*, not just
+  which were attempted — filterable via the calls API, shown as a badge on
+  the Calls page.
+
+- [x] **Hardcoded emergency-keyword escalation** — commit `14557c0`.
+  Escalation on a sensitive call was pure LLM judgement. Now scans every line
+  the caller says against built-in universal emergency phrases plus
+  business-specific custom ones, independent of the model's own compliance —
+  notifies the whole team and transfers (if a number is set), once per call.
+
+- [x] **Identity confirmation before changing a booking** — commit
+  `9486609`. Phone-number match alone was treated as identity verification —
+  a forwarded call or spoofed caller ID was enough to move or cancel someone
+  else's appointment. `reschedule_appointment`/`cancel_appointment` now
+  require the caller to state the name on the booking, checked server-side
+  (lenient token match). Also fixed `find_my_appointments` leaking the
+  customer's own name back through the appointment title, which would have
+  let the AI "confirm" a name it never actually heard the caller say.
+
+- [x] **911 guidance for medical emergencies + SMS alert to the team** —
+  commit `4edf2e0`. Client feedback: a medical practice needs the caller told
+  to hang up and call 911, not put through the take-message-and-transfer flow
+  meant for a contractor/lawyer's office. Added an owner-picked
+  `emergency_response_mode` ("take_message", unchanged default, or
+  "direct_to_911" — the AI interrupts itself and tells the caller, in their
+  own language, to hang up and call 911, skipping the transfer). Also fixed a
+  real gap the client caught: emergency "notification" was in-app only,
+  which depends on someone having the dashboard open — now also texts a
+  configured alert number or every team member's own phone on file.
+
+**Verification for the whole thread:** full backend suite green throughout
+(625 tests), plus a **live end-to-end call against the real OpenAI Realtime
+API** (not mocked) confirming the real session handshake, real audio, and a
+real `check_availability` → `book_appointment` tool sequence actually
+booking and texting a customer.
+
+**Still open, not yet built:**
+- "Write with AI" / mic-dictation on the AI Receptionist's own greeting,
+  knowledge-base, and instructions fields (exists elsewhere in the product —
+  inbox, bulk messaging — not yet wired into AI Settings). Client asked for
+  a meeting to scope this before building it.
+- `Onboarding.jsx` still never calls the backend to save the wizard's
+  role/goals/company selections — confirmed still true as of 2026-10-07,
+  unrelated to this thread but worth fixing.
 
 ## Workflow reminder
 

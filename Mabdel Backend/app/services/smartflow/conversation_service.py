@@ -647,16 +647,19 @@ class ConversationService(SmartFlowBase):
             await self._publish_to_conversation_audience(conversation, extra_user_ids=[user_id])
 
         if payload["direction"] == "outbound":
-            asyncio.create_task(
-                self._finalize_outbound_delivery(
+            delivery = self._finalize_outbound_delivery(
                     user_id=user_id,
                     conversation_id=payload["conversation_id"],
                     message_id=str(document["_id"]),
                     platform=payload["platform"],
                     contact_id=payload.get("contact_id"),
                     content=content,
-                )
             )
+            if payload.get("_await_delivery"):
+                await delivery
+                actual = await self.db.messages.find_one({"_id": document["_id"]})
+                return await self._serialize_message(actual, viewer_user_id=user_id)
+            asyncio.create_task(delivery)
         return serialized
 
     async def store_message_attachment(
@@ -1267,7 +1270,7 @@ class ConversationService(SmartFlowBase):
             return True  # no external delivery needed
 
         if platform == "sms":
-            return await self._deliver_sms(user_id, contact_id, content, errors, receipt)
+            return await self._deliver_sms(user_id, contact_id, content, errors, receipt, conversation_id)
 
         if platform == "email":
             delivered = await self._deliver_email(user_id, contact_id, content, conversation_id)
@@ -1314,7 +1317,8 @@ class ConversationService(SmartFlowBase):
             return False
 
     async def _deliver_sms(
-        self, user_id: str, contact_id: str | None, content: str, errors: list[str], receipt: dict | None
+        self, user_id: str, contact_id: str | None, content: str, errors: list[str], receipt: dict | None,
+        conversation_id: str | None = None,
     ) -> bool:
         """Reply by SMS from the business's own Telnyx number."""
         from app.services.call_service import CallService
@@ -1324,6 +1328,9 @@ class ConversationService(SmartFlowBase):
         if not to_number and contact_id and ObjectId.is_valid(contact_id):
             contact = await self.db.contacts.find_one({"_id": ObjectId(contact_id)}, {"phone": 1})
             to_number = (contact or {}).get("phone")
+        if not to_number and conversation_id:
+            conversation = await self._get_accessible_conversation(user_id, conversation_id, "CONVERSATION_NOT_FOUND")
+            to_number = conversation.get("external_phone")
         if not to_number:
             errors.append("This contact has no phone number to text.")
             return False

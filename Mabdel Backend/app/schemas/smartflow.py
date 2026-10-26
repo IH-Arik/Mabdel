@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
@@ -510,6 +510,16 @@ class AICapabilities(BaseModel):
     create_crm_contact: AICapabilityState | None = None
     capture_lead: AICapabilityState | None = None
     send_payment_link: AICapabilityState | None = None
+    answer_calls: AICapabilityState | None = None
+    outbound_calls: AICapabilityState | None = None
+    create_callback: AICapabilityState | None = None
+    create_task: AICapabilityState | None = None
+    create_service_ticket: AICapabilityState | None = None
+    provide_pricing: AICapabilityState | None = None
+    provide_quote: AICapabilityState | None = None
+    access_account_information: AICapabilityState | None = None
+    trigger_workflow: AICapabilityState | None = None
+    notify_team: AICapabilityState | None = None
 
 
 NotifyRole = Literal[
@@ -531,10 +541,8 @@ class CallRoutingRule(BaseModel):
     provider_id: str | None = None
     appointment_type_id: str | None = None
     notify_target: str | None = Field(default=None, max_length=120)
-    # A labeled team/role the owner intends this to reach (e.g. "Billing"), alongside
-    # notify_target's free text (a specific person's name). This app has no
-    # per-member department tagging today, so it is rendered into the prompt as
-    # context for the team note - it does not itself filter who gets notified.
+    target_user_ids: list[str] = Field(default_factory=list, max_length=30)
+    transfer_number: str | None = Field(default=None, pattern=r"^\+[1-9]\d{6,14}$")
     notify_role: NotifyRole | None = None
     crm_note: str | None = Field(default=None, max_length=200)
     active: bool = True
@@ -591,6 +599,17 @@ class InsurancePlan(BaseModel):
     network_status: InsuranceNetworkStatus = "unknown"
     verification_required: bool = False
     active: bool = True
+    effective_from: date | None = None
+    effective_until: date | None = None
+    last_verified_at: date | None = None
+
+    @model_validator(mode="after")
+    def validate_validity_period(self):
+        if self.effective_from and self.effective_until and self.effective_until < self.effective_from:
+            raise ValueError("Insurance validity end must be on or after its start")
+        if self.last_verified_at and self.last_verified_at > date.today():
+            raise ValueError("Last verified date cannot be in the future")
+        return self
 
 
 class SmsWordingOverrides(BaseModel):
@@ -633,6 +652,7 @@ class AICallSettingsResponse(BaseModel):
     require_approval_for_reschedules: bool = False
     require_approval_for_cancellations: bool = False
     sms_confirmations_enabled: bool = True
+    request_sms_events: list[Literal["callback", "quote", "service_ticket", "task", "workflow"]] = Field(default_factory=list, max_length=5)
     appointment_reminders_enabled: bool = False
     appointment_reminder_hours_before: int = 24
     sms_wording: SmsWordingOverrides = Field(default_factory=SmsWordingOverrides)
@@ -680,6 +700,7 @@ class AICallSettingsUpdateRequest(BaseModel):
     require_approval_for_reschedules: bool | None = None
     require_approval_for_cancellations: bool | None = None
     sms_confirmations_enabled: bool | None = None
+    request_sms_events: list[Literal["callback", "quote", "service_ticket", "task", "workflow"]] | None = Field(default=None, max_length=5)
     appointment_reminders_enabled: bool | None = None
     # 1 hour to 7 days ahead - outside that range a "reminder" stops meaning anything.
     appointment_reminder_hours_before: int | None = Field(default=None, ge=1, le=168)
@@ -724,6 +745,29 @@ class ProviderWorkingHours(BaseModel):
     start_hour: int = Field(ge=0, le=23)
     end_hour: int = Field(ge=1, le=24)
 
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.end_hour <= self.start_hour:
+            raise ValueError("Closing hour must be after opening hour.")
+        return self
+
+
+class BusinessLocationCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    address: str | None = Field(default=None, max_length=500)
+    capacity: int = Field(default=1, ge=1, le=1000)
+    working_days: list[Annotated[int, Field(ge=0, le=6)]] | None = Field(default=None, max_length=7)
+    working_hours: ProviderWorkingHours | None = None
+
+
+class BusinessLocationUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    address: str | None = Field(default=None, max_length=500)
+    capacity: int | None = Field(default=None, ge=1, le=1000)
+    active: bool | None = None
+    working_days: list[Annotated[int, Field(ge=0, le=6)]] | None = Field(default=None, max_length=7)
+    working_hours: ProviderWorkingHours | None = None
+
 
 class ProviderCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
@@ -734,8 +778,10 @@ class ProviderCreateRequest(BaseModel):
     # When unset, this provider is assumed available whenever the business itself is
     # open (today's behavior, unchanged) - set only to restrict further, e.g. a
     # specialist who only works Tue/Thu.
-    working_days: list[int] | None = Field(default=None, max_length=7)
+    working_days: list[Annotated[int, Field(ge=0, le=6)]] | None = Field(default=None, max_length=7)
     working_hours: ProviderWorkingHours | None = None
+
+    location_ids: list[str] | None = Field(default=None, max_length=50)
 
 
 class ProviderUpdateRequest(BaseModel):
@@ -743,8 +789,10 @@ class ProviderUpdateRequest(BaseModel):
     role_title: str | None = Field(default=None, max_length=60)
     linked_user_id: str | None = None
     active: bool | None = None
-    working_days: list[int] | None = Field(default=None, max_length=7)
+    working_days: list[Annotated[int, Field(ge=0, le=6)]] | None = Field(default=None, max_length=7)
     working_hours: ProviderWorkingHours | None = None
+
+    location_ids: list[str] | None = Field(default=None, max_length=50)
 
 
 class AppointmentTypeCreateRequest(BaseModel):
@@ -754,12 +802,16 @@ class AppointmentTypeCreateRequest(BaseModel):
     # unchanged) - set to restrict it to specific providers only.
     eligible_provider_ids: list[str] | None = Field(default=None, max_length=50)
 
+    eligible_location_ids: list[str] | None = Field(default=None, max_length=50)
+
 
 class AppointmentTypeUpdateRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     duration_minutes: int | None = Field(default=None, ge=5, le=480)
     active: bool | None = None
     eligible_provider_ids: list[str] | None = Field(default=None, max_length=50)
+
+    eligible_location_ids: list[str] | None = Field(default=None, max_length=50)
 
 
 class AICallTestStartResponse(BaseModel):
@@ -962,6 +1014,9 @@ class CalendarEventCreateRequest(BaseModel):
     provider_id: str | None = None
     appointment_type_id: str | None = None
 
+    location_id: str | None = None
+    location_name: str | None = None
+
 
 class CalendarEventUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=2, max_length=160)
@@ -981,6 +1036,9 @@ class CalendarEventUpdateRequest(BaseModel):
     status: MeetingStatus | None = None
     provider_id: str | None = None
     appointment_type_id: str | None = None
+
+    location_id: str | None = None
+    location_name: str | None = None
 
 
 class CalendarAttendeeResponse(BaseModel):
@@ -1019,6 +1077,9 @@ class CalendarEventResponse(BaseModel):
     appointment_type_name: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    location_id: str | None = None
+    location_name: str | None = None
 
 
 class CalendarEventShareRequest(BaseModel):

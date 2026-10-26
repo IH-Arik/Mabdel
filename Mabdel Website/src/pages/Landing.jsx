@@ -72,6 +72,18 @@ const journeyIcons = {
 
 const bentoIcons = [Mic, FileText, MessageSquare, Send, FileSignature, Cpu];
 
+function TrialButton({ className = '', navigate, t }) {
+  return (
+    <button
+      onClick={() => navigate('/subscription')}
+      className={`px-8 py-4 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-purple-500/20 hover:opacity-95 hover:shadow-purple-500/35 transition-all active:scale-[0.98] inline-flex items-center justify-center gap-2 group ${className}`}
+    >
+      {t('landing_trial_button')}
+      <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+    </button>
+  );
+}
+
 export default function Landing() {
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -189,16 +201,6 @@ export default function Landing() {
       transition: { duration: 0.6, ease: 'easeOut' },
     },
   };
-
-  const TrialButton = ({ className = '' }) => (
-    <button
-      onClick={() => navigate('/subscription')}
-      className={`px-8 py-4 bg-gradient-to-r from-purple-400 to-blue-400 text-[#070a13] font-bold rounded-xl shadow-lg shadow-purple-500/20 hover:opacity-95 hover:shadow-purple-500/35 transition-all active:scale-[0.98] inline-flex items-center justify-center gap-2 group ${className}`}
-    >
-      {t('landing_trial_button')}
-      <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-    </button>
-  );
 
   return (
     <div className="min-h-screen bg-[#070a13] text-gray-100 font-sans antialiased overflow-x-hidden selection:bg-purple-500 selection:text-[#070a13]">
@@ -356,7 +358,7 @@ export default function Landing() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto"
             >
-              <TrialButton className="w-full sm:w-auto" />
+              <TrialButton className="w-full sm:w-auto" navigate={navigate} t={t} />
               <a
                 href="#journey"
                 className="px-8 py-4 bg-gray-900/50 hover:bg-gray-900 border border-gray-800 hover:border-gray-700 font-bold rounded-xl text-white transition-all text-center w-full sm:w-auto"
@@ -629,7 +631,7 @@ export default function Landing() {
           </div>
 
           <div className="text-center pt-4">
-            <TrialButton className="w-full sm:w-auto" />
+            <TrialButton className="w-full sm:w-auto" navigate={navigate} t={t} />
           </div>
         </div>
       </section>
@@ -827,7 +829,7 @@ export default function Landing() {
             {t('landing_cta_description')}
           </p>
           <div className="pt-2 sm:pt-4">
-            <TrialButton className="w-full sm:w-auto" />
+            <TrialButton className="w-full sm:w-auto" navigate={navigate} t={t} />
           </div>
 
           <div className="pt-4 sm:pt-6 space-y-3">

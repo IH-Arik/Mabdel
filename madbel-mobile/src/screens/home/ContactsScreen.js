@@ -8,7 +8,9 @@ import {
 } from "react-native-responsive-dimensions";
 import { ChevronLeft, ChevronRight, Plus, Search, UserRoundPlus, Phone } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
-import { useMadbelListContactsQuery, useMadbelCreateOutboundCallMutation } from "../../redux/slices/madbelApiSlice";
+import { useMadbelListContactsQuery } from "../../redux/slices/madbelApiSlice";
+import { useNativeVoice } from "../../voice/VoiceContext";
+import VoiceStatus from "../../voice/VoiceStatus";
 import PhoneContactsImportModal from "../../components/PhoneContactsImportModal";
 
 const ContactsScreen = () => {
@@ -17,7 +19,7 @@ const ContactsScreen = () => {
   const [query, setQuery] = useState("");
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [callingId, setCallingId] = useState(null);
-  const [createOutboundCall] = useMadbelCreateOutboundCallMutation();
+  const voice = useNativeVoice();
 
   const handleCall = async (contact) => {
     if (!contact.phone) {
@@ -27,8 +29,8 @@ const ContactsScreen = () => {
     const contactId = contact.id || contact._id || contact.contact_id;
     setCallingId(contactId);
     try {
-      await createOutboundCall({ contact_id: contactId }).unwrap();
-      Alert.alert(t("call_started"), t("calling_contact", { name: contact.name, phone: contact.phone }));
+      const nativeCallId = await voice.dial(contact.phone, contact.name);
+      navigation.navigate("ActiveCall", { nativeCallId, callerName: contact.name, callerNumber: contact.phone, mode: "native" });
     } catch (e) {
       Alert.alert(
         t("call_failed"),
@@ -147,6 +149,7 @@ const ContactsScreen = () => {
           />
         </View>
 
+        <VoiceStatus />
         <View style={styles.summaryRow}>
           <Text style={styles.summaryText}>
             {t("total")}: {summary?.total_contacts ?? contacts.length}

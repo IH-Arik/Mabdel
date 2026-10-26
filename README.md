@@ -65,11 +65,17 @@
 - GPT-4o powered chat assistant with business context
 - Conversation history and replay
 
-### 📞 AI-Powered Calls
-- Outbound **AI call initiation** with configurable voice agents
-- **Auto-transcription** of every call (Whisper)
-- **AI summary & sentiment analysis** per call
-- Call recording playback and analytics dashboard
+### 📞 AI Receptionist (Telnyx + OpenAI Realtime)
+- **Live speech-to-speech voice** (not a scripted IVR) — answers inbound calls, places outbound calls, and speaks back in whatever language the caller uses
+- **Books, reschedules, and cancels real appointments** directly against the connected calendar, including named **providers** and **appointment types** with their own durations
+- **Confirms the caller's name** before touching an existing booking — a phone match alone is never enough
+- **Automatic SMS confirmations** from the business's own number for every booking/change/cancellation, plus configurable reminders ahead of each appointment
+- **Per-action approval controls** — the owner decides independently whether new bookings, reschedules, or cancellations need a human sign-off first
+- **Emergency detection** — built-in and custom keyword phrases trigger an immediate team alert (in-app + SMS) and, for a medical practice, can tell the caller to hang up and call 911 instead of waiting on a transfer
+- **Named call playbooks** — "when a caller mentions X, ask these questions, book with this provider, notify this person"
+- **Business hours with real exceptions** — holidays, blocked dates, and daily breaks (e.g. lunch), not just a generic weekly schedule
+- Every call auto-tagged with a **disposition** (booked / rescheduled / cancelled / message taken / transferred / questions only) for reporting
+- Auto-transcription, AI call summaries, and recording playback
 
 ### 📤 Bulk Messaging
 - **3-step campaign builder**: Recipients → Channel → Compose
@@ -97,7 +103,9 @@
 ### 📅 Calendar & Scheduling
 - Full calendar with **month/week/day** views
 - Event creation, editing, and sharing
-- Meeting scheduling integration
+- **Two-way sync** with Google Calendar and Apple Calendar (CalDAV), owner picks the primary provider
+- Configurable **business hours** including holidays/blocked dates and daily breaks
+- Full appointment change history (who moved/cancelled it, and when — including the AI)
 
 ### 👥 Groups & Community
 - Group chat workspace creation and management
@@ -134,11 +142,11 @@
                        │              │
            ┌───────────┘      ┌───────┘
            ▼                  ▼
-    ┌─────────────┐   ┌──────────────────┐
-    │  MongoDB    │   │  OpenAI GPT-4o   │
-    │  (Primary   │   │  Whisper STT     │
-    │   Database) │   │  TTS / Vision    │
-    └─────────────┘   └──────────────────┘
+    ┌─────────────┐   ┌────────────────────┐
+    │  MongoDB    │   │  OpenAI GPT-4o     │
+    │  (Primary   │   │  Whisper / Realtime│
+    │   Database) │   │  TTS / Vision      │
+    └─────────────┘   └────────────────────┘
            │
     ┌──────┴───────┐
     │  Redis Cache │  (optional, for rate limiting & sessions)
@@ -156,7 +164,8 @@
 | Language | Python 3.11+ |
 | Database | MongoDB (Motor async driver) |
 | Authentication | JWT (HS256) + OAuth2 (Google, Meta, LinkedIn) |
-| AI/ML | OpenAI GPT-4o, Whisper, Realtime API |
+| AI/ML | OpenAI GPT-4o, Whisper, Realtime API (speech-to-speech) |
+| Calls / SMS | Telnyx (voice + SMS, per-business numbers) |
 | Messaging | WhatsApp Business API, Telegram Bot API |
 | File Storage | Local filesystem / S3-compatible |
 | Task Queue | Background tasks (FastAPI) |

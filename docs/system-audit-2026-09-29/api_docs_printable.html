@@ -1,0 +1,3762 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <title>GoCustify / Mabdel AI — পূর্ণাঙ্গ API ডকুমেন্টেশন</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 18mm 15mm 18mm 15mm;
+            @bottom-right {
+                content: "Page " counter(page);
+                font-family: 'Inter', sans-serif;
+                font-size: 8pt;
+                color: #64748b;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        body {
+            font-family: 'Hind Siliguri', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 9.5pt;
+            line-height: 1.55;
+            color: #1e293b;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Inter', 'Hind Siliguri', sans-serif;
+            color: #0f172a;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-top: 1.6em;
+            margin-bottom: 0.6em;
+            page-break-after: avoid;
+        }
+
+        h1 {
+            font-size: 22pt;
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 8px;
+            margin-top: 0;
+            color: #1e3a8a;
+        }
+
+        h2 {
+            font-size: 15pt;
+            border-bottom: 1.5px solid #e2e8f0;
+            padding-bottom: 5px;
+            margin-top: 2em;
+            color: #1e40af;
+            page-break-before: auto;
+        }
+
+        h3 {
+            font-size: 12pt;
+            margin-top: 1.4em;
+            color: #0f172a;
+        }
+
+        p, li {
+            color: #334155;
+            margin-top: 0.3em;
+            margin-bottom: 0.5em;
+        }
+
+        blockquote {
+            margin: 1.2em 0;
+            padding: 10px 16px;
+            background-color: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            border-radius: 0 6px 6px 0;
+            font-size: 9pt;
+            color: #475569;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.2em 0 1.8em 0;
+            font-size: 8.2pt;
+            page-break-inside: auto;
+        }
+
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-weight: 600;
+            text-align: left;
+            padding: 7px 9px;
+            border: 1px solid #cbd5e1;
+            font-family: 'Inter', 'Hind Siliguri', sans-serif;
+        }
+
+        td {
+            padding: 6px 8px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+            font-size: 8pt;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 4px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        pre {
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 12px 14px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 8pt;
+            line-height: 1.45;
+            margin: 1em 0;
+            page-break-inside: avoid;
+            border: 1px solid #1e293b;
+        }
+
+        pre code {
+            background-color: transparent;
+            color: #f8fafc;
+            padding: 0;
+            border: none;
+            font-size: 8pt;
+        }
+
+        .badge {
+            display: inline-block;
+            font-family: 'Inter', sans-serif;
+            font-size: 7pt;
+            font-weight: 700;
+            padding: 2px 5px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .badge-get { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .badge-post { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-put { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .badge-patch { background-color: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+        .badge-delete { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .badge-ws { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 2em 0;
+        }
+
+        .cover-header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);
+            color: #ffffff;
+            padding: 24px 28px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        .cover-header h1 {
+            color: #ffffff;
+            border-bottom: none;
+            margin: 0 0 8px 0;
+            font-size: 24pt;
+        }
+        .cover-header p {
+            color: #e0f2fe;
+            margin: 4px 0;
+            font-size: 10pt;
+        }
+        .meta-tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 8.5pt;
+            margin-right: 6px;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="cover-header">
+        <h1>GoCustify / Mabdel AI</h1>
+        <p><strong>পূর্ণাঙ্গ API ও সিস্টেম আর্কিটেকচার মাস্টার ডকুমেন্টেশন</strong></p>
+        <div>
+            <span class="meta-tag">ভার্সন: ২.০.০</span>
+            <span class="meta-tag">মোট এন্ডপয়েন্ট: ৪২৬টি</span>
+            <span class="meta-tag">লাইভ অডিটেড</span>
+            <span class="meta-tag">১৬টি পেজ-ভিত্তিক মডিউল</span>
+        </div>
+    </div>
+    <h1 id="gocustify-mabdel-ai-api">📖 GoCustify / Mabdel AI — পূর্ণাঙ্গ API ও সিস্টেম আর্কিটেকচার ডকুমেন্টেশন</h1>
+<blockquote>
+<p><strong>ডকুমেন্টেশন ভার্সন:</strong> 2.0.0 (Production Hardened)<br />
+<strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> <strong>৪২৬টি</strong> (যার মধ্যে ৩টি রিয়েল-টাইম WebSocket রুট)<br />
+<strong>টেস্টিং স্ট্যাটাস:</strong> ১০০% লাইভ অডিটেড (<code>api_audit_clean.json</code>)<br />
+<strong>পোস্টম্যান কালেকশন:</strong> <code>postman_collection.json</code> (পেজ অনুযায়ী ১৬টি ফোল্ডারে সুসজ্জিত)</p>
+</blockquote>
+<hr />
+<h2 id="table-of-contents">📑 সূচিপত্র (Table of Contents)</h2>
+<ol>
+<li><a href="#1-সার্বিক-সিস্টেম-আর্কিটেকচার">সার্বিক সিস্টেম আর্কিটেকচার</a></li>
+<li><a href="#2-গ্লোবাল-স্ট্যান্ডার্ড-ও-প্রটোকল">গ্লোবাল স্ট্যান্ডার্ড ও প্রটোকল</a></li>
+<li>Base URL &amp; Routing</li>
+<li>Authentication &amp; JWT Token Flow</li>
+<li>রেট লিমিটার (Rate Limiting)</li>
+<li>স্ট্যান্ডার্ড রেসপন্স এনভেলপ (Response Envelope)</li>
+<li>এরর হ্যান্ডলিং স্ট্যান্ডার্ড (Error Codes)</li>
+<li>রিয়েল-টাইম WebSockets গাইড</li>
+<li><a href="#3-১৬টি-মডিউলের-এন্ডপয়েন্ট-রেফারেন্স">১৬টি পেজ-ভিত্তিক মডিউলের রেফারেন্স ও এন্ডপয়েন্ট তালিকা</a></li>
+<li><a href="#01---authentication--onboarding">01 - Authentication &amp; Onboarding</a></li>
+<li><a href="#02---dashboard--analytics">02 - Dashboard &amp; Analytics</a></li>
+<li><a href="#03---unified-inbox--conversations">03 - Unified Inbox &amp; Conversations</a></li>
+<li><a href="#04---calls--voice-ai-receptionist">04 - Calls &amp; Voice AI (Receptionist)</a></li>
+<li><a href="#05---contacts--audience-groups">05 - Contacts &amp; Audience Groups</a></li>
+<li><a href="#06---calendar-appointments--booking">06 - Calendar, Appointments &amp; Booking</a></li>
+<li><a href="#07---bulk-messaging--campaigns">07 - Bulk Messaging &amp; Campaigns</a></li>
+<li><a href="#08---documents-agreements--leases">08 - Documents, Agreements &amp; Leases</a></li>
+<li><a href="#09---ai-workflows--automations">09 - AI Workflows &amp; Automations</a></li>
+<li><a href="#10---integrations-channels-telnyx-stripe">10 - Integrations (Channels, Telnyx, Stripe)</a></li>
+<li><a href="#11---settings--business-profile">11 - Settings &amp; Business Profile</a></li>
+<li><a href="#12---billing-invoices--shop">12 - Billing, Invoices &amp; Shop</a></li>
+<li><a href="#13---support--social-media">13 - Support &amp; Social Media</a></li>
+<li><a href="#14---admin--owner-dashboard">14 - Admin &amp; Owner Dashboard</a></li>
+<li><a href="#15---public--marketing-website">15 - Public &amp; Marketing Website</a></li>
+<li><a href="#16---system-webhooks--health">16 - System, Webhooks &amp; Health</a></li>
+<li><a href="#4-চিহ্নিত-ত্রুটি-ও-লাইভ-অডিট-পর্যবেক্ষণ">চিহ্নিত ত্রুটি ও লাইভ অডিট পর্যবেক্ষণ</a></li>
+<li><a href="#5-পোস্টম্যান-কালেকশন-ব্যবহারের-নিয়ম">পোস্টম্যান কালেকশন ব্যবহারের নিয়ম</a></li>
+</ol>
+<hr />
+<h2 id="1">🏛️ 1. সার্বিক সিস্টেম আর্কিটেকচার</h2>
+<pre><code class="language-mermaid">flowchart TD
+    subgraph Clients [ক্লায়েন্ট ও ফ্রন্টএন্ড এপ্লিকেশন]
+        DASH[madbel-dashboard (React + Vite)]
+        WEB[Mabdel Website (Next.js / React)]
+        MOB[madbel-mobile (React Native / Expo)]
+    end
+
+    subgraph API_Gateway [FastAPI Backend Engine (:8000)]
+        CORS[CORS &amp; Trusted Hosts Middleware]
+        AUTH_RL[Auth Rate Limiter (20 req / 60s)]
+        MUT_RL[Mutation Rate Limiter (120 req / 60s)]
+        JWT_AUTH[JWT &amp; RBAC Permission Engine]
+        ROUTER[16 Page-Wise Route Controllers]
+        WS_HUB[WebSocket Audio &amp; Real-time Inbox Hub]
+    end
+
+    subgraph Persistence [ডাটাবেস ও ক্যাশ]
+        MONGO[(MongoDB Atlas - 54 Collections)]
+        REDIS[(Redis Cache / In-Memory Fallback)]
+    end
+
+    subgraph Integrations [থার্ড-পার্টি সার্ভিস সমূহ]
+        TELNYX[Telnyx Voice &amp; SMS (SIP Trunking)]
+        OPENAI[OpenAI Realtime Voice &amp; GPT-4o-mini]
+        STRIPE[Stripe Billing &amp; Connect Payouts]
+        META[WhatsApp Cloud API &amp; Meta Graph]
+        GOOGLE[Google Calendar &amp; OAuth 2.0]
+        EMAIL_SVC[Resend / SMTP Custom Domain DNS]
+    end
+
+    Clients --&gt; CORS
+    CORS --&gt; AUTH_RL
+    CORS --&gt; MUT_RL
+    AUTH_RL --&gt; JWT_AUTH
+    MUT_RL --&gt; JWT_AUTH
+    JWT_AUTH --&gt; ROUTER
+    JWT_AUTH --&gt; WS_HUB
+    ROUTER --&gt; MONGO
+    ROUTER --&gt; REDIS
+    ROUTER --&gt; TELNYX
+    ROUTER --&gt; OPENAI
+    ROUTER --&gt; STRIPE
+    ROUTER --&gt; META
+    ROUTER --&gt; GOOGLE
+    ROUTER --&gt; EMAIL_SVC
+    WS_HUB &lt;--&gt; TELNYX
+    WS_HUB &lt;--&gt; OPENAI
+</code></pre>
+<hr />
+<h2 id="2">🌐 2. গ্লোবাল স্ট্যান্ডার্ড ও প্রটোকল</h2>
+<h3 id="21-base-url-routing">2.1 Base URL &amp; Routing</h3>
+<ul>
+<li><strong>লোকাল ডেভেলপমেন্ট:</strong> <code>http://127.0.0.1:8000</code> বা <code>http://localhost:8000</code></li>
+<li><strong>API V1 প্রিফিক্স:</strong> <code>/api/v1</code> (বেশিরভাগ বিজনেস রুট <code>/api/v1/smartflow/...</code> এর অধীনে)</li>
+<li><strong>পাবলিক ওয়েব রুট:</strong> <code>/api/v1/public/...</code> এবং <code>/legal/...</code>, <code>/content/...</code></li>
+<li><strong>রুটিন হেলথ রুট:</strong> <code>/health</code>, <code>/healthz</code>, <code>/ready</code></li>
+</ul>
+<h3 id="22-authentication-token-flow">2.2 Authentication &amp; Token Flow</h3>
+<p>সিস্টেমে স্টেটলেস JWT (JSON Web Token) বিয়ারার অথেনটিকেশন ব্যবহৃত হয়:
+1. <strong>লগইন রিকোয়েস্ট:</strong> <code>POST /api/v1/auth/login</code> (email + password) রিটার্ন করে <code>access_token</code> এবং <code>refresh_token</code>।
+2. <strong>অথরাইজেশন হেডার:</strong> প্রতিটি সুরক্ষিত রুটে অবশ্যই নিচের হেডার পাঠাতে হবে:
+   <code>http
+   Authorization: Bearer &lt;access_token&gt;</code>
+3. <strong>টোকেন রোটেশন:</strong> Access Token-এর মেয়াদ ৩০ মিনিট। এক্সপায়ার হলে <code>POST /api/v1/auth/refresh-token</code> কল করে নতুন এক্সেস টোকেন পাওয়া যায়।
+4. <strong>রোল হায়ারার্কি ও RBAC:</strong> <code>owner</code> &gt; <code>supervisor</code> &gt; <code>staff</code> &gt; <code>user</code>। ব্যাকএন্ডের <code>require_permission(module, action)</code> ডিপেন্ডেন্সি প্রতিটি রিকোয়েস্টে পারমিশন চেক করে।</p>
+<h3 id="23-rate-limiting">2.3 রেট লিমিটিং পলিসি (Rate Limiting)</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">রুট টাইপ</th>
+<th style="text-align: left;">লিমিট</th>
+<th style="text-align: left;">উইন্ডো</th>
+<th style="text-align: left;">মেথডোলজি</th>
+<th style="text-align: left;">হেডার্স</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Auth Endpoints</strong> (<code>/api/v1/auth/*</code>)</td>
+<td style="text-align: left;">২০ রিকোয়েস্ট</td>
+<td style="text-align: left;">৬০ সেকেন্ড</td>
+<td style="text-align: left;">ক্লায়েন্ট আইপি ভিত্তিক স্লাইডিং উইন্ডো</td>
+<td style="text-align: left;"><code>Retry-After</code>, <code>X-Request-ID</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Mutation Endpoints</strong> (POST/PUT/PATCH/DELETE)</td>
+<td style="text-align: left;">১২০ রিকোয়েস্ট</td>
+<td style="text-align: left;">৬০ সেকেন্ড</td>
+<td style="text-align: left;">আইপি ভিত্তিক স্লাইডিং উইন্ডো (Redis / In-memory)</td>
+<td style="text-align: left;"><code>Retry-After</code>, <code>X-Request-ID</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Safe GET Queries</strong></td>
+<td style="text-align: left;">আনলিমিটেড (সাধারণ)</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">মেমরি সুরক্ষিত</td>
+<td style="text-align: left;"><code>X-Request-ID</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-response-envelope">2.4 স্ট্যান্ডার্ড রেসপন্স এনভেলপ (Response Envelope)</h3>
+<p>ব্যাকএন্ডের প্রতিটি API সুসংগত ও স্ট্যান্ডার্ড JSON কাঠামো রিটার্ন করে:</p>
+<p><strong>সফল রেসপন্স (Success 200/201):</strong></p>
+<pre><code class="language-json">{
+  &quot;success&quot;: true,
+  &quot;message&quot;: &quot;Resource fetched successfully.&quot;,
+  &quot;data&quot;: {
+    &quot;id&quot;: &quot;69efae8b5af39608a990e09e&quot;,
+    &quot;name&quot;: &quot;Example Data&quot;
+  }
+}
+</code></pre>
+<p><strong>ব্যর্থ রেসপন্স (Error 4xx/5xx):</strong></p>
+<pre><code class="language-json">{
+  &quot;success&quot;: false,
+  &quot;message&quot;: &quot;Human-readable error explanation.&quot;,
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;VALIDATION_ERROR | PERMISSION_DENIED | NOT_FOUND&quot;,
+    &quot;details&quot;: {
+      &quot;field&quot;: &quot;email is required&quot;
+    }
+  }
+}
+</code></pre>
+<h3 id="25-websockets">2.5 রিয়েল-টাইম WebSockets গাইড</h3>
+<p>ব্যাকএন্ডে ৩টি প্রধান WebSocket রুট সক্রিয় রয়েছে:
+1. <strong><code>GET /api/v1/calls/stream/{call_id}</code></strong>: Telnyx থেকে ইনকামিং কলের লাইভ অডিও ফোর্ক স্ট্রিমিং (G.711 mu-law অডিও বাফার)।
+2. <strong><code>GET /api/v1/smartflow/ws/conversations/{conversation_id}?token={jwt}</code></strong>: নির্দিষ্ট কাস্টমার চ্যাট থ্রেডের লাইভ মেসেজ স্ট্রিমিং ও টাইপিং ইন্ডিকেটর।
+3. <strong><code>GET /api/v1/smartflow/ws/inbox?token={jwt}</code></strong>: পুরো অর্গানাইজেশনের ইউনিফাইড ইনবক্স নোটিফিকেশন হাব (নতুন SMS, WhatsApp মেসেজ আসার নোটিফিকেশন)।</p>
+<hr />
+<h2 id="3">📦 3. ১৬টি মডিউলের এন্ডপয়েন্ট রেফারেন্স</h2>
+<h3 id="01-authentication-onboarding">01 - Authentication &amp; Onboarding</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 18টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> ইউজার একাউন্ট তৈরি, সিকিউর লগইন, পাসওয়ার্ড পুনরুদ্ধার, সেশন ম্যানেজমেন্ট ও প্রাথমিক বিজনেস অনবোর্ডিং।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Auth/Login.jsx</code>, <code>Register.jsx</code>, <code>ForgotPassword.jsx</code>, <code>madbel-dashboard/src/Pages/Onboarding/OnboardingWizard.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>users</code>, <code>otp_codes</code>, <code>refresh_tokens</code>, <code>business_profiles</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Google OAuth 2.0, Microsoft Graph OAuth, Resend / SMTP Email Provider</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Forgot Password</td>
+<td style="text-align: left;"><code>/api/v1/auth/forgot-password</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Google Login</td>
+<td style="text-align: left;"><code>/api/v1/auth/google</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Login</td>
+<td style="text-align: left;"><code>/api/v1/auth/login</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Logout</td>
+<td style="text-align: left;"><code>/api/v1/auth/logout</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Me</td>
+<td style="text-align: left;"><code>/api/v1/auth/me</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Refresh Token</td>
+<td style="text-align: left;"><code>/api/v1/auth/refresh-token</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Register</td>
+<td style="text-align: left;"><code>/api/v1/auth/register</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">⚠️ 409</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Resend Otp</td>
+<td style="text-align: left;"><code>/api/v1/auth/resend-otp</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Reset Password</td>
+<td style="text-align: left;"><code>/api/v1/auth/reset-password</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Send Otp</td>
+<td style="text-align: left;"><code>/api/v1/auth/send-otp</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Subscription Signup</td>
+<td style="text-align: left;"><code>/api/v1/auth/subscription-signup</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Verify Otp</td>
+<td style="text-align: left;"><code>/api/v1/auth/verify-otp</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Mark Onboarding As Completed</td>
+<td style="text-align: left;"><code>/api/v1/onboarding/complete</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Fetch Onboarding Progress By User Id Or Device Id</td>
+<td style="text-align: left;"><code>/api/v1/onboarding/progress</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Save Current Onboarding Step</td>
+<td style="text-align: left;"><code>/api/v1/onboarding/progress</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Reset Onboarding Progress (Testing/Admin Only)</td>
+<td style="text-align: left;"><code>/api/v1/onboarding/reset</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Mark Onboarding As Skipped</td>
+<td style="text-align: left;"><code>/api/v1/onboarding/skip</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Onboarding Slides</td>
+<td style="text-align: left;"><code>/api/v1/onboarding/slides</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="02-dashboard-analytics">02 - Dashboard &amp; Analytics</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 10টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> ব্যবসার সামগ্রিক পারফরম্যান্স মেট্রিক্স, এআই সেভিংস ম্যাট্রিক্স, অডিট হিস্টোরি এবং কাস্টম বিজনেস রিপোর্ট।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Dashboard/Home.jsx</code>, <code>madbel-dashboard/src/Pages/Analysis/AnalyticsView.jsx</code>, <code>madbel-dashboard/src/Pages/Activity &amp; Events/ActivitiesList.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>call_logs</code>, <code>messages</code>, <code>contacts</code>, <code>calendar_events</code>, <code>reports</code>, <code>audit_events</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Chart.js / Recharts, Real-time Aggregation Pipeline</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Activities</td>
+<td style="text-align: left;"><code>/api/v1/activities</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Activity</td>
+<td style="text-align: left;"><code>/api/v1/activities</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 201 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Join Activity</td>
+<td style="text-align: left;"><code>/api/v1/activities/{activity_id}/join</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Events</td>
+<td style="text-align: left;"><code>/api/v1/events</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Event</td>
+<td style="text-align: left;"><code>/api/v1/events</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 201 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Join Event</td>
+<td style="text-align: left;"><code>/api/v1/events/{event_id}/join</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Leave Event</td>
+<td style="text-align: left;"><code>/api/v1/events/{event_id}/leave</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Home Dashboard</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/home</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create User Report</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/reports</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 201 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Report Categories</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/reports/categories</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="03-unified-inbox-conversations">03 - Unified Inbox &amp; Conversations</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 23টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> ওমনিচ্যানেল চ্যাট ইনবক্স (SMS, WhatsApp, ইমেইল, ইনস্টাগ্রাম), টিম চ্যাট অ্যাসাইনমেন্ট, এআই কম্পোজ এবং লাইভ চ্যাট WebSocket।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Messages/Inbox.jsx</code>, <code>ChatThread.jsx</code>, <code>MessageComposer.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>conversations</code>, <code>messages</code>, <code>typing_states</code>, <code>contacts</code>, <code>users</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Telnyx SMS API, Meta WhatsApp Cloud API, OpenAI GPT-4o-mini (AI Compose &amp; Transcribe)</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Ai Compose</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/compose</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Ai Transcribe</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/transcribe</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Inbox</td>
+<td style="text-align: left;"><code>/api/inbox</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⏳ 408 (Timeout &gt;10s)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Conversations</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Conversation</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Conversation Assignees</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/assignees</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Conversation</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Conversation</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Archive Conversation</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}/archive</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Assign Conversation</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}/assign</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Upload Conversation Attachment</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}/attachments</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Conversation Contact</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}/contact</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Mark Conversation Read</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}/mark-read</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Messages</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}/messages</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Typing State</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}/typing</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Set Typing State</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/conversations/{conversation_id}/typing</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/messages</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Unread Summary</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/messages/unread-summary</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/messages/{message_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Forward Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/messages/{message_id}/forward</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Reply To Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/messages/{message_id}/reply</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[WS] [WebSocket] Conversation Stream</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ws/conversations/{conversation_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚡ 101 WebSocket</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[WS] [WebSocket] Inbox Stream</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ws/inbox</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚡ 101 WebSocket</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="04-calls-voice-ai-receptionist">04 - Calls &amp; Voice AI (Receptionist)</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 28টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> স্বয়ংক্রিয় এআই ভয়েস রিসেপশনিস্ট, ইনকামিং কল রিসিভ, লাইভ অডিও স্ট্রিমিং (WebSocket), কল রেকর্ডিং এবং এআই ট্রান্সক্রিপ্ট ও সামারি।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Calls/CallHistory.jsx</code>, <code>LiveCallMonitor.jsx</code>, <code>madbel-dashboard/src/Pages/Settings/VoiceReceptionistSetup.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>call_logs</code>, <code>receptionist_settings</code>, <code>contacts</code>, <code>phone_numbers</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Telnyx Voice API (SIP Trunking &amp; Media Forking), OpenAI Realtime API (gpt-realtime), Deepgram</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Telnyx Call Webhook</td>
+<td style="text-align: left;"><code>/api/v1/calls/webhook</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Call Action</td>
+<td style="text-align: left;"><code>/api/v1/calls/{call_sid}/action</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Live Call Transcript</td>
+<td style="text-align: left;"><code>/api/v1/calls/{call_sid}/transcript</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Calls</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Call Log</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Call Meeting Requests</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/meeting-requests</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Accept Call Meeting Request</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/meeting-requests/{request_id}/accept</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Decline Call Meeting Request</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/meeting-requests/{request_id}/decline</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Outbound Call</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/outbound</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Call Summary</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/summary</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Call Log</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/{call_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Call Log</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/{call_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Call Ai Summary</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/{call_id}/ai-summary</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Update Call Ai Summary</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/{call_id}/ai-summary</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Request Call Callback</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/{call_id}/callback</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Call Recording</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/{call_id}/recording</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Update Call Recording</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/{call_id}/recording</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Call Transcript</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/{call_id}/transcript</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Update Call Transcript</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calls/{call_id}/transcript</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Ai Call Analytics</td>
+<td style="text-align: left;"><code>/api/ai-call-analytics</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Request Call Callback</td>
+<td style="text-align: left;"><code>/api/calls/{callId}/callback</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[WS] [WebSocket] Call Stream</td>
+<td style="text-align: left;"><code>/api/v1/calls/stream/{call_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚡ 101 WebSocket</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Ai Call Settings</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai-call-settings</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Ai Call Settings</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai-call-settings</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Start Ai Call Test</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai-call-settings/test/start</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] End Ai Call Test</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai-call-settings/test/{session_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Send Ai Call Test Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai-call-settings/test/{session_id}/message</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Transcribe Voice</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/voice/transcribe</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⏳ 408 (Timeout &gt;10s)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="05-contacts-audience-groups">05 - Contacts &amp; Audience Groups</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 22টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> সম্পূর্ণ CRM কন্ট্যাক্ট ডিরেক্টরি, কাস্টম ফিল্ডস, অডিয়েন্স সেগমেন্টেশন এবং মাল্টি-চ্যানেল আইডি মার্জিং।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/ClientManagement/ContactList.jsx</code>, <code>ContactDetail.jsx</code>, <code>AudienceGroups.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>contacts</code>, <code>groups</code>, <code>messages</code>, <code>call_logs</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Gravatar, Local Media Upload Storage</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Group</td>
+<td style="text-align: left;"><code>/api/v1/groups</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Groups</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Group</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Group</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups/{group_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Group</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups/{group_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Group</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups/{group_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Invite Group Member</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups/{group_id}/invites</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Cancel Group Invite</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups/{group_id}/invites/{invite_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Leave Group</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups/{group_id}/leave</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Add Group Members</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups/{group_id}/members</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Remove Group Member</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups/{group_id}/members/{member_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Group Member Role</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/groups/{group_id}/members/{member_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Contacts</td>
+<td style="text-align: left;"><code>/api/contacts</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Contacts</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/contacts</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Contact</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/contacts</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 201 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Export Contacts</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/contacts/export</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Import Contacts</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/contacts/import</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 201 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Contact</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/contacts/{contact_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Contact</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/contacts/{contact_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Contact</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/contacts/{contact_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Upload Contact Avatar</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/contacts/{contact_id}/avatar</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Contact Conversations</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/contacts/{contact_id}/conversations</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="06-calendar-appointments-booking">06 - Calendar, Appointments &amp; Booking</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 14টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> স্মার্ট অ্যাপয়েন্টমেন্ট শিডিউলিং, গুগল ক্যালেন্ডার দ্বিমুখী সিঙ্ক এবং পাবলিক শেয়ারেবল বুকিং লিংক তৈরি।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Calendar/CalendarView.jsx</code>, <code>Mabdel Website/src/pages/PublicBookingPage.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>calendar_events</code>, <code>business_profiles</code>, <code>contacts</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Google Calendar API (OAuth), iCal / CalDAV</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Connect Calendar</td>
+<td style="text-align: left;"><code>/api/calendar/connect</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Calendar Events</td>
+<td style="text-align: left;"><code>/api/calendar/events</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Schedule Meeting</td>
+<td style="text-align: left;"><code>/api/v1/calendar/schedule</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Business Hours</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/business-hours</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Update Business Hours</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/business-hours</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Calendar Events</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/events</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Calendar Event</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/events</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Calendar Event</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/events/{event_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Calendar Event</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/events/{event_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Calendar Event</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/events/{event_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Share Calendar Event</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/events/{event_id}/share</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Calendar Provider Settings</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/provider-settings</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Set Primary Calendar Provider</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/calendar/provider-settings</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Shared Calendar Event</td>
+<td style="text-align: left;"><code>/calendar/share/{share_token}</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="07-bulk-messaging-campaigns">07 - Bulk Messaging &amp; Campaigns</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 9টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> কাস্টমার অডিয়েন্স গ্রুপে এক ক্লিকে হাজার হাজার SMS বা ইমেইল ব্রডকাস্ট পাঠানো এবং এআই দিয়ে কনটেন্ট অপটিমাইজেশন।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Campaigns/BulkBroadcast.jsx</code>, <code>CampaignAnalytics.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>bulk_messages</code>, <code>contacts</code>, <code>groups</code>, <code>messages</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Telnyx SMS API, Resend Bulk Email API, OpenAI GPT-4o-mini</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Bulk Messages</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/bulk-messages</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Bulk Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/bulk-messages</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Upload Bulk Message Attachment</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/bulk-messages/attachments</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Improve Bulk Message Content</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/bulk-messages/improve-content</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Validate Bulk Recipients</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/bulk-messages/recipients/validate</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Bulk Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/bulk-messages/{bulk_message_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Bulk Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/bulk-messages/{bulk_message_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Cancel Bulk Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/bulk-messages/{bulk_message_id}/cancel</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Send Bulk Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/bulk-messages/{bulk_message_id}/send</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="08-documents-agreements-leases">08 - Documents, Agreements &amp; Leases</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 52টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> ডিজিটাল কন্ট্রাক্ট তৈরি, আইনি ই-স্বাক্ষর (E-Sign), প্রপার্টি লিজ এগ্রিমেন্ট এবং ক্রিপ্টোগ্রাফিক অডিট ট্রেইল।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Documents/AgreementsList.jsx</code>, <code>LeaseManager.jsx</code>, <code>Mabdel Website/src/pages/PublicSignaturePage.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>agreements</code>, <code>signature_requests</code>, <code>documents</code>, <code>contacts</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> PDFKit / Weasyprint, SHA-256 Signature Audit Trail</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Agreements</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Generate Agreement Draft</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/generate</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Improve Agreement Draft</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/improve</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Agreement Metadata</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/metadata</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Agreement Priorities</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/priorities</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Review Agreement Draft</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/review</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Complete Docusign Oauth</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/signature-providers/docusign/oauth/callback</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Start Docusign Oauth</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/signature-providers/docusign/oauth/start</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Docusign Signing Complete</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/signature-providers/docusign/signing-complete</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Docusign Status</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/signature-providers/docusign/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Handle Docusign Webhook</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/signature-providers/docusign/webhook</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Public Signing Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/signing/{signature_token}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Sign Public Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/signing/{signature_token}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Public Signing Agreement Pdf</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/signing/{signature_token}/pdf</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Agreement Types</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/types</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Download Agreement Completion Certificate</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}/completion-certificate</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Improve Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}/improve</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Download Agreement Pdf</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}/pdf</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Renew Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}/renew</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Review Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}/review</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Send Agreement For Signature</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}/send-signature</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Sign Agreement</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}/sign</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Download Signed Agreement Pdf</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/agreements/{agreement_id}/signed-pdf</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Document Types</td>
+<td style="text-align: left;"><code>/api/documents/types</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Documents</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/documents</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Document</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/documents</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 201 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Document</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/documents/{document_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Document</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/documents/{document_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Leases</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Lease</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Enhance Lease Terms</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/enhance-terms</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Generate Lease Draft</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/generate</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Lease Metadata</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/metadata</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Review Lease Draft</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/review</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Public Signing Lease</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/signing/{signature_token}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Sign Public Lease</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/signing/{signature_token}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Public Signing Lease Pdf</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/signing/{signature_token}/pdf</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Lease</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Lease</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Lease</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Download Lease Completion Certificate</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}/completion-certificate</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Enhance Saved Lease Terms</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}/enhance-terms</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Download Lease Pdf</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}/pdf</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Renew Lease</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}/renew</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Review Lease</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}/review</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Send Lease For Signature</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}/send-signature</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Sign Lease</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}/sign</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Download Signed Lease Pdf</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/leases/{lease_id}/signed-pdf</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="09-ai-workflows-automations">09 - AI Workflows &amp; Automations</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 11টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> নো-কোড স্মার্টফ্লো ওয়ার্কফ্লো এক্সিকিউশন, ন্যাচারাল ল্যাঙ্গুয়েজ ব্যাকএন্ড কমান্ড রান, এআই ইমেজ ও ভয়েস সিন্থেসিস।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Workflows/WorkflowBuilder.jsx</code>, <code>AIConsole.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>ai_workflows</code>, <code>ai_command_history</code>, <code>conversations</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> OpenAI (GPT-4o, DALL-E, TTS API)</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Run Ai Command</td>
+<td style="text-align: left;"><code>/api/v1/ai/command</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Ai Chat</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/chat</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Ai Conversation</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/conversations</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 201 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Generate Ai Image</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/generate-image</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Ai History</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/history</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Replay Ai History</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/history/{history_id}/replay</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Synthesize Ai Speech</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/synthesize-speech</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Ai Voice Chat</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/voice-chat</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⏳ 408 (Timeout &gt;10s)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Ai Voice Chat Upload</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/voice-chat-upload</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Ai Voices</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/voices</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Ai Workflow Prefill</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/ai/workflow-prefill</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="10-integrations-channels-telnyx-stripe">10 - Integrations (Channels, Telnyx, Stripe)</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 31টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> টেলিফোনি নম্বর ক্রয় ও রিলিজ, হোয়াটসঅ্যাপ কিউআর/ক্লাউড এপিআই, সোশ্যাল চ্যানেল এবং স্ট্রাইপ কানেক্ট অনবোর্ডিং।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Settings/IntegrationsHub.jsx</code>, <code>PhoneNumbersSetup.jsx</code>, <code>WhatsAppConnectModal.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>social_integrations</code>, <code>phone_numbers</code>, <code>users</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Telnyx Portal API, Meta Graph API, Stripe API, Telegram Bot API</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Integrations</td>
+<td style="text-align: left;"><code>/api/integrations</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Connect Integration</td>
+<td style="text-align: left;"><code>/api/integrations/connect</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Integrations</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Connect Integration</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 201 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Disconnect Caldav</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/caldav</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Connect Caldav</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/caldav/connect</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">❌ 500 (Unhandled Ex)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Caldav Status</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/caldav/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Sync Caldav</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/caldav/sync</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Integration Catalog</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/catalog</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Receive Telnyx Sms</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/sms/webhook</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Integration Status</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Connect Telegram Manual</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/telegram/manual-connect</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🌐 502 (External Error)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Disconnect Integration</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/{platform}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Complete Integration Oauth</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/{platform}/oauth/callback</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Start Integration Oauth</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/{platform}/oauth/start</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Sync Integration</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/{platform}/sync</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Verify Platform Webhook</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/{platform}/webhook</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Receive Platform Webhook</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/{platform}/webhook</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Start Stripe Connect Onboarding</td>
+<td style="text-align: left;"><code>/api/v1/stripe/connect/onboard</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">💳 503 (Provider Notice)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Stripe Connect Status</td>
+<td style="text-align: left;"><code>/api/v1/stripe/connect/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Remove Custom Telnyx</td>
+<td style="text-align: left;"><code>/api/v1/telnyx/custom</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Save Custom Telnyx</td>
+<td style="text-align: left;"><code>/api/v1/telnyx/custom</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Provision Telnyx</td>
+<td style="text-align: left;"><code>/api/v1/telnyx/provision</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Release Telnyx</td>
+<td style="text-align: left;"><code>/api/v1/telnyx/release</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Telnyx Status</td>
+<td style="text-align: left;"><code>/api/v1/telnyx/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Update Telnyx Voice Registration</td>
+<td style="text-align: left;"><code>/api/v1/telnyx/voice/registration</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Telnyx Voice Token</td>
+<td style="text-align: left;"><code>/api/v1/telnyx/voice/token</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Connect Whatsapp</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/whatsapp/connect</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 201 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Whatsapp Qr</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/whatsapp/qr</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Receive Whatsapp Contacts</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/whatsapp/webhook/contacts</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Receive Whatsapp History Batch</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/integrations/whatsapp/webhook/history</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="11-settings-business-profile">11 - Settings &amp; Business Profile</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 30টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> ব্যবসার প্রোফাইল, সময়সূচি, কাস্টম ডোমেইন DNS ভ্যালিডেশন (DKIM, SPF), পুশ নোটিফিকেশন ও ডিভাইস ম্যানেজমেন্ট।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Settings/CompanyProfile.jsx</code>, <code>EmailDomainSetup.jsx</code>, <code>NotificationPreferences.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>business_profiles</code>, <code>email_domains</code>, <code>notifications</code>, <code>users</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Cloudflare DNS-over-HTTPS, Firebase Cloud Messaging (FCM)</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Account</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/account</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⏳ 408 (Timeout &gt;10s)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Business Profile</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/business-profile</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Business Profile</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/business-profile</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Upload Business Logo</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/business-profile/logo</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Email Domain</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/email-domain</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Email Domain</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/email-domain</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Email Domain</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/email-domain</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Request Email Domain</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/email-domain</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Check Email Domain Availability</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/email-domain/availability</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Verify Email Domain</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/email-domain/verify</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Draft Email</td>
+<td style="text-align: left;"><code>/api/v1/email/draft</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Fetch Splash Screen App Config</td>
+<td style="text-align: left;"><code>/api/v1/app/config</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Saved Permission Preferences</td>
+<td style="text-align: left;"><code>/api/v1/app/permissions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Update Permission Preferences</td>
+<td style="text-align: left;"><code>/api/v1/app/permissions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Accept All Permission Toggles</td>
+<td style="text-align: left;"><code>/api/v1/app/permissions/accept-all</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Notifications</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/notifications</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Dispatch Pending Notifications</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/notifications/dispatch-pending</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Mark All Notifications Read</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/notifications/mark-all-read</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Notification</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/notifications/{notification_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Mark Notification Read</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/notifications/{notification_id}/read</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Register Push Token</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/devices/push-token</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Settings</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/settings</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Settings</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/settings</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Upload Profile Avatar</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/settings/avatar</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Change Password</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/settings/change-password</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Notification Settings</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/settings/notifications</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Notification Settings</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/settings/notifications</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Revoke Sessions</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/settings/revoke-sessions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Team Members</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/team</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Search App Users</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/users/search</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="12-billing-invoices-shop">12 - Billing, Invoices &amp; Shop</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 24টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> ডিজিটাল ইনভয়েস তৈরি ও পেমেন্ট ট্র্যাকিং, এড-অন শপ (অতিরিক্ত নম্বর/ভয়েস মিনিট ক্রয়) এবং সাবস্ক্রিপশন প্ল্যান।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Earnings/Invoices.jsx</code>, <code>madbel-dashboard/src/Pages/Subscriptions/BillingPlans.jsx</code>, <code>AddonShop.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>invoices</code>, <code>products</code>, <code>subscriptions</code>, <code>subscription_plans</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Stripe Checkout &amp; Billing Portal API</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Admin List Products</td>
+<td style="text-align: left;"><code>/api/v1/shop/admin/products</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Admin Create Product</td>
+<td style="text-align: left;"><code>/api/v1/shop/admin/products</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Admin List Products Table</td>
+<td style="text-align: left;"><code>/api/v1/shop/admin/products/table</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Admin Delete Product</td>
+<td style="text-align: left;"><code>/api/v1/shop/admin/products/{product_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Admin Update Product</td>
+<td style="text-align: left;"><code>/api/v1/shop/admin/products/{product_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Admin Update Product</td>
+<td style="text-align: left;"><code>/api/v1/shop/admin/products/{product_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Admin Toggle Product Status</td>
+<td style="text-align: left;"><code>/api/v1/shop/admin/products/{product_id}/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Shop Products</td>
+<td style="text-align: left;"><code>/api/v1/shop/products</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Shop Product</td>
+<td style="text-align: left;"><code>/api/v1/shop/products/{product_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Invoices</td>
+<td style="text-align: left;"><code>/api/v1/invoices</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Invoice</td>
+<td style="text-align: left;"><code>/api/v1/invoices</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Download Shared Invoice Pdf</td>
+<td style="text-align: left;"><code>/api/v1/invoices/shared/{share_token}/pdf</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Invoice</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Invoice</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Invoice</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Invoice Payment Link</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}/payment-link</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Download Invoice Pdf</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}/pdf</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Send Invoice Reminder</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}/remind</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Send Invoice</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}/send</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Share Invoice</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}/share</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Update Invoice Status</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Invoice Timeline</td>
+<td style="text-align: left;"><code>/api/v1/invoices/{invoice_id}/timeline</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Current Subscription</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/subscription/current</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Subscription Plans</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/subscription/plans</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="13-support-social-media">13 - Support &amp; Social Media</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 8টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> ফেসবুক ও ইনস্টাগ্রামে সোশ্যাল পোস্ট শিডিউল করা এবং কাস্টমার সাপোর্ট টিকেট তৈরি ও মেসেজিং।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Support/TicketsList.jsx</code>, <code>madbel-dashboard/src/Pages/AdsSetup/SocialScheduler.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>support_tickets</code>, <code>social_posts</code>, <code>social_integrations</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Meta Graph API (Facebook/Instagram Publishing)</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Social Posts</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/social-posts</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Social Post</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/social-posts</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Social Post</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/social-posts/{post_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Support Messages</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/support/messages</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Support Message</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/support/messages</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Support Session</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/support/session</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Start Support Session</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/support/session</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Support Ticket</td>
+<td style="text-align: left;"><code>/api/v1/smartflow/support/tickets</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="14-admin-owner-dashboard">14 - Admin &amp; Owner Dashboard</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 124টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> ওনার ও সুপার এডমিন ওভারভিউ, টিম মেম্বারদের রোল ও এক্সেস কন্ট্রোল (RBAC Matrix), ডেমো রিকোয়েস্ট ম্যানেজমেন্ট।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>madbel-dashboard/src/Pages/Admin/AdminOverview.jsx</code>, <code>madbel-dashboard/src/Pages/MakeAdmin/RolePermissionMatrix.jsx</code>, <code>madbel-dashboard/src/Pages/Owner/TeamManagement.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>users</code>, <code>roles</code>, <code>permissions</code>, <code>demo_requests</code>, <code>meeting_requests</code>, <code>organizations</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Redis Permission Cache, Internal Security Audit Logger</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Notifications</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/notifications/</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Mark All Notifications As Read</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/notifications/read-all</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Mark All Notifications As Read</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/notifications/read-all</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Unread Notifications Count</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/notifications/unread-count</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Mark Notification As Read</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/notifications/{notification_id}/read</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Mark Notification As Read</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/notifications/{notification_id}/read</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Admin Activities</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/activities</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Search Admin Activities</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/activities/search</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Admin Activity</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/activities/{activity_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Admin Activity</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/activities/{activity_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Approve Admin Activity</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/activities/{activity_id}/approve</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Cancel Admin Activity</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/activities/{activity_id}/cancel</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Admin Activity Status</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/activities/{activity_id}/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Admins</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/admins</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Ai Logs</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/ai/logs</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Ai Stats</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/ai/stats</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Forgot Password</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/auth/forgot-password</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔍 404 (ID Not Found)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Admin Login</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/auth/login</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Reset Password</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/auth/reset-password</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Verify Otp</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/auth/verify-otp</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Admin Categories</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/categories</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Admin Category</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/categories</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Admin Category</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/categories/{category_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Admin Category</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/categories/{category_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Update Admin Category</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/categories/{category_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Change Password</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/change-password</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Change Admin Password Put</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/change-password</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get All Conversations</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/chats</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Chat Messages</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/chats/{user_id}/messages</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Send Message</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/chats/{user_id}/messages</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Organization Admin</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/create-admin</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Earnings Report</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/earnings</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Transactions</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/earnings/transactions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Trx Details</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/earnings/transactions/{trx_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Download Invoice</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Generate Transaction Invoice Post</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/earnings/transactions/{trx_id}/invoice</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Event Creators</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/event-creators</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Event Creators</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/event-creators/premium</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Event Creator</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/event-creators/premium/{creator_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Event Creator</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/event-creators/{creator_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Payout Event Creator</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/event-creators/{creator_id}/payout</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Admin Events</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/events</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Admin Event Status</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/events/{event_id}/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Admin Login</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/login</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Logout</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/logout</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Logout Admin Put</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/logout</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Logout All</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/logout-all</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Owners</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/owners</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Owner Account</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/owners/create</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Admin Profile</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/profile</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Profile</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/profile</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Update Admin Profile Put</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/profile</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get User Reports</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/reports</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Report Action</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/reports/{report_id}/action</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Dismiss Report Endpoint</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/reports/{report_id}/dismiss</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Resolve Report Endpoint</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/reports/{report_id}/resolve</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Dashboard Settings</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/settings</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Settings Page Content</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/settings/content</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Update Settings Page Content</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/settings/content</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Subscriptions</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/subscriptions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Subscription Plan</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/subscriptions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Subscription Fees</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/subscriptions/fees</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Subscription Fees</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/subscriptions/fees</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Update Subscription Fees</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/subscriptions/fees</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Admin Summary</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/summary</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Users</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Users Growth</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users-growth</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Blocked Users</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/blocked</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Search Users Before User Id</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/search</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get User Details</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/{user_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update User</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/{user_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Block User</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/{user_id}/ban</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Block User</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/{user_id}/block</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Add User Note</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/{user_id}/notes</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update User Status</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/{user_id}/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Unblock User</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/{user_id}/unban</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Unblock User</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/admin/users/{user_id}/unblock</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List My Availability Slots</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/availability-slots</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Availability Slots</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/availability-slots</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete Availability Slot</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/availability-slots/{slot_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Demo Requests</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/demo-requests</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Demo Request</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/demo-requests/{request_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Reply To Demo Request</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/demo-requests/{request_id}/reply</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update Demo Request Status</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/demo-requests/{request_id}/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Meeting Requests</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/meeting-requests</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Meeting Request</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/meeting-requests/{request_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Accept Meeting Request</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/meeting-requests/{request_id}/accept</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Decline Meeting Request</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/meeting-requests/{request_id}/decline</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Propose Meeting Time</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/meeting-requests/{request_id}/propose</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Assign Team Role</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/assign</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Owner Me</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/me</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Permission Modules</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/modules</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] My Dashboard</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/my-dashboard</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Revoke Team Role</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/revoke</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Search Users</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/search</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List Team</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/team</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Owner Team Analysis</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/team/analysis</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Owner Team Dashboard</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/team/dashboard</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Member Analysis</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/team/{user_id}/analysis</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Ban Team Member</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/team/{user_id}/ban</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get User Permissions</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/team/{user_id}/permissions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Set User Permissions</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/team/{user_id}/permissions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Unban Team Member</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/owner/team/{user_id}/unban</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Rbac Audit Logs</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/audit-logs</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List All Permissions Grouped By Module</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/permissions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List All Permissions As Flat List</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/permissions/flat</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] List All Roles With Their Permissions</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/roles</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create A New Custom Role</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/roles</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Create Subordinate Account</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/roles/create-subordinate</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DELETE</code></td>
+<td style="text-align: left;">[DELETE] Delete A Custom Role</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/roles/{role_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get A Specific Role</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/roles/{role_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PATCH</code></td>
+<td style="text-align: left;">[PATCH] Update A Role</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/roles/{role_id}</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;">[PUT] Set Permissions For A Role (Replaces Existing)</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/roles/{role_id}/permissions</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Assign A Role To A User</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/users/assign-role</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Revoke A Role From A User</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/users/revoke-role</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get All Roles Assigned To A User</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/rbac/users/{user_id}/roles</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Activate Subscription</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/subscription/activate</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Complete Onboarding</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/subscription/complete-onboarding</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Start Trial</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/subscription/start-trial</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Status</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/subscription/status</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Global Growth</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/super/global-growth</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Platform Summary</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/super/platform-summary</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Resend Inbound Webhook</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/webhooks/resend/inbound</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Stripe Webhook</td>
+<td style="text-align: left;"><code>/api/v1/dashboard/webhooks/stripe</code></td>
+<td style="text-align: center;">🔒 Bearer Token</td>
+<td style="text-align: center;">⚠️ 400</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="15-public-marketing-website">15 - Public &amp; Marketing Website</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 15টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> মার্কেটিং সাইটের ডায়নামিক কনটেন্ট (প্রাইসিং, ফিচারস, FAQ, ব্লগ), লিগ্যাল পেজ এবং পাবলিক ভিজিটর মিটিং রিকোয়েস্ট।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> <code>Mabdel Website/src/pages/Home.jsx</code>, <code>Pricing.jsx</code>, <code>Blog.jsx</code>, <code>Terms.jsx</code>, <code>Privacy.jsx</code></li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>content_pages</code>, <code>subscription_plans</code>, <code>demo_requests</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Public CDN / Static Web Assets</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get About Us</td>
+<td style="text-align: left;"><code>/api/v1/content/about-us</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Acceptable Use Policy</td>
+<td style="text-align: left;"><code>/api/v1/content/acceptable-use-policy</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Help Support</td>
+<td style="text-align: left;"><code>/api/v1/content/help-support</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Content Page</td>
+<td style="text-align: left;"><code>/api/v1/content/pages/{slug}</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Privacy Policy</td>
+<td style="text-align: left;"><code>/api/v1/content/privacy-policy</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Protocols For Law Enforcement</td>
+<td style="text-align: left;"><code>/api/v1/content/protocols-for-law-enforcement</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Refund Policy</td>
+<td style="text-align: left;"><code>/api/v1/content/refund-policy</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Sms Messaging Policy</td>
+<td style="text-align: left;"><code>/api/v1/content/sms-messaging-policy</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Terms And Conditions</td>
+<td style="text-align: left;"><code>/api/v1/content/terms-and-conditions</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Submit Demo Request</td>
+<td style="text-align: left;"><code>/api/v1/public/demo-requests</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Submit Meeting Request</td>
+<td style="text-align: left;"><code>/api/v1/public/meeting-requests</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Available Times</td>
+<td style="text-align: left;"><code>/api/v1/public/meeting-requests/available-times</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Book Available Time</td>
+<td style="text-align: left;"><code>/api/v1/public/meeting-requests/book</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">🛡️ 422 (Schema Guard)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Get Proposed Meeting Time</td>
+<td style="text-align: left;"><code>/api/v1/public/meeting-requests/confirm/{token}</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Confirm Proposed Meeting Time</td>
+<td style="text-align: left;"><code>/api/v1/public/meeting-requests/confirm/{token}</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ রেজিস্টার্ড</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="16-system-webhooks-health">16 - System, Webhooks &amp; Health</h3>
+<p><strong>মোট এন্ডপয়েন্ট সংখ্যা:</strong> 7টি</p>
+<ul>
+<li><strong>কী কী করা যাবে (Capabilities):</strong> সিস্টেম হেলথ চেক (<code>/health</code>, <code>/ready</code>), ওপেনএপিআই স্পেক্স (<code>/docs</code>) এবং টেলিনিক্স ইনবাউন্ড কল ও SMS ওয়েববুক।</li>
+<li><strong>কানেক্টেড ফ্রন্টএন্ড পেজ:</strong> DevOps &amp; Monitoring Dashboards, Health Probes</li>
+<li><strong>কানেক্টেড MongoDB কালেকশন:</strong> <code>audit_events</code>, <code>system_health</code></li>
+<li><strong>এক্সটার্নাল সার্ভিস:</strong> Telnyx Inbound Webhook Dispatcher</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">মেথড</th>
+<th style="text-align: left;">এন্ডপয়েন্ট নাম</th>
+<th style="text-align: left;">রুট পাথ</th>
+<th style="text-align: center;">অথেনটিকেশন</th>
+<th style="text-align: center;">লাইভ টেস্ট স্ট্যাটাস</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Swagger Ui Html</td>
+<td style="text-align: left;"><code>/docs</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Swagger Ui Redirect</td>
+<td style="text-align: left;"><code>/docs/oauth2-redirect</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Openapi</td>
+<td style="text-align: left;"><code>/openapi.json</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Redoc Html</td>
+<td style="text-align: left;"><code>/redoc</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Health Check</td>
+<td style="text-align: left;"><code>/health</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;">[GET] Readiness Check</td>
+<td style="text-align: left;"><code>/ready</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">✅ 200 OK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;">[POST] Telnyx Call Webhook Alias</td>
+<td style="text-align: left;"><code>/webhooks/telnyx/voice</code></td>
+<td style="text-align: center;">পাবলিক (No Auth)</td>
+<td style="text-align: center;">🔒 401 (Auth/RBAC)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-issues-hardening">🔍 4. চিহ্নিত ত্রুটি ও লাইভ অডিট পর্যবেক্ষণ (Issues &amp; Hardening)</h2>
+<p>লাইভ অডিটের সময় ব্যাকএন্ডের ৪২৬টি রুটের মধ্যে যে কয়েকটি নির্দিষ্ট আচরণ ও সতর্কতা পরিলক্ষিত হয়েছে তা নিচে নথিভুক্ত করা হলো:</p>
+<ol>
+<li><strong><code>POST /api/v1/smartflow/integrations/caldav/connect</code> (<code>HTTP 500</code>)</strong></li>
+<li><strong>কারণ:</strong> বহিরাগত CalDAV সার্ভারে রিকোয়েস্ট পাঠানোর সময় হ্যান্ডেল না করা <code>httpx.HTTPError</code> এক্সেপশন।</li>
+<li>
+<p><strong>সুপারিশ:</strong> রাউটারে <code>try...except httpx.HTTPError as exc:</code> যুক্ত করে স্ট্যান্ডার্ড <code>AppException(status_code=400, message='Invalid CalDAV server host')</code> রিটার্ন করা।</p>
+</li>
+<li>
+<p><strong><code>POST /api/v1/smartflow/integrations/telegram/manual-connect</code> (<code>HTTP 502</code>)</strong></p>
+</li>
+<li>
+<p><strong>কারণ:</strong> টেলিগ্রাম বট এপিআই ডামি টোকেন বাতিল করায় ব্যাকএন্ড <code>502</code> এরর দেয়। এটি কোনো অভ্যন্তরীণ ক্র্যাশ নয়, তবে ক্লায়েন্ট ইনপুট যাচাইকরণ মেসেজ আরও সহজ করা যায়।</p>
+</li>
+<li>
+<p><strong><code>POST /api/v1/stripe/connect/onboard</code> (<code>HTTP 503</code>)</strong></p>
+</li>
+<li>
+<p><strong>কারণ:</strong> স্ট্রাইপ একাউন্টে Connect মোড সক্রিয় না থাকায় স্ট্রাইপ এরর পাঠিয়েছে।</p>
+</li>
+<li>
+<p><strong>হোম পেজ ও ইনবক্স কোয়েরি লেটেন্সি (<code>GET /api/v1/smartflow/home</code>)</strong></p>
+</li>
+<li><strong>কারণ:</strong> হোম ড্যাশবোর্ড জেনারেট করতে ক্রমান্বয়ে ১২টি আলাদা MongoDB Atlas কোয়েরি চালানো হয়, যা লোকাল থেকে ক্লাউড অ্যাটলাসে ৯.৭ সেকেন্ড সময় নেয়।</li>
+<li><strong>সুপারিশ:</strong> পাইথনের <code>asyncio.gather()</code> ব্যবহার করে কুয়েরিগুলো প্যারালালি এক্সিকিউট করলে রেসপন্স টাইম ১ সেকেন্ডে নেমে আসবে।</li>
+</ol>
+<hr />
+<h2 id="5">🚀 5. পোস্টম্যান কালেকশন ব্যবহারের নিয়ম</h2>
+<p>ব্যাকএন্ডের সকল ৪২৬টি API টেস্ট ও ব্যবহারের জন্য পোস্টম্যান কালেকশন প্রস্তুত রয়েছে:
+- <strong>ফাইল লোকেশন:</strong> <code>c:/project/Mabdel AI/postman_collection.json</code></p>
+<h3 id="_1">ধাপসমূহ:</h3>
+<ol>
+<li><strong>Postman ওপেন করুন</strong> এবং <code>Import</code> বাটনে ক্লিক করে <code>postman_collection.json</code> সিলেক্ট করুন।</li>
+<li><strong>কালেকশন ভেরিয়েবল সেট করুন:</strong></li>
+<li><code>baseUrl</code>: <code>http://127.0.0.1:8000</code></li>
+<li><code>bearerToken</code>: লগইন করার পর প্রাপ্ত JWT টোকেনটি এখানে পেস্ট করুন।</li>
+<li>কালেকশনের প্রতিটি ফোল্ডারের রিকোয়েস্টে ডিফল্টভাবে <code>Inherit auth from parent</code> দেওয়া আছে, ফলে কালেকশনে একবার টোকেন বসালে সবগুলো রুটে স্বয়ংক্রিয়ভাবে অথেনটিকেশন কাজ করবে।</li>
+</ol>
+</body>
+</html>

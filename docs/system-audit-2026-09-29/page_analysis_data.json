@@ -1,0 +1,591 @@
+{
+  "backend_total": 426,
+  "services_mapped": 142,
+  "pages": {
+    "Activities.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Activities.jsx",
+      "size_kb": 24.7,
+      "inputs": [],
+      "labels": [
+        "{t('act_lbl_activity_title')}",
+        "{t('act_lbl_category')}",
+        "{t('act_lbl_participant_limit')}",
+        "{t('act_lbl_description')}",
+        "{t('act_lbl_location_addr')}",
+        "{t('act_lbl_date_field')}",
+        "{t('act_lbl_time_field')}",
+        "{t('act_lbl_price')}"
+      ],
+      "api_calls": [
+        "smartflowApi.createActivity",
+        "smartflowApi.listActivities",
+        "smartflowApi.joinActivity"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "AdminPanel.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\AdminPanel.jsx",
+      "size_kb": 4.0,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "adminApi.getSummary",
+        "adminApi.getAIStats",
+        "adminApi.getUsers",
+        "adminApi.getTransactions"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "AiCall.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\AiCall.jsx",
+      "size_kb": 14.7,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "smartflowApi.voiceChat"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "AIWorkflow.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\AIWorkflow.jsx",
+      "size_kb": 13.5,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "smartflowApi.generateAIImage",
+        "smartflowApi.getAIWorkflowPrefill"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Begin.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Begin.jsx",
+      "size_kb": 1.7,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "BulkMessaging.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\BulkMessaging.jsx",
+      "size_kb": 41.4,
+      "inputs": [],
+      "labels": [
+        "{t('bulk_lbl_pick_contacts')}",
+        "{t('bulk_lbl_pick_groups')}",
+        "{t('bulk_lbl_from')}",
+        "{t('bulk_lbl_subject')}",
+        "{t('bulk_attachments_label')}",
+        "{t('bulk_lbl_schedule_send')}",
+        "{t('bulk_lbl_delivery_channel')}"
+      ],
+      "api_calls": [
+        "smartflowApi.getContacts",
+        "smartflowApi.transcribeAudio",
+        "smartflowApi.createBulkMessage",
+        "smartflowApi.getEmailDomain",
+        "smartflowApi.draftEmailWithAI",
+        "smartflowApi.getBulkMessages",
+        "smartflowApi.uploadBulkMessageAttachment",
+        "smartflowApi.getGroup",
+        "smartflowApi.improveBulkMessageContent",
+        "smartflowApi.listGroups",
+        "smartflowApi.cancelBulkMessage",
+        "smartflowApi.validateBulkRecipients"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Calendar.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Calendar.jsx",
+      "size_kb": 64.5,
+      "inputs": [
+        "you@icloud.com",
+        "xxxx-xxxx-xxxx-xxxx"
+      ],
+      "labels": [
+        "{label}",
+        "{t('cal_lbl_notify_via')}",
+        "{t('cal_lbl_reminder_time')}",
+        "{t('cal_primary_provider_label')}"
+      ],
+      "api_calls": [
+        "smartflowApi.getContacts",
+        "smartflowApi.disconnectIntegration",
+        "smartflowApi.setPrimaryCalendarProvider",
+        "smartflowApi.createCalendarEvent",
+        "smartflowApi.connectCalDAV",
+        "smartflowApi.startIntegrationOAuth",
+        "smartflowApi.shareCalendarEvent",
+        "smartflowApi.getCalendarEvents",
+        "smartflowApi.getCalDAVStatus",
+        "smartflowApi.syncCalDAV",
+        "smartflowApi.updateCalendarEvent",
+        "smartflowApi.getCalendarProviderSettings",
+        "smartflowApi.getIntegrationStatus",
+        "smartflowApi.getCalendarEvent",
+        "smartflowApi.disconnectCalDAV",
+        "smartflowApi.deleteCalendarEvent"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Calls.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Calls.jsx",
+      "size_kb": 41.6,
+      "inputs": [],
+      "labels": [
+        "{t('calls_phone_number_label')}",
+        "{t('calls_purpose_label')}",
+        "{t('calls_notes_label')}"
+      ],
+      "api_calls": [
+        "smartflowApi.getCallSummary",
+        "smartflowApi.performCallAction",
+        "smartflowApi.requestCallCallback",
+        "smartflowApi.getCallTranscript",
+        "smartflowApi.createOutboundCall",
+        "smartflowApi.getCallAISummary",
+        "smartflowApi.getCalls",
+        "smartflowApi.getCallRecordingUrl",
+        "smartflowApi.getCallLog"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "ConfirmMeeting.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\ConfirmMeeting.jsx",
+      "size_kb": 7.1,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "publicApi.confirmProposedMeetingTime"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Contacts.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Contacts.jsx",
+      "size_kb": 76.6,
+      "inputs": [
+        "e.g. Alex",
+        "e.g. Thompson",
+        "+1 (415) 555-0123",
+        "alex.t@lumina.ai",
+        "123 Innovation Drive, San Francisco, CA"
+      ],
+      "labels": [
+        "{t('contacts_filter_company')}",
+        "{t('contacts_field_first_name')}",
+        "{t('contacts_field_last_name')}",
+        "{t('contacts_field_phone_number')}",
+        "{t('contacts_field_email_address')}",
+        "{t('contacts_field_physical_address')}",
+        "{t('contacts_field_dob')}",
+        "{t('contacts_field_lead_status')}",
+        "{t('contacts_field_admin_notes')}"
+      ],
+      "api_calls": [
+        "smartflowApi.getContacts",
+        "smartflowApi.createOutboundCall",
+        "smartflowApi.createConversation",
+        "smartflowApi.updateContact",
+        "smartflowApi.getContactConversations",
+        "smartflowApi.uploadContactAvatar",
+        "smartflowApi.getTeamMembers",
+        "smartflowApi.getConversations",
+        "smartflowApi.exportContacts",
+        "smartflowApi.importContacts",
+        "smartflowApi.createContact",
+        "smartflowApi.deleteContact"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "ContentPage.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\ContentPage.jsx",
+      "size_kb": 6.5,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "smartflowApi.getRefundPolicy",
+        "smartflowApi.getAboutUs",
+        "smartflowApi.getProtocolsForLawEnforcement",
+        "smartflowApi.getSmsMessagingPolicy",
+        "smartflowApi.getAcceptableUsePolicy",
+        "smartflowApi.getContentPage",
+        "smartflowApi.getHelpSupportContent",
+        "smartflowApi.getPrivacyPolicy",
+        "smartflowApi.getTermsAndConditions"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Conversations.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Conversations.jsx",
+      "size_kb": 56.8,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "smartflowApi.markConversationRead",
+        "smartflowApi.getMessages",
+        "smartflowApi.setTypingStatus",
+        "smartflowApi.composeMessage",
+        "smartflowApi.sendMessage",
+        "smartflowApi.replyToMessage",
+        "smartflowApi.archiveConversation",
+        "smartflowApi.getTypingStatus",
+        "smartflowApi.uploadConversationAttachment",
+        "smartflowApi.getConversations",
+        "smartflowApi.deleteConversation",
+        "smartflowApi.aiChat",
+        "smartflowApi.forwardMessage"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "CreatePost.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\CreatePost.jsx",
+      "size_kb": 18.3,
+      "inputs": [],
+      "labels": [
+        "{t('post_lbl_prompt')}",
+        "{t('post_lbl_platforms')}",
+        "{t('post_lbl_schedule')}"
+      ],
+      "api_calls": [
+        "smartflowApi.getIntegrationStatus",
+        "smartflowApi.aiChat",
+        "smartflowApi.listSocialPosts",
+        "smartflowApi.createSocialPost"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Dashboard.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Dashboard.jsx",
+      "size_kb": 32.1,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "smartflowApi.getContacts",
+        "smartflowApi.getCallSummary",
+        "smartflowApi.getCalls",
+        "smartflowApi.getCalendarEvents",
+        "smartflowApi.getConversations"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Documents.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Documents.jsx",
+      "size_kb": 103.3,
+      "inputs": [],
+      "labels": [
+        "{label}"
+      ],
+      "api_calls": [
+        "smartflowApi.deleteLease",
+        "smartflowApi.improveAgreementDraft",
+        "smartflowApi.downloadLeasePdf",
+        "smartflowApi.agreementSendSignature",
+        "smartflowApi.downloadSignedAgreementPdf",
+        "smartflowApi.createDocument",
+        "smartflowApi.patchLease",
+        "smartflowApi.getLease",
+        "smartflowApi.deleteAgreement",
+        "smartflowApi.downloadLeaseCompletionCertificate",
+        "smartflowApi.getDocuments",
+        "smartflowApi.downloadAgreementCompletionCertificate",
+        "smartflowApi.agreementRenew",
+        "smartflowApi.createLease",
+        "smartflowApi.startAgreementDocusignOAuth",
+        "smartflowApi.downloadSignedLeasePdf",
+        "smartflowApi.leaseSendSignature",
+        "smartflowApi.leaseReview",
+        "smartflowApi.reviewAgreement",
+        "smartflowApi.leaseEnhanceTerms",
+        "smartflowApi.downloadAgreementPdf",
+        "smartflowApi.getAgreements",
+        "smartflowApi.getLeases",
+        "smartflowApi.patchAgreement",
+        "smartflowApi.createAgreement",
+        "smartflowApi.signPublicAgreement",
+        "smartflowApi.updateDocument",
+        "smartflowApi.leaseRenew",
+        "smartflowApi.getAgreementDocusignStatus",
+        "smartflowApi.generateAgreement",
+        "smartflowApi.leaseSign",
+        "smartflowApi.generateLease",
+        "smartflowApi.getAgreement",
+        "smartflowApi.deleteDocument"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Groups.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Groups.jsx",
+      "size_kb": 62.4,
+      "inputs": [],
+      "labels": [
+        "{t('grp_lbl_group_name')}",
+        "{t('grp_lbl_description')}",
+        "{t('grp_lbl_avatar_url')}",
+        "{t('grp_lbl_group_name')}",
+        "{t('grp_lbl_avatar_url')}",
+        "{t('grp_lbl_description')}"
+      ],
+      "api_calls": [
+        "smartflowApi.getContacts",
+        "smartflowApi.getMessages",
+        "smartflowApi.sendMessage",
+        "smartflowApi.removeGroupMember",
+        "smartflowApi.deleteGroup",
+        "smartflowApi.updateGroupMember",
+        "smartflowApi.leaveGroup",
+        "smartflowApi.createGroupInvite",
+        "smartflowApi.deleteGroupInvite",
+        "smartflowApi.listGroups",
+        "smartflowApi.getGroup",
+        "smartflowApi.addGroupMembers",
+        "smartflowApi.updateGroup",
+        "smartflowApi.createGroup"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Integrations.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Integrations.jsx",
+      "size_kb": 28.3,
+      "inputs": [],
+      "labels": [
+        "{t('integ_lbl_bot_token')}",
+        "{t('integ_lbl_bot_username')}",
+        "{t('integ_lbl_secret_token')}"
+      ],
+      "api_calls": [
+        "smartflowApi.disconnectIntegration",
+        "smartflowApi.startIntegrationOAuth",
+        "smartflowApi.getIntegrationCatalog",
+        "smartflowApi.connectTelegramManual",
+        "smartflowApi.connectWhatsApp",
+        "smartflowApi.getIntegrationStatus",
+        "smartflowApi.getWhatsAppQr"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Invoices.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Invoices.jsx",
+      "size_kb": 93.2,
+      "inputs": [
+        "client@example.com",
+        "123 Business St, City, Country"
+      ],
+      "labels": [
+        "{t('inv_lbl_issue_date')}",
+        "{t('inv_lbl_client_name')}",
+        "{t('inv_lbl_client_email')}",
+        "{t('inv_lbl_due_date')}",
+        "{t('inv_lbl_invoice_number')}",
+        "{t('inv_lbl_billing_address')}",
+        "{t('inv_lbl_tax_rate')}",
+        "{t('inv_lbl_notes')}",
+        "{t('inv_lbl_line_items')}"
+      ],
+      "api_calls": [
+        "smartflowApi.getInvoices",
+        "smartflowApi.deleteInvoice",
+        "smartflowApi.downloadInvoice",
+        "smartflowApi.sendInvoiceReminder",
+        "smartflowApi.getInvoice",
+        "smartflowApi.startStripeConnectOnboarding",
+        "smartflowApi.updateInvoice",
+        "smartflowApi.createInvoicePaymentLink",
+        "smartflowApi.shareInvoice",
+        "smartflowApi.getStripeConnectStatus",
+        "smartflowApi.sendInvoice",
+        "smartflowApi.createInvoice",
+        "smartflowApi.updateInvoiceStatus"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "JoinEvent.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\JoinEvent.jsx",
+      "size_kb": 22.6,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "smartflowApi.createEvent",
+        "smartflowApi.leaveEvent",
+        "smartflowApi.joinEvent",
+        "smartflowApi.listEvents"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Landing.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Landing.jsx",
+      "size_kb": 49.3,
+      "inputs": [],
+      "labels": [
+        "{t('footer_contact_lbl_first_name')}",
+        "{t('footer_contact_lbl_last_name')}",
+        "{t('footer_contact_lbl_phone')}",
+        "{t('footer_contact_lbl_email')}",
+        "{t('footer_contact_lbl_message')}"
+      ],
+      "api_calls": [
+        "publicApi.submitDemoRequest"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Login.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Login.jsx",
+      "size_kb": 42.2,
+      "inputs": [],
+      "labels": [
+        "{t('login_email_phone_label')}",
+        "{t('login_password_label')}",
+        "{t('login_full_name_label')}",
+        "{t('login_email_label')}",
+        "{t('login_phone_label')}",
+        "{t('login_password_label')}",
+        "{t('login_email_phone_label')}",
+        "{t('login_new_password_label')}",
+        "{t('login_confirm_password_label')}"
+      ],
+      "api_calls": [],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Notifications.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Notifications.jsx",
+      "size_kb": 11.9,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "smartflowApi.deleteNotification",
+        "smartflowApi.markAllNotificationsRead",
+        "smartflowApi.getNotifications",
+        "smartflowApi.markNotificationRead"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Onboarding.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Onboarding.jsx",
+      "size_kb": 12.1,
+      "inputs": [],
+      "labels": [
+        "{t('onboard_lbl_company')}",
+        "{t('onboard_lbl_experience')}"
+      ],
+      "api_calls": [],
+      "direct_calls": [],
+      "has_hardcoded_arrays": true
+    },
+    "Shop.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Shop.jsx",
+      "size_kb": 21.0,
+      "inputs": [
+        "MM/YY",
+        "CVC"
+      ],
+      "labels": [],
+      "api_calls": [
+        "smartflowApi.listShopProducts"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": true
+    },
+    "SignDocument.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\SignDocument.jsx",
+      "size_kb": 7.9,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "publicApi.getSigningLeasePdfUrl",
+        "publicApi.getSigningAgreementPdfUrl",
+        "publicApi.getSigningAgreement",
+        "publicApi.signAgreement",
+        "publicApi.signLease",
+        "publicApi.getSigningLease"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "Subscription.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\Subscription.jsx",
+      "size_kb": 42.4,
+      "inputs": [],
+      "labels": [
+        "{t(\"sub_lbl_full_name\")}",
+        "{t(\"sub_lbl_work_email\")}",
+        "{t(\"sub_lbl_business_name\")}",
+        "{t(\"sub_lbl_business_address\")}",
+        "{t(\"sub_lbl_phone_number\")}",
+        "{t(\"sub_lbl_owner_dob\")}",
+        "{t(\"sub_lbl_business_type\")}",
+        "{t(\"sub_lbl_first_name\")}",
+        "{t(\"sub_lbl_last_name\")}",
+        "{t(\"sub_lbl_phone_number\")}",
+        "{t(\"sub_lbl_email\")}",
+        "{t(\"sub_lbl_message\")}"
+      ],
+      "api_calls": [
+        "publicApi.bookMeetingSlot",
+        "publicApi.subscriptionSignup",
+        "publicApi.submitDemoRequest"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "UnifiedConversations.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\UnifiedConversations.jsx",
+      "size_kb": 27.5,
+      "inputs": [],
+      "labels": [],
+      "api_calls": [
+        "smartflowApi.markConversationRead",
+        "smartflowApi.getMessages",
+        "smartflowApi.assignConversation",
+        "smartflowApi.sendMessage",
+        "smartflowApi.replyToMessage",
+        "smartflowApi.archiveConversation",
+        "smartflowApi.getConversationContact",
+        "smartflowApi.getConversations",
+        "smartflowApi.deleteConversation",
+        "smartflowApi.forwardMessage"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    },
+    "VoiceConversation.jsx": {
+      "file": "c:\\project\\Mabdel AI\\Mabdel Website\\src\\pages\\VoiceConversation.jsx",
+      "size_kb": 47.5,
+      "inputs": [],
+      "labels": [
+        "{t('vcon_lbl_voice_output')}",
+        "{t('vcon_lbl_ai_language')}"
+      ],
+      "api_calls": [
+        "smartflowApi.getMessages",
+        "smartflowApi.createAiConversation",
+        "smartflowApi.getConversations",
+        "smartflowApi.getAIWorkflowPrefill",
+        "smartflowApi.synthesizeAiSpeech",
+        "smartflowApi.aiChat",
+        "smartflowApi.getAIVoices"
+      ],
+      "direct_calls": [],
+      "has_hardcoded_arrays": false
+    }
+  }
+}

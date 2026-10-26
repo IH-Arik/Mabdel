@@ -195,7 +195,7 @@ def test_tools_book_a_time_the_caller_named_and_record_it(client, mock_db, monke
 
         await socket.emit({
             "type": "response.done",
-            "response": {"output": [{"type": "function_call", "name": "book_appointment", "call_id": "c2", "arguments": json.dumps({"date": "2026-08-18", "time": "10:00", "first_name": "Nadia", "last_name": "Rahman"})}]},
+            "response": {"output": [{"type": "function_call", "name": "book_appointment", "call_id": "c2", "arguments": json.dumps({"caller_confirmed": True, "date": "2026-08-18", "time": "10:00", "first_name": "Nadia", "last_name": "Rahman"})}]},
         })
         await _until(lambda: len(socket.of_type("conversation.item.create")) == 2)
         booked = json.loads(socket.of_type("conversation.item.create")[-1]["item"]["output"])
@@ -255,9 +255,13 @@ def test_transfer_waits_for_the_announcement_then_connects(client, mock_db, monk
         # "One moment, I'll connect you" - 400 ms of audio already queued at Telnyx.
         await socket.emit({"type": "response.output_audio.delta", "item_id": "item_t", "delta": _pcmu_delta(400)})
 
-        result = await agent.run_tool("transfer_to_human", json.dumps({"reason": "wants the dentist"}))
+        transfer = asyncio.create_task(agent.run_tool("transfer_to_human", json.dumps({"reason": "wants the dentist"})))
+        await asyncio.sleep(0.01)
+        assert not transfer.done()  # no success before the provider actually accepts
+        assert control.transfers == []  # the announcement is still playing
+        result = await transfer
         assert result == {"transferred": True}
-        assert control.transfers == []  # not yet - the announcement is still playing
+        assert control.transfers == [("call-rt", "+15550001111")]
         assert {"event": "clear"} not in sent  # and it is never cut off
         await agent.on_caller_audio("aGVsbG8=")
         assert not socket.of_type("input_audio_buffer.append")  # the call is with a person now
@@ -394,7 +398,7 @@ def test_test_ai_preview_uses_the_receptionist_in_dry_run(client, mock_db, monke
     asyncio.run(mock_db.organizations.insert_one({"organization_id": owner_id, "business_name": "Bright Dental", "ai_call_settings": {}}))
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "sk-test")
     script = iter([
-        {"role": "assistant", "tool_calls": [{"id": "t1", "type": "function", "function": {"name": "book_appointment", "arguments": json.dumps({"date": "2026-08-18", "time": "10:00", "first_name": "Nadia"})}}]},
+        {"role": "assistant", "tool_calls": [{"id": "t1", "type": "function", "function": {"name": "book_appointment", "arguments": json.dumps({"caller_confirmed": True, "date": "2026-08-18", "time": "10:00", "first_name": "Nadia"})}}]},
         {"role": "assistant", "content": "You're booked for Tuesday at 10 AM."},
     ])
 
@@ -580,9 +584,9 @@ def test_the_confirmation_text_uses_the_language_the_caller_spoke(client, mock_d
 
     async def run():
         agent = _receptionist(mock_db, owner_id, socket)
-        booked = await agent.run_tool("book_appointment", json.dumps({"date": "2026-08-18", "time": "10:00", "first_name": "Nadia", "language": "es"}))
+        booked = await agent.run_tool("book_appointment", json.dumps({"caller_confirmed": True, "date": "2026-08-18", "time": "10:00", "first_name": "Nadia", "language": "es"}))
         assert booked["outcome"] == "booked" and agent.language == "es"
-        cancelled = await agent.run_tool("cancel_appointment", json.dumps({"appointment_id": booked["appointment_id"], "caller_name": "Nadia", "language": "fr"}))
+        cancelled = await agent.run_tool("cancel_appointment", json.dumps({"caller_confirmed": True, "appointment_id": booked["appointment_id"], "caller_name": "Nadia", "language": "fr"}))
         assert cancelled["outcome"] == "cancelled"
 
     asyncio.run(run())
@@ -596,11 +600,11 @@ def test_the_ai_cannot_book_a_date_that_has_already_passed(client, mock_db, monk
 
     async def run():
         agent = _receptionist(mock_db, owner_id, FakeOpenAI())
-        past = await agent.run_tool("book_appointment", json.dumps({"date": "2026-08-10", "time": "10:00", "first_name": "Nadia"}))
+        past = await agent.run_tool("book_appointment", json.dumps({"caller_confirmed": True, "date": "2026-08-10", "time": "10:00", "first_name": "Nadia"}))
         assert past["outcome"] == "unavailable" and "already passed" in past["reason"]
-        far = await agent.run_tool("book_appointment", json.dumps({"date": "2027-08-18", "time": "10:00", "first_name": "Nadia"}))
+        far = await agent.run_tool("book_appointment", json.dumps({"caller_confirmed": True, "date": "2027-08-18", "time": "10:00", "first_name": "Nadia"}))
         assert far["outcome"] == "unavailable" and "too far" in far["reason"]
-        ok = await agent.run_tool("book_appointment", json.dumps({"date": "2026-08-17", "time": "10:00", "first_name": "Nadia"}))
+        ok = await agent.run_tool("book_appointment", json.dumps({"caller_confirmed": True, "date": "2026-08-17", "time": "10:00", "first_name": "Nadia"}))
         assert ok["outcome"] == "booked"  # today, later on, is fine
 
     asyncio.run(run())

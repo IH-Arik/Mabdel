@@ -19,8 +19,11 @@ import {
 } from "lucide-react-native";
 import {
   useMadbelListCallsQuery,
-  useMadbelCreateOutboundCallMutation,
+
 } from "../../redux/slices/madbelApiSlice";
+
+import { useNativeVoice } from "../../voice/VoiceContext";
+import VoiceStatus from "../../voice/VoiceStatus";
 
 const CallHistoryScreen = () => {
   const { t } = useAppLanguage();
@@ -32,26 +35,14 @@ const CallHistoryScreen = () => {
     page_size: 50,
   });
 
-  const [createOutboundCall, { isLoading: isCalling }] = useMadbelCreateOutboundCallMutation();
+  const voice = useNativeVoice();
 
-  const handleCallBack = async (numberOrContactId) => {
+  const handleCallBack = async (number) => {
     try {
-      Alert.alert(t("initiating_outbound_call"), t("connecting_outbound_call_session"));
-      const payload = numberOrContactId.includes("+")
-        ? { phone_number: numberOrContactId }
-        : { contact_id: numberOrContactId };
-
-      const res = await createOutboundCall(payload).unwrap();
-      const callLog = res?.call_log || res?.data?.call_log;
-      if (callLog) {
-        navigation.navigate("ActiveCall", {
-          callSid: callLog.twilio_call_sid || res?.twilio_call_sid,
-          callerName: callLog.contact_name || numberOrContactId,
-          callerNumber: callLog.phone_number || numberOrContactId,
-        });
-      }
+      const nativeCallId = await voice.dial(number);
+      navigation.navigate("ActiveCall", { nativeCallId, callerNumber: number, mode: "native" });
     } catch (err) {
-      Alert.alert(t("call_failed_title"), err?.data?.message || t("could_not_place_outbound_call"));
+      Alert.alert(t("call_failed_title"), err.message || t("could_not_place_outbound_call"));
     }
   };
 
@@ -222,7 +213,7 @@ const CallHistoryScreen = () => {
           {item.hasCallBackNow && (
             <Pressable
               style={[styles.callBackBtn, styles.redBtn]}
-              onPress={() => handleCallBack(nameDisplay)}
+              onPress={() => handleCallBack(item.phone_number || "")}
             >
               <Phone size={14} color="#FFF" />
               <Text style={[styles.callBackBtnText, { color: "#FFF" }]}>{t("call_back_now")}</Text>

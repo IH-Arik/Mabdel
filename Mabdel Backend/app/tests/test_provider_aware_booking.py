@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+
+import pytest
+from app.core.exceptions import AppException
 from datetime import datetime
 
 from app.services.smartflow.appointment_service import AppointmentService
@@ -160,13 +163,13 @@ def test_an_appointment_type_restricted_to_specific_providers_allows_an_eligible
     assert result["outcome"] == "booked"
 
 
-def test_an_unmatched_provider_name_falls_back_to_pooled_availability_instead_of_failing(client, mock_db, monkeypatch):
+def test_an_unmatched_provider_name_does_not_offer_another_providers_availability(client, mock_db, monkeypatch):
     owner_id = _setup(client, mock_db, "prov-unmatched@example.com")
     monkeypatch.setattr(CalendarService, "_now", staticmethod(lambda tz: datetime(2026, 9, 21, 8, 0, tzinfo=tz)))
     service = AppointmentService(mock_db)
-    result = asyncio.run(service.available_slots(owner_id, day="2026-09-21", provider_name="Someone Who Doesn't Exist"))
-    assert result["provider"] is None
-    assert result["slots"]  # still returns real slots rather than erroring out
+    with pytest.raises(AppException) as error:
+        asyncio.run(service.available_slots(owner_id, day="2026-09-21", provider_name="Someone Who Doesn't Exist"))
+    assert error.value.code == "PROVIDER_NOT_FOUND"
 
 
 def test_businesses_without_providers_are_unaffected(client, mock_db, monkeypatch):
