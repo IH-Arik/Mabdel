@@ -67,3 +67,33 @@ def test_onboarding_skip_complete_reset_flow(client_sql) -> None:
     assert data["is_completed"] is False
     assert data["is_skipped"] is False
     assert data["current_step"] == 0
+
+
+def test_onboarding_progress_concurrent_saves_do_not_duplicate_key_error(client_sql) -> None:
+    """Two onboarding-progress saves landing at the same moment for two different
+    devices used to be able to both read the same "next id" before either had
+    inserted, so the second one failed with a DuplicateKeyError (E11000) instead
+    of a 200. The fix makes the create path a single atomic upsert so this can't
+    race."""
+    import asyncio as _asyncio
+
+    import httpx
+
+    async def _save(device_id: str) -> httpx.Response:
+        transport = httpx.ASGITransport(app=client_sql.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
+            return await ac.post(
+                "/api/v1/onboarding/progress",
+                json={"device_id": device_id, "current_step": 1},
+            )
+
+    async def _run_all():
+        return await _asyncio.gather(
+            _save("device_race_one"),
+            _save("device_race_two"),
+            _save("device_race_three"),
+        )
+
+    responses = _asyncio.run(_run_all())
+    for response in responses:
+        assert response.status_code == 200, response.text

@@ -54,23 +54,44 @@ class OnboardingRepository:
         device_id: str | None = None,
         current_step: int = 0,
     ) -> dict:
+        # Reading "latest id" and inserting are two separate steps, so two concurrent
+        # onboarding-progress saves for the same device (a double-tap, a retried
+        # request) can both compute the same next id and race on the unique index,
+        # one of them failing with DuplicateKeyError. An atomic upsert keyed on the
+        # caller's own identifier removes the race: whichever request actually wins
+        # the insert owns that id, and the loser just updates the row that now
+        # exists instead of trying to insert a second one.
         now = datetime.now(UTC)
-        progress = {
-            "id": await self._next_progress_id(),
-            "current_step": current_step,
+        if user_id and device_id:
+            filter_query: dict = {"$or": [{"user_id": user_id}, {"device_id": device_id}]}
+        elif user_id:
+            filter_query = {"user_id": user_id}
+        else:
+            filter_query = {"device_id": device_id}
+
+        next_id = await self._next_progress_id()
+        set_on_insert = {
+            "id": next_id,
             "is_completed": False,
             "is_skipped": False,
             "completed_at": None,
             "skipped_at": None,
-            "last_seen_at": now,
             "created_at": now,
-            "updated_at": now,
         }
         if user_id is not None:
-            progress["user_id"] = user_id
+            set_on_insert["user_id"] = user_id
         if device_id is not None:
-            progress["device_id"] = device_id
-        return await self.save_progress(progress)
+            set_on_insert["device_id"] = device_id
+
+        await self.db.onboarding_progress.update_one(
+            filter_query,
+            {
+                "$setOnInsert": set_on_insert,
+                "$set": {"current_step": current_step, "last_seen_at": now, "updated_at": now},
+            },
+            upsert=True,
+        )
+        return await self.db.onboarding_progress.find_one(filter_query, sort=[("updated_at", -1)])
 
     async def ensure_default_slides(self) -> None:
         count = await self.db.onboarding_slides.count_documents({})
