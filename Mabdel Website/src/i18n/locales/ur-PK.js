@@ -1850,6 +1850,8 @@ export default {
     prof_save_failed: "محفوظ کرنا ناکام رہا۔",
     prof_avatar_updated: "پروفائل تصویر اپ ڈیٹ ہو گئی۔",
     prof_avatar_failed: "اواتار اپ لوڈ ناکام رہا۔",
+    prof_btn_upload: "تصویر اپ لوڈ کریں",
+    prof_avatar_hint: "PNG، JPG، یا WEBP زیادہ سے زیادہ 5MB تک۔",
     prof_hdr_personal: "شخصی پروفائل",
     prof_sub_personal: "اپنی ذاتی معلومات اور زبان کی ترجیح اپ ڈیٹ کریں۔",
     prof_lbl_name: "پورا نام",

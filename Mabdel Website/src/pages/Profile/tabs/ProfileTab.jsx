@@ -176,7 +176,7 @@ function ProfileTab() {
             {t('prof_btn_upload')}
             <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleAvatarUpload} />
           </label>
-          <p className="mt-1.5 text-xs text-[#A4B0B7]">{t('prof_avatar_hint') || 'PNG, JPG, or WEBP up to 5MB.'}</p>
+          <p className="mt-1.5 text-xs text-[#A4B0B7]">{t('prof_avatar_hint')}</p>
         </div>
       </div>
 

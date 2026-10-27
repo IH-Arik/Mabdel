@@ -1850,6 +1850,8 @@ export default {
     prof_save_failed: "Ошибка сохранения.",
     prof_avatar_updated: "Фото профиля обновлено.",
     prof_avatar_failed: "Ошибка загрузки аватара.",
+    prof_btn_upload: "Загрузить фото",
+    prof_avatar_hint: "PNG, JPG или WEBP до 5 МБ.",
     prof_hdr_personal: "Личный профиль",
     prof_sub_personal: "Обновите свою личную информацию и языковые настройки.",
     prof_lbl_name: "Полное имя",

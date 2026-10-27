@@ -1850,6 +1850,8 @@ export default {
     prof_save_failed: "Error al guardar.",
     prof_avatar_updated: "Foto de perfil actualizada.",
     prof_avatar_failed: "Error al subir el avatar.",
+    prof_btn_upload: "Subir Foto",
+    prof_avatar_hint: "PNG, JPG o WEBP hasta 5MB.",
     prof_hdr_personal: "Perfil Personal",
     prof_sub_personal: "Actualiza tu información personal y preferencia de idioma.",
     prof_lbl_name: "Nombre Completo",

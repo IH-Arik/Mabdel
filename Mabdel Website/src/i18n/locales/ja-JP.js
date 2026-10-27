@@ -1883,6 +1883,8 @@ export default {
     prof_save_failed: "保存に失敗しました。",
     prof_avatar_updated: "プロフィール photo updated.",
     prof_avatar_failed: "アバターのアップロードに失敗しました。",
+    prof_btn_upload: "写真をアップロード",
+    prof_avatar_hint: "PNG、JPG、またはWEBP、最大5MBまで。",
     prof_hdr_personal: "Personal プロフィール",
     prof_sub_personal: "個人情報と言語設定を更新します。",
     prof_lbl_name: "お名前",

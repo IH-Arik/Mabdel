@@ -1850,6 +1850,8 @@ export default {
     prof_save_failed: "Kaydedilemedi.",
     prof_avatar_updated: "Profil fotoğrafı güncellendi.",
     prof_avatar_failed: "Profil resmi yüklenemedi.",
+    prof_btn_upload: "Fotoğraf Yükle",
+    prof_avatar_hint: "PNG, JPG veya WEBP, 5MB'a kadar.",
     prof_hdr_personal: "Kişisel Profil",
     prof_sub_personal: "Kişisel bilgilerinizi ve dil tercihinizi güncelleyin.",
     prof_lbl_name: "Ad Soyad",

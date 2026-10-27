@@ -1850,6 +1850,8 @@ export default {
     prof_save_failed: "सहेजना विफल रहा।",
     prof_avatar_updated: "प्रोफ़ाइल फ़ोटो अपडेट की गई।",
     prof_avatar_failed: "अवतार अपलोड विफल रहा।",
+    prof_btn_upload: "फ़ोटो अपलोड करें",
+    prof_avatar_hint: "PNG, JPG, या WEBP अधिकतम 5MB तक।",
     prof_hdr_personal: "व्यक्तिगत प्रोफ़ाइल",
     prof_sub_personal: "अपनी व्यक्तिगत जानकारी और भाषा वरीयता अपडेट करें।",
     prof_lbl_name: "पूरा नाम",

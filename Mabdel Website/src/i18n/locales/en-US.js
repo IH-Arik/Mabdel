@@ -1992,6 +1992,8 @@ export default {
     prof_save_failed: "Save failed.",
     prof_avatar_updated: "Profile photo updated.",
     prof_avatar_failed: "Avatar upload failed.",
+    prof_btn_upload: "Upload Photo",
+    prof_avatar_hint: "PNG, JPG, or WEBP up to 5MB.",
     prof_hdr_personal: "Personal Profile",
     prof_sub_personal: "Update your personal information and language preference.",
     prof_lbl_name: "Full Name",

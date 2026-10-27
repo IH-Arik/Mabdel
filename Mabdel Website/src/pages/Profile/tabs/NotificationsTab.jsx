@@ -5,14 +5,14 @@ import { smartflowApi } from '../../../api/services';
 import { useLanguage } from '../../../context/LanguageContext';
 
 const ITEMS = [
-  { key: 'general_notification', label: 'General Notifications', icon: Bell },
-  { key: 'sound', label: 'Sound', icon: Volume2 },
-  { key: 'vibrate', label: 'Vibrate', icon: Vibrate },
-  { key: 'new_messages', label: 'New Messages', icon: Mail },
-  { key: 'missed_calls', label: 'Missed Calls', icon: Phone },
-  { key: 'scheduled_calls', label: 'Scheduled Calls', icon: Phone },
-  { key: 'ai_tasks', label: 'AI Tasks', icon: Bell },
-  { key: 'calendar_reminders', label: 'Calendar Reminders', icon: Calendar },
+  { key: 'general_notification', i18nKey: 'nprof_lbl_general', icon: Bell },
+  { key: 'sound', i18nKey: 'nprof_lbl_sound', icon: Volume2 },
+  { key: 'vibrate', i18nKey: 'nprof_lbl_vibrate', icon: Vibrate },
+  { key: 'new_messages', i18nKey: 'nprof_lbl_messages', icon: Mail },
+  { key: 'missed_calls', i18nKey: 'nprof_lbl_missed', icon: Phone },
+  { key: 'scheduled_calls', i18nKey: 'nprof_lbl_scheduled', icon: Phone },
+  { key: 'ai_tasks', i18nKey: 'nprof_lbl_tasks', icon: Bell },
+  { key: 'calendar_reminders', i18nKey: 'nprof_lbl_calendar', icon: Calendar },
 ];
 
 function NotificationsTab() {
@@ -92,7 +92,7 @@ function NotificationsTab() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#9333ea]/10">
               <item.icon size={16} className="text-[#9333ea]" />
             </div>
-            <span className="text-sm font-semibold text-white">{t(`nprof_lbl_${item.key.replace('notification', '')}`.replace('__', '_').replace(/_$/, ''))}</span>
+            <span className="text-sm font-semibold text-white">{t(item.i18nKey)}</span>
           </div>
 
           <button

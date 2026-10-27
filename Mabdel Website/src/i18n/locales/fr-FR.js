@@ -1850,6 +1850,8 @@ export default {
     prof_save_failed: "Échec de l'enregistrement.",
     prof_avatar_updated: "Photo de profil mise à jour.",
     prof_avatar_failed: "Échec du chargement de l'avatar.",
+    prof_btn_upload: "Charger la Photo",
+    prof_avatar_hint: "PNG, JPG ou WEBP jusqu'à 5 Mo.",
     prof_hdr_personal: "Profil Personnel",
     prof_sub_personal: "Mettez à jour vos informations personnelles et votre préférence linguistique.",
     prof_lbl_name: "Nom Complet",

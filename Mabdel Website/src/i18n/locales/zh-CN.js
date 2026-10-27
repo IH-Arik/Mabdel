@@ -1883,6 +1883,8 @@ export default {
     prof_save_failed: "保存失败。",
     prof_avatar_updated: "个人资料 photo updated.",
     prof_avatar_failed: "头像上传失败。",
+    prof_btn_upload: "上传照片",
+    prof_avatar_hint: "PNG、JPG 或 WEBP，最大 5MB。",
     prof_hdr_personal: "Personal 个人资料",
     prof_sub_personal: "更新您的个人信息和语言偏好。",
     prof_lbl_name: "姓名",

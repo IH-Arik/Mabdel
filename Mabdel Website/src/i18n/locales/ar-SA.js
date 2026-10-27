@@ -1850,6 +1850,8 @@ export default {
     prof_save_failed: "فشل الحفظ.",
     prof_avatar_updated: "تم تحديث صورة الملف الشخصي.",
     prof_avatar_failed: "فشل تحميل الصورة الرمزية.",
+    prof_btn_upload: "تحميل الصورة",
+    prof_avatar_hint: "PNG أو JPG أو WEBP حتى 5 ميجابايت.",
     prof_hdr_personal: "الملف الشخصي الشخصي",
     prof_sub_personal: "تحديث معلوماتك الشخصية وتفضيل اللغة.",
     prof_lbl_name: "الاسم الكامل",
