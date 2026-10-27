@@ -656,16 +656,20 @@ async def my_dashboard(
     current_user: dict = Depends(require_role(["super_admin", "admin", "owner", "manager", "staff", "assistant"])),
     db: AsyncIOMotorDatabase = Depends(get_mongo_database),
 ):
+    import asyncio as _asyncio
     import datetime as dt
 
     uid = _user_id(current_user)
     since = dt.datetime.utcnow() - dt.timedelta(days=days)
 
-    # Personal counts
-    total_contacts    = await db.contacts.count_documents({"user_id": uid, "created_at": {"$gte": since}})
-    total_calls       = await db.call_logs.count_documents({"user_id": uid, "timestamp": {"$gte": since}})
-    total_appts       = await db.calendar_events.count_documents({"user_id": uid, "starts_at": {"$gte": since}})
-    total_invoices    = await db.invoices.count_documents({"user_id": uid, "created_at": {"$gte": since}})
+    # Personal counts - independent queries, run concurrently instead of
+    # paying a separate network round-trip for each one in turn.
+    total_contacts, total_calls, total_appts, total_invoices = await _asyncio.gather(
+        db.contacts.count_documents({"user_id": uid, "created_at": {"$gte": since}}),
+        db.call_logs.count_documents({"user_id": uid, "timestamp": {"$gte": since}}),
+        db.calendar_events.count_documents({"user_id": uid, "starts_at": {"$gte": since}}),
+        db.invoices.count_documents({"user_id": uid, "created_at": {"$gte": since}}),
+    )
 
     # Daily trend (last 14 days for dashboard)
     trend_days = min(days, 14)
@@ -684,7 +688,6 @@ async def my_dashboard(
             out[doc["_id"]] = doc["count"]
         return out
 
-    import asyncio as _asyncio
     c_t, ca_t, ap_t, inv_t = await _asyncio.gather(
         daily("contacts", "created_at"),
         daily("call_logs", "timestamp"),
@@ -706,34 +709,41 @@ async def my_dashboard(
     def _fmt(docs: list) -> list:
         return [{**{k: str(v) if k == "_id" else v for k, v in d.items()}} for d in docs]
 
-    recent_contacts = _fmt(await db.contacts.find(
-        {"user_id": uid},
-        {"_id": 1, "full_name": 1, "email": 1, "phone": 1, "created_at": 1},
-    ).sort("created_at", -1).limit(5).to_list(None))
+    async def _call_breakdown() -> dict[str, int]:
+        call_pipeline = [
+            {"$match": {"user_id": uid, "timestamp": {"$gte": since}}},
+            {"$group": {"_id": "$status", "count": {"$sum": 1}}},
+        ]
+        breakdown: dict[str, int] = {}
+        async for doc in db.call_logs.aggregate(call_pipeline):
+            breakdown[doc["_id"] or "unknown"] = doc["count"]
+        return breakdown
 
-    recent_calls = _fmt(await db.call_logs.find(
-        {"user_id": uid},
-        {"_id": 1, "contact_name": 1, "duration": 1, "status": 1, "timestamp": 1},
-    ).sort("timestamp", -1).limit(5).to_list(None))
-
-    recent_appts = _fmt(await db.calendar_events.find(
-        {"user_id": uid},
-        {"_id": 1, "title": 1, "starts_at": 1, "ends_at": 1, "status": 1},
-    ).sort("starts_at", -1).limit(5).to_list(None))
-
-    recent_invoices = _fmt(await db.invoices.find(
-        {"user_id": uid},
-        {"_id": 1, "recipient_name": 1, "total_amount": 1, "status": 1, "created_at": 1},
-    ).sort("created_at", -1).limit(5).to_list(None))
-
-    # Call status breakdown
-    call_pipeline = [
-        {"$match": {"user_id": uid, "timestamp": {"$gte": since}}},
-        {"$group": {"_id": "$status", "count": {"$sum": 1}}},
-    ]
-    call_breakdown: dict[str, int] = {}
-    async for doc in db.call_logs.aggregate(call_pipeline):
-        call_breakdown[doc["_id"] or "unknown"] = doc["count"]
+    # Recent-records lists and the call-status breakdown are all independent
+    # reads - run them concurrently rather than one network round-trip at a time.
+    recent_contacts_docs, recent_calls_docs, recent_appts_docs, recent_invoices_docs, call_breakdown = await _asyncio.gather(
+        db.contacts.find(
+            {"user_id": uid},
+            {"_id": 1, "full_name": 1, "email": 1, "phone": 1, "created_at": 1},
+        ).sort("created_at", -1).limit(5).to_list(None),
+        db.call_logs.find(
+            {"user_id": uid},
+            {"_id": 1, "contact_name": 1, "duration": 1, "status": 1, "timestamp": 1},
+        ).sort("timestamp", -1).limit(5).to_list(None),
+        db.calendar_events.find(
+            {"user_id": uid},
+            {"_id": 1, "title": 1, "starts_at": 1, "ends_at": 1, "status": 1},
+        ).sort("starts_at", -1).limit(5).to_list(None),
+        db.invoices.find(
+            {"user_id": uid},
+            {"_id": 1, "recipient_name": 1, "total_amount": 1, "status": 1, "created_at": 1},
+        ).sort("created_at", -1).limit(5).to_list(None),
+        _call_breakdown(),
+    )
+    recent_contacts = _fmt(recent_contacts_docs)
+    recent_calls = _fmt(recent_calls_docs)
+    recent_appts = _fmt(recent_appts_docs)
+    recent_invoices = _fmt(recent_invoices_docs)
 
     return {
         "success": True,

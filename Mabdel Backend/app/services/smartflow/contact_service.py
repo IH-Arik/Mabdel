@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 
 from datetime import datetime, timezone
@@ -24,10 +25,15 @@ class ContactService(SmartFlowBase):
     ) -> dict:
         team_ids = await self._resolve_team_user_ids(user_id)
         filters = self._build_contact_filters(team_ids, search=search, company=company)
-        page_result = await self._paginate(self.db.contacts, filters, page, page_size, "updated_at")
+        # _contact_summary only needs team_ids, not the paginated page, so it can
+        # run concurrently with the page fetch instead of waiting behind it.
+        page_result, summary = await asyncio.gather(
+            self._paginate(self.db.contacts, filters, page, page_size, "updated_at"),
+            self._contact_summary(team_ids),
+        )
         page_result["items"] = await self._attach_membership_flags([self._serialize_contact(item) for item in page_result["items"]])
         await self._attach_last_interaction(page_result["items"])
-        page_result["summary"] = await self._contact_summary(team_ids)
+        page_result["summary"] = summary
         return page_result
 
     async def _attach_last_interaction(self, items: list[dict]) -> None:

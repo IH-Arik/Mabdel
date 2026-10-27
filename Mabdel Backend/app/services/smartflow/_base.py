@@ -258,10 +258,12 @@ class SmartFlowBase:
         sort_field: str,
         ascending: bool = False,
     ) -> dict:
-        total = await collection.count_documents(filters)
         direction = 1 if ascending else -1
         cursor = collection.find(filters).sort(sort_field, direction).skip((page - 1) * page_size).limit(page_size)
-        items = self._to_public_many(await cursor.to_list(length=page_size))
+        # The count and the page of results don't depend on each other - run them
+        # concurrently instead of paying two sequential network round-trips.
+        total, raw_items = await asyncio.gather(collection.count_documents(filters), cursor.to_list(length=page_size))
+        items = self._to_public_many(raw_items)
         return {
             "items": items,
             "pagination": {
