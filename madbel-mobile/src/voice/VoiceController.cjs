@@ -115,7 +115,7 @@ class VoiceController {
     if (action === 'hold') return call.currentIsHeld ? call.resume() : call.hold();
     throw new Error('Unsupported call action.');
   }
-  async stop({ clear = false } = {}) {
+  async stop({ clear = false, preservePush = false } = {}) {
     const pending = this.pending;
     ++this.generation; this.pending = null;
     clearInterval(this.timer); this.timer = null;
@@ -125,13 +125,13 @@ class VoiceController {
     this.publish(initialState());
     if (pending) await pending.catch(() => {});
     if (identity) await this.register({ identity, active: false }).catch(() => {});
-    this.client.disablePushNotifications();
+    if (!preservePush) this.client.disablePushNotifications();
     await this.client.logout().catch(() => {});
     if (clear) await this.clearStoredConfig();
   }
   async reconnect() {
     if (this.snapshot.call) throw new Error('Finish your call before reconnecting.');
-    await this.stop(); await this.start();
+    await this.stop({ preservePush: true }); await this.start();
   }
 }
 module.exports = { VoiceController, TERMINAL };

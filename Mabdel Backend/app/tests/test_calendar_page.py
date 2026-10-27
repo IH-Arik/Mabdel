@@ -72,7 +72,7 @@ def test_attendees_from_the_businesss_contacts_are_shown_for_a_teammates_event(c
     assert [attendee["name"] for attendee in created["attendees"]] == ["Karim"]
 
 
-def test_an_event_can_still_be_deleted_when_the_google_copy_cannot(client, mock_db, monkeypatch):
+def test_an_event_is_retained_when_its_google_copy_cannot_be_deleted(client, mock_db, monkeypatch):
     headers, owner_id = _signup(client, mock_db, "cal-del@example.com", "Owner")
     event_id = _event(client, headers).json()["data"]["id"]
     asyncio.run(mock_db.calendar_events.update_one({"_id": ObjectId(event_id)}, {"$set": {"google_event_id": "g-1"}}))
@@ -81,8 +81,10 @@ def test_an_event_can_still_be_deleted_when_the_google_copy_cannot(client, mock_
         raise AppException(status_code=502, code="GOOGLE_EVENT_DELETE_FAILED", message="Google Calendar event could not be deleted.")
 
     monkeypatch.setattr(GoogleCalendarService, "delete_remote_event", broken)
-    assert client.delete(f"/api/v1/smartflow/calendar/events/{event_id}", headers=headers).status_code in (200, 204)
-    assert asyncio.run(mock_db.calendar_events.find_one({"_id": ObjectId(event_id)})) is None
+    response = client.delete(f"/api/v1/smartflow/calendar/events/{event_id}", headers=headers)
+    assert response.status_code == 503
+    retained = asyncio.run(mock_db.calendar_events.find_one({"_id": ObjectId(event_id)}))
+    assert retained and retained["google_event_id"] == "g-1"
 
 
 def test_the_invite_link_opens_a_page_that_escapes_what_people_typed(client, mock_db):

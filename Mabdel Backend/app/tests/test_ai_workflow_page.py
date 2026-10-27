@@ -35,6 +35,12 @@ def test_what_the_model_extracts_is_merged_into_the_form(client, mock_db, monkey
 
 def test_an_unsupported_request_falls_back_to_the_assistant_chat(client, mock_db, monkeypatch):
     _without_real_ai(monkeypatch)
+    async def unsupported_intent(_prompt):
+        return "unknown"
+
+    from importlib import import_module
+
+    monkeypatch.setattr(import_module("app.workflows.nodes.parse_intent"), "call_llm", unsupported_intent)
     headers, _ = _signup(client, mock_db, "wf-chat@example.com", "Owner")
     data = client.post("/api/v1/smartflow/ai/workflow-prefill", headers=headers, json={"transcript": "What is the weather like"}).json()["data"]
     assert data["workflow"]["intent"] == "unknown" and data["navigation"]["path"] == "/voice-conversation"

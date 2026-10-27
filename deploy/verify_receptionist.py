@@ -17,6 +17,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skip-backend", action="store_true")
     parser.add_argument("--skip-website", action="store_true")
+    parser.add_argument("--skip-mobile", action="store_true")
     parser.add_argument("--report", type=Path, default=ROOT / "runtime-logs" / "receptionist-local-validation.json")
     args = parser.parse_args()
     backend = ROOT / "Mabdel Backend"
@@ -37,6 +38,16 @@ def main():
             ("website_scoped_lint", website, [npx, "--no-install", "eslint",
                 "src/components/Calls/ReceptionistWorkQueue.jsx", "src/components/BusinessLocationsPanel.jsx",
                 "src/pages/Profile/tabs/AIConfigTab.jsx", "src/pages/Profile/tabs/ReceptionistDocuments.jsx"]),
+        ])
+    if not args.skip_mobile:
+        if not npm or not npx:
+            parser.error("Node/npm is required for mobile validation.")
+        mobile = ROOT / "madbel-mobile"
+        checks.extend([
+            ("mobile_voice_unit", mobile, [npm, "run", "test:voice"]),
+            ("mobile_expo_config", mobile, [npx, "--no-install", "expo", "config", "--type", "public"]),
+            ("mobile_android_bundle", mobile, [npx, "--no-install", "expo", "export", "--platform", "android",
+                "--output-dir", str(ROOT / "runtime-logs" / "mobile-local-export")]),
         ])
     results = []
     env = {**os.environ, "REALTIME_LIVE": "0", "PYTHONIOENCODING": "utf-8", "CI": "1"}

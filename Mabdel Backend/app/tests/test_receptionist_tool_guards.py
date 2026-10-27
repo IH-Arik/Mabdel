@@ -2,15 +2,27 @@ import asyncio
 import json
 
 import pytest
+from bson import ObjectId
 
 from app.services.realtime_receptionist import TOOLS
-from app.tests.test_realtime_receptionist import FakeOpenAI, _business, _receptionist
+from app.tests.test_realtime_receptionist import FakeOpenAI, _receptionist
+
+
+def _seed_owner(mock_db, key):
+    owner = str(ObjectId())
+
+    async def seed():
+        await mock_db.users.insert_one({"_id": ObjectId(owner), "email": f"{key}@example.com", "organization_id": owner})
+        await mock_db.organizations.insert_one({"organization_id": owner, "business_name": "Test Business"})
+
+    asyncio.run(seed())
+    return owner
 
 
 @pytest.mark.parametrize("tool", ["book_appointment", "reschedule_appointment", "cancel_appointment"])
 @pytest.mark.parametrize("consent", [None, False, 1, "yes"])
 def test_appointment_tools_require_explicit_boolean_consent(client, mock_db, monkeypatch, tool, consent):
-    owner = _business(client, mock_db, monkeypatch, f"consent-{tool}-{consent}@example.com")
+    owner = _seed_owner(mock_db, f"consent-{tool}-{consent}")
     async def run():
         agent = _receptionist(mock_db, owner, FakeOpenAI())
         result = await agent.run_tool(tool, {"caller_confirmed": consent})
@@ -24,7 +36,7 @@ def test_appointment_tools_require_explicit_boolean_consent(client, mock_db, mon
 
 
 def test_provider_tool_call_retries_do_not_repeat_a_message(client, mock_db, monkeypatch):
-    owner = _business(client, mock_db, monkeypatch, "tool-retry@example.com")
+    owner = _seed_owner(mock_db, "tool-retry")
     async def run():
         agent = _receptionist(mock_db, owner, FakeOpenAI())
         args = {"message": "Please call me about the quote", "caller_name": "Jane"}
@@ -39,7 +51,7 @@ def test_provider_tool_call_retries_do_not_repeat_a_message(client, mock_db, mon
 
 
 def test_concurrent_repeated_tool_id_runs_only_one_side_effect(client, mock_db, monkeypatch):
-    owner = _business(client, mock_db, monkeypatch, "tool-concurrent@example.com")
+    owner = _seed_owner(mock_db, "tool-concurrent")
     calls = []
     async def run():
         agent = _receptionist(mock_db, owner, FakeOpenAI())

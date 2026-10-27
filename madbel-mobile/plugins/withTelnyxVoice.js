@@ -1,4 +1,4 @@
-const { withAndroidManifest, withMainActivity, withAppDelegate, withDangerousMod } = require('@expo/config-plugins');
+const { withAndroidManifest, withMainActivity, withAppDelegate, withDangerousMod, withAppBuildGradle } = require('@expo/config-plugins');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
@@ -50,7 +50,19 @@ class AppFirebaseMessagingService : TelnyxFirebaseMessagingService() {
     expoDelegate.onDeletedMessages()
   }
 }
+
 `;
+}
+
+function notificationActionReceiver(packageName) {
+  return `package ${packageName}\n\nimport com.telnyx.react_voice_commons.TelnyxNotificationActionReceiver\n\nclass AppTelnyxNotificationActionReceiver : TelnyxNotificationActionReceiver()\n`;
+}
+
+function patchAppBuildGradle(source) {
+  const dependency = 'implementation "com.google.firebase:firebase-messaging:24.0.1"';
+  if (source.includes(dependency)) return source;
+  if (!/dependencies\s*\{/.test(source)) throw new Error('Telnyx voice plugin could not find the Android app dependencies block.');
+  return source.replace(/dependencies\s*\{/, (block) => `${block}\n    ${dependency}`);
 }
 
 function withTelnyxVoice(config) {
@@ -65,6 +77,12 @@ function withTelnyxVoice(config) {
     mod.modResults.manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
     application.service.push({ $: { 'android:name': expoService, 'tools:node': 'remove' } });
     application.service.push({ $: { 'android:name': serviceName, 'android:exported': 'false' }, 'intent-filter': [{ action: [{ $: { 'android:name': 'com.google.firebase.MESSAGING_EVENT' } }] }] });
+    application.receiver = application.receiver || [];
+    application.receiver = application.receiver.filter((item) => item.$['android:name'] !== '.AppTelnyxNotificationActionReceiver');
+    application.receiver.push({ $: { 'android:name': '.AppTelnyxNotificationActionReceiver', 'android:exported': 'false' }, 'intent-filter': [{ action: [
+      { $: { 'android:name': 'ANSWER_CALL' } },
+      { $: { 'android:name': 'REJECT_CALL' } },
+    ] }] });
     const activity = application.activity.find((item) => item.$['android:name'] === '.MainActivity');
     if (activity) Object.assign(activity.$, { 'android:showWhenLocked': 'true', 'android:turnScreenOn': 'true' });
     return mod;
@@ -73,11 +91,17 @@ function withTelnyxVoice(config) {
     mod.modResults.contents = patchMainActivity(mod.modResults.contents);
     return mod;
   });
+  config = withAppBuildGradle(config, (mod) => {
+    if (mod.modResults.language !== 'groovy') throw new Error('Telnyx voice plugin expects the Expo Groovy app build file.');
+    mod.modResults.contents = patchAppBuildGradle(mod.modResults.contents);
+    return mod;
+  });
   config = withDangerousMod(config, ['android', async (mod) => {
     const packageName = mod.android.package;
     const directory = path.join(mod.modRequest.platformProjectRoot, 'app/src/main/java', ...packageName.split('.'));
     await fs.mkdir(directory, { recursive: true });
     await fs.writeFile(path.join(directory, 'AppFirebaseMessagingService.kt'), messagingService(packageName));
+    await fs.writeFile(path.join(directory, 'AppTelnyxNotificationActionReceiver.kt'), notificationActionReceiver(packageName));
     return mod;
   }]);
   return withAppDelegate(config, (mod) => {
@@ -91,3 +115,5 @@ module.exports = withTelnyxVoice;
 module.exports.patchMainActivity = patchMainActivity;
 module.exports.patchAppDelegate = patchAppDelegate;
 module.exports.messagingService = messagingService;
+module.exports.notificationActionReceiver = notificationActionReceiver;
+module.exports.patchAppBuildGradle = patchAppBuildGradle;

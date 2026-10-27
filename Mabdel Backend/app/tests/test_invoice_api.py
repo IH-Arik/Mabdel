@@ -94,7 +94,11 @@ def invoice_api_client(mock_db) -> Generator[TestClient, None, None]:
     app.dependency_overrides.clear()
 
 
-def test_invoice_crud_send_share_and_pdf_flow(invoice_api_client, mock_db):
+def test_invoice_crud_send_share_and_pdf_flow(invoice_api_client, mock_db, monkeypatch):
+    async def no_external_email(self, **kwargs):
+        return None
+
+    monkeypatch.setattr("app.services.email_service.EmailService._send_email", no_external_email)
     headers = _auth_headers(invoice_api_client, mock_db)
     invoice_id = _create_invoice(invoice_api_client, headers)
 
