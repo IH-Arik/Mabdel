@@ -30,13 +30,24 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     task_default_retry_delay=30,
     task_max_retries=3,
+    task_default_queue="default",
+    # Keys here must be the registered task *name* (the `name=` kwarg each
+    # @shared_task sets), not the Python module path - Celery's router matches
+    # against the name a task actually publishes under. These used to be
+    # dotted module paths like "app.workers.tasks.email_tasks.*", which never
+    # matched anything (every task here has a short explicit name instead), so
+    # every task silently fell through to Celery's own default queue - which
+    # is literally named "celery", not "default" - where nothing ever consumed
+    # it. Confirmed live: two due tasks sat unconsumed in Redis's "celery" list
+    # for 5+ minutes before this fix.
     task_routes={
-        "app.workers.tasks.email_tasks.*": {"queue": "email"},
-        "app.workers.tasks.push_tasks.*": {"queue": "push"},
-        "app.workers.tasks.invoice_tasks.*": {"queue": "invoice"},
-        "app.workers.tasks.reminder_tasks.*": {"queue": "default"},
-        "app.workers.tasks.social_sync_tasks.*": {"queue": "default"},
-        "app.workers.tasks.caldav_sync_tasks.*": {"queue": "default"},
+        "email.send": {"queue": "email"},
+        "push.dispatch": {"queue": "push"},
+        "invoice.generate": {"queue": "invoice"},
+        "reminder.send": {"queue": "default"},
+        "appointments.send_reminders": {"queue": "default"},
+        "social.sync_polling_platforms": {"queue": "default"},
+        "caldav.sync_connections": {"queue": "default"},
     },
     beat_schedule={
         "snapchat-auto-sync-every-5-minutes": {

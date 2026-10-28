@@ -27,6 +27,16 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+    # The image's own HEALTHCHECK (from the Dockerfile) pings the api's HTTP
+    # server on :8000, which this container never runs - replace it with a
+    # real celery liveness check or every worker/beat container reports
+    # "unhealthy" forever despite working correctly.
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.workers.celery_app", "inspect", "ping", "-d", "celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # Fires the periodic tasks in celery_app.py's beat_schedule (CalDAV/social sync
   # every 5 minutes, appointment reminders every 15) onto the queues above. Exactly
@@ -40,6 +50,12 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+    # Same inherited-HEALTHCHECK problem as worker above. Beat has no inspect
+    # command of its own (it's a scheduler, not a task consumer) - disable the
+    # inherited one rather than report a false "unhealthy" forever; crash
+    # recovery is still handled by restart: unless-stopped.
+    healthcheck:
+      disable: true
 
   # Rate limiting and the RBAC permission cache. Reached from the api container as
   # redis://redis:6379/0 (set REDIS_URL to that in .env). Not published on any host
