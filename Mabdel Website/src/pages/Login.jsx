@@ -319,10 +319,11 @@ export default function LoginPage() {
 
                   <form onSubmit={handleLogin} className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_email_phone_label')}</label>
+                      <label htmlFor="login-email" className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_email_phone_label')}</label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                         <input
+                          id="login-email"
                           type="email"
                           placeholder={t('login_email_phone_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
@@ -335,7 +336,7 @@ export default function LoginPage() {
 
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_password_label')}</label>
+                        <label htmlFor="login-password" className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_password_label')}</label>
                         <button
                           type="button"
                           onClick={() => {
@@ -351,6 +352,7 @@ export default function LoginPage() {
                       <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                         <input
+                          id="login-password"
                           type={showPass ? "text" : "password"}
                           placeholder={t('login_password_placeholder')}
                           className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
@@ -405,10 +407,11 @@ export default function LoginPage() {
 
                   <form onSubmit={handleRegisterSubmit} className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_full_name_label')}</label>
+                      <label htmlFor="signup-full-name" className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_full_name_label')}</label>
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                         <input
+                          id="signup-full-name"
                           type="text"
                           placeholder={t('login_full_name_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
@@ -420,10 +423,11 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_email_label')}</label>
+                      <label htmlFor="signup-email" className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_email_label')}</label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                         <input
+                          id="signup-email"
                           type="email"
                           placeholder={t('login_email_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
@@ -435,10 +439,11 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_phone_label')}</label>
+                      <label htmlFor="signup-phone" className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_phone_label')}</label>
                       <div className="relative">
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                         <input
+                          id="signup-phone"
                           type="text"
                           placeholder={t('login_phone_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
@@ -449,10 +454,11 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_password_label')}</label>
+                      <label htmlFor="signup-password" className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_password_label')}</label>
                       <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                         <input
+                          id="signup-password"
                           type={showPass ? "text" : "password"}
                           placeholder={t('login_password_placeholder')}
                           className="w-full pl-12 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
@@ -682,10 +688,11 @@ export default function LoginPage() {
 
                   <form onSubmit={handleForgotPasswordSubmit} className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_email_phone_label')}</label>
+                      <label htmlFor="forgot-email" className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_email_phone_label')}</label>
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                         <input
+                          id="forgot-email"
                           type="email"
                           placeholder={t('login_details_placeholder')}
                           className="w-full pl-12 pr-4 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
@@ -731,9 +738,10 @@ export default function LoginPage() {
 
                   <form onSubmit={handleResetPassword} className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_new_password_label')}</label>
+                      <label htmlFor="reset-new-password" className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_new_password_label')}</label>
                       <div className="relative">
                         <input
+                          id="reset-new-password"
                           type={showNewPass ? "text" : "password"}
                           placeholder={t('login_new_password_placeholder')}
                           className="w-full pl-4 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"
@@ -752,9 +760,10 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_confirm_password_label')}</label>
+                      <label htmlFor="reset-confirm-password" className="text-xs font-bold text-gray-400 tracking-wide uppercase">{t('login_confirm_password_label')}</label>
                       <div className="relative">
                         <input
+                          id="reset-confirm-password"
                           type={showConfirmPass ? "text" : "password"}
                           placeholder={t('login_confirm_password_placeholder')}
                           className="w-full pl-4 pr-12 py-3.5 bg-[#121625]/60 border border-gray-900 focus:border-purple-500/40 rounded-xl focus:outline-none transition-all font-medium text-white placeholder:text-gray-600"

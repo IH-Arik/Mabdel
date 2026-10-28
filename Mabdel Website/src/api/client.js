@@ -27,6 +27,10 @@ export function buildWebSocketUrl(path, token) {
 
 const client = axios.create({
   baseURL: API_BASE_URL,
+  // No default previously - a backend that never responds (hung connection,
+  // dead upstream) left the UI waiting forever with no error to show. 60s is
+  // generous enough for the slowest real calls (file uploads, AI generation).
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
