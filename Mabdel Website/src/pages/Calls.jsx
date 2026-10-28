@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
-import { analysisCache, callsPageCache, setCallsPageCache } from '../utils/callsCache';
+import { analysisCache, callsPageCache, getSessionGeneration, setCallsPageCache } from '../utils/callsCache';
 import { smartflowApi } from '../api/services';
 import CallMeetingRequests from '../components/Calls/CallMeetingRequests';
 import ReceptionistWorkQueue from '../components/Calls/ReceptionistWorkQueue';
@@ -166,6 +166,7 @@ function CallAnalysisPanel({ call, onClose, onDirectCall, onRequestCallback, onD
     if (!call?.id) return;
 
     let cancelled = false;
+    const requestedGeneration = getSessionGeneration();
 
     async function load() {
       const cached = analysisCache.get(call.id);
@@ -186,7 +187,7 @@ function CallAnalysisPanel({ call, onClose, onDirectCall, onRequestCallback, onD
           smartflowApi.getCallRecordingUrl(call.id).catch(() => ({ data: { data: null } })),
         ]);
 
-        if (cancelled) return;
+        if (cancelled || getSessionGeneration() !== requestedGeneration) return;
 
         const aiPayload = aiResponse?.data?.data?.ai_summary || aiResponse?.data?.data || null;
         const transcriptPayload = transcriptResponse?.data?.data || {};
@@ -709,6 +710,12 @@ export default function Calls() {
   }, [t]);
 
   const fetchCalls = useCallback(async (nextPage = 1, append = false) => {
+    // Regression for R04: a request held in flight across a logout (e.g. a
+    // slow network) used to still land afterward and write the previous
+    // account's call list into the shared module-level cache and onto screen,
+    // even though logout had already cleared it. Capture the session before
+    // firing the request and refuse to apply the response if it's changed.
+    const requestedGeneration = getSessionGeneration();
     try {
       if (append) {
         setLoadingMore(true);
@@ -723,6 +730,8 @@ export default function Calls() {
         smartflowApi.getCallSummary().catch(() => ({ data: { data: null } })),
       ]);
 
+      if (getSessionGeneration() !== requestedGeneration) return;
+
       const payload = callRes?.data?.data || {};
       const analytics = analyticsRes?.data?.data;
       if (!append && nextPage === 1) {
@@ -731,10 +740,13 @@ export default function Calls() {
       applyCallsPage(payload, analytics, nextPage, append);
       setError('');
     } catch (requestError) {
+      if (getSessionGeneration() !== requestedGeneration) return;
       setError(requestError?.response?.data?.message || t('calls_err_load_failed'));
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (getSessionGeneration() === requestedGeneration) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   }, [t, applyCallsPage]);
 

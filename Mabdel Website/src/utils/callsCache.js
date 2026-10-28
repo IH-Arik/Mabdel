@@ -7,9 +7,23 @@
 export let callsPageCache = null; // { payload, analytics } for page 1 of the call list
 export const analysisCache = new Map(); // call id -> { aiSummary, transcript, recordingUrl }
 
+// Regression for R04: logout clearing these caches doesn't stop a request that
+// was already in flight when logout happened - it can still resolve afterward
+// and write the previous account's data back in, which a subsequent (possibly
+// failing) request from the next account would then leave on screen. Callers
+// capture getSessionGeneration() before firing a request and compare it again
+// before writing the response into either cache; a mismatch means the session
+// changed while the request was in flight, so the response is discarded.
+let sessionGeneration = 0;
+
+export function getSessionGeneration() {
+  return sessionGeneration;
+}
+
 export function clearCallsCache() {
   callsPageCache = null;
   analysisCache.clear();
+  sessionGeneration += 1;
 }
 
 export function setCallsPageCache(value) {
