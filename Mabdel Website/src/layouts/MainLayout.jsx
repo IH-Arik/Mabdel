@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -14,7 +14,8 @@ import {
   ExternalLink,
   Calendar,
   MessageCircle,
-  Plug
+  Plug,
+  Menu,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { clsx } from 'clsx';
@@ -116,6 +117,14 @@ export default function MainLayout() {
   const { user, token, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // The sidebar is a fixed overlay on mobile (see the <aside> below) - close it
+  // whenever the route changes, so a nav tap doesn't leave the drawer open on
+  // top of the page it just navigated to.
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
   const { t } = useLanguage();
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const syncUnreadCount = useNotificationStore((state) => state.syncUnreadCount);
@@ -163,9 +172,25 @@ export default function MainLayout() {
     <div className="flex h-screen bg-[#02080B] text-white font-sans overflow-hidden">
       <CallOverlayHost />
       
-      {/* Sidebar */}
-      <aside className="w-64 bg-[#0c101b] border-r border-[#243041] flex flex-col shrink-0 select-none">
-        
+      {/* Mobile backdrop - closes the drawer on outside tap */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - a fixed slide-in drawer below the lg breakpoint (390px viewports
+          can't fit a permanent 256px sidebar next to usable content), static on
+          desktop. */}
+      <aside
+        className={cn(
+          "w-64 bg-[#0c101b] border-r border-[#243041] flex flex-col shrink-0 select-none",
+          "fixed inset-y-0 left-0 z-40 transition-transform duration-200 lg:static lg:translate-x-0",
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+
         {/* Brand Logo Header */}
         <div className="p-6 border-b border-[#243041]/40">
           <div className="flex items-center gap-3">
@@ -249,6 +274,14 @@ export default function MainLayout() {
           
           {/* Header Left Section */}
           <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open menu"
+              className="p-2 -ml-2 text-slate-300 hover:text-white lg:hidden"
+            >
+              <Menu size={20} />
+            </button>
             {!isPrimaryPage ? (
               /* If on a sub-page, show Back button */
               <div className="flex items-center gap-3">
