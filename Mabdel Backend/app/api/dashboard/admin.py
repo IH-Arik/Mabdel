@@ -917,7 +917,12 @@ async def dismiss_report_endpoint(
 @router.post("/users/{user_id}/ban", response_model=BaseResponse[bool])
 async def block_user(
     user_id: str,
-    current_user: dict = Depends(require_permission("users", "edit")),
+    # Regression for R01: these aliases still used require_permission("users",
+    # "edit"), which an owner holds - the role restriction added to the main
+    # PATCH /users/{user_id}/status route (see update_user_status above) never
+    # applied here, so an owner could still block/unblock any user by id across
+    # organizations through this alias.
+    current_user: dict = Depends(require_role(["super_admin", "admin"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -931,7 +936,7 @@ async def block_user(
 @router.post("/users/{user_id}/unban", response_model=BaseResponse[bool])
 async def unblock_user(
     user_id: str,
-    current_user: dict = Depends(require_permission("users", "edit")),
+    current_user: dict = Depends(require_role(["super_admin", "admin"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """

@@ -52,6 +52,23 @@ def test_an_owner_cannot_block_another_organizations_user(client, mock_db):
     assert response.status_code == 403
 
 
+def test_an_owner_cannot_block_another_organizations_user_via_the_block_alias_route(client, mock_db):
+    """Regression for R01: the main PATCH .../status route was restricted to
+    admin/super_admin, but the /block, /ban, /unblock, /unban alias routes
+    still used require_permission("users", "edit"), which every owner holds -
+    the restriction never actually covered these aliases."""
+    owner_headers, _ = _signup(client, mock_db, "admin-guard-owner4@example.com", "Owner")
+    _, stranger_id = _signup(client, mock_db, "admin-guard-stranger4@example.com", "Stranger")
+
+    for path in ("block", "ban"):
+        response = client.post(f"/api/v1/dashboard/admin/users/{stranger_id}/{path}", headers=owner_headers)
+        assert response.status_code == 403, path
+
+    for path in ("unblock", "unban"):
+        response = client.post(f"/api/v1/dashboard/admin/users/{stranger_id}/{path}", headers=owner_headers)
+        assert response.status_code == 403, path
+
+
 def test_a_platform_admin_can_still_manage_any_organizations_user(client, mock_db):
     admin_headers, _ = _signup(client, mock_db, "admin-guard-admin@example.com", "Platform Admin")
     grant_role(mock_db, "admin-guard-admin@example.com", "admin")

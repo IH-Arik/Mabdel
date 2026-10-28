@@ -37,6 +37,13 @@ async def conversation_stream(websocket: WebSocket, conversation_id: str, token:
         if not user:
             await websocket.close(code=1008)
             return
+        # Regression for R08: this handler authenticated the token/user separately
+        # from get_current_user and never checked blocked status, so a blocked
+        # account's still-valid access token worked here even though the matching
+        # REST routes correctly reject it.
+        if user.get("status") == "blocked":
+            await websocket.close(code=1008)
+            return
         service = SmartFlowService(db)
         await service.get_conversation(str(user["_id"]), conversation_id)
         await conversation_realtime_hub.connect(conversation_id, websocket, str(user["_id"]))
@@ -75,6 +82,9 @@ async def inbox_stream(websocket: WebSocket, token: str) -> None:
         db = await get_mongo_database()
         user = await AuthRepository(db).get_user_by_id(claims.get("sub", ""))
         if not user:
+            await websocket.close(code=1008)
+            return
+        if user.get("status") == "blocked":
             await websocket.close(code=1008)
             return
         user_id = str(user["_id"])
