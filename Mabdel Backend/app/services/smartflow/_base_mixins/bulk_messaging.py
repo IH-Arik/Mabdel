@@ -82,11 +82,17 @@ class BulkMessagingMixin:
             zone = ZoneInfo("America/Chicago")
         return datetime.now(zone).strftime("%b %d, %Y")
 
-    async def _dispatch_bulk_message(self, document: dict) -> dict:
+    async def _dispatch_bulk_message(self, document: dict, recipients: list[dict] | None = None) -> dict:
         now = utc_now()
-        deliveries: list[dict] = []
-        sent_count = 0
-        failed_count = 0
+        # Recipients already recorded in document["deliveries"] (e.g. from a crashed
+        # prior attempt resumed by recover_stranded_bulk_messages) must never be
+        # resent - a process restart mid-batch used to lose this list entirely
+        # because nothing was persisted until the very end (B09).
+        already_sent_targets = {d["target"] for d in document.get("deliveries", []) if d.get("target")}
+        pending_recipients = [
+            recipient for recipient in (recipients if recipients is not None else document.get("recipients", []))
+            if (recipient.get("email") if document["channel"] == "email" else recipient.get("phone")) not in already_sent_targets
+        ]
         # Re-resolve at send time so scheduled blasts pick up a domain that
         # finished verifying after the message was drafted.
         sender = None
@@ -152,7 +158,7 @@ class BulkMessagingMixin:
                         status, error = "failed", f"Unsupported bulk channel: {document['channel']}"
                 except Exception as exc:
                     status, error = "failed", self._delivery_error_text(exc)
-            return {
+            outcome = {
                 "target": target,
                 "contact_id": recipient.get("id"),
                 "name": recipient.get("name"),
@@ -160,10 +166,24 @@ class BulkMessagingMixin:
                 "error": error,
                 "sent_at": now if status == "sent" else None,
             }
+            # Persisted per-recipient, immediately - not batched into one final
+            # write - so a mid-batch crash leaves a true record of who was already
+            # messaged instead of losing the whole campaign's progress (B09).
+            await self.db.bulk_messages.update_one(
+                {"_id": document["_id"]},
+                {
+                    "$push": {"deliveries": outcome},
+                    "$inc": {"sent_count" if status == "sent" else "failed_count": 1},
+                    "$set": {"updated_at": utc_now()},
+                },
+            )
+            return outcome
 
-        deliveries = list(await asyncio.gather(*(deliver(recipient) for recipient in document.get("recipients", []))))
-        sent_count = sum(1 for delivery in deliveries if delivery["status"] == "sent")
-        failed_count = len(deliveries) - sent_count
+        await asyncio.gather(*(deliver(recipient) for recipient in pending_recipients))
+
+        final_document = await self.db.bulk_messages.find_one({"_id": document["_id"]})
+        sent_count = final_document.get("sent_count", 0)
+        failed_count = final_document.get("failed_count", 0)
 
         final_status = "sent"
         if sent_count and failed_count:
@@ -175,9 +195,6 @@ class BulkMessagingMixin:
             {"_id": document["_id"]},
             {
                 "$set": {
-                    "deliveries": deliveries,
-                    "sent_count": sent_count,
-                    "failed_count": failed_count,
                     "status": final_status,
                     "sent_at": now if sent_count else None,
                     "updated_at": now,

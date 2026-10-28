@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import timedelta
 from pathlib import Path
 
 from pymongo import ReturnDocument
@@ -249,6 +250,42 @@ class BulkMessageService(SmartFlowBase):
             if not document:
                 break
             await self._dispatch_bulk_message(document)
+            processed += 1
+        return processed
+
+    async def recover_stranded_bulk_messages(self, stale_after_seconds: int = 120, limit: int = 10) -> int:
+        """Resume campaigns left stuck at status="processing" by a crash or
+        restart mid-batch (B09). Each recipient's outcome is now persisted as it
+        completes (see _dispatch_bulk_message), so this only needs to re-dispatch
+        whichever recipients aren't in the document's "deliveries" yet - already
+        -sent recipients are never messaged twice.
+        """
+        cutoff = utc_now() - timedelta(seconds=stale_after_seconds)
+        processed = 0
+        while processed < limit:
+            document = await self.db.bulk_messages.find_one(
+                {"status": "processing", "updated_at": {"$lt": cutoff}},
+                sort=[("updated_at", 1)],
+            )
+            if not document:
+                break
+            # Claim it (bump updated_at) so a second poller/process can't pick up the
+            # same stranded campaign concurrently.
+            claimed = await self.db.bulk_messages.find_one_and_update(
+                {"_id": document["_id"], "status": "processing"},
+                {"$set": {"updated_at": utc_now()}},
+                return_document=ReturnDocument.AFTER,
+            )
+            if not claimed:
+                continue
+            already_sent_targets = {d["target"] for d in claimed.get("deliveries", []) if d.get("target")}
+            remaining = [
+                recipient for recipient in claimed.get("recipients", [])
+                if (recipient.get("email") if claimed["channel"] == "email" else recipient.get("phone")) not in already_sent_targets
+            ]
+            # remaining=[] (every recipient already delivered, only the final status
+            # write never completed) still runs - it just finalizes without resending.
+            await self._dispatch_bulk_message(claimed, recipients=remaining)
             processed += 1
         return processed
 

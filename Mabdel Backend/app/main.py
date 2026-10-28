@@ -59,9 +59,16 @@ async def _scheduled_bulk_dispatcher(stop_event: asyncio.Event) -> None:
         try:
             database = mongo_manager.database
             if database is not None:
-                processed = await BulkMessageService(database).dispatch_due_scheduled_messages()
+                service = BulkMessageService(database)
+                processed = await service.dispatch_due_scheduled_messages()
                 if processed:
                     logger.info("Bulk scheduler dispatched %s scheduled campaign(s).", processed)
+                # B09: a worker crash/restart mid-batch used to leave a campaign
+                # stuck at status="processing" forever - invisible to both manual
+                # resend and this same scheduler's own "scheduled" filter.
+                recovered = await service.recover_stranded_bulk_messages()
+                if recovered:
+                    logger.info("Bulk scheduler recovered %s stranded campaign(s).", recovered)
         except Exception:  # pragma: no cover - background loop logging path
             logger.exception("Bulk scheduler loop failed.")
         try:

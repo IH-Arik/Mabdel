@@ -324,6 +324,70 @@ def test_failed_sms_delivery_reports_the_providers_real_reason(client, mock_db, 
     )
 
 
+def test_stranded_processing_campaign_is_recovered_without_double_sending(client, mock_db):
+    """Regression for B09: a campaign stuck at status="processing" (e.g. the
+    process crashed mid-batch) used to be invisible to both manual resend
+    (send_bulk_message short-circuits on "processing") and the scheduler
+    (dispatch_due_scheduled_messages only looks at "scheduled"), permanently
+    losing any recipient that hadn't been dispatched yet. recover_stranded_bulk_messages
+    must dispatch only the recipients not already recorded in "deliveries"."""
+    headers = _auth_headers(client, mock_db, email="bulk-stranded@example.com")
+    alex_id = _create_contact(client, headers, name="Alex Johnson", email="alex@example.com", phone="+8801711111111")
+    sam_id = _create_contact(client, headers, name="Sam Lee", email="sam@example.com", phone="+8801722222222")
+
+    from app.services.call_service import CallService
+    from app.services.smartflow.bulk_message_service import BulkMessageService
+
+    sent_to: list[str] = []
+
+    async def fake_send_sms(self, *, to_number: str, message: str, from_number: str | None = None) -> dict:
+        sent_to.append(to_number)
+        return {"sid": "SM_RECOVERED", "to": to_number, "body": message}
+
+    CallService.send_sms = fake_send_sms
+
+    create_response = client.post(
+        "/api/v1/smartflow/bulk-messages",
+        headers=headers,
+        json={
+            "channel": "sms",
+            "contact_ids": [alex_id, sam_id],
+            "content": "Will crash mid-batch.",
+            "send_now": False,
+        },
+    )
+    assert create_response.status_code == 201
+    campaign_id = ObjectId(create_response.json()["data"]["id"])
+
+    # Simulate a crash after Alex was already delivered but before Sam's attempt
+    # and the final status write ran: status stuck at "processing", stale.
+    asyncio.run(
+        mock_db.bulk_messages.update_one(
+            {"_id": campaign_id},
+            {
+                "$set": {
+                    "status": "processing",
+                    "deliveries": [
+                        {"target": "+8801711111111", "contact_id": alex_id, "name": "Alex Johnson", "status": "sent", "error": None, "sent_at": utc_now()}
+                    ],
+                    "sent_count": 1,
+                    "updated_at": utc_now() - timedelta(seconds=300),
+                }
+            },
+        )
+    )
+
+    bulk_service = BulkMessageService(mock_db)
+    processed = asyncio.run(bulk_service.recover_stranded_bulk_messages(stale_after_seconds=60))
+    assert processed == 1
+    assert sent_to == ["+8801722222222"]  # only Sam, never a resend to Alex
+
+    recovered = asyncio.run(mock_db.bulk_messages.find_one({"_id": campaign_id}))
+    assert recovered["status"] == "sent"
+    assert recovered["sent_count"] == 2
+    assert len(recovered["deliveries"]) == 2
+
+
 def test_sms_config_validator_does_not_require_the_voice_application_id(monkeypatch):
     """SMS and voice calling are configured independently -- a business with SMS set
     up but no voice Call Control application (or vice versa) must not have one
