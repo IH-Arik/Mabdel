@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
+    async def send(self, **kwargs) -> None:
+        """Generic entry point for callers (e.g. the email.send Celery task) that
+        just have an email/subject/text/html payload and don't need one of the
+        template-specific methods below."""
+        await self._send_email(**kwargs)
+
     async def send_invoice_email(self, email: str, subject: str, text: str, html: str) -> None:
         await self._send_email(email=email, subject=subject, text=text, html=html)
 

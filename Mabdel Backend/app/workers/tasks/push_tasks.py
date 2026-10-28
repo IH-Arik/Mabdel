@@ -12,13 +12,14 @@ def dispatch_push_notifications_task(self, payload: dict) -> dict:
     try:
         import asyncio
 
-        from app.core.database import mongo_manager
+        from app.core.database import get_database
         from app.services.push_notification_service import PushNotificationService
 
         async def _run() -> dict:
-            db = mongo_manager.get_database()
+            db = await get_database()
             service = PushNotificationService(db)
-            return await service.dispatch(**payload)
+            results = await service.dispatch_jobs(**payload)
+            return {"dispatched": len(results)}
 
         return asyncio.run(_run())
     except Exception as exc:

@@ -12,13 +12,14 @@ def send_reminder_task(self, payload: dict) -> dict:
     try:
         import asyncio
 
-        from app.core.database import mongo_manager
+        from app.core.database import get_database
         from app.services.push_notification_service import PushNotificationService
 
         async def _run() -> dict:
-            db = mongo_manager.get_database()
+            db = await get_database()
             service = PushNotificationService(db)
-            return await service.send_reminder(**payload)
+            result = await service.enqueue_notification(**payload)
+            return {"enqueued": len(result)}
 
         return asyncio.run(_run())
     except Exception as exc:
@@ -34,14 +35,18 @@ def send_appointment_reminders_task(self) -> int:
     try:
         import asyncio
 
-        from app.core.database import mongo_manager
+        from app.core.database import get_database
         from app.services.smartflow.appointment_service import AppointmentService
 
         async def _run() -> int:
-            db = mongo_manager.get_database()
+            db = await get_database()
             return await AppointmentService(db).send_due_reminders()
 
         return asyncio.run(_run())
-    except Exception:
-        logger.exception("send_appointment_reminders_task failed")
-        return 0
+    except Exception as exc:
+        # Used to catch everything and return 0, which is indistinguishable from
+        # "ran fine, nothing was due" - a real outage (DB down, bad query) looked
+        # like success forever. Retry once (max_retries=1, matching the decorator)
+        # and let it surface as a real task failure if that also fails.
+        logger.exception("send_appointment_reminders_task failed: %s", exc)
+        raise self.retry(exc=exc)

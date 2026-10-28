@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 def sync_caldav_connections_task(self) -> dict:
     """Pull inbound changes from every connected Apple/CalDAV calendar. Runs every 5 minutes via beat."""
     try:
-        from app.core.database import mongo_manager
+        from app.core.database import get_database
         from app.services.smartflow.caldav_service import CalDAVService
 
         async def _run() -> dict:
-            db = mongo_manager.get_database()
+            db = await get_database()
             service = CalDAVService(db)
             results: list[dict] = []
 

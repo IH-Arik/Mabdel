@@ -12,11 +12,11 @@ def generate_invoice_task(self, payload: dict) -> dict:
     try:
         import asyncio
 
-        from app.core.database import mongo_manager
+        from app.core.database import get_database
         from app.services.invoice_service import InvoiceService
 
         async def _run() -> dict:
-            db = mongo_manager.get_database()
+            db = await get_database()
             service = InvoiceService(db)
             return await service.send_reminder(**payload)
 

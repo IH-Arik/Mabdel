@@ -14,12 +14,12 @@ POLLING_PLATFORMS = ("snapchat",)
 def sync_polling_platforms_task(self) -> dict:
     """Auto-sync platforms that have no webhooks (e.g. Snapchat). Runs every 5 minutes via beat."""
     try:
-        from app.core.database import mongo_manager
+        from app.core.database import get_database
         from app.services.smartflow.integration_service import IntegrationService
         from app.services.smartflow.conversation_service import ConversationService
 
         async def _run() -> dict:
-            db = mongo_manager.get_database()
+            db = await get_database()
             service = IntegrationService(db, ConversationService(db))
             results: list[dict] = []
 

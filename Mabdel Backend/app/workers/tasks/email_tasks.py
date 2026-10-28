@@ -12,13 +12,13 @@ def send_email_task(self, payload: dict) -> dict:
     try:
         import asyncio
 
-        from app.core.database import mongo_manager
         from app.services.email_service import EmailService
 
         async def _run() -> dict:
-            db = mongo_manager.get_database()
-            service = EmailService(db)
-            return await service.send(**payload)
+            # EmailService is stateless (no database access of its own), unlike
+            # the other tasks in this package.
+            await EmailService().send(**payload)
+            return {"sent": True}
 
         return asyncio.run(_run())
     except Exception as exc:
