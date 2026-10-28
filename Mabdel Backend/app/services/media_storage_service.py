@@ -18,6 +18,25 @@ class StoredMedia:
     size_bytes: int
 
 
+# Folders containing customer communication content or signed legal documents -
+# never served from the public media mount. store_file() writes these outside
+# MEDIA_ROOT and returns a URL for the authenticated /media/private/* route
+# instead, which checks the requester shares an organization with the owner
+# before serving the bytes. Everything else (avatars, business logos) is a
+# profile image meant to be publicly viewable and keeps the plain static URL.
+PRIVATE_MEDIA_FOLDERS = {
+    "message_attachments",
+    "bulk_message_attachments",
+    "inbound_email_attachments",
+    "agreement_signed_pdfs",
+    "agreement_signed_certificates",
+}
+
+
+def private_media_root() -> Path:
+    return Path(settings.MEDIA_ROOT).expanduser().parent / "private_uploads"
+
+
 class MediaStorageService:
     IMAGE_EXTENSIONS_BY_TYPE = {
         "image/jpeg": ".jpg",
@@ -78,12 +97,17 @@ class MediaStorageService:
         extension = self._file_extension(media_type, filename)
         stored_name = f"{uuid4().hex}{extension}"
 
-        directory = Path(settings.MEDIA_ROOT).expanduser() / safe_folder / safe_owner_id
+        is_private = safe_folder in PRIVATE_MEDIA_FOLDERS
+        root = private_media_root() if is_private else Path(settings.MEDIA_ROOT).expanduser()
+        directory = root / safe_folder / safe_owner_id
         directory.mkdir(parents=True, exist_ok=True)
         storage_path = directory / stored_name
         storage_path.write_bytes(file_bytes)
 
-        public_path = f"{settings.MEDIA_PUBLIC_PATH.rstrip('/')}/{safe_folder}/{safe_owner_id}/{stored_name}"
+        if is_private:
+            public_path = f"{settings.API_V1_PREFIX}/media/private/{safe_folder}/{safe_owner_id}/{stored_name}"
+        else:
+            public_path = f"{settings.MEDIA_PUBLIC_PATH.rstrip('/')}/{safe_folder}/{safe_owner_id}/{stored_name}"
         return StoredMedia(
             url=f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}{public_path}",
             public_path=public_path,

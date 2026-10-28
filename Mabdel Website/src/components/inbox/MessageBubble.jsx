@@ -1,8 +1,25 @@
 import { AlertCircle, Check, CheckCheck, FileText, Forward, Loader2, Reply, RotateCcw } from 'lucide-react';
 import { formatBubbleTime } from './inboxUtils';
 
+// Private attachment URLs (/media/private/...) require authentication, but
+// <img>/<audio>/<video> src and a plain <a href> can't attach an Authorization
+// header - the backend accepts the access token as a query param for this one
+// route specifically so these tags can still work.
+function withAuth(url) {
+  if (!url || !url.includes('/media/private/')) return url;
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) return url;
+    const u = new URL(url);
+    u.searchParams.set('token', token);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export function Attachment({ attachment, outbound, t }) {
-  const url = attachment?.url;
+  const url = withAuth(attachment?.url);
   if (!url) return null;
   const hint = `${attachment.type || ''} ${attachment.mime_type || ''} ${url}`.toLowerCase();
   if (hint.includes('image') || /\.(png|jpe?g|gif|webp)(\?|$)/.test(hint)) {
