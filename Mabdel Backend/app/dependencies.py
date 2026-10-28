@@ -39,6 +39,8 @@ async def get_current_user(
     user = await AuthRepository(db).get_user_by_id(claims.get("sub", ""))
     if not user:
         raise AppException(status_code=401, code="USER_NOT_FOUND", message="User for this token no longer exists.")
+    if user.get("status") == "blocked":
+        raise AppException(status_code=403, code="ACCOUNT_BLOCKED", message="This account has been blocked.")
     return user
 
 
