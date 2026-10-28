@@ -114,7 +114,7 @@ function CallOverlayHost() {
 }
 
 export default function MainLayout() {
-  const { user, token, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -135,8 +135,14 @@ export default function MainLayout() {
   const primaryNavItems = primaryNavItemDefs.map((item) => ({ ...item, name: t(item.key) }));
 
   const openTeamDashboard = () => {
-    const ssoUrl = token
-      ? `${TEAM_DASHBOARD_URL}/sso?token=${encodeURIComponent(token)}`
+    // Regression for W03: the store's `token` is only set at login and never
+    // updated by client.js's silent refresh (which writes straight to
+    // localStorage), so it goes stale the moment the access token is refreshed -
+    // SSO would then hand the dashboard an already-expired token. localStorage
+    // is the one place both login and refresh actually keep current.
+    const currentToken = localStorage.getItem('access_token');
+    const ssoUrl = currentToken
+      ? `${TEAM_DASHBOARD_URL}/sso?token=${encodeURIComponent(currentToken)}`
       : `${TEAM_DASHBOARD_URL}/sign-in`;
     window.open(ssoUrl, '_blank', 'noopener,noreferrer');
   };
