@@ -113,9 +113,18 @@ def _make_429(request: Request, window: int) -> JSONResponse:
 
 
 def _client_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    """X-Forwarded-For is attacker-controlled - the deployed nginx appends to
+    whatever the client sent rather than replacing it (`$proxy_add_x_forwarded_for`),
+    so trusting its first value let anyone rotate a fake value per request to
+    dodge rate limiting entirely. X-Real-IP is reliable instead: nginx always
+    sets it fresh to `$remote_addr`, overwriting rather than appending, so a
+    client-supplied X-Real-IP never survives the proxy hop. Fall back to the
+    direct peer address only when nothing proxied the request (local dev/tests) -
+    in production that peer is always nginx itself (127.0.0.1), never the
+    real client, so it's not a meaningful fallback there."""
+    real_ip = request.headers.get("x-real-ip", "").strip()
+    if real_ip:
+        return real_ip
     return request.client.host if request.client else "unknown"
 
 

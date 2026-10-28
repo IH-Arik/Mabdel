@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import ipaddress
 import logging
+import socket
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
 import httpx
@@ -18,6 +22,27 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SERVER_URL = "https://caldav.icloud.com"
 
+MAX_CALDAV_REDIRECTS = 5
+
+
+def _assert_safe_caldav_destination(url: str) -> None:
+    """Reject anything but a public https host. The user supplies the server
+    URL directly on connect, the server's own PROPFIND responses supply
+    further hrefs we then fetch, and redirects can point anywhere - without
+    this, any of those is an SSRF primitive against internal/loopback
+    services reachable from this backend."""
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise AppException(status_code=400, code="CALDAV_UNSAFE_URL", message="Only an https CalDAV server address is supported.")
+    try:
+        resolved = socket.getaddrinfo(parsed.hostname, None)
+    except socket.gaierror:
+        raise AppException(status_code=502, code="CALDAV_UNSAFE_URL", message="Could not resolve the CalDAV server address.")
+    for family, _type, _proto, _canon, sockaddr in resolved:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+            raise AppException(status_code=400, code="CALDAV_UNSAFE_URL", message="This CalDAV server address is not allowed.")
+
 NS = {"d": "DAV:", "cs": "http://calendarserver.org/ns/", "c": "urn:ietf:params:xml:ns:caldav"}
 
 
@@ -31,6 +56,21 @@ class CalDAVService:
 
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.db = db
+
+    async def _safe_request(self, method: str, url: str, **kwargs) -> httpx.Response:
+        """The single place every outbound CalDAV request goes through. Validates
+        the destination (and every redirect hop, resolved manually since no
+        auto-follow is safe here - a malicious/compromised server can redirect
+        anywhere) before each request. Never follows a redirect blindly."""
+        for _ in range(MAX_CALDAV_REDIRECTS + 1):
+            await asyncio.to_thread(_assert_safe_caldav_destination, url)
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
+                response = await client.request(method, url, **kwargs)
+            if response.status_code in (301, 302, 303, 307, 308) and response.headers.get("location"):
+                url = self._absolute(url, response.headers["location"])
+                continue
+            return response
+        raise AppException(status_code=502, code="CALDAV_TOO_MANY_REDIRECTS", message="Too many redirects while contacting the CalDAV server.")
 
     # ------------------------------------------------------------------
     # Connection lifecycle
@@ -109,13 +149,12 @@ class CalDAVService:
         href = f"{connection['calendar_url'].rstrip('/')}/{uid}.ics"
         auth = self._auth(connection)
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.put(
-                href,
-                content=ics_bytes,
-                auth=auth,
-                headers={"Content-Type": "text/calendar; charset=utf-8"},
-            )
+        response = await self._safe_request(
+            "PUT", href,
+            content=ics_bytes,
+            auth=auth,
+            headers={"Content-Type": "text/calendar; charset=utf-8"},
+        )
         if response.status_code >= 400:
             await self._mark_error(user_id, f"CalDAV event push failed ({response.status_code}).")
             raise AppException(status_code=502, code="CALDAV_EVENT_PUSH_FAILED", message="Failed to sync event to Apple Calendar.")
@@ -127,8 +166,7 @@ class CalDAVService:
             return
         href = f"{connection['calendar_url'].rstrip('/')}/{caldav_uid}.ics"
         auth = self._auth(connection)
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            await client.delete(href, auth=auth)
+        await self._safe_request("DELETE", href, auth=auth)
 
     # ------------------------------------------------------------------
     # Inbound pull (CalDAV server -> our calendar_events)
@@ -151,11 +189,10 @@ class CalDAVService:
             "<d:prop><d:getetag/></d:prop>"
             "</d:sync-collection>"
         )
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.request(
-                "REPORT", calendar_url, content=body, auth=auth,
-                headers={"Content-Type": "application/xml; charset=utf-8", "Depth": "1"},
-            )
+        response = await self._safe_request(
+            "REPORT", calendar_url, content=body, auth=auth,
+            headers={"Content-Type": "application/xml; charset=utf-8", "Depth": "1"},
+        )
         if response.status_code >= 400:
             # Sync token likely invalidated (410 Gone) or first-time sync unsupported — reset and retry once.
             if sync_token:
@@ -193,8 +230,7 @@ class CalDAVService:
     async def _fetch_and_upsert(self, user_id: str, connection: dict, href: str, auth: httpx.BasicAuth) -> None:
         base = connection["server_url"]
         url = href if href.startswith("http") else f"{base}{href}"
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, auth=auth)
+        response = await self._safe_request("GET", url, auth=auth)
         if response.status_code >= 400 or not response.content:
             return
         try:
@@ -248,11 +284,10 @@ class CalDAVService:
     # ------------------------------------------------------------------
 
     async def _propfind(self, url: str, auth: httpx.BasicAuth, body: str, depth: str = "0") -> ET.Element:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            response = await client.request(
-                "PROPFIND", url, content=body, auth=auth,
-                headers={"Content-Type": "application/xml; charset=utf-8", "Depth": depth},
-            )
+        response = await self._safe_request(
+            "PROPFIND", url, content=body, auth=auth,
+            headers={"Content-Type": "application/xml; charset=utf-8", "Depth": depth},
+        )
         if response.status_code >= 400:
             raise AppException(
                 status_code=502 if response.status_code != 401 else 401,
