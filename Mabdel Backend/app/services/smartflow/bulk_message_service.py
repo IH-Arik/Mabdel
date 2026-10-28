@@ -271,8 +271,16 @@ class BulkMessageService(SmartFlowBase):
                 break
             # Claim it (bump updated_at) so a second poller/process can't pick up the
             # same stranded campaign concurrently.
+            #
+            # Regression for R06: the filter only checked _id and status, both of
+            # which stay "processing" after either side's update - two pollers
+            # reading the same stale candidate at once both passed this filter and
+            # both dispatched. Requiring updated_at to still be below the same
+            # cutoff makes this a real compare-and-set: MongoDB serializes the two
+            # find_one_and_update calls on this one document, so whichever runs
+            # second sees the first's fresh updated_at and no longer matches.
             claimed = await self.db.bulk_messages.find_one_and_update(
-                {"_id": document["_id"], "status": "processing"},
+                {"_id": document["_id"], "status": "processing", "updated_at": {"$lt": cutoff}},
                 {"$set": {"updated_at": utc_now()}},
                 return_document=ReturnDocument.AFTER,
             )

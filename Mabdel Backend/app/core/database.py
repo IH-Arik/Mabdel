@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from urllib.parse import urlsplit, urlunsplit
 
@@ -30,8 +31,38 @@ class MongoConnectionManager:
     def __init__(self) -> None:
         self.client: AsyncIOMotorClient | None = None
         self.database: AsyncIOMotorDatabase | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     async def connect(self) -> AsyncIOMotorDatabase:
+        # Regression for R05: Celery tasks that use asyncio.run(...) get a brand
+        # new event loop per invocation, which closes at the end of that run. This
+        # manager is a module-level singleton shared by every caller (the web app
+        # and every prefork worker process), so a client created on run N's loop
+        # was still cached and handed to run N+1 - whose loop is different and run
+        # N's is already closed - raising "Event loop is closed" on first query.
+        # Reconnect whenever the running loop has changed instead of trusting the
+        # cached client forever.
+        current_loop = asyncio.get_running_loop()
+        if self.database is not None and self._loop is not None and self._loop is not current_loop:
+            if self._loop.is_closed():
+                try:
+                    self.client.close()
+                except Exception:
+                    pass
+                self.client = None
+                self.database = None
+                self._loop = None
+            else:
+                # A different loop is still alive and already using this client
+                # (e.g. two concurrent asyncio.run() calls) - not the dead-loop
+                # case this guards against, so leave the existing client alone.
+                return self.database
+        if self.database is not None and self._loop is None:
+            # database was set without going through connect() at all (e.g. a
+            # test fixture that assigns it directly) - adopt the current loop
+            # rather than discarding a perfectly valid client.
+            self._loop = current_loop
+            return self.database
         if self.database is None:
             try:
                 self.client = AsyncIOMotorClient(
@@ -43,12 +74,14 @@ class MongoConnectionManager:
                     waitQueueTimeoutMS=10000,
                 )
                 self.database = self.client[settings.DATABASE_NAME]
+                self._loop = current_loop
                 await self.ensure_indexes()
             except PyMongoError as exc:
                 if self.client:
                     self.client.close()
                 self.client = None
                 self.database = None
+                self._loop = None
                 logger.exception(
                     "MongoDB connection failed database=%s uri=%s",
                     settings.DATABASE_NAME,
@@ -66,6 +99,7 @@ class MongoConnectionManager:
             self.client.close()
         self.client = None
         self.database = None
+        self._loop = None
 
     async def ensure_indexes(self) -> None:
         if self.database is None:

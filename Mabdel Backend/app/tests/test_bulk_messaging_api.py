@@ -388,6 +388,103 @@ def test_stranded_processing_campaign_is_recovered_without_double_sending(client
     assert len(recovered["deliveries"]) == 2
 
 
+def test_concurrent_recovery_pollers_cannot_both_claim_the_same_stranded_campaign(client, mock_db):
+    """Regression for R06: the claim's atomic filter only checked _id and
+    status, both of which stay "processing" while a dispatch is still in
+    flight - a second poller that attempted to claim the same campaign while
+    the first poller's dispatch was still running could also pass that filter
+    and also dispatch, messaging the recipient twice.
+
+    Exercises the real recover_stranded_bulk_messages method end to end: the
+    first poller is made to pause mid-dispatch (after its claim write has
+    already landed) via a controlled hang on the mocked send_sms, a genuine
+    asyncio suspension point - the second poller then runs for real while the
+    document is still status="processing", exactly the production race
+    window, rather than assuming how an in-memory mock happens to schedule
+    bare dict lookups."""
+    from app.services.call_service import CallService
+    from app.services.smartflow.bulk_message_service import BulkMessageService
+
+    headers = _auth_headers(client, mock_db, email="bulk-race@example.com")
+    alex_id = _create_contact(client, headers, name="Alex Johnson", email="alex@example.com", phone="+8801711111111")
+
+    create_response = client.post(
+        "/api/v1/smartflow/bulk-messages",
+        headers=headers,
+        json={"channel": "sms", "contact_ids": [alex_id], "content": "Race test.", "send_now": False},
+    )
+    assert create_response.status_code == 201
+    campaign_id = ObjectId(create_response.json()["data"]["id"])
+
+    asyncio.run(
+        mock_db.bulk_messages.update_one(
+            {"_id": campaign_id},
+            {"$set": {"status": "processing", "updated_at": utc_now() - timedelta(seconds=300)}},
+        )
+    )
+
+    sent_to: list[str] = []
+    hang_event = asyncio.Event()
+
+    async def hanging_send_sms(self, *, to_number: str, message: str, from_number: str | None = None) -> dict:
+        sent_to.append(to_number)
+        await hang_event.wait()
+        return {"sid": "SM_RACE", "to": to_number, "body": message}
+
+    CallService.send_sms = hanging_send_sms
+    bulk_service = BulkMessageService(mock_db)
+
+    # Force the real race window: both pollers' outer find_one (the stale-candidate
+    # read) must resolve before EITHER claims it - that's the actual production
+    # race, and nothing in an in-memory mock naturally yields control between a
+    # plain dict read and the very next line, so without this barrier one
+    # coroutine runs straight through its read+claim+dispatch-start before the
+    # other's read even executes. db.bulk_messages returns a fresh wrapper
+    # object on every access (confirmed: `db.bulk_messages is db.bulk_messages`
+    # is False), so the patch has to go on the shared collection CLASS, scoped
+    # to this exact recovery-read filter so it doesn't touch unrelated reads.
+    # db.bulk_messages returns a fresh wrapper object on every plain attribute
+    # access (confirmed: `db.bulk_messages is db.bulk_messages` is False, and
+    # each wrapper binds its own find_one, so patching the shared class doesn't
+    # intercept it either) - pinning the attribute on the database instance
+    # itself makes every later `self.db.bulk_messages` access return this same
+    # pinned object instead, whose find_one can then actually be overridden.
+    pinned_collection = mock_db.bulk_messages
+    mock_db.bulk_messages = pinned_collection
+
+    reader_count = 0
+    both_read = asyncio.Event()
+    original_find_one = pinned_collection.find_one
+
+    async def synced_find_one(filter=None, *args, **kwargs):
+        nonlocal reader_count
+        result = await original_find_one(filter, *args, **kwargs)
+        is_recovery_read = isinstance(filter, dict) and filter.get("status") == "processing" and "updated_at" in filter
+        if is_recovery_read:
+            reader_count += 1
+            if reader_count >= 2:
+                both_read.set()
+            else:
+                await asyncio.wait_for(both_read.wait(), timeout=2)
+        return result
+
+    pinned_collection.find_one = synced_find_one
+
+    async def _race():
+        try:
+            task_a = asyncio.create_task(bulk_service.recover_stranded_bulk_messages(stale_after_seconds=60, limit=1))
+            task_b = asyncio.create_task(bulk_service.recover_stranded_bulk_messages(stale_after_seconds=60, limit=1))
+            await asyncio.sleep(0.05)  # let both claims (and dispatch starts) resolve
+            hang_event.set()
+            return await asyncio.gather(task_a, task_b)
+        finally:
+            pinned_collection.find_one = original_find_one
+
+    results = asyncio.run(_race())
+    assert sum(results) == 1, f"exactly one poller should have claimed the campaign, got {results}"
+    assert sent_to == ["+8801711111111"], f"the recipient must be messaged exactly once, got {sent_to}"
+
+
 def test_sms_config_validator_does_not_require_the_voice_application_id(monkeypatch):
     """SMS and voice calling are configured independently -- a business with SMS set
     up but no voice Call Control application (or vice versa) must not have one
