@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.core.config import settings
+from app.core.database import mongo_manager
 
 
 def test_health_and_readiness_include_security_headers(client):
@@ -15,6 +16,24 @@ def test_health_and_readiness_include_security_headers(client):
     assert health_response.headers["x-frame-options"] == "DENY"
     assert login_response.headers["cache-control"] == "no-store"
     assert readiness_response.json()["data"]["status"] in {"ready", "degraded"}
+
+
+def test_readiness_returns_503_when_the_database_is_unreachable(client, monkeypatch):
+    """Regression for B08: /ready's JSON body said "degraded" when the database
+    was down, but it always returned HTTP 200 regardless - any status-code-based
+    check (curl -f, Docker's own HEALTHCHECK, the deploy script's health
+    verification step) read that the same as a real success."""
+    monkeypatch.setattr(mongo_manager, "ping", lambda: _false())
+
+    response = client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json()["data"]["status"] == "degraded"
+    assert response.json()["data"]["services"]["mongodb"] == "down"
+
+
+async def _false() -> bool:
+    return False
 
 
 def test_auth_endpoints_are_rate_limited(client, monkeypatch):

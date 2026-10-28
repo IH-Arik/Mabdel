@@ -87,19 +87,24 @@ def mount_media(app: FastAPI) -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     stop_event = asyncio.Event()
-    scheduler_task: asyncio.Task | None = None
     try:
         await mongo_manager.connect()
-        scheduler_task = asyncio.create_task(_scheduled_bulk_dispatcher(stop_event))
     except Exception as exc:  # pragma: no cover - startup log path
         logger.warning("MongoDB connection could not be established at startup: %s", exc)
+    # Started unconditionally, even if the connect attempt above failed: the loop
+    # itself already tolerates mongo_manager.database being None (skips that
+    # tick and retries), so it self-heals once the database becomes reachable -
+    # any later successful request re-establishes the connection. Making this
+    # conditional on the startup attempt meant a transient DB outage at boot
+    # permanently disabled scheduled campaign dispatch for the process's whole
+    # lifetime, even after the database came back.
+    scheduler_task = asyncio.create_task(_scheduled_bulk_dispatcher(stop_event))
     yield
     stop_event.set()
-    if scheduler_task is not None:
-        try:
-            await scheduler_task
-        except Exception:  # pragma: no cover - shutdown log path
-            logger.exception("Bulk scheduler task failed during shutdown.")
+    try:
+        await scheduler_task
+    except Exception:  # pragma: no cover - shutdown log path
+        logger.exception("Bulk scheduler task failed during shutdown.")
     await close_database_connection()
 
 
@@ -146,9 +151,9 @@ def create_app() -> FastAPI:
         return success_response(data={"status": "ok"}, message="Service is healthy.")
 
     @app.get("/ready", tags=["Health"])
-    async def readiness_check() -> dict:
+    async def readiness_check() -> JSONResponse:
         mongo_connected = await mongo_manager.ping()
-        return success_response(
+        payload = success_response(
             data={
                 "status": "ready" if mongo_connected else "degraded",
                 "services": {
@@ -157,6 +162,12 @@ def create_app() -> FastAPI:
             },
             message="Readiness check completed.",
         )
+        # Used to always return 200 even when degraded - the JSON body said
+        # "degraded" but any status-code-based check (curl -f, Docker's own
+        # HEALTHCHECK, the deploy script's health verification step) read it
+        # as success either way, so a container with no working database could
+        # pass every automated check that was supposed to catch exactly that.
+        return JSONResponse(status_code=200 if mongo_connected else 503, content=payload)
 
     return app
 

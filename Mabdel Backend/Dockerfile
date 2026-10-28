@@ -17,6 +17,10 @@ RUN addgroup --system app && adduser --system --ingroup app app \
 USER app
 
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"
+# /ready (not /health) - /health is a pure liveness probe that always
+# returns 200 once the process is up, regardless of database state. A
+# container whose database connection is broken used to report healthy
+# forever on this check. /ready returns a real non-200 status when degraded.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3).read()"
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
