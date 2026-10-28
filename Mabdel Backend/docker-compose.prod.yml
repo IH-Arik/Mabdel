@@ -9,6 +9,11 @@ services:
     restart: unless-stopped
     volumes:
       - ./uploads:/app/uploads
+      # Regression for R02: media_storage_service.py writes sensitive uploads
+      # (message/bulk-message attachments, signed PDFs/certificates) to this
+      # sibling directory, but it had no volume - every file written there was
+      # container-layer only and disappeared on the next `up -d --build`.
+      - ./private_uploads:/app/private_uploads
     depends_on:
       - redis
       - whatsapp-gateway

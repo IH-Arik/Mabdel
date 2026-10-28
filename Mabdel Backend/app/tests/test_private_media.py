@@ -79,3 +79,21 @@ def test_an_unauthenticated_request_is_rejected(client, mock_db):
     response = client.get(path)
 
     assert response.status_code == 401
+
+
+def test_a_legacy_sensitive_file_under_the_public_media_root_is_not_served(client):
+    """Regression for R03: files written under a PRIVATE_MEDIA_FOLDERS name
+    before B03's fix (or by any writer that still targets the public root by
+    mistake) sat under the public, unauthenticated /media/* StaticFiles mount.
+    That folder name must be denied there outright, regardless of how the file
+    got there."""
+    from pathlib import Path
+    from app.core.config import settings
+
+    legacy_dir = Path(settings.MEDIA_ROOT).expanduser() / "message_attachments" / "legacy-owner"
+    legacy_dir.mkdir(parents=True, exist_ok=True)
+    (legacy_dir / "old.pdf").write_bytes(b"legacy public contents")
+
+    response = client.get(f"{settings.MEDIA_PUBLIC_PATH}/message_attachments/legacy-owner/old.pdf")
+
+    assert response.status_code == 404

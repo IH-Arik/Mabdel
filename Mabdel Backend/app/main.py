@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.compat_routes import router as compat_router
@@ -21,6 +22,7 @@ from app.core.database import close_database_connection, mongo_manager
 from app.core.logging import configure_logging
 from app.core.exceptions import register_exception_handlers
 from app.core.http import AuthRateLimitMiddleware, MutationRateLimitMiddleware, RequestContextMiddleware
+from app.services.media_storage_service import PRIVATE_MEDIA_FOLDERS
 from app.services.smartflow.bulk_message_service import BulkMessageService
 from app.utils.responses import success_response
 
@@ -77,6 +79,22 @@ async def _scheduled_bulk_dispatcher(stop_event: asyncio.Event) -> None:
             continue
 
 
+class _PublicMediaFiles(StaticFiles):
+    # Regression for R03: moving where NEW sensitive uploads get written
+    # (media_storage_service.py's PRIVATE_MEDIA_FOLDERS) does nothing about
+    # files already sitting under the public /media mount from before that
+    # fix, or any writer that still targets one of these folder names here by
+    # mistake - deny the folder name itself at the public mount so no file
+    # under it is ever served without authentication, regardless of how it
+    # got there.
+    async def get_response(self, path: str, scope):
+        # get_path() joins segments with os.sep, not "/" - matters on Windows dev.
+        first_segment = Path(path).parts[0] if path else ""
+        if first_segment in PRIVATE_MEDIA_FOLDERS:
+            raise StarletteHTTPException(status_code=404)
+        return await super().get_response(path, scope)
+
+
 def mount_media(app: FastAPI) -> None:
     media_root = Path(settings.MEDIA_ROOT)
     try:
@@ -88,7 +106,7 @@ def mount_media(app: FastAPI) -> None:
         media_root = fallback_root
         logger.warning("MEDIA_ROOT was not writable (%s). Using %s instead.", exc, media_root)
 
-    app.mount(settings.MEDIA_PUBLIC_PATH, StaticFiles(directory=str(media_root)), name="media")
+    app.mount(settings.MEDIA_PUBLIC_PATH, _PublicMediaFiles(directory=str(media_root)), name="media")
 
 
 @asynccontextmanager
