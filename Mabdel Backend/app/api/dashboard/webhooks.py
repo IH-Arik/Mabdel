@@ -34,6 +34,16 @@ async def stripe_webhook(
         # production's .env already has), every genuine signed Stripe webhook
         # call was crashing this endpoint with a 500.
         event = _verify_stripe_signature(payload, stripe_signature).to_dict()
+    elif settings.ENVIRONMENT.lower() != "development":
+        # Regression for B10: with no secret configured, every call fell straight
+        # into json.loads with zero signature check - anyone could POST a fake
+        # checkout.session.completed body and get an invoice marked paid or an
+        # owner account provisioned for free, in production.
+        raise AppException(
+            status_code=503,
+            code="STRIPE_WEBHOOK_NOT_CONFIGURED",
+            message="Stripe webhook secret is not configured.",
+        )
     else:
         try:
             event = json.loads(payload)

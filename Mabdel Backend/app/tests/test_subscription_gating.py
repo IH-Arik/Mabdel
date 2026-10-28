@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 
+from app.core.config import settings
 from app.dependencies import _resolve_subscription_state
 from app.tests.conftest import grant_owner_role
 
@@ -318,6 +319,25 @@ def test_checkout_completed_webhook_provisions_active_subscribe_account(client, 
     assert user["trial_ends_at"] is None
     assert user["stripe_customer_id"] == "cus_growth_1"
     assert user["stripe_subscription_id"] == "sub_growth_1"
+
+
+def test_stripe_webhook_rejects_unsigned_requests_in_production_when_secret_missing(client, monkeypatch):
+    """Regression for B10: with STRIPE_WEBHOOK_SECRET unset, every call fell
+    straight into json.loads with zero signature check - in production, anyone
+    could POST a fake checkout.session.completed body and have an invoice
+    marked paid or an owner account provisioned for free."""
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "STRIPE_WEBHOOK_SECRET", None)
+
+    forged_session = {
+        "metadata": {"type": "invoice_payment", "invoice_id": "forged-invoice-id"},
+    }
+    response = client.post(
+        "/api/v1/dashboard/webhooks/stripe",
+        json={"type": "checkout.session.completed", "data": {"object": forged_session}},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "STRIPE_WEBHOOK_NOT_CONFIGURED"
 
 
 def test_checkout_completed_webhook_provisions_trial_with_trial_ends_at(client, mock_db, monkeypatch):
