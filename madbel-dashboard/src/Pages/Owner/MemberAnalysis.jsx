@@ -173,6 +173,7 @@ const MemberAnalysis = () => {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {/* eslint-disable-next-line no-unused-vars -- Icon is a JSX component tag below; no eslint-plugin-react here to recognize that */}
         {STAT_CARDS.map(({ key, label, icon: Icon, color, bg }) => (
           <div key={key} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex items-center gap-3">
             <div className={`${bg} rounded-xl p-3`}>

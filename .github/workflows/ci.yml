@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  backend:
+    name: Backend (lint + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Mabdel Backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "Mabdel Backend/requirements*.txt"
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest app/tests -q
+
+  website:
+    name: Website (lint + test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Mabdel Website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "Mabdel Website/package-lock.json"
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+
+  dashboard:
+    name: Admin Dashboard (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: madbel-dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "madbel-dashboard/package-lock.json"
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
