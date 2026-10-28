@@ -52,7 +52,11 @@ let refreshInFlight = null;
 async function refreshAccessToken() {
   const refreshToken = localStorage.getItem('refresh_token');
   if (!refreshToken) throw new Error('No refresh token available.');
-  const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh-token`, { refresh_token: refreshToken });
+  // Regression: this bypasses the `client` instance (it must stay unauthenticated,
+  // not attach the just-expired access token the request interceptor would add),
+  // so it never got the 60s default timeout added to `client` either - a hung
+  // refresh call used to block every pending request behind it forever.
+  const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh-token`, { refresh_token: refreshToken }, { timeout: 60000 });
   const { access_token, refresh_token } = response.data.data;
   localStorage.setItem('access_token', access_token);
   if (refresh_token) localStorage.setItem('refresh_token', refresh_token);

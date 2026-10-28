@@ -652,50 +652,10 @@ export default function Calls() {
 
   const AI_CALL_TERMINAL_STATUSES = useMemo(() => new Set(['completed', 'busy', 'no_answer', 'canceled', 'failed']), []);
 
-  const stopAiCallPolling = useCallback(() => {
-    if (activeAiCallPollRef.current) {
-      window.clearInterval(activeAiCallPollRef.current);
-      activeAiCallPollRef.current = null;
-    }
-  }, []);
-
-  const pollActiveAiCall = useCallback((callId) => {
-    stopAiCallPolling();
-    activeAiCallPollRef.current = window.setInterval(async () => {
-      try {
-        const response = await smartflowApi.getCallLog(callId);
-        const log = response?.data?.data;
-        if (!log) return;
-        setActiveAiCall((prev) => (prev && prev.id === callId ? { ...prev, status: log.status, status_label: log.status_label } : prev));
-        if (AI_CALL_TERMINAL_STATUSES.has(log.status)) {
-          stopAiCallPolling();
-          setActiveAiCall(null);
-          fetchCalls(1, false);
-        }
-      } catch {
-        // transient — next tick retries
-      }
-    }, 3000);
-  }, [AI_CALL_TERMINAL_STATUSES, stopAiCallPolling]);
-
-  useEffect(() => stopAiCallPolling, [stopAiCallPolling]);
-
-  const handleEndAiCall = async () => {
-    if (!activeAiCall?.callSid) return;
-    setEndingAiCall(true);
-    try {
-      await smartflowApi.performCallAction(activeAiCall.callSid, 'cancel');
-      stopAiCallPolling();
-      setActiveAiCall(null);
-      setSuccess(t('calls_success_call_ended') || 'Call ended.');
-      fetchCalls(1, false);
-    } catch (requestError) {
-      setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_call_failed'));
-    } finally {
-      setEndingAiCall(false);
-    }
-  };
-
+  // Defined before pollActiveAiCall/handleEndAiCall below, which call fetchCalls -
+  // a hooks exhaustive-deps violation otherwise (fetchCalls used before its own
+  // useCallback runs would mean those callbacks keep a stale closure over it
+  // whenever fetchCalls's own deps change on a later render).
   const applyCallsPage = useCallback((payload, analytics, nextPage, append) => {
     const items = toArray(payload.items).map((call) => normalizeCall(call, t));
     let resolvedCalls = items;
@@ -749,6 +709,50 @@ export default function Calls() {
       }
     }
   }, [t, applyCallsPage]);
+
+  const stopAiCallPolling = useCallback(() => {
+    if (activeAiCallPollRef.current) {
+      window.clearInterval(activeAiCallPollRef.current);
+      activeAiCallPollRef.current = null;
+    }
+  }, []);
+
+  const pollActiveAiCall = useCallback((callId) => {
+    stopAiCallPolling();
+    activeAiCallPollRef.current = window.setInterval(async () => {
+      try {
+        const response = await smartflowApi.getCallLog(callId);
+        const log = response?.data?.data;
+        if (!log) return;
+        setActiveAiCall((prev) => (prev && prev.id === callId ? { ...prev, status: log.status, status_label: log.status_label } : prev));
+        if (AI_CALL_TERMINAL_STATUSES.has(log.status)) {
+          stopAiCallPolling();
+          setActiveAiCall(null);
+          fetchCalls(1, false);
+        }
+      } catch {
+        // transient — next tick retries
+      }
+    }, 3000);
+  }, [AI_CALL_TERMINAL_STATUSES, stopAiCallPolling, fetchCalls]);
+
+  useEffect(() => stopAiCallPolling, [stopAiCallPolling]);
+
+  const handleEndAiCall = async () => {
+    if (!activeAiCall?.callSid) return;
+    setEndingAiCall(true);
+    try {
+      await smartflowApi.performCallAction(activeAiCall.callSid, 'cancel');
+      stopAiCallPolling();
+      setActiveAiCall(null);
+      setSuccess(t('calls_success_call_ended') || 'Call ended.');
+      fetchCalls(1, false);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || requestError?.message || t('calls_err_call_failed'));
+    } finally {
+      setEndingAiCall(false);
+    }
+  };
 
   useEffect(() => {
     if (callsPageCache) {
