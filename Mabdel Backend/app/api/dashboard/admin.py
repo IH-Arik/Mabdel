@@ -138,7 +138,7 @@ async def search_users_before_user_id(
 @router.get("/users/{user_id}", response_model=BaseResponse[UserListItem])
 async def get_user_details(
     user_id: str,
-    current_user: dict = Depends(require_permission("users", "view")),
+    current_user: dict = Depends(require_role(["super_admin", "admin"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -153,7 +153,7 @@ async def update_user_status(
     user_id: str,
     status: str | None = None,
     body: dict | None = Body(default=None),
-    current_user: dict = Depends(require_permission("users", "edit")),
+    current_user: dict = Depends(require_role(["super_admin", "admin"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     """
@@ -172,7 +172,7 @@ async def update_user_status(
 async def update_user(
     user_id: str,
     body: dict | None = Body(default=None),
-    current_user: dict = Depends(require_permission("users", "edit")),
+    current_user: dict = Depends(require_role(["super_admin", "admin"])),
     service: DashboardService = Depends(get_dashboard_service),
 ):
     body = body or {}
