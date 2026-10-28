@@ -13,6 +13,34 @@ services:
       - redis
       - whatsapp-gateway
 
+  # Runs the actual background jobs (email, push, invoice reminders, CalDAV/social
+  # sync) that app/workers/tasks/*.py define and app.workers.celery_app routes -
+  # that config already exists; this is what was missing to make it live. Same
+  # image as api, just a different command. Listens to every queue the routing
+  # table in celery_app.py sends work to.
+  worker:
+    build: .
+    container_name: mabdel-celery-worker
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "email,push,invoice,default", "--concurrency=2"]
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Fires the periodic tasks in celery_app.py's beat_schedule (CalDAV/social sync
+  # every 5 minutes, appointment reminders every 15) onto the queues above. Exactly
+  # one beat process must ever run - do not scale this service.
+  beat:
+    build: .
+    container_name: mabdel-celery-beat
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info"]
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
   # Rate limiting and the RBAC permission cache. Reached from the api container as
   # redis://redis:6379/0 (set REDIS_URL to that in .env). Not published on any host
   # port: nothing outside this compose network can connect to it.
