@@ -32,7 +32,14 @@ services:
     # real celery liveness check or every worker/beat container reports
     # "unhealthy" forever despite working correctly.
     healthcheck:
-      test: ["CMD", "celery", "-A", "app.workers.celery_app", "inspect", "ping", "-d", "celery@$$HOSTNAME"]
+      # No -d destination filter: exec-form CMD arrays aren't run through a
+      # shell, so $$HOSTNAME was never expanded and the filter targeted a
+      # literal non-existent node name, failing every check ("No nodes
+      # replied") even though the worker itself was fine - confirmed live on
+      # the deployed container before removing it. An unfiltered ping just
+      # needs at least one connected worker to answer, which is exactly the
+      # liveness signal this check needs for a single-worker-per-container setup.
+      test: ["CMD", "celery", "-A", "app.workers.celery_app", "inspect", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
