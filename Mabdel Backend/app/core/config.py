@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     MUTATION_RATE_LIMIT_MAX_REQUESTS: int = 120
     MUTATION_RATE_LIMIT_WINDOW_SECONDS: int = 60
     REDIS_URL: str = "redis://localhost:6379/0"
+    # Separate from REDIS_URL (rate limiting / RBAC permission cache, which
+    # intentionally runs allkeys-lru) - Celery task messages are not cache
+    # entries, and the same eviction policy can silently drop a queued task
+    # under memory pressure. Defaults to REDIS_URL so this is opt-in via env,
+    # not a required second service for every environment (e.g. local dev).
+    CELERY_BROKER_URL: str | None = None
     PUBLIC_BACKEND_URL: str = "http://127.0.0.1:8000"
     MEDIA_ROOT: str = Field(default_factory=default_media_root)
     MEDIA_PUBLIC_PATH: str = "/media"

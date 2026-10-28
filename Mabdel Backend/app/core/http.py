@@ -19,14 +19,22 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _redis: aioredis.Redis | None = None
-_redis_attempted = False
+_redis_last_attempt: float = 0.0
+_REDIS_RETRY_COOLDOWN_SECONDS = 30
 
 
 async def _get_redis() -> aioredis.Redis | None:
-    global _redis, _redis_attempted
-    if _redis_attempted:
+    global _redis, _redis_last_attempt
+    if _redis is not None:
         return _redis
-    _redis_attempted = True
+    # Regression: a failed first attempt used to be cached forever (a one-shot
+    # "attempted" flag), so Redis coming back up never restored shared rate
+    # limiting/RBAC caching for the rest of the process's life - only a redeploy
+    # did. Retry after a cooldown instead of giving up permanently.
+    now = time.time()
+    if now - _redis_last_attempt < _REDIS_RETRY_COOLDOWN_SECONDS:
+        return None
+    _redis_last_attempt = now
     try:
         client = aioredis.from_url(
             settings.REDIS_URL,
@@ -69,8 +77,15 @@ async def _redis_sliding_window(key: str, limit: int, window: int) -> bool:
         count_before_add = results[1]
         return count_before_add < limit
     except Exception as exc:
-        logger.warning("Redis rate-limit error (%s); allowing request.", exc)
-        return True  # fail open
+        # Regression: this used to unconditionally return True ("allow"),
+        # bypassing BOTH Redis and the in-memory fallback for that request -
+        # a real fail-open on a security control. A transient Redis error now
+        # degrades to the same in-memory limiter a connection failure uses
+        # (still enforced, just per-process) instead of skipping enforcement.
+        global _redis
+        logger.warning("Redis rate-limit error (%s); falling back to in-memory rate limiting.", exc)
+        _redis = None
+        return None
 
 
 # ---------------------------------------------------------------------------

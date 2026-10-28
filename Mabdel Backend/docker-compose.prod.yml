@@ -16,6 +16,7 @@ services:
       - ./private_uploads:/app/private_uploads
     depends_on:
       - redis
+      - redis-broker
       - whatsapp-gateway
 
   # Runs the actual background jobs (email, push, invoice reminders, CalDAV/social
@@ -31,7 +32,7 @@ services:
       - .env
     restart: unless-stopped
     depends_on:
-      - redis
+      - redis-broker
     # The image's own HEALTHCHECK (from the Dockerfile) pings the api's HTTP
     # server on :8000, which this container never runs - replace it with a
     # real celery liveness check or every worker/beat container reports
@@ -61,7 +62,7 @@ services:
       - .env
     restart: unless-stopped
     depends_on:
-      - redis
+      - redis-broker
     # Same inherited-HEALTHCHECK problem as worker above. Beat has no inspect
     # command of its own (it's a scheduler, not a task consumer) - disable the
     # inherited one rather than report a false "unhealthy" forever; crash
@@ -71,7 +72,9 @@ services:
 
   # Rate limiting and the RBAC permission cache. Reached from the api container as
   # redis://redis:6379/0 (set REDIS_URL to that in .env). Not published on any host
-  # port: nothing outside this compose network can connect to it.
+  # port: nothing outside this compose network can connect to it. allkeys-lru is
+  # correct HERE - evicting the least-recently-used cache entry is the intended
+  # behavior for a pure cache.
   redis:
     image: redis:7-alpine
     container_name: mabdel-redis
@@ -79,6 +82,20 @@ services:
     restart: unless-stopped
     volumes:
       - redis-data:/data
+
+  # Dedicated Celery broker/result-backend, separate from the cache redis above.
+  # A queued task message is not a cache entry - allkeys-lru evicting it under
+  # memory pressure is silent task loss, not a correctness-neutral cache miss.
+  # noeviction instead: Redis refuses new writes (a loud, visible OOM error) once
+  # full rather than silently dropping queued work. Reached as
+  # redis://redis-broker:6379/0 (set CELERY_BROKER_URL to that in .env).
+  redis-broker:
+    image: redis:7-alpine
+    container_name: mabdel-redis-broker
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    restart: unless-stopped
+    volumes:
+      - redis-broker-data:/data
 
   # Multi-tenant WhatsApp gateway (Baileys, QR-based) - one persisted session per
   # organization, multiplexed in-process. Reached from the api container as
@@ -97,4 +114,5 @@ services:
 
 volumes:
   redis-data:
+  redis-broker-data:
   whatsapp-sessions:

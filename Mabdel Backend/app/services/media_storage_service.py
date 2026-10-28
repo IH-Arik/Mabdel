@@ -56,6 +56,7 @@ class MediaStorageService:
         label: str = "Image",
     ) -> StoredMedia:
         media_type = self._normalize_content_type(content_type)
+        self._validate_size(file_bytes=file_bytes, label=label)
         self._validate_image(file_bytes=file_bytes, media_type=media_type, label=label)
 
         safe_owner_id = self._safe_path_part(owner_id, "owner_id")
@@ -90,11 +91,12 @@ class MediaStorageService:
         max_bytes: int | None = None,
     ) -> StoredMedia:
         media_type = self._normalize_content_type(content_type) or "application/octet-stream"
-        self._validate_file(file_bytes=file_bytes, label=label, max_bytes=max_bytes)
+        self._validate_size(file_bytes=file_bytes, label=label, max_bytes=max_bytes)
 
         safe_owner_id = self._safe_path_part(owner_id, "owner_id")
         safe_folder = self._safe_path_part(folder, "folder")
         extension = self._file_extension(media_type, filename)
+        self._reject_active_content(content_type=media_type, extension=extension, label=label)
         stored_name = f"{uuid4().hex}{extension}"
 
         is_private = safe_folder in PRIVATE_MEDIA_FOLDERS
@@ -127,6 +129,32 @@ class MediaStorageService:
             return f"{settings.PUBLIC_BACKEND_URL.rstrip('/')}/{path.lstrip('/')}"
         return url
 
+    # Magic-byte signatures for the types MEDIA_ALLOWED_IMAGE_TYPES actually
+    # allows. A declared Content-Type is attacker-controlled - without this,
+    # any file (including active HTML/SVG) uploaded with an image/* header
+    # passed validation and was then written under the public media root.
+    _IMAGE_SIGNATURES: dict[str, tuple[bytes, ...]] = {
+        "image/jpeg": (b"\xff\xd8\xff",),
+        "image/png": (b"\x89PNG\r\n\x1a\n",),
+        "image/gif": (b"GIF87a", b"GIF89a"),
+        "image/webp": (b"RIFF",),  # real check also verifies the WEBP tag at offset 8 below
+    }
+
+    # Attachments keep their declared type/extension (a PDF must stay a PDF),
+    # but active content that a browser would execute if ever served inline
+    # must never be accepted here regardless of what the uploader claims.
+    _BLOCKED_ATTACHMENT_CONTENT_TYPES = {
+        "text/html",
+        "application/xhtml+xml",
+        "image/svg+xml",
+        "text/javascript",
+        "application/javascript",
+        "application/x-javascript",
+        "application/x-sh",
+        "application/x-shellscript",
+    }
+    _BLOCKED_ATTACHMENT_EXTENSIONS = {".html", ".htm", ".xhtml", ".svg", ".js", ".mjs", ".sh"}
+
     def _validate_image(self, *, file_bytes: bytes, media_type: str, label: str) -> None:
         if media_type not in settings.MEDIA_ALLOWED_IMAGE_TYPES:
             raise AppException(
@@ -135,8 +163,28 @@ class MediaStorageService:
                 message=f"{label} must be a JPG, PNG, WebP, or GIF image.",
                 details={"content_type": media_type or None},
             )
+        signatures = self._IMAGE_SIGNATURES.get(media_type, ())
+        matches_signature = any(file_bytes.startswith(sig) for sig in signatures)
+        if media_type == "image/webp":
+            matches_signature = matches_signature and file_bytes[8:12] == b"WEBP"
+        if not matches_signature:
+            raise AppException(
+                status_code=415,
+                code="IMAGE_CONTENT_MISMATCH",
+                message=f"{label} does not look like a real {media_type.split('/')[-1].upper()} file.",
+                details={"content_type": media_type or None},
+            )
 
-    def _validate_file(self, *, file_bytes: bytes, label: str, max_bytes: int | None = None) -> None:
+    def _reject_active_content(self, *, content_type: str, extension: str, label: str) -> None:
+        if content_type in self._BLOCKED_ATTACHMENT_CONTENT_TYPES or extension in self._BLOCKED_ATTACHMENT_EXTENSIONS:
+            raise AppException(
+                status_code=415,
+                code="UNSUPPORTED_ATTACHMENT_TYPE",
+                message=f"{label} type is not allowed.",
+                details={"content_type": content_type or None, "extension": extension or None},
+            )
+
+    def _validate_size(self, *, file_bytes: bytes, label: str, max_bytes: int | None = None) -> None:
         limit = max_bytes or settings.MEDIA_MAX_UPLOAD_BYTES
         if not file_bytes:
             raise AppException(status_code=400, code="FILE_EMPTY", message=f"{label} file is empty.")
@@ -146,15 +194,6 @@ class MediaStorageService:
                 code="FILE_TOO_LARGE",
                 message=f"{label} file is too large.",
                 details={"max_bytes": limit},
-            )
-        if not file_bytes:
-            raise AppException(status_code=400, code="IMAGE_FILE_EMPTY", message=f"{label} file is empty.")
-        if len(file_bytes) > settings.MEDIA_MAX_UPLOAD_BYTES:
-            raise AppException(
-                status_code=413,
-                code="IMAGE_FILE_TOO_LARGE",
-                message=f"{label} file is too large.",
-                details={"max_bytes": settings.MEDIA_MAX_UPLOAD_BYTES},
             )
 
     @staticmethod

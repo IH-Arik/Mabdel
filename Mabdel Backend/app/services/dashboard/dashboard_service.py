@@ -312,13 +312,24 @@ class DashboardService:
     async def forgot_password(self, email: str):
         from app.core.exceptions import AppException
         from app.utils.helpers import generate_otp
-        
+        from app.services.email_service import EmailService
+
         user = await self.repository.db.users.find_one({"email": email})
         if not user:
             raise AppException(status_code=404, code="USER_NOT_FOUND", message="Email not registered")
-        
+
         otp = generate_otp()
         await self.repository.save_otp(email, otp)
+        # Regression: the OTP used to be saved and nothing else - the dashboard
+        # endpoint reported "sent" while no email was ever delivered, making
+        # this recovery path completely unusable.
+        deliver_to = user.get("original_email") or email
+        try:
+            await EmailService().send_otp_email(email=deliver_to, otp_code=otp, purpose="forgot_password")
+        except Exception as exc:
+            raise AppException(
+                status_code=502, code="OTP_EMAIL_SEND_FAILED", message="Unable to send OTP email. Please try again."
+            ) from exc
 
     async def verify_otp(self, data: VerifyOTPRequest) -> bool:
         return await self.repository.verify_otp(data.email, data.otp)
@@ -326,10 +337,13 @@ class DashboardService:
     async def reset_password(self, data: ResetPasswordRequest) -> bool:
         from app.core.security import hash_password
         from app.core.exceptions import AppException
-        
-        if not await self.repository.verify_otp(data.email, data.otp):
+
+        # consume_otp (not verify_otp) actually changing the password - this is
+        # the mutating action and must one-time-consume the code, or the same
+        # OTP could reset the password repeatedly until it expired.
+        if not await self.repository.consume_otp(data.email, data.otp):
             raise AppException(status_code=400, code="INVALID_OTP", message="Invalid or expired OTP")
-        
+
         user = await self.repository.db.users.find_one({"email": data.email})
         if not user:
             raise AppException(status_code=404, code="USER_NOT_FOUND", message="Email not registered")

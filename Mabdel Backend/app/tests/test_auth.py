@@ -109,6 +109,42 @@ def test_forgot_password_verify_and_reset_password_flow(client, mock_db) -> None
     assert new_login.status_code == 200
 
 
+def test_a_reset_token_cannot_be_replayed_a_second_time(client, mock_db) -> None:
+    """Regression: reset tokens were stateless JWTs, valid (and replayable) as
+    many times as wanted until their own expiry - a leaked link (logs,
+    referrers, a shared inbox) let anyone reset the password repeatedly
+    within that window."""
+    email = "reset-replay@example.com"
+    _register_user(client, email=email, password="SecurePass2024!")
+    _verify_signup_otp(client, mock_db, email=email)
+
+    client.post("/api/v1/auth/forgot-password", json={"email": email})
+    forgot_otp = _get_latest_otp(mock_db, email=email, purpose="forgot_password")
+    verify_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "code": forgot_otp["code"], "purpose": "forgot_password"},
+    )
+    reset_token = verify_response.json()["data"]["reset_token"]
+
+    first_reset = client.post(
+        "/api/v1/auth/reset-password",
+        json={"email": email, "reset_token": reset_token, "new_password": "FirstNewPass2025!", "confirm_password": "FirstNewPass2025!"},
+    )
+    assert first_reset.status_code == 200
+
+    second_reset = client.post(
+        "/api/v1/auth/reset-password",
+        json={"email": email, "reset_token": reset_token, "new_password": "SecondNewPass2025!", "confirm_password": "SecondNewPass2025!"},
+    )
+    assert second_reset.status_code == 401
+    assert second_reset.json()["error"]["code"] == "INVALID_RESET_TOKEN"
+
+    # The first reset's password must still be the one in effect - the replay
+    # must not have silently changed it again.
+    login = client.post("/api/v1/auth/login", json={"email": email, "password": "FirstNewPass2025!"})
+    assert login.status_code == 200
+
+
 def test_refresh_token_and_me_endpoint(client, mock_db) -> None:
     email = "token@example.com"
     _register_user(client, email=email)

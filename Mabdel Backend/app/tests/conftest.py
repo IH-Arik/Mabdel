@@ -58,13 +58,14 @@ def _force_in_memory_rate_limiting() -> Generator[None, None, None]:
     in-memory path implements the same sliding window, so the limiter's own test
     (test_production_hardening.py) still exercises real behaviour.
     """
-    original_redis = http_module._redis
-    original_attempted = http_module._redis_attempted
-    http_module._redis = None
-    http_module._redis_attempted = True  # short-circuits _get_redis() -> in-memory
+    original_get_redis = http_module._get_redis
+
+    async def _always_unavailable():
+        return None
+
+    http_module._get_redis = _always_unavailable
     yield
-    http_module._redis = original_redis
-    http_module._redis_attempted = original_attempted
+    http_module._get_redis = original_get_redis
 
 
 async def _seed_defaults(db) -> None:

@@ -11,6 +11,23 @@ from app.utils.helpers import utc_now
 class TokenRepository:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.collection = db.refresh_tokens
+        self.used_reset_tokens = db.password_reset_used_tokens
+
+    async def is_password_reset_token_used(self, jti: str) -> bool:
+        return await self.used_reset_tokens.find_one({"jti": jti}) is not None
+
+    async def mark_password_reset_token_used(self, jti: str, expires_at: datetime) -> None:
+        # Regression: reset tokens were stateless JWTs, valid (and replayable)
+        # as many times as wanted until their own expiry - a leaked link (logs,
+        # referrers, a shared inbox) let anyone reset the password repeatedly
+        # within that window. expires_at matches the token's own "exp" claim,
+        # via the TTL index on this field, so the record is cleaned up the
+        # moment the token would have expired anyway.
+        await self.used_reset_tokens.update_one(
+            {"jti": jti},
+            {"$setOnInsert": {"jti": jti, "expires_at": expires_at, "used_at": utc_now()}},
+            upsert=True,
+        )
 
     async def create_refresh_token(self, user_id: str, token_hash: str, expires_at: datetime) -> dict:
         token = {

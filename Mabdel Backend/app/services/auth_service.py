@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from starlette import status
@@ -179,6 +179,17 @@ class AuthService:
                 message="Reset token does not match the email.",
             )
 
+        # Regression: reset tokens were stateless JWTs, replayable as many
+        # times as wanted until their own expiry - a leaked link let anyone
+        # reset the password repeatedly within that window. One-time use now.
+        jti = claims.get("jti")
+        if not jti or await self.token_repository.is_password_reset_token_used(jti):
+            raise AppException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                code="INVALID_RESET_TOKEN",
+                message="This reset link has already been used.",
+            )
+
         user = await self.auth_repository.get_user_by_email(payload.email)
         if not user:
             raise AppException(
@@ -190,6 +201,9 @@ class AuthService:
         await self.auth_repository.update_user_password(
             user_id=str(user["_id"]),
             password_hash=hash_password(payload.new_password),
+        )
+        await self.token_repository.mark_password_reset_token_used(
+            jti, datetime.fromtimestamp(claims["exp"], tz=UTC)
         )
         await self.token_repository.revoke_all_user_tokens(str(user["_id"]))
         return MessageResponse(message="Password updated successfully.")

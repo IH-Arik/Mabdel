@@ -73,12 +73,12 @@ jobs:
         run: |
           set -e
           cd /home/ubuntu/Mabdel
-          # origin/master has been force-pushed over before, which makes a plain
-          # `git pull` fail with "divergent branches". This checkout only exists to be
-          # deployed, so make it match origin exactly (untracked files such as the
-          # production .env are left alone).
-          git fetch origin master
-          git reset --hard origin/master
+          # Reset to the exact commit this workflow run tested (github.sha), not
+          # origin/master's current tip - a later push landing on master between
+          # this run starting and the deploy job executing would otherwise deploy
+          # an untested commit under a "passed" CI run that never actually tested it.
+          git fetch origin "${{ github.sha }}"
+          git reset --hard "${{ github.sha }}"
           git log --oneline -1
           cd "Mabdel Backend"
           sudo docker compose -f docker-compose.prod.yml up -d --build

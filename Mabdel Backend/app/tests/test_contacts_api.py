@@ -89,7 +89,7 @@ def test_contact_list_create_detail_update_avatar_and_delete_flow(client, mock_d
     avatar_response = client.post(
         f"/api/v1/smartflow/contacts/{contact_id}/avatar",
         headers=headers,
-        files={"avatar_file": ("avatar.png", b"not-a-real-png-but-stored", "image/png")},
+        files={"avatar_file": ("avatar.png", b"\x89PNG\r\n\x1a\nnot-a-real-png-but-stored", "image/png")},
     )
     assert avatar_response.status_code == 200
     avatar_payload = avatar_response.json()["data"]

@@ -111,6 +111,8 @@ class MongoConnectionManager:
         await self.database.refresh_tokens.create_index("token", unique=True)
         await self.database.refresh_tokens.create_index("user_id")
         await self.database.refresh_tokens.create_index("expires_at", expireAfterSeconds=0)
+        await self.database.password_reset_used_tokens.create_index("jti", unique=True)
+        await self.database.password_reset_used_tokens.create_index("expires_at", expireAfterSeconds=0)
         await self.database.contacts.create_index([("user_id", 1), ("name", 1)])
         await self.database.contacts.create_index([("user_id", 1), ("first_name", 1), ("last_name", 1)])
         await self.database.contacts.create_index([("user_id", 1), ("email", 1)])

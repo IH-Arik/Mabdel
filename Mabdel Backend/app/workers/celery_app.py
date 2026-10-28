@@ -6,8 +6,8 @@ from app.core.config import settings
 
 celery_app = Celery(
     "mabdel",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
+    broker=settings.CELERY_BROKER_URL or settings.REDIS_URL,
+    backend=settings.CELERY_BROKER_URL or settings.REDIS_URL,
     include=[
         "app.workers.tasks.email_tasks",
         "app.workers.tasks.push_tasks",

@@ -347,21 +347,52 @@ class DashboardRepository:
         return result.modified_count > 0
 
     async def save_otp(self, email: str, otp: str):
+        # Regression: this OTP had no attempt limit and no one-time-use
+        # marker, so it could be brute-forced within its window and, once
+        # guessed, replayed for repeated password resets until it expired.
         from datetime import timedelta
         expire_at = utc_now() + timedelta(minutes=10)
         await self.db.otps.update_one(
             {"email": email},
-            {"$set": {"otp": otp, "expire_at": expire_at}},
+            {"$set": {"otp": otp, "expire_at": expire_at, "attempts": 0, "used": False}},
             upsert=True
         )
 
     async def verify_otp(self, email: str, otp: str) -> bool:
-        record = await self.db.otps.find_one({"email": email, "otp": otp})
-        if not record:
+        from app.core.config import settings
+
+        record = await self.db.otps.find_one({"email": email})
+        if not record or record.get("used"):
             return False
-        if record["expire_at"] < utc_now():
+        expire_at = record["expire_at"]
+        now = utc_now().replace(tzinfo=None) if expire_at.tzinfo is None else utc_now()
+        if expire_at < now:
+            return False
+        if record.get("attempts", 0) >= settings.OTP_MAX_ATTEMPTS:
+            return False
+        if record["otp"] != otp:
+            await self.db.otps.update_one({"email": email}, {"$inc": {"attempts": 1}})
             return False
         return True
+
+    async def consume_otp(self, email: str, otp: str) -> bool:
+        """Verifies and atomically marks the OTP used in one step - the actual
+        password-changing action must go through this, not verify_otp, which
+        is only a non-mutating preliminary UI check and must stay replayable
+        for that purpose."""
+        from app.core.config import settings
+
+        result = await self.db.otps.update_one(
+            {
+                "email": email,
+                "otp": otp,
+                "used": False,
+                "expire_at": {"$gt": utc_now()},
+                "attempts": {"$lt": settings.OTP_MAX_ATTEMPTS},
+            },
+            {"$set": {"used": True}},
+        )
+        return result.modified_count > 0
 
     async def get_settings_content(self, content_type: str) -> str:
         doc = await self.db.settings.find_one({"type": content_type})
