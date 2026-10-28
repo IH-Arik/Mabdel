@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
+import { analysisCache, callsPageCache, setCallsPageCache } from '../utils/callsCache';
 import { smartflowApi } from '../api/services';
 import CallMeetingRequests from '../components/Calls/CallMeetingRequests';
 import ReceptionistWorkQueue from '../components/Calls/ReceptionistWorkQueue';
@@ -626,10 +627,6 @@ function MakeCallModal({ onClose, onSuccess, onCall, initialPhone = '', t }) {
   );
 }
 
-// Module-level so they survive navigating away from /calls and back.
-let callsPageCache = null; // { payload, analytics } for page 1 of the call list
-const analysisCache = new Map(); // call id -> { aiSummary, transcript, recordingUrl }
-
 export default function Calls() {
   const { t } = useLanguage();
   const [calls, setCalls] = useState([]);
@@ -729,7 +726,7 @@ export default function Calls() {
       const payload = callRes?.data?.data || {};
       const analytics = analyticsRes?.data?.data;
       if (!append && nextPage === 1) {
-        callsPageCache = { payload, analytics };
+        setCallsPageCache({ payload, analytics });
       }
       applyCallsPage(payload, analytics, nextPage, append);
       setError('');

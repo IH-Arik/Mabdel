@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import client from '../api/client';
+import { clearCallsCache } from '../utils/callsCache';
 
 export const useAuthStore = create((set) => ({
   user: null,
@@ -48,6 +49,7 @@ export const useAuthStore = create((set) => ({
   logout: () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    clearCallsCache();
     set({ user: null, token: null, isAuthenticated: false });
   },
 
@@ -59,6 +61,7 @@ export const useAuthStore = create((set) => ({
     } catch {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      clearCallsCache();
       set({ isAuthenticated: false });
     }
   }

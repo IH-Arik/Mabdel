@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useSubscriptionStore } from '../store/useSubscriptionStore';
+import { clearCallsCache } from '../utils/callsCache';
 
 const PLAN_LOCK_CODES = new Set(['SUBSCRIPTION_EXPIRED', 'PLAN_UPGRADE_REQUIRED']);
 
@@ -72,6 +73,7 @@ client.interceptors.response.use(
         refreshInFlight = null;
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        clearCallsCache();
         return Promise.reject(error);
       }
     }
