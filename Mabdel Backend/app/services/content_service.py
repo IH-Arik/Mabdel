@@ -180,6 +180,20 @@ DEFAULT_CONTENT_PAGES: list[dict] = [
         ],
     },
     {
+        "slug": "account-deletion",
+        "title": "Account & Data Deletion Policy",
+        "display_style": "sections",
+        "version": "1.0",
+        "blocks": [
+            {"order": 1, "body": "At GoCustify, we respect your privacy and give you full control over your personal information. You have the right to permanently delete your GoCustify account and all associated data at any time."},
+            {"order": 2, "heading": "How to Delete Your Account", "body": "You can delete your account using either of the following two methods:"},
+            {"order": 3, "heading": "Method 1: In the GoCustify Mobile App", "body": "1. Open the GoCustify app and log in.\n2. Navigate to Profile (bottom right tab) -> Settings / Privacy.\n3. Scroll down and tap Delete Account.\n4. Review the confirmation prompt and confirm by tapping Delete My Account.\n5. Your session will end immediately, and your account will be queued for permanent deletion."},
+            {"order": 4, "heading": "Method 2: Request Deletion via Web / Email", "body": "If you have uninstalled the app or cannot log in:\n1. Send an email to support@gocustify.com with the subject line: Account Deletion Request.\n2. Include the registered email address and phone number associated with your GoCustify account.\n3. Our security team will verify your identity and process the complete erasure of your account within 7 business days."},
+            {"order": 5, "heading": "What Data Is Deleted Upon Account Deletion", "body": "Once your account deletion request is processed, the following data is permanently wiped from our production servers:\nUser Profile: Full name, username, email address, phone number, and profile picture.\nContacts & CRM Records: Imported client contact lists, tags, and meeting schedules.\nCommunications: WhatsApp/email outreach campaigns, conversation histories, and voice AI transcripts.\nAgreements & Invoices: Draft agreements, digital signature templates, and generated invoice drafts.\nAuthentication Tokens: All active sessions, passwords, and security tokens."},
+            {"order": 6, "heading": "What Data Is Retained (If Applicable)", "body": "Financial & Tax Records: Completed payment receipts and historical tax transaction logs may be retained for a statutory period of 90 days in accordance with local financial and accounting regulations.\nBackup Archives: Residual copies stored in disaster-recovery backups are encrypted and automatically overwritten within 30 days."},
+        ],
+    },
+    {
         "slug": "help-support",
         "title": "Help & Support",
         "display_style": "sections",

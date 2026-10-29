@@ -988,6 +988,7 @@ export default function Landing() {
               <button type="button" onClick={() => navigate('/acceptable-use-policy')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_acceptable_use')}</button>
               <button type="button" onClick={() => navigate('/refund-policy')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_refund_policy')}</button>
               <button type="button" onClick={() => navigate('/protocols-for-law-enforcement')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_law_enforcement')}</button>
+              <button type="button" onClick={() => navigate('/account-deletion')} className="hover:text-gray-300 transition-colors cursor-pointer">{t('footer_data_deletion')}</button>
             </div>
 
             <p className="text-xs text-gray-600 text-center md:text-right">
