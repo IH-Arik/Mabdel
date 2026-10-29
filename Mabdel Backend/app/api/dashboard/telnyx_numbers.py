@@ -42,20 +42,13 @@ async def release_telnyx_number(
     org = await db.organizations.find_one({"telnyx_phone_number_id": phone_number_id})
     organization_id = org.get("organization_id") if org else None
 
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, partial(_release_sync, phone_number_id))
-
     if org:
-        await db.organizations.update_one(
-            {"organization_id": organization_id},
-            {
-                "$unset": {
-                    "telnyx_phone_number": "",
-                    "telnyx_phone_number_id": "",
-                },
-                "$set": {"telnyx_setup_status": "not_provisioned", "updated_at": utc_now()},
-            },
-        )
+        # release_organization does the Telnyx-side release AND the full field cleanup
+        # (including telnyx_number_order_id) - reuse it rather than duplicating it here.
+        await TelnyxProvisioningService(db).release_organization(organization_id)
+    else:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, partial(_release_sync, phone_number_id))
 
     await RBACRepository(db).write_audit_log(
         {
@@ -85,7 +78,20 @@ async def assign_telnyx_number(
             message="This number is already assigned to another organization.",
         )
 
-    phone_number = existing_org.get("telnyx_phone_number") if existing_org else body.get("phone_number")
+    if existing_org:
+        phone_number = existing_org.get("telnyx_phone_number")
+    else:
+        # Orphaned number: resolve its real phone number string from the Telnyx account
+        # listing rather than guessing from an undocumented body field.
+        numbers = await TelnyxProvisioningService(db).list_all_numbers()
+        match = next((n for n in numbers if n["phone_number_id"] == phone_number_id), None)
+        if not match:
+            raise AppException(
+                status_code=404,
+                code="TELNYX_NUMBER_NOT_FOUND",
+                message="No Telnyx number with that id was found on the account.",
+            )
+        phone_number = match["phone_number"]
 
     await db.organizations.update_one(
         {"organization_id": target_organization_id},
