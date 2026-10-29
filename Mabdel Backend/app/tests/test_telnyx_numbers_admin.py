@@ -22,7 +22,7 @@ class FakeNumber:
         self.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
-def _install_fake_telnyx(monkeypatch, numbers=None, error=None):
+def _install_fake_telnyx(monkeypatch, numbers=None, error=None, delete_error=None):
     import app.services.telnyx_provisioning_service as module
 
     class FakeClient:
@@ -33,6 +33,11 @@ def _install_fake_telnyx(monkeypatch, numbers=None, error=None):
             if error is not None:
                 raise error
             return iter(numbers or [])
+
+        def delete(self, phone_number_id):
+            if delete_error is not None:
+                raise delete_error
+            return None
 
     monkeypatch.setattr(
         module,
@@ -190,7 +195,7 @@ def test_release_endpoint_clears_org_assignment_and_writes_audit_log(client, moc
             }
         )
     )
-    _install_fake_telnyx(monkeypatch, numbers=[])
+    _install_fake_telnyx(monkeypatch, numbers=[FakeNumber("+15559990000", "num_release")])
 
     response = client.delete("/api/v1/dashboard/admin/telnyx-numbers/num_release", headers=headers)
     assert response.status_code == 200, response.text
@@ -207,7 +212,7 @@ def test_release_endpoint_clears_org_assignment_and_writes_audit_log(client, moc
     assert audit_entry["organization_id"] == "org_release"
 
 
-def test_assign_endpoint_rejects_an_already_assigned_number(client, mock_db):
+def test_assign_endpoint_rejects_an_already_assigned_number(client, mock_db, monkeypatch):
     headers = _admin_headers(client, mock_db, email="telnyx-assign-admin@example.com")
     asyncio.run(
         mock_db.organizations.insert_one(
@@ -220,6 +225,7 @@ def test_assign_endpoint_rejects_an_already_assigned_number(client, mock_db):
         )
     )
     asyncio.run(mock_db.organizations.insert_one({"organization_id": "org_second"}))
+    _install_fake_telnyx(monkeypatch, numbers=[FakeNumber("+15552221111", "num_assign")])
 
     response = client.patch(
         "/api/v1/dashboard/admin/telnyx-numbers/num_assign/assign",
@@ -262,3 +268,147 @@ def test_assign_endpoint_requires_admin_role(client, mock_db):
         headers=headers,
     )
     assert response.status_code == 403
+
+
+def test_list_flags_platform_number_as_not_orphaned(mock_db, monkeypatch):
+    import app.services.telnyx_provisioning_service as module
+
+    monkeypatch.setattr(module.settings, "TELNYX_PHONE_NUMBER", "+12816269020")
+    _install_fake_telnyx(monkeypatch, numbers=[FakeNumber("+12816269020", "num_platform")])
+
+    result = asyncio.run(TelnyxProvisioningService(mock_db).list_all_numbers())
+
+    assert result[0]["orphaned"] is False
+    assert result[0]["platform"] is True
+
+
+def test_release_endpoint_rejects_the_platform_number(client, mock_db, monkeypatch):
+    import app.services.telnyx_provisioning_service as module
+
+    monkeypatch.setattr(module.settings, "TELNYX_PHONE_NUMBER", "+12816269020")
+    headers = _admin_headers(client, mock_db, email="telnyx-platform-release@example.com")
+    _install_fake_telnyx(monkeypatch, numbers=[FakeNumber("+12816269020", "num_platform")])
+
+    response = client.delete("/api/v1/dashboard/admin/telnyx-numbers/num_platform", headers=headers)
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "TELNYX_PLATFORM_NUMBER_PROTECTED"
+
+
+def test_assign_endpoint_rejects_the_platform_number(client, mock_db, monkeypatch):
+    import app.services.telnyx_provisioning_service as module
+
+    monkeypatch.setattr(module.settings, "TELNYX_PHONE_NUMBER", "+12816269020")
+    headers = _admin_headers(client, mock_db, email="telnyx-platform-assign@example.com")
+    asyncio.run(mock_db.organizations.insert_one({"organization_id": "org_platform_target"}))
+    _install_fake_telnyx(monkeypatch, numbers=[FakeNumber("+12816269020", "num_platform")])
+
+    response = client.patch(
+        "/api/v1/dashboard/admin/telnyx-numbers/num_platform/assign",
+        json={"organization_id": "org_platform_target"},
+        headers=headers,
+    )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "TELNYX_PLATFORM_NUMBER_PROTECTED"
+
+
+def test_release_endpoint_finds_org_by_phone_number_when_stored_id_is_stale(client, mock_db, monkeypatch):
+    """telnyx_phone_number_id stored on the org is the number-order id, which can
+    differ from the /phone_numbers resource id this endpoint's path carries. The
+    org must still be found and cleaned up via the phone_number string match."""
+    headers = _admin_headers(client, mock_db, email="telnyx-stale-id-release@example.com")
+    asyncio.run(
+        mock_db.organizations.insert_one(
+            {
+                "organization_id": "org_stale",
+                "telnyx_phone_number": "+15554440000",
+                "telnyx_phone_number_id": "stale_order_id",
+                "telnyx_setup_status": "active",
+            }
+        )
+    )
+    _install_fake_telnyx(monkeypatch, numbers=[FakeNumber("+15554440000", "num_real_resource_id")])
+
+    response = client.delete(
+        "/api/v1/dashboard/admin/telnyx-numbers/num_real_resource_id", headers=headers
+    )
+    assert response.status_code == 200, response.text
+
+    org = asyncio.run(mock_db.organizations.find_one({"organization_id": "org_stale"}))
+    assert org.get("telnyx_phone_number") is None
+    assert org.get("telnyx_setup_status") == "not_provisioned"
+
+    audit_entry = asyncio.run(
+        mock_db.rbac_audit_logs.find_one({"action": "telnyx_number_released", "target": "num_real_resource_id"})
+    )
+    assert audit_entry is not None
+    assert audit_entry["organization_id"] == "org_stale"
+
+
+def test_release_endpoint_returns_502_and_does_not_touch_db_when_telnyx_delete_fails(client, mock_db, monkeypatch):
+    headers = _admin_headers(client, mock_db, email="telnyx-release-fails@example.com")
+    asyncio.run(
+        mock_db.organizations.insert_one(
+            {
+                "organization_id": "org_fail_release",
+                "telnyx_phone_number": "+15556660000",
+                "telnyx_phone_number_id": "num_fail_release",
+                "telnyx_setup_status": "active",
+            }
+        )
+    )
+    _install_fake_telnyx(
+        monkeypatch,
+        numbers=[FakeNumber("+15556660000", "num_fail_release")],
+        delete_error=FakeTelnyxError("telnyx is down"),
+    )
+
+    response = client.delete("/api/v1/dashboard/admin/telnyx-numbers/num_fail_release", headers=headers)
+    assert response.status_code == 502
+
+    org = asyncio.run(mock_db.organizations.find_one({"organization_id": "org_fail_release"}))
+    assert org.get("telnyx_phone_number") == "+15556660000"
+    assert org.get("telnyx_setup_status") == "active"
+
+    audit_entry = asyncio.run(mock_db.rbac_audit_logs.find_one({"action": "telnyx_number_released"}))
+    assert audit_entry is None
+
+
+def test_assign_endpoint_rejects_nonexistent_target_organization(client, mock_db, monkeypatch):
+    headers = _admin_headers(client, mock_db, email="telnyx-assign-missing-org@example.com")
+    _install_fake_telnyx(monkeypatch, numbers=[FakeNumber("+15557771111", "num_missing_org")])
+
+    response = client.patch(
+        "/api/v1/dashboard/admin/telnyx-numbers/num_missing_org/assign",
+        json={"organization_id": "org_does_not_exist"},
+        headers=headers,
+    )
+    assert response.status_code == 404
+
+    created = asyncio.run(mock_db.organizations.find_one({"organization_id": "org_does_not_exist"}))
+    assert created is None
+
+
+def test_assign_endpoint_rejects_target_org_with_a_different_existing_number(client, mock_db, monkeypatch):
+    headers = _admin_headers(client, mock_db, email="telnyx-assign-overwrite@example.com")
+    asyncio.run(
+        mock_db.organizations.insert_one(
+            {
+                "organization_id": "org_has_number",
+                "telnyx_phone_number": "+15558882222",
+                "telnyx_phone_number_id": "num_existing",
+                "telnyx_setup_status": "active",
+            }
+        )
+    )
+    _install_fake_telnyx(monkeypatch, numbers=[FakeNumber("+15559993333", "num_new")])
+
+    response = client.patch(
+        "/api/v1/dashboard/admin/telnyx-numbers/num_new/assign",
+        json={"organization_id": "org_has_number"},
+        headers=headers,
+    )
+    assert response.status_code == 409
+
+    org = asyncio.run(mock_db.organizations.find_one({"organization_id": "org_has_number"}))
+    assert org.get("telnyx_phone_number") == "+15558882222"
+    assert org.get("telnyx_phone_number_id") == "num_existing"

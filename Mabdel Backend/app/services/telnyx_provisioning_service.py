@@ -135,6 +135,14 @@ def _release_sync(phone_number_id: str) -> None:
         logger.warning("Failed to release Telnyx number %s: %s", phone_number_id, exc)
 
 
+def _release_sync_strict(phone_number_id: str) -> None:
+    """Same as _release_sync but propagates Telnyx-side failures instead of
+    swallowing them - callers that must not report success on a failed delete
+    (e.g. the admin release endpoint) use this one."""
+    client = _master_client()
+    client.phone_numbers.delete(phone_number_id)
+
+
 def _list_numbers_sync() -> list:
     client = _master_client()
     try:
@@ -292,12 +300,15 @@ class TelnyxProvisioningService:
 
     async def list_all_numbers(self) -> list[dict]:
         """Every number on the platform Telnyx account, matched to the org that owns it.
-        A number with no organization record is orphaned (paid for, not assigned)."""
+        A number with no organization record is orphaned (paid for, not assigned) -
+        unless it's the platform's own shared fallback number, which has no org by
+        design and must never show as releasable/assignable."""
         loop = asyncio.get_event_loop()
         numbers = await loop.run_in_executor(None, _list_numbers_sync)
 
         results = []
         for number in numbers:
+            is_platform = number.phone_number == settings.TELNYX_PHONE_NUMBER
             org = await self.db.organizations.find_one({"telnyx_phone_number": number.phone_number})
             owner = None
             if org:
@@ -312,7 +323,8 @@ class TelnyxProvisioningService:
                     "created_at": number.created_at,
                     "organization_id": org.get("organization_id") if org else None,
                     "owner_email": (owner.get("original_email") or owner.get("email")) if owner else None,
-                    "orphaned": org is None,
+                    "orphaned": False if is_platform else org is None,
+                    "platform": is_platform,
                 }
             )
         return results

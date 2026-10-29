@@ -50,8 +50,10 @@ const TelnyxNumbers = () => {
   }, [loadNumbers]);
 
   const handleRelease = async (phoneNumber) => {
+    const ownerPart = phoneNumber.owner_email ? ` from ${phoneNumber.owner_email}` : "";
     const confirmed = window.confirm(
-      `Release ${phoneNumber.phone_number}? This will unassign it from its organization.`
+      `Permanently delete ${phoneNumber.phone_number}${ownerPart} from the Telnyx account? ` +
+        "This cannot be undone and will immediately stop calling/SMS on this number."
     );
     if (!confirmed) return;
 
@@ -119,7 +121,11 @@ const TelnyxNumbers = () => {
                     <tr key={number.phone_number_id} className="border-b last:border-b-0">
                       <td className="p-3 font-medium whitespace-nowrap">
                         {number.phone_number}
-                        {number.orphaned ? (
+                        {number.platform ? (
+                          <span className="ml-2 inline-block px-2 py-0.5 text-xs font-semibold text-purple-700 bg-purple-100 rounded-full">
+                            Platform
+                          </span>
+                        ) : number.orphaned ? (
                           <span className="ml-2 inline-block px-2 py-0.5 text-xs font-semibold text-orange-700 bg-orange-100 rounded-full">
                             Orphaned
                           </span>
@@ -133,14 +139,16 @@ const TelnyxNumbers = () => {
                       <td className="p-3 whitespace-nowrap">{formatDate(number.created_at)}</td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleRelease(number)}
-                            disabled={isBusy}
-                            className="px-3 py-1.5 text-xs text-red-600 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Release
-                          </button>
-                          {number.orphaned ? (
+                          {!number.platform ? (
+                            <button
+                              onClick={() => handleRelease(number)}
+                              disabled={isBusy}
+                              className="px-3 py-1.5 text-xs text-red-600 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Release
+                            </button>
+                          ) : null}
+                          {number.orphaned && !number.platform ? (
                             <button
                               onClick={() => handleAssign(number)}
                               disabled={isBusy}
