@@ -58,7 +58,7 @@ const TEAM_DASHBOARD_ROLES = new Set(['owner', 'manager']);
 // through to the localhost dev fallback — the "Owner/Manager Dashboard" button opened
 // an unreachable localhost tab for every real visitor. Falls back to the real
 // production URL now instead. Strip any trailing slash so `${...}/sso` never doubles up.
-const TEAM_DASHBOARD_URL = (import.meta.env.VITE_DASHBOARD_URL || 'https://gocustify.com/onwer-dashboard').replace(/\/+$/, '');
+const TEAM_DASHBOARD_URL = (import.meta.env.VITE_DASHBOARD_URL || 'https://owner.gocustify.com').replace(/\/+$/, '');
 
 function CallOverlayHost() {
   const {
