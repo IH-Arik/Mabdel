@@ -407,27 +407,22 @@ class DashboardRepository:
         return result.modified_count > 0 or result.upserted_id is not None
 
     async def get_all_chats(self) -> list[dict[str, Any]]:
-        pipeline = [
-            {"$match": {"status": {"$ne": "closed"}}},
-            {"$addFields": {"user_id_obj": {"$toObjectId": "$user_id"}}},
-            {
-                "$lookup": {
-                    "from": "support_messages",
-                    "let": {"sid": {"$toString": "$_id"}},
-                    "pipeline": [
-                        {"$match": {"$expr": {"$eq": ["$session_id", "$$sid"]}}},
-                        {"$sort": {"created_at": -1}},
-                        {"$limit": 1}
-                    ],
-                    "as": "last_msg"
-                }
-            },
-            {"$unwind": {"path": "$last_msg", "preserveNullAndEmptyArrays": True}},
-            {"$sort": {"updated_at": -1}},
-            {"$limit": 100}
-        ]
-        
-        sessions = await self.db.support_sessions.aggregate(pipeline).to_list(length=100)
+        sessions = await self.db.support_sessions.find(
+            {"status": {"$ne": "closed"}}
+        ).sort("updated_at", -1).to_list(length=100)
+
+        session_ids = [str(s["_id"]) for s in sessions]
+        # Tiebreak on _id too: the welcome message and the user's first reply are
+        # both written within the same request and can land on the same
+        # created_at timestamp, so sorting on created_at alone doesn't reliably
+        # pick the most recently inserted one.
+        messages = await self.db.support_messages.find(
+            {"session_id": {"$in": session_ids}}
+        ).sort([("created_at", -1), ("_id", -1)]).to_list(length=None)
+        last_msg_by_session: dict[str, dict] = {}
+        for m in messages:
+            last_msg_by_session.setdefault(m["session_id"], m)
+
         user_ids = list(set([s["user_id"] for s in sessions if s.get("user_id")]))
         users = await self.db.users.find({"_id": {"$in": [ObjectId(uid) for uid in user_ids if ObjectId.is_valid(uid)]}}).to_list(length=100)
         user_map = {str(u["_id"]): u for u in users}
@@ -435,8 +430,8 @@ class DashboardRepository:
         formatted_chats = []
         for s in sessions:
             user_details = user_map.get(s.get("user_id"), {})
-            last_msg = s.get("last_msg", {})
-            
+            last_msg = last_msg_by_session.get(str(s["_id"]), {})
+
             chat = {
                 "_id": s["_id"],
                 "user_name": user_details.get("full_name", "Unknown User"),
@@ -446,7 +441,7 @@ class DashboardRepository:
                 "unread_count": 0
             }
             formatted_chats.append(chat)
-            
+
         return formatted_chats
 
     async def get_chat_messages(self, user_id: str, limit: int = 50) -> list[dict[str, Any]]:

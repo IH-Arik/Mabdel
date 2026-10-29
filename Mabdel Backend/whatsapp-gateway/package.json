@@ -4,7 +4,7 @@
   "description": "Multi-tenant WhatsApp gateway for GoCustify, using Baileys (QR-based WhatsApp Web protocol, no browser automation)",
   "main": "gateway.js",
   "scripts": {
-    "start": "node gateway.js",
+    "start": "node init && node gateway.js",
     "test": "node --test"
   },
   "dependencies": {
