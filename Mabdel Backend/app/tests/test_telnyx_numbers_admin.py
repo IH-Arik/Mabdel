@@ -81,6 +81,26 @@ def test_list_all_numbers_flags_orphaned_vs_org_assigned(mock_db, monkeypatch):
     assert stale["owner_email"] is None
 
 
+def test_list_all_numbers_finds_owner_by_primary_role_and_prefers_original_email(mock_db, monkeypatch):
+    asyncio.run(mock_db.organizations.insert_one({"organization_id": "org_legacy", "telnyx_phone_number": "+15557770000"}))
+    # Legacy owner doc: only primary_role is set, and the login email is a fake one.
+    asyncio.run(
+        mock_db.users.insert_one(
+            {
+                "organization_id": "org_legacy",
+                "primary_role": "owner",
+                "email": "fake-login@example.com",
+                "original_email": "real-owner@example.com",
+            }
+        )
+    )
+    _install_fake_telnyx(monkeypatch, numbers=[FakeNumber("+15557770000", "num_legacy")])
+
+    result = asyncio.run(TelnyxProvisioningService(mock_db).list_all_numbers())
+
+    assert result[0]["owner_email"] == "real-owner@example.com"
+
+
 def test_get_number_usage_sums_last_30_days_only(mock_db):
     now = datetime.now(timezone.utc)
     asyncio.run(

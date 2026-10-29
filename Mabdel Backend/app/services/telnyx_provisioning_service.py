@@ -301,7 +301,9 @@ class TelnyxProvisioningService:
             org = await self.db.organizations.find_one({"telnyx_phone_number": number.phone_number})
             owner = None
             if org:
-                owner = await self.db.users.find_one({"organization_id": org.get("organization_id"), "role": "owner"})
+                owner = await self.db.users.find_one(
+                    {"organization_id": org.get("organization_id"), "$or": [{"role": "owner"}, {"primary_role": "owner"}]}
+                )
             results.append(
                 {
                     "phone_number": number.phone_number,
@@ -309,7 +311,7 @@ class TelnyxProvisioningService:
                     "status": number.status,
                     "created_at": number.created_at,
                     "organization_id": org.get("organization_id") if org else None,
-                    "owner_email": owner.get("email") if owner else None,
+                    "owner_email": (owner.get("original_email") or owner.get("email")) if owner else None,
                     "orphaned": org is None,
                 }
             )
