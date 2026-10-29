@@ -485,3 +485,23 @@ def test_subscription_deleted_webhook_locks_out_an_active_account(client, mock_d
     )
     assert gated_response.status_code == 402
     assert gated_response.json()["error"]["code"] == "SUBSCRIPTION_EXPIRED"
+
+
+# ── Router mounting (GAP-01: subscription.py was never included in router.py,
+# so every mobile/website subscription call 404'd despite the resolver and
+# gating tests above passing) ───────────────────────────────────────────────
+
+
+def test_subscription_status_endpoint_is_reachable(client, mock_db):
+    headers = _auth_headers(client, mock_db, email="router-check@example.com")
+    response = client.get("/api/v1/subscription/status", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+
+def test_start_trial_endpoint_is_reachable(client, mock_db):
+    headers = _auth_headers(client, mock_db, email="router-check-trial@example.com")
+    _set_subscription_fields(mock_db, "router-check-trial@example.com", {"subscription_status": "none"})
+    response = client.post("/api/v1/subscription/start-trial", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "trial"
