@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Building2,
   Mail,
+  Phone,
 } from "lucide-react";
 import { BsBadgeAd } from "react-icons/bs";
 import { SiActivitypub } from "react-icons/si";
@@ -34,6 +35,7 @@ const ADMIN_MENU = [
   { icon: <MessageSquare className="w-5 h-5" />, label: "Support Chat", Link: "/messages" },
   { icon: <TriangleAlert className="w-5 h-5" />, label: "Reports", Link: "/reports" },
   { icon: <Mail className="w-5 h-5" />, label: "Demo Requests", Link: "/demo-requests" },
+  { icon: <Phone className="w-5 h-5" />, label: "Telnyx Numbers", Link: "/telnyx-numbers" },
   { icon: <Settings className="w-5 h-5" />, label: "Settings", Link: "/settings" },
 ];
 

@@ -35,6 +35,7 @@ import OnboardingPage from "../Pages/Onboarding/OnboardingPage";
 import TrialExpiredPage from "../Pages/Onboarding/TrialExpiredPage";
 import BillingPage from "../Pages/Settings/Billing/BillingPage";
 import ClientManagement from "../Pages/ClientManagement/ClientManagement";
+import TelnyxNumbers from "../Pages/TelnyxNumbers/TelnyxNumbers";
 
 export const router = createBrowserRouter([
   {
@@ -87,6 +88,7 @@ export const router = createBrowserRouter([
           { path: "/settings/change-password", element: <ChangePass /> },
           { path: "/settings/billing", element: <BillingPage /> },
           { path: "/messages", element: <AllMessages /> },
+          { path: "/telnyx-numbers", element: <TelnyxNumbers /> },
         ],
       },
     ],
