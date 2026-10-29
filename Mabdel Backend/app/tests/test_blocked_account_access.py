@@ -52,6 +52,31 @@ def test_a_blocked_users_still_valid_token_is_rejected_by_the_inbox_websocket(cl
     assert exc_info.value.code == 1008
 
 
+def test_a_blocked_users_refresh_token_is_rejected(client, mock_db):
+    """Regression: refresh_access_token never checked blocked status, so a
+    blocked user could keep minting fresh access tokens via /auth/refresh even
+    though /auth/login and get_current_user both correctly rejected them."""
+    email = "blocked-refresh@example.com"
+    assert client.post(
+        "/api/v1/auth/register",
+        json={"full_name": "User", "email": email, "password": "SecurePass2024!"},
+    ).status_code == 201
+    from app.tests.test_team_direct_messaging import _get_latest_otp
+    otp = _get_latest_otp(mock_db, email=email, purpose="signup")
+    assert client.post(
+        "/api/v1/auth/verify-otp", json={"email": email, "code": otp["code"], "purpose": "signup"}
+    ).status_code == 200
+    login = client.post("/api/v1/auth/login", json={"email": email, "password": "SecurePass2024!"})
+    refresh_token = login.json()["data"]["refresh_token"]
+
+    from bson import ObjectId
+    user = asyncio.run(mock_db.users.find_one({"email": email}))
+    asyncio.run(mock_db.users.update_one({"_id": ObjectId(str(user["_id"]))}, {"$set": {"status": "blocked"}}))
+
+    response = client.post("/api/v1/auth/refresh-token", json={"refresh_token": refresh_token})
+    assert response.status_code == 403
+
+
 def test_a_blocked_users_still_valid_token_is_rejected_by_the_conversation_websocket(client, mock_db):
     email = "blocked-ws-conv@example.com"
     headers, user_id = _signup(client, mock_db, email, "User")

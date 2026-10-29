@@ -29,6 +29,7 @@ class RBACRepository:
         self.roles = db.rbac_roles
         self.user_roles = db.rbac_user_roles
         self.audit_logs = db.rbac_audit_logs
+        self.user_restrictions = db.rbac_user_restrictions
 
     # ─── Permissions ──────────────────────────────────────────────────────────
 
@@ -208,6 +209,15 @@ class RBACRepository:
         result: set[str] = set()
         async for perm in perms_cursor:
             result.add(f"{perm['module']}:{perm['action']}")
+
+        # Owners/admins can cap a team member below their role's default permissions
+        # (dashboard owner.py writes this to rbac_user_restrictions) - without this
+        # check that restriction was saved but never enforced, so every team member
+        # silently kept their full role-default access regardless of what was set.
+        restriction = await self.user_restrictions.find_one({"user_id": user_id}, sort=[("updated_at", -1)])
+        if restriction is not None:
+            result &= set(restriction.get("allowed_permissions") or [])
+
         return result
 
     async def get_user_highest_role(self, user_id: str) -> dict | None:

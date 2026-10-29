@@ -236,6 +236,13 @@ class AuthService:
                 message="User not found for refresh token.",
             )
 
+        if user.get("status") == "blocked":
+            raise AppException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="ACCOUNT_BLOCKED",
+                message="This account has been blocked.",
+            )
+
         await self.token_repository.revoke_refresh_token(str(stored_token["_id"]))
 
         new_access = create_access_token(user_id=str(user["_id"]), email=user["email"])
@@ -292,6 +299,13 @@ class AuthService:
                 provider="google",
                 provider_user_id=google_user_id,
                 avatar_url=profile.get("picture"),
+            )
+
+        if user.get("status") == "blocked":
+            raise AppException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="ACCOUNT_BLOCKED",
+                message="This account has been blocked.",
             )
 
         access_token = create_access_token(user_id=str(user["_id"]), email=user["email"])
