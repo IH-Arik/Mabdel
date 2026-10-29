@@ -9,6 +9,7 @@ from .subscription import router as subscription_router
 from .demo_requests import router as demo_requests_router
 from .meeting_requests import router as meeting_requests_router
 from .availability_slots import router as availability_slots_router
+from .telnyx_numbers import router as telnyx_numbers_router
 
 api_router = APIRouter()
 
@@ -22,3 +23,4 @@ api_router.include_router(subscription_router)
 api_router.include_router(demo_requests_router, prefix="/demo-requests", tags=["Demo Requests"])
 api_router.include_router(meeting_requests_router, prefix="/meeting-requests", tags=["Meeting Requests"])
 api_router.include_router(availability_slots_router, prefix="/availability-slots", tags=["Availability Slots"])
+api_router.include_router(telnyx_numbers_router)
