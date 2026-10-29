@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import partial
 
 import telnyx
@@ -35,9 +35,9 @@ def _master_client(api_key: str | None = None) -> telnyx.Client:
     return telnyx.Client(api_key=key)
 
 
-def _telnyx_raise(exc: telnyx.TelnyxError, context: str) -> None:
+def _telnyx_raise(exc: telnyx.TelnyxError, context: str, status_code: int = 503) -> None:
     raise AppException(
-        status_code=503,
+        status_code=status_code,
         code="TELNYX_API_ERROR",
         message=f"Telnyx error during {context}: {exc}",
     )
@@ -133,6 +133,15 @@ def _release_sync(phone_number_id: str) -> None:
         client.phone_numbers.delete(phone_number_id)
     except Exception as exc:
         logger.warning("Failed to release Telnyx number %s: %s", phone_number_id, exc)
+
+
+def _list_numbers_sync() -> list:
+    client = _master_client()
+    try:
+        # Iterating the SDK page object walks every page; .data would only give the first one.
+        return list(client.phone_numbers.list(page_size=250))
+    except telnyx.TelnyxError as exc:
+        _telnyx_raise(exc, "number listing", status_code=502)
 
 
 class TelnyxProvisioningService:
@@ -280,6 +289,49 @@ class TelnyxProvisioningService:
     async def get_status(self, organization_id: str) -> dict:
         org = await self.db.organizations.find_one({"organization_id": organization_id})
         return self._status_payload(org)
+
+    async def list_all_numbers(self) -> list[dict]:
+        """Every number on the platform Telnyx account, matched to the org that owns it.
+        A number with no organization record is orphaned (paid for, not assigned)."""
+        loop = asyncio.get_event_loop()
+        numbers = await loop.run_in_executor(None, _list_numbers_sync)
+
+        results = []
+        for number in numbers:
+            org = await self.db.organizations.find_one({"telnyx_phone_number": number.phone_number})
+            owner = None
+            if org:
+                owner = await self.db.users.find_one({"organization_id": org.get("organization_id"), "role": "owner"})
+            results.append(
+                {
+                    "phone_number": number.phone_number,
+                    "phone_number_id": number.id,
+                    "status": number.status,
+                    "created_at": number.created_at,
+                    "organization_id": org.get("organization_id") if org else None,
+                    "owner_email": owner.get("email") if owner else None,
+                    "orphaned": org is None,
+                }
+            )
+        return results
+
+    async def get_number_usage(self, phone_number: str) -> dict:
+        """Calls touching this number in the last 30 days. Matches both call legs: outbound
+        calls store the business number as from_number, inbound calls as phone_number."""
+        cutoff = _utc_now() - timedelta(days=30)
+        pipeline = [
+            {
+                "$match": {
+                    "$or": [{"from_number": phone_number}, {"phone_number": phone_number}],
+                    "created_at": {"$gte": cutoff},
+                }
+            },
+            {"$group": {"_id": None, "call_count": {"$sum": 1}, "total_seconds": {"$sum": "$duration"}}},
+        ]
+        rows = await self.db.call_logs.aggregate(pipeline).to_list(length=1)
+        if not rows:
+            return {"call_count": 0, "total_minutes": 0.0}
+        return {"call_count": rows[0]["call_count"], "total_minutes": rows[0]["total_seconds"] / 60}
 
     async def get_organization_for_user(self, user: dict) -> dict | None:
         organization_id = user.get("organization_id")
