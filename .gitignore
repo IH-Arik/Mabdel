@@ -75,6 +75,6 @@ config.bat
 actions-runner/
 
 # Editor and AI scratch directories
-.vscode/
 .sleepycode/
 
+.gitignore
