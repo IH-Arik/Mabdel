@@ -231,6 +231,18 @@ async def provision_owner_from_checkout_session(session: dict, db: AsyncIOMotorD
             new_user_id, original_email,
         )
 
+    if subscription_status == "trial" and original_email:
+        trial_email = original_email.strip().lower()
+        await db.trial_history.update_one(
+            {"email": trial_email},
+            {"$setOnInsert": {"email": trial_email, "first_trial_started_at": now}},
+            upsert=True,
+        )
+
+    from app.api.v1.endpoints.subscription import _provision_number_and_notify
+
+    await _provision_number_and_notify(new_user_id, db)
+
 
 async def sync_subscription_status(subscription: dict, db: AsyncIOMotorDatabase) -> None:
     """Called from customer.subscription.updated / customer.subscription.deleted.

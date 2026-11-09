@@ -1293,6 +1293,62 @@ class AIPhoneAgent:
         )
         logger.info("Call %s: Summary saved — %s", self.call_id, summary.get("status"))
 
+        try:
+            await self._notify_summary(summary, existing or {})
+        except Exception:
+            logger.warning("Call %s: failed to send call summary notifications", self.call_id, exc_info=True)
+
+    async def _notify_summary(self, summary: dict, call_log: dict) -> None:
+        """Sends the just-generated call summary to the business owner (email) and,
+        for an inbound call, a short version to the caller (SMS from the business's
+        own Telnyx number) — the summary itself is always stored on the call log
+        regardless of whether either send succeeds."""
+        if not self.user_id or self.user_id == "guest":
+            return
+
+        purpose = (summary.get("purpose") or "").strip()
+        if not purpose:
+            return
+
+        from bson import ObjectId
+        from app.services.email_service import EmailService
+
+        user = await self.flow_service.db.users.find_one({"_id": self.user_id})
+        if not user:
+            try:
+                user = await self.flow_service.db.users.find_one({"_id": ObjectId(self.user_id)})
+            except Exception:
+                user = None
+        if not user:
+            return
+
+        owner_email = user.get("original_email") or user.get("email")
+        business_name = self.business_name or user.get("business_name") or "your business"
+        if owner_email:
+            await EmailService().send(
+                email=owner_email,
+                subject=f"Call summary — {business_name}",
+                text=purpose,
+                html=f"<p>{purpose}</p>",
+            )
+
+        if not self.is_outbound and call_log.get("direction") == "inbound":
+            caller_number = call_log.get("from_number")
+            business_number = user.get("telnyx_phone_number")
+            if not business_number:
+                org = await self.flow_service.db.organizations.find_one(
+                    {"organization_id": user.get("organization_id")}
+                )
+                business_number = org.get("telnyx_phone_number") if org else None
+            if caller_number and business_number:
+                from app.services.call_service import CallService
+
+                await CallService().send_sms(
+                    to_number=caller_number,
+                    message=f"{business_name}: thanks for calling! Summary: {purpose}",
+                    from_number=business_number,
+                )
+
     def _mulaw_to_wav(self, mulaw_data: bytes) -> bytes:
         """
         Converts mu-law data to standard 16-bit PCM WAV header for Whisper.

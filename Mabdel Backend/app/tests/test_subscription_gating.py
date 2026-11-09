@@ -287,6 +287,7 @@ def _disable_webhook_signature_verification(monkeypatch):
 
 
 def test_checkout_completed_webhook_provisions_active_subscribe_account(client, mock_db, monkeypatch):
+    _fake_provisioning(monkeypatch)
     _disable_webhook_signature_verification(monkeypatch)
     monkeypatch.setattr(
         "app.services.stripe_subscription_service._client",
@@ -341,6 +342,7 @@ def test_stripe_webhook_rejects_unsigned_requests_in_production_when_secret_miss
 
 
 def test_checkout_completed_webhook_provisions_trial_with_trial_ends_at(client, mock_db, monkeypatch):
+    _fake_provisioning(monkeypatch)
     _disable_webhook_signature_verification(monkeypatch)
     future_ts = int((datetime.utcnow() + timedelta(days=7)).timestamp())
     monkeypatch.setattr(
@@ -374,6 +376,9 @@ def test_checkout_completed_webhook_provisions_trial_with_trial_ends_at(client, 
     assert user["trial_ends_at"] is not None
     assert user["trial_ends_at"].replace(tzinfo=None) - datetime.utcnow() > timedelta(days=6)
 
+    trial_record = asyncio.run(mock_db.trial_history.find_one({"email": "trial.owner@example.com"}))
+    assert trial_record is not None
+
 
 def test_trial_checkout_webhook_works_with_a_real_stripe_signature(client, mock_db, monkeypatch):
     """The trial-path analogue of test_payment_link_webhook_works_with_a_real_stripe_signature
@@ -389,6 +394,7 @@ def test_trial_checkout_webhook_works_with_a_real_stripe_signature(client, mock_
 
     import app.api.dashboard.webhooks as webhooks_module
 
+    _fake_provisioning(monkeypatch)
     webhook_secret = "whsec_test_fake_secret"
     monkeypatch.setattr(webhooks_module.settings, "STRIPE_WEBHOOK_SECRET", webhook_secret)
 
@@ -434,6 +440,7 @@ def test_trial_checkout_webhook_works_with_a_real_stripe_signature(client, mock_
 
 
 def test_checkout_completed_webhook_is_idempotent_on_redelivery(client, mock_db, monkeypatch):
+    _fake_provisioning(monkeypatch)
     _disable_webhook_signature_verification(monkeypatch)
     monkeypatch.setattr(
         "app.services.stripe_subscription_service._client",
@@ -499,9 +506,140 @@ def test_subscription_status_endpoint_is_reachable(client, mock_db):
     assert response.json()["success"] is True
 
 
-def test_start_trial_endpoint_is_reachable(client, mock_db):
+def _fake_provisioning(monkeypatch, phone_number: str = "+15559998888"):
+    """Stands in for a real Telnyx order — start-trial/activate must not hit the
+    live Telnyx API in tests."""
+    import app.api.v1.endpoints.subscription as subscription_module
+
+    async def fake_provision_organization(self, organization_id, requested_by_user_id):
+        return {"telnyx_phone_number": phone_number, "telnyx_setup_status": "active"}
+
+    monkeypatch.setattr(
+        subscription_module.TelnyxProvisioningService, "provision_organization", fake_provision_organization
+    )
+
+    sent_emails = []
+
+    async def fake_send(self, **kwargs):
+        sent_emails.append(kwargs)
+
+    monkeypatch.setattr(subscription_module.EmailService, "send", fake_send)
+    return sent_emails
+
+
+def test_start_trial_endpoint_is_reachable(client, mock_db, monkeypatch):
+    _fake_provisioning(monkeypatch)
     headers = _auth_headers(client, mock_db, email="router-check-trial@example.com")
     _set_subscription_fields(mock_db, "router-check-trial@example.com", {"subscription_status": "none"})
+    response = client.post("/api/v1/subscription/start-trial", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "trial"
+
+
+# ── Section 1 (client audit): auto-provision a Telnyx number on trial start
+# or paid activation, and notify the owner (email + in-app) ────────────────
+
+
+def test_starting_a_trial_provisions_a_telnyx_number_and_notifies_the_owner(client, mock_db, monkeypatch):
+    sent_emails = _fake_provisioning(monkeypatch, phone_number="+15551234567")
+    email = "trial-provision@example.com"
+    headers = _auth_headers(client, mock_db, email=email)
+    _set_subscription_fields(mock_db, email, {"subscription_status": "none"})
+
+    response = client.post("/api/v1/subscription/start-trial", headers=headers)
+    assert response.status_code == 200
+
+    user = asyncio.run(mock_db.users.find_one({"email": email}))
+    assert user["organization_id"] == str(user["_id"])
+
+    notification = asyncio.run(
+        mock_db.notifications.find_one({"user_id": str(user["_id"]), "type": "telnyx_number_assigned"})
+    )
+    assert notification is not None
+    assert "+15551234567" in notification["body"]
+
+    assert len(sent_emails) == 1
+    assert "+15551234567" in sent_emails[0]["text"]
+
+
+def test_activating_a_subscription_also_provisions_a_telnyx_number(client, mock_db, monkeypatch):
+    sent_emails = _fake_provisioning(monkeypatch, phone_number="+15557654321")
+    email = "activate-provision@example.com"
+    headers = _auth_headers(client, mock_db, email=email)
+    _set_subscription_fields(mock_db, email, {"subscription_status": "none"})
+
+    response = client.post("/api/v1/subscription/activate", headers=headers)
+    assert response.status_code == 200
+
+    user = asyncio.run(mock_db.users.find_one({"email": email}))
+    assert user["organization_id"] == str(user["_id"])
+    assert len(sent_emails) == 1
+    assert "+15557654321" in sent_emails[0]["text"]
+
+
+def test_a_second_account_with_the_same_email_cannot_start_another_trial(client, mock_db, monkeypatch):
+    """Simulates deleting an account and re-registering with the same email -
+    trial_history is keyed by email and outlives the user doc, so this must
+    still be blocked."""
+    from app.core.security import create_access_token
+
+    _fake_provisioning(monkeypatch)
+    email = "repeat-trial@example.com"
+    headers = _auth_headers(client, mock_db, email=email)
+    _set_subscription_fields(mock_db, email, {"subscription_status": "none"})
+
+    first = client.post("/api/v1/subscription/start-trial", headers=headers)
+    assert first.status_code == 200
+
+    old_user = asyncio.run(mock_db.users.find_one({"email": email}))
+    asyncio.run(mock_db.users.delete_one({"email": email}))
+
+    new_user = dict(old_user)
+    new_user.pop("_id")
+    new_user.update({"organization_id": None, "subscription_status": "none", "trial_ends_at": None})
+    result = asyncio.run(mock_db.users.insert_one(new_user))
+    new_token = create_access_token(str(result.inserted_id), email)
+
+    second = client.post(
+        "/api/v1/subscription/start-trial", headers={"Authorization": f"Bearer {new_token}"}
+    )
+
+    assert second.status_code == 400
+    assert second.json()["error"]["code"] == "TRIAL_ALREADY_USED"
+
+
+def test_subscription_signup_rejects_a_trial_checkout_for_an_email_that_already_used_its_trial(
+    client, mock_db, monkeypatch
+):
+    _patch_stripe_client(monkeypatch)
+    asyncio.run(mock_db.trial_history.insert_one({"email": "used-trial@example.com"}))
+
+    response = client.post(
+        "/api/v1/auth/subscription-signup",
+        json=_signup_payload(original_email="used-trial@example.com", plan="trial"),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "TRIAL_ALREADY_USED"
+
+
+def test_provisioning_failure_does_not_block_trial_start(client, mock_db, monkeypatch):
+    """Telnyx being down/out of numbers must not stop the owner from getting
+    their trial — they can retry provisioning manually from Integrations."""
+    import app.api.v1.endpoints.subscription as subscription_module
+    from app.core.exceptions import AppException
+
+    async def failing_provision(self, organization_id, requested_by_user_id):
+        raise AppException(status_code=503, code="NO_NUMBER_AVAILABLE", message="none left")
+
+    monkeypatch.setattr(
+        subscription_module.TelnyxProvisioningService, "provision_organization", failing_provision
+    )
+
+    email = "provision-fails@example.com"
+    headers = _auth_headers(client, mock_db, email=email)
+    _set_subscription_fields(mock_db, email, {"subscription_status": "none"})
+
     response = client.post("/api/v1/subscription/start-trial", headers=headers)
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "trial"

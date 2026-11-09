@@ -1179,8 +1179,15 @@ async def list_owners(
             business_type=user.get("business_type"),
             created_at=user.get("created_at"),
             status="active" if user.get("is_active", True) else "blocked",
-            plan=user.get("subscription_plan") or "7-Day Trial",
-            expiration_date=user.get("subscription_expiration"),
+            # New-style accounts (post-Stripe-migration) carry subscription_tier +
+            # trial_ends_at instead of the legacy subscription_plan/_expiration
+            # pair - fall back to the legacy fields so old accounts still show
+            # correctly, instead of always displaying the hardcoded "7-Day Trial"
+            # placeholder this previously showed for every new-style account.
+            plan=user.get("subscription_tier") or user.get("subscription_plan") or "7-Day Trial",
+            expiration_date=user.get("trial_ends_at") or user.get("subscription_expiration"),
+            subscription_status=user.get("subscription_status"),
+            trial_started_at=user.get("trial_started_at"),
             subordinates=subordinates
         ))
         

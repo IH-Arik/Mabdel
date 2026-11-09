@@ -11,6 +11,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.exceptions import AppException
 from app.dependencies import get_current_user, get_mongo_database
+from app.services.email_service import EmailService
+from app.services.smartflow_service import SmartFlowService
+from app.services.telnyx_provisioning_service import TelnyxProvisioningService
 
 router = APIRouter(prefix="/subscription", tags=["subscription"])
 
@@ -21,6 +24,45 @@ def _uid(user: dict) -> str:
 
 def _oid(uid: str):
     return ObjectId(uid) if ObjectId.is_valid(uid) else uid
+
+
+async def _provision_number_and_notify(uid: str, db: AsyncIOMotorDatabase) -> None:
+    """Gives the business its own Telnyx number the moment they get owner access
+    (trial start or paid activation), and tells them where to find it. One number
+    per organization — a fresh owner is their own organization (`organization_id`
+    defaults to their own user id, matching the Stripe-checkout signup path in
+    stripe_subscription_service.py)."""
+    await db.users.update_one({"_id": _oid(uid), "organization_id": None}, {"$set": {"organization_id": uid}})
+    user = await db.users.find_one({"_id": _oid(uid)})
+    organization_id = user.get("organization_id") or uid
+
+    try:
+        result = await TelnyxProvisioningService(db).provision_organization(organization_id, uid)
+    except AppException:
+        # Number pool exhausted, Telnyx down, etc. — don't block trial/activation on it;
+        # the owner can retry provisioning manually from Integrations.
+        return
+
+    phone_number = result.get("telnyx_phone_number")
+    if not phone_number:
+        return
+
+    await SmartFlowService(db).create_notification(
+        uid,
+        "telnyx_number_assigned",
+        "Your business phone number is ready",
+        f"We've assigned {phone_number} to your business. It supports calls and SMS right away.",
+        action_url="/integrations",
+    )
+
+    recipient = user.get("original_email") or user.get("email")
+    if recipient:
+        await EmailService().send(
+            email=recipient,
+            subject="Your GoCustify business phone number is ready",
+            text=f"Your business phone number is {phone_number}. It's active now for calls and SMS.",
+            html=f"<p>Your business phone number is <strong>{phone_number}</strong>. It's active now for calls and SMS.</p>",
+        )
 
 
 async def _get_subscription_status(user_doc: dict, db: AsyncIOMotorDatabase) -> dict:
@@ -102,8 +144,24 @@ async def start_trial(
             message="You already have an active subscription or trial.",
         )
 
+    # trial_history survives account deletion (unlike the user doc itself), so
+    # someone who deletes their account and re-registers with the same email
+    # can't get a second free trial.
+    trial_email = (current_user.get("original_email") or current_user.get("email") or "").strip().lower()
+    if trial_email and await db.trial_history.find_one({"email": trial_email}):
+        raise AppException(
+            status_code=400,
+            code="TRIAL_ALREADY_USED",
+            message="This email has already used its free trial.",
+        )
+
     now = datetime.datetime.utcnow()
     trial_ends = now + datetime.timedelta(days=7)
+
+    if trial_email:
+        await db.trial_history.update_one(
+            {"email": trial_email}, {"$setOnInsert": {"email": trial_email, "first_trial_started_at": now}}, upsert=True
+        )
 
     await db.users.update_one(
         {"_id": _oid(uid)},
@@ -119,6 +177,8 @@ async def start_trial(
             }
         },
     )
+
+    await _provision_number_and_notify(uid, db)
 
     return {
         "success": True,
@@ -172,6 +232,8 @@ async def activate_subscription(
             }
         },
     )
+
+    await _provision_number_and_notify(uid, db)
 
     return {
         "success": True,

@@ -79,6 +79,7 @@ class DashboardService:
         org_count = await self.repository.db.users.distinct("organization_id")
         ai_stats = await self.repository.get_ai_usage_stats()
         revenue = await self.repository.get_revenue_stats()
+        customer_counts = await self._get_customer_subscription_counts()
 
         stats = [
             DashboardStatItem(
@@ -90,6 +91,26 @@ class DashboardService:
                 label="Total Platform Users",
                 value=user_stats["total"],
                 description="Total users across all organizations"
+            ),
+            DashboardStatItem(
+                label="Total Registered Customers",
+                value=customer_counts["total"],
+                description="Business owners registered on the platform"
+            ),
+            DashboardStatItem(
+                label="Paying Customers",
+                value=customer_counts["paying"],
+                description="Customers on an active paid subscription"
+            ),
+            DashboardStatItem(
+                label="Non-Paying Customers",
+                value=customer_counts["non_paying"],
+                description="Customers with no active subscription or trial"
+            ),
+            DashboardStatItem(
+                label="Active Free-Trial Customers",
+                value=customer_counts["trial"],
+                description="Customers currently inside their 7-day free trial"
             ),
             DashboardStatItem(
                 label="Global AI Usage",
@@ -104,6 +125,29 @@ class DashboardService:
         ]
 
         return DashboardSummary(stats=stats)
+
+    async def _get_customer_subscription_counts(self) -> dict[str, int]:
+        """Paying / non-paying / active-trial breakdown of business owners.
+
+        Reuses the same resolver the live subscription gate uses
+        (_resolve_subscription_state) so this count never drifts from what
+        actually unlocks features for a given account - old-shape
+        (subscription_plan/_expiration) and new-shape (subscription_tier/
+        subscription_status/trial_ends_at) accounts both classify correctly.
+        """
+        from app.dependencies import _resolve_subscription_state
+
+        paying = non_paying = trial = 0
+        async for owner in self.repository.db.users.find({"role": "owner"}):
+            state = _resolve_subscription_state(owner)
+            if owner.get("subscription_status") == "trial" and state.is_active:
+                trial += 1
+            elif state.is_active:
+                paying += 1
+            else:
+                non_paying += 1
+
+        return {"total": paying + non_paying + trial, "paying": paying, "non_paying": non_paying, "trial": trial}
 
     async def get_growth_metrics(self, collection: str, organization_id: str | None = None) -> GrowthMetrics:
         raw_data = await self.repository.get_growth_data(collection, organization_id=organization_id)

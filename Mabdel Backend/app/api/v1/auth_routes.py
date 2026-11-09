@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.database import get_database
+from app.core.exceptions import AppException
 from app.dependencies import get_mongo_database, get_redis_client
 from app.repositories.auth_repository import AuthRepository
 from app.repositories.otp_repository import OTPRepository
@@ -147,6 +148,15 @@ async def subscription_signup(
     # (app/services/stripe_subscription_service.py), driven off the resulting
     # checkout.session.completed webhook, once Stripe actually confirms payment.
     from app.services.stripe_subscription_service import create_subscription_checkout_session
+
+    if payload.plan != "subscribe":
+        trial_email = (payload.original_email or "").strip().lower()
+        if trial_email and await db.trial_history.find_one({"email": trial_email}):
+            raise AppException(
+                status_code=400,
+                code="TRIAL_ALREADY_USED",
+                message="This email has already used its free trial.",
+            )
 
     checkout_url = create_subscription_checkout_session(payload)
     return success_response(data={"checkout_url": checkout_url}, message="Success")

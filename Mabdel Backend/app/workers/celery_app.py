@@ -15,6 +15,7 @@ celery_app = Celery(
         "app.workers.tasks.reminder_tasks",
         "app.workers.tasks.social_sync_tasks",
         "app.workers.tasks.caldav_sync_tasks",
+        "app.workers.tasks.birthday_tasks",
     ],
 )
 
@@ -48,6 +49,7 @@ celery_app.conf.update(
         "appointments.send_reminders": {"queue": "default"},
         "social.sync_polling_platforms": {"queue": "default"},
         "caldav.sync_connections": {"queue": "default"},
+        "birthday.send_messages": {"queue": "default"},
     },
     beat_schedule={
         "snapchat-auto-sync-every-5-minutes": {
@@ -61,6 +63,14 @@ celery_app.conf.update(
         "appointment-reminders-every-15-minutes": {
             "task": "appointments.send_reminders",
             "schedule": 900.0,  # 15 minutes - matches AppointmentService.send_due_reminders' window
+        },
+        "birthday-messages-every-hour": {
+            "task": "birthday.send_messages",
+            # Hourly, not daily: the task is idempotent per calendar day
+            # (last_birthday_message_sent_date), so an hourly cadence just
+            # bounds how late in the day a birthday message can arrive
+            # without risking a missed day if one run fails.
+            "schedule": 3600.0,
         },
     },
 )
