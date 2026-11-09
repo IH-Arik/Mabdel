@@ -300,6 +300,45 @@ def test_incoming_call_without_registration_answers_into_ai(client, mock_db, mon
     assert answer_calls[0]["websocket_url"] is not None  # answered straight into the AI stream
 
 
+def test_incoming_call_to_a_suspended_organization_is_declined_not_answered(client, mock_db, monkeypatch) -> None:
+    """Section 2 (client audit): a trial that expired without converting to paid
+    has its number suspended (see test_trial_expiry_enforcement.py) - the number
+    itself is kept, but inbound calls must stop being answered, by the AI or by
+    a team member's browser."""
+    monkeypatch.setattr(settings, "TELNYX_VALIDATE_SIGNATURE", False)
+    asyncio.run(
+        mock_db.organizations.insert_one(
+            {
+                "organization_id": "org-suspended-1",
+                "telnyx_phone_number": "+1666",
+                "telnyx_setup_status": "suspended",
+            }
+        )
+    )
+
+    answer_calls: list[dict] = []
+    hangup_calls: list[str] = []
+
+    async def fake_answer(self, call_control_id: str, *, websocket_url: str | None = None) -> None:
+        answer_calls.append({"websocket_url": websocket_url})
+
+    async def fake_hangup(self, call_control_id: str) -> bool:
+        hangup_calls.append(call_control_id)
+        return True
+
+    monkeypatch.setattr(CallService, "answer_call", fake_answer)
+    monkeypatch.setattr(CallService, "hangup_call", fake_hangup)
+
+    body = _webhook_envelope(
+        "call.initiated",
+        {"call_control_id": "v2:suspended-org-test", "direction": "incoming", "from": "+1555", "to": "+1666"},
+    )
+    client.post("/api/v1/calls/webhook", content=body)
+
+    assert answer_calls == []
+    assert hangup_calls == ["v2:suspended-org-test"]
+
+
 def test_browser_outbound_call_creates_log_from_client_state(client, mock_db, monkeypatch) -> None:
     """Browser-originated outbound calls never hit our REST API before dialing — the
     webhook is the first signal, and client_state (set by newCall()) says who called."""

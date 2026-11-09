@@ -36,14 +36,23 @@ async def _provision_number_and_notify(uid: str, db: AsyncIOMotorDatabase) -> No
     user = await db.users.find_one({"_id": _oid(uid)})
     organization_id = user.get("organization_id") or uid
 
-    try:
-        result = await TelnyxProvisioningService(db).provision_organization(organization_id, uid)
-    except AppException:
-        # Number pool exhausted, Telnyx down, etc. — don't block trial/activation on it;
-        # the owner can retry provisioning manually from Integrations.
-        return
+    org = await db.organizations.find_one({"organization_id": organization_id})
+    if org and org.get("telnyx_setup_status") == "suspended" and org.get("telnyx_phone_number"):
+        # Reactivating after a trial expired — restore the SAME number (it was
+        # never released back to Telnyx) instead of buying a new one.
+        await db.organizations.update_one(
+            {"organization_id": organization_id}, {"$set": {"telnyx_setup_status": "active"}}
+        )
+        phone_number = org["telnyx_phone_number"]
+    else:
+        try:
+            result = await TelnyxProvisioningService(db).provision_organization(organization_id, uid)
+        except AppException:
+            # Number pool exhausted, Telnyx down, etc. — don't block trial/activation on it;
+            # the owner can retry provisioning manually from Integrations.
+            return
+        phone_number = result.get("telnyx_phone_number")
 
-    phone_number = result.get("telnyx_phone_number")
     if not phone_number:
         return
 

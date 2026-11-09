@@ -16,6 +16,7 @@ celery_app = Celery(
         "app.workers.tasks.social_sync_tasks",
         "app.workers.tasks.caldav_sync_tasks",
         "app.workers.tasks.birthday_tasks",
+        "app.workers.tasks.trial_tasks",
     ],
 )
 
@@ -50,6 +51,7 @@ celery_app.conf.update(
         "social.sync_polling_platforms": {"queue": "default"},
         "caldav.sync_connections": {"queue": "default"},
         "birthday.send_messages": {"queue": "default"},
+        "subscription.enforce_trial_expiry": {"queue": "default"},
     },
     beat_schedule={
         "snapchat-auto-sync-every-5-minutes": {
@@ -70,6 +72,10 @@ celery_app.conf.update(
             # (last_birthday_message_sent_date), so an hourly cadence just
             # bounds how late in the day a birthday message can arrive
             # without risking a missed day if one run fails.
+            "schedule": 3600.0,
+        },
+        "trial-expiry-enforcement-every-hour": {
+            "task": "subscription.enforce_trial_expiry",
             "schedule": 3600.0,
         },
     },

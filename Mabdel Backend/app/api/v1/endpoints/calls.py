@@ -314,6 +314,14 @@ async def _handle_incoming_call(
         )
         team_user_ids = await resolve_organization_user_ids(service.db, org["organization_id"])
 
+    if org and org.get("telnyx_setup_status") == "suspended":
+        # Trial expired and never converted to paid — number kept (so it can be
+        # restored instantly on reactivation) but inbound calls are no longer
+        # answered, by the AI or by the team's browser.
+        logger.info("Call %s: organization %s is suspended (trial expired), declining call.", call_id, org.get("organization_id"))
+        await call_service.hangup_call(call_id)
+        return
+
     legacy_user = None
     if not org and to_number:
         # Pre-migration fallback: a number that was never backfilled into organizations.

@@ -623,6 +623,46 @@ def test_subscription_signup_rejects_a_trial_checkout_for_an_email_that_already_
     assert response.json()["error"]["code"] == "TRIAL_ALREADY_USED"
 
 
+def test_reactivating_a_suspended_org_restores_the_same_number_without_reprovisioning(client, mock_db, monkeypatch):
+    import app.api.v1.endpoints.subscription as subscription_module
+
+    def fail_if_called(self, organization_id, requested_by_user_id):
+        raise AssertionError("must not re-provision a new number when restoring a suspended one")
+
+    monkeypatch.setattr(subscription_module.TelnyxProvisioningService, "provision_organization", fail_if_called)
+    sent_emails = []
+
+    async def fake_send(self, **kwargs):
+        sent_emails.append(kwargs)
+
+    monkeypatch.setattr(subscription_module.EmailService, "send", fake_send)
+
+    email = "reactivate@example.com"
+    headers = _auth_headers(client, mock_db, email=email)
+    user = asyncio.run(mock_db.users.find_one({"email": email}))
+    uid = str(user["_id"])
+    asyncio.run(mock_db.users.update_one({"_id": user["_id"]}, {"$set": {"organization_id": uid, "subscription_status": "expired"}}))
+    asyncio.run(
+        mock_db.organizations.insert_one(
+            {
+                "organization_id": uid,
+                "telnyx_phone_number": "+15559990000",
+                "telnyx_phone_number_id": "pn_kept",
+                "telnyx_setup_status": "suspended",
+            }
+        )
+    )
+
+    response = client.post("/api/v1/subscription/activate", headers=headers)
+    assert response.status_code == 200
+
+    org = asyncio.run(mock_db.organizations.find_one({"organization_id": uid}))
+    assert org["telnyx_setup_status"] == "active"
+    assert org["telnyx_phone_number"] == "+15559990000"
+    assert len(sent_emails) == 1
+    assert "+15559990000" in sent_emails[0]["text"]
+
+
 def test_provisioning_failure_does_not_block_trial_start(client, mock_db, monkeypatch):
     """Telnyx being down/out of numbers must not stop the owner from getting
     their trial — they can retry provisioning manually from Integrations."""
