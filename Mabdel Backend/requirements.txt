@@ -19,7 +19,12 @@ python-multipart==0.0.20
 resend==2.24.0
 streamlit==1.54.0
 celery[redis]==5.4.0
-redis==6.2.0
+# kombu is celery's unpinned transitive dep, and celery 5.4.0's own redis bound
+# (<6.0.0) doesn't match the redis-py floor (>=6.1.0) that a newer kombu
+# resolved transitively (5.6.2) enforces at runtime - pin kombu to the release
+# that actually shipped alongside celery 5.4.0 instead of chasing redis-py up.
+kombu==5.4.0
+redis==5.2.1
 icalendar==6.1.0
 websockets==16.0
 
