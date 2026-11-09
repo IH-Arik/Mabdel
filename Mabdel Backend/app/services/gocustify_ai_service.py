@@ -226,6 +226,71 @@ class GoCustifyAIService:
                 "error": str(exc)[:240],
             }
 
+    def summarize_social_message(self, content: str, sender_name: str | None = None) -> dict:
+        """One-line gist of an inbound Facebook/Instagram/WhatsApp message plus what
+        the sender wants, for the Unified inbox - same shape/failure-handling as
+        summarize_call, just one message instead of a transcript."""
+        text = (content or "").strip()
+        if not text:
+            return {"summary": None, "requirement": None, "status": "no_content"}
+        if not settings.OPENAI_API_KEY:
+            return {"summary": text[:200], "requirement": None, "status": "no_api_key"}
+
+        try:
+            import json as _json
+
+            client = _get_sync_openai_client()
+            who = f" from {sender_name}" if sender_name else ""
+            prompt = (
+                f"Summarize this inbound customer message{who} in one short sentence, "
+                "and state what they want in a few words.\n\n"
+                f"MESSAGE:\n{text}\n\n"
+                "Respond with a JSON object: {\"summary\": \"...\", \"requirement\": \"...\"}"
+            )
+            response = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": "You summarize short customer messages. Always respond with valid JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"},
+            )
+            result = _json.loads(response.choices[0].message.content)
+            result["status"] = "generated"
+            return result
+        except Exception as exc:
+            return {"summary": None, "requirement": None, "status": "failed", "error": str(exc)[:240]}
+
+    def answer_social_message(self, content: str, business_context: str) -> str | None:
+        """Auto-reply text for an inbound Facebook/Instagram message, answering only
+        from the business's own configured info (pricing/hours/FAQ knowledge base) -
+        same OpenAI call shape as _generate_with_openai, sync since the message/comment
+        webhook handlers that use this are not already inside an async context split
+        for this call specifically."""
+        text = (content or "").strip()
+        if not text or not settings.OPENAI_API_KEY:
+            return None
+        try:
+            client = _get_sync_openai_client()
+            system_prompt = (
+                "You are a helpful assistant replying to a customer's Facebook/Instagram "
+                "message or comment on behalf of a business. Use ONLY the business "
+                "information given below to answer pricing, hours, and service questions. "
+                "If the message isn't answerable from that information, reply briefly and "
+                "invite them to ask a team member - never invent business details.\n\n"
+                f"BUSINESS INFO:\n{business_context.strip() or '(none configured)'}"
+            )
+            response = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text},
+                ],
+            )
+            return (response.choices[0].message.content or "").strip() or None
+        except Exception:
+            return None
+
     def list_voice_presets(self) -> list[dict]:
         return list(self.voice_presets)
 

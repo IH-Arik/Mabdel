@@ -988,7 +988,76 @@ class IntegrationService(SmartFlowBase):
             )
             if platform == "facebook_messenger" and event.direction == "inbound":
                 await self._enrich_messenger_contact_name(user_id, integration, event.contact_external_id)
+            if platform in ("facebook_messenger", "instagram") and event.direction == "inbound":
+                await self._handle_social_message_ai(user_id, platform, message)
         return {"status": "processed", "processed": processed, "ignored": ignored}
+
+    async def set_social_auto_reply_enabled(self, user_id: str, enabled: bool) -> dict:
+        organization_id = await self._resolve_organization_id(user_id)
+        if not organization_id:
+            raise AppException(status_code=422, code="NO_ORGANIZATION", message="Your account isn't part of an organization yet.")
+        await self.db.organizations.update_one(
+            {"organization_id": organization_id},
+            {
+                "$set": {"social_auto_reply_enabled": enabled, "updated_at": utc_now()},
+                "$setOnInsert": {"organization_id": organization_id, "created_at": utc_now()},
+            },
+            upsert=True,
+        )
+        return {"enabled": enabled}
+
+    async def _handle_social_message_ai(self, user_id: str, platform: str, message: dict) -> None:
+        """Section 6 (client audit): AI summary of every inbound Facebook/Instagram
+        DM, stored for the Unified inbox, plus an optional auto-reply answering
+        pricing/hours/FAQ questions from the business's own configured info - never
+        invented. Auto-reply is opt-in (social_auto_reply_enabled on the
+        organization) so a business is never surprised by GoCustify messaging their
+        customers without having turned it on."""
+        content = message.get("content") or ""
+        if not content.strip():
+            return
+
+        from app.services.gocustify_ai_service import GoCustifyAIService
+
+        ai = GoCustifyAIService()
+        contact = await self.db.contacts.find_one({"_id": ObjectId(message["contact_id"])}) if message.get("contact_id") else None
+        sender_name = contact.get("name") if contact else None
+
+        try:
+            summary = ai.summarize_social_message(content, sender_name)
+        except Exception:
+            logger.warning("Social message summary failed for message %s", message.get("id"), exc_info=True)
+            summary = None
+        if summary and summary.get("status") == "generated":
+            await self.db.messages.update_one({"_id": ObjectId(message["id"])}, {"$set": {"ai_summary": summary}})
+
+        organization_id = await self._resolve_organization_id(user_id)
+        org = await self.db.organizations.find_one({"organization_id": organization_id}) if organization_id else None
+        if not org or not org.get("social_auto_reply_enabled"):
+            return
+
+        call_settings = org.get("ai_call_settings") or {}
+        business_context = "\n".join(
+            filter(
+                None,
+                [
+                    f"Business type: {call_settings.get('business_type')}" if call_settings.get("business_type") else None,
+                    call_settings.get("knowledge_base"),
+                    call_settings.get("custom_instructions"),
+                ],
+            )
+        )
+        try:
+            reply_text = ai.answer_social_message(content, business_context)
+        except Exception:
+            logger.warning("Social auto-reply generation failed for message %s", message.get("id"), exc_info=True)
+            reply_text = None
+        if not reply_text:
+            return
+
+        await self.conversation_service.reply_to_message(
+            user_id, str(message["id"]), {"platform": platform, "content": reply_text}
+        )
 
     async def _enrich_messenger_contact_name(self, user_id: str, integration: dict, psid: str) -> None:
         """Messenger events carry only a page-scoped id, so a new contact would be stuck as

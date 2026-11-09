@@ -712,6 +712,9 @@ class SmartFlowService(SmartFlowBase):
     async def handle_meta_webhook(self, platform, payload):
         return await self.integration_service.handle_meta_webhook(platform, payload)
 
+    async def set_social_auto_reply_enabled(self, user_id: str, enabled: bool) -> dict:
+        return await self.integration_service.set_social_auto_reply_enabled(user_id, enabled)
+
     async def handle_inbound_webhook_batch(self, user_id, platform, messages):
         return await self.integration_service.handle_inbound_webhook_batch(user_id, platform, messages)
 

@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.exceptions import AppException
 from app.dependencies import require_permission, require_plan_feature
 from app.schemas.smartflow import (
+    SocialAutoReplyUpdateRequest,
     SocialIntegrationUpsertRequest,
     TelegramManualConnectRequest,
 )
@@ -77,6 +78,21 @@ async def connect_integration(
 ) -> dict:
     data = await service.upsert_integration(str(current_user["_id"]), payload.model_dump())
     return success_response(data=data, message="Integration connected successfully.")
+
+
+@router.patch("/integrations/social-auto-reply")
+async def set_social_auto_reply(
+    payload: SocialAutoReplyUpdateRequest,
+    current_user: dict = Depends(require_permission("integrations", "manage")),
+    _: dict = Depends(require_plan_feature("growth")),
+    service: SmartFlowService = Depends(get_smartflow_service),
+) -> dict:
+    """Opt-in toggle for automatic AI replies to inbound Facebook/Instagram
+    messages (pricing/hours/FAQ, answered only from the business's own
+    configured info) - off by default so a business is never surprised by
+    GoCustify messaging its customers on its behalf."""
+    data = await service.set_social_auto_reply_enabled(str(current_user["_id"]), payload.enabled)
+    return success_response(data=data, message="Social auto-reply setting updated.")
 
 
 @router.post("/integrations/{platform}/sync")

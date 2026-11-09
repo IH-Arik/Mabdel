@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
+from bson import ObjectId
+
 from app.core.config import settings
 from app.tests.test_webhooks import _create_user
 
@@ -80,6 +82,83 @@ def test_receipts_and_reads_are_acknowledged_not_errors(client, mock_db, monkeyp
     assert response.status_code == 200
     assert response.json()["data"]["processed"] == 0
     assert asyncio.run(mock_db.messages.count_documents({})) == 0
+
+
+# ── Section 6 (client audit): AI summary + opt-in auto-reply ───────────────
+
+
+def _fake_summarize(monkeypatch, summary: dict):
+    from app.services.gocustify_ai_service import GoCustifyAIService
+
+    monkeypatch.setattr(GoCustifyAIService, "summarize_social_message", lambda self, content, sender_name=None: summary)
+
+
+def _fake_answer(monkeypatch, reply_text):
+    from app.services.gocustify_ai_service import GoCustifyAIService
+
+    calls = []
+
+    def fake(self, content, business_context):
+        calls.append({"content": content, "business_context": business_context})
+        return reply_text
+
+    monkeypatch.setattr(GoCustifyAIService, "answer_social_message", fake)
+    return calls
+
+
+def test_inbound_messenger_message_gets_an_ai_summary_stored(client, mock_db, monkeypatch):
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
+    _fake_summarize(monkeypatch, {"summary": "Asking about pricing", "requirement": "pricing", "status": "generated"})
+    _fake_answer(monkeypatch, None)
+    user_id = asyncio.run(_create_user(mock_db, email="meta-summary@example.com"))
+    _connect(mock_db, user_id, "facebook_messenger", "PAGE1")
+
+    client.post(WEBHOOK.format(platform="facebook_messenger"), json=_messenger([_dm("m1", "how much do you charge?")]))
+
+    stored = asyncio.run(mock_db.messages.find_one({"provider_event_id": "m1"}))
+    assert stored["ai_summary"]["requirement"] == "pricing"
+
+
+def test_auto_reply_is_not_sent_when_disabled(client, mock_db, monkeypatch):
+    """Default-off: no organization has social_auto_reply_enabled set, so no reply
+    should be generated or sent even though the AI could answer."""
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
+    _fake_summarize(monkeypatch, {"status": "no_content"})
+    answer_calls = _fake_answer(monkeypatch, "We're open 9-5 Mon-Fri!")
+    user_id = asyncio.run(_create_user(mock_db, email="meta-noauto@example.com"))
+    _connect(mock_db, user_id, "facebook_messenger", "PAGE1")
+
+    client.post(WEBHOOK.format(platform="facebook_messenger"), json=_messenger([_dm("m1", "what are your hours?")]))
+
+    assert answer_calls == []
+    assert asyncio.run(mock_db.messages.count_documents({"direction": "outbound"})) == 0
+
+
+def test_auto_reply_is_sent_when_enabled(client, mock_db, monkeypatch):
+    monkeypatch.setattr(settings, "META_CLIENT_SECRET", None)
+    _fake_summarize(monkeypatch, {"status": "no_content"})
+    answer_calls = _fake_answer(monkeypatch, "We're open 9-5 Mon-Fri!")
+
+    async def fake_deliver(self, user_id, platform, contact_id, content, errors=None, receipt=None, conversation_id=None):
+        return True
+
+    import app.services.smartflow.conversation.delivery as delivery_module
+
+    monkeypatch.setattr(delivery_module.ConversationDeliveryMixin, "_deliver_outbound", fake_deliver)
+
+    user_id = asyncio.run(_create_user(mock_db, email="meta-auto@example.com"))
+    asyncio.run(mock_db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"organization_id": user_id}}))
+    asyncio.run(
+        mock_db.organizations.insert_one({"organization_id": user_id, "social_auto_reply_enabled": True})
+    )
+    _connect(mock_db, user_id, "facebook_messenger", "PAGE1")
+
+    client.post(WEBHOOK.format(platform="facebook_messenger"), json=_messenger([_dm("m1", "what are your hours?")]))
+
+    assert len(answer_calls) == 1
+    assert answer_calls[0]["content"] == "what are your hours?"
+    reply = asyncio.run(mock_db.messages.find_one({"direction": "outbound", "content": "We're open 9-5 Mon-Fri!"}))
+    assert reply is not None
 
 
 def test_attachment_only_message_becomes_a_placeholder(client, mock_db, monkeypatch):

@@ -15,6 +15,10 @@ class SocialIntegrationUpsertRequest(BaseModel):
     provider_metadata: dict[str, Any] | None = None
 
 
+class SocialAutoReplyUpdateRequest(BaseModel):
+    enabled: bool
+
+
 class TelegramManualConnectRequest(BaseModel):
     bot_token: str = Field(min_length=10, max_length=255)
     bot_username: str | None = Field(default=None, max_length=255)
