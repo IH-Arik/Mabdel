@@ -19,7 +19,7 @@ python-multipart==0.0.20
 resend==2.24.0
 streamlit==1.54.0
 celery[redis]==5.4.0
-redis==5.2.1
+redis==6.2.0
 icalendar==6.1.0
 websockets==16.0
 
