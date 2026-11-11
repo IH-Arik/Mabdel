@@ -77,3 +77,43 @@ def test_a_platform_admin_can_still_manage_any_organizations_user(client, mock_d
     response = client.get(f"/api/v1/dashboard/admin/users/{target_id}", headers=admin_headers)
 
     assert response.status_code == 200
+
+
+def test_a_super_admin_can_create_an_admin_account(client, mock_db, monkeypatch):
+    import asyncio
+
+    from app.services.email_service import EmailService
+
+    async def fake_send(self, **kwargs):
+        return None
+
+    monkeypatch.setattr(EmailService, "send_subordinate_credentials_email", fake_send)
+
+    super_admin_headers, super_admin_id = _signup(
+        client, mock_db, "role-matrix-superadmin@example.com", "Super Admin"
+    )
+    grant_role(mock_db, "role-matrix-superadmin@example.com", "super_admin")
+    # create_subordinate_account reads the creator's role off the user document
+    # itself (primary_role/role), not the rbac_user_roles assignment table -
+    # matches how real super_admin accounts are provisioned (see
+    # scripts/create_platform_admins-style inserts: role/primary_role set directly).
+    from bson import ObjectId
+
+    asyncio.run(
+        mock_db.users.update_one(
+            {"_id": ObjectId(super_admin_id)},
+            {"$set": {"role": "super_admin", "primary_role": "super_admin"}},
+        )
+    )
+
+    response = client.post(
+        "/api/v1/dashboard/rbac/roles/create-subordinate",
+        headers=super_admin_headers,
+        json={
+            "original_email": "new-admin@example.com",
+            "full_name": "New Admin",
+            "target_role": "admin",
+        },
+    )
+
+    assert response.status_code == 200
