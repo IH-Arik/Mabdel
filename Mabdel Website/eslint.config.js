@@ -3,6 +3,9 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -21,4 +24,4 @@ export default defineConfig([
       'react-hooks/set-state-in-effect': 'off',
     },
   },
-])
+]);

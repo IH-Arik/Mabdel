@@ -127,7 +127,7 @@ class AuditLogModel(BaseModel):
 # ─── Account Creation Restrictions ─────────────────────────────────────────────
 
 ROLE_CREATION_MATRIX: dict[str, set[str]] = {
-    "super_admin": {"owner"},
+    "super_admin": {"admin", "owner"},
     "admin": {"owner"},
     "owner": {"manager", "staff", "assistant"},
     "manager": {"staff", "assistant"},
